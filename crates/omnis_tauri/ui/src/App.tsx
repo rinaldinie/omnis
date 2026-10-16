@@ -52,11 +52,14 @@ import {
   BookOpen,
   Volume2,
   VolumeX,
+  Globe,
 } from "lucide-react";
 import GameEditorModal from "./components/GameEditorModal";
 import MetadataResolutionModal from "./components/MetadataResolutionModal";
 import ListViewTable from "./components/ListViewTable";
 import VirtualKeyboard from "./components/VirtualKeyboard";
+import { SettingsModal } from "./components/SettingsModal";
+import { useTranslation } from "./i18n";
 import soundEffects from "./utils/soundEffects";
 import {
   SteamIcon,
@@ -504,6 +507,10 @@ export default function App() {
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
   const [statusMessage, setStatusMessage] = useState<string>("Pronto (Motore Tauri 2.0 / Big Picture)");
+
+  // I18N TRANSLATION HOOK
+  const { t, locale, currentLocaleInfo } = useTranslation();
+  const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
 
   // METADATA EDITOR & RESOLUTION MODALS STATES
   const [showEditorModal, setShowEditorModal] = useState<boolean>(false);
@@ -1405,7 +1412,7 @@ export default function App() {
                 }}
               >
                 <Minimize2 className="w-4 h-4" />
-                <span>Esci (F11 / Select)</span>
+                <span>{t('big_picture.exit_hint')}</span>
               </button>
 
               {/* Big Picture Window Controls */}
@@ -1537,7 +1544,7 @@ export default function App() {
                   }}
                 >
                   <Play className="w-5 h-5 fill-white" />
-                  <span>GIOCA ORA</span>
+                  <span>{t('big_picture.play_action')}</span>
                   <span className="w-6 h-6 rounded-full bg-black/30 flex items-center justify-center text-[11px] font-black border border-white/20">
                     A
                   </span>
@@ -1555,7 +1562,7 @@ export default function App() {
                   }}
                 >
                   <Info className="w-4 h-4" style={{ color: "var(--accent-primary)" }} />
-                  <span>Scheda Dettagli</span>
+                  <span>{t('big_picture.details_action')}</span>
                   <span className="w-5 h-5 rounded-full bg-black/30 flex items-center justify-center text-[10px] font-black border border-white/20">
                     X
                   </span>
@@ -1573,7 +1580,7 @@ export default function App() {
                   }}
                 >
                   <RefreshCw className={`w-4 h-4 ${isSyncing ? "animate-spin text-white" : ""}`} />
-                  <span>Sincronizza</span>
+                  <span>{t('common.refresh')}</span>
                 </button>
               </div>
             </div>
@@ -1584,8 +1591,8 @@ export default function App() {
                 className="flex items-center justify-between mb-3 text-xs font-bold"
                 style={{ color: "var(--text-muted)" }}
               >
-                <span>CATALOGO ({filteredGames.length} TITOLI)</span>
-                <span>Usa la croce direzionale o lo stick per navigare [ ◄ ► ]</span>
+                <span>{t('big_picture.catalog_title', { count: filteredGames.length })}</span>
+                <span>{t('big_picture.nav_hint')}</span>
               </div>
 
               <div
@@ -1929,10 +1936,10 @@ export default function App() {
                     backgroundColor: viewMode === "grid" ? "var(--accent-primary)" : "transparent",
                     color: viewMode === "grid" ? "#ffffff" : "var(--text-muted)",
                   }}
-                  title="Vista Griglia Locandine"
+                  title={t('views.grid')}
                 >
                   <LayoutGrid className="w-3.5 h-3.5" />
-                  <span className="hidden md:inline">Griglia</span>
+                  <span className="hidden md:inline">{t('views.grid')}</span>
                 </button>
                 <button
                   type="button"
@@ -1942,10 +1949,10 @@ export default function App() {
                     backgroundColor: viewMode === "details" ? "var(--accent-primary)" : "transparent",
                     color: viewMode === "details" ? "#ffffff" : "var(--text-muted)",
                   }}
-                  title="Vista Dettagli con Pannello Split"
+                  title={t('views.details')}
                 >
                   <PanelLeft className="w-3.5 h-3.5" />
-                  <span className="hidden md:inline">Dettagli</span>
+                  <span className="hidden md:inline">{t('views.details')}</span>
                 </button>
                 <button
                   type="button"
@@ -1955,10 +1962,10 @@ export default function App() {
                     backgroundColor: viewMode === "list" ? "var(--accent-primary)" : "transparent",
                     color: viewMode === "list" ? "#ffffff" : "var(--text-muted)",
                   }}
-                  title="Vista Tabella / Lista ad Alte Prestazioni"
+                  title={t('views.list')}
                 >
                   <TableProperties className="w-3.5 h-3.5" />
-                  <span className="hidden md:inline">Lista</span>
+                  <span className="hidden md:inline">{t('views.list')}</span>
                 </button>
               </div>
             </div>
@@ -1969,7 +1976,7 @@ export default function App() {
                 <Search className="w-4 h-4 absolute left-3 pointer-events-none" style={{ color: "var(--text-muted)" }} />
                 <input
                   type="text"
-                  placeholder="Cerca nella libreria..."
+                  placeholder={t('topbar.search_placeholder')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full h-8 pl-9 pr-8 rounded-lg text-xs focus:outline-none transition-all border"
@@ -2001,10 +2008,10 @@ export default function App() {
                   backgroundColor: "var(--accent-primary)",
                   boxShadow: `0 0 15px var(--accent-glow)`,
                 }}
-                title="Avvia Modalità Fullscreen Big Picture per Gamepad (F11)"
+                title="Avvia Modalità Fullscreen Big Picture (F11)"
               >
                 <Tv className="w-3.5 h-3.5" />
-                <span className="hidden xl:inline">Big Picture</span>
+                <span className="hidden xl:inline">{t('topbar.big_picture')}</span>
               </button>
 
               {/* Sound Effects Toggle */}
@@ -2017,14 +2024,34 @@ export default function App() {
                   borderColor: "var(--border-color)",
                   color: soundEnabled ? "var(--text-primary)" : "var(--text-muted)",
                 }}
-                title={soundEnabled ? "Effetti sonori attivi (Clicca per disattivare)" : "Effetti sonori mutati (Clicca per attivare)"}
+                title={soundEnabled ? "Audio ON (Click to mute)" : "Audio OFF (Click to unmute)"}
               >
                 {soundEnabled ? (
                   <Volume2 className="w-3.5 h-3.5 text-emerald-400" />
                 ) : (
                   <VolumeX className="w-3.5 h-3.5 text-slate-400" />
                 )}
-                <span className="hidden 2xl:inline">{soundEnabled ? "Audio ON" : "Audio OFF"}</span>
+                <span className="hidden 2xl:inline">{soundEnabled ? t('topbar.audio_on') : t('topbar.audio_off')}</span>
+              </button>
+
+              {/* Settings & Options (Language / Sound / Themes) */}
+              <button
+                type="button"
+                onClick={() => {
+                  soundEffects.playSelect();
+                  setShowSettingsModal(true);
+                }}
+                className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg border text-xs font-bold transition-all hover:bg-white/10 active:opacity-90 shadow-sm shrink-0"
+                style={{
+                  backgroundColor: "var(--bg-card)",
+                  borderColor: "var(--border-color)",
+                  color: "var(--text-primary)",
+                }}
+                title={t('topbar.options')}
+              >
+                <span className="text-sm leading-none">{currentLocaleInfo.flag}</span>
+                <Settings className="w-3.5 h-3.5" style={{ color: "var(--accent-primary)" }} />
+                <span className="hidden xl:inline">{t('topbar.options')}</span>
               </button>
 
               <button
@@ -2039,7 +2066,7 @@ export default function App() {
                 title="Gestione e Personalizzazione Temi"
               >
                 <Palette className="w-3.5 h-3.5" style={{ color: "var(--accent-primary)" }} />
-                <span className="hidden 2xl:inline">Temi</span>
+                <span className="hidden 2xl:inline">{t('topbar.themes')}</span>
               </button>
 
               <button
@@ -2057,7 +2084,7 @@ export default function App() {
                 title="Centro Plugin & Fonti Metadati (SteamGridDB, OpenCritic, Steam)"
               >
                 <Puzzle className="w-3.5 h-3.5 text-indigo-400" />
-                <span className="hidden 2xl:inline">Plugin & Fonti</span>
+                <span className="hidden 2xl:inline">{t('topbar.plugins')}</span>
                 {providers.filter((p) => p.has_configured_key || !p.requires_api_key).length > 0 && (
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse ml-0.5" />
                 )}
@@ -2075,7 +2102,7 @@ export default function App() {
                 title="Aggiungi Gioco o Eseguibile Personalizzato (.exe)"
               >
                 <PlusCircle className="w-3.5 h-3.5 text-emerald-400" />
-                <span className="hidden lg:inline">Aggiungi</span>
+                <span className="hidden lg:inline">{t('topbar.add_game')}</span>
               </button>
 
               {selectedGame && (
@@ -2094,7 +2121,7 @@ export default function App() {
                   title={`Modifica manualmente le informazioni di '${selectedGame.title}'`}
                 >
                   <Pencil className="w-3.5 h-3.5 text-indigo-400" />
-                  <span className="hidden lg:inline">Modifica Info</span>
+                  <span className="hidden lg:inline">{t('topbar.edit_info')}</span>
                 </button>
               )}
 
@@ -2456,7 +2483,7 @@ export default function App() {
                   <div className="flex items-center gap-2">
                     <Layers className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
                     <span className="text-[11px] font-bold" style={{ color: "var(--text-muted)" }}>
-                      Raggruppa:
+                      {t('views.group_by')}
                     </span>
                     <select
                       value={groupBy}
@@ -2468,20 +2495,20 @@ export default function App() {
                         color: "var(--text-primary)",
                       }}
                     >
-                      <option value="none">Nessun raggruppamento</option>
-                      <option value="library">Store / Piattaforma</option>
-                      <option value="is_installed">Stato installazione</option>
-                      <option value="genre">Genere principale</option>
-                      <option value="developer">Sviluppatore</option>
-                      <option value="release_year">Anno di rilascio</option>
-                      <option value="completion_status">Stato completamento</option>
+                      <option value="none">{t('groups.none')}</option>
+                      <option value="library">{t('groups.library')}</option>
+                      <option value="is_installed">{t('groups.is_installed')}</option>
+                      <option value="genre">{t('groups.genre')}</option>
+                      <option value="developer">{t('groups.developer')}</option>
+                      <option value="release_year">{t('groups.release_year')}</option>
+                      <option value="completion_status">{t('groups.completion_status')}</option>
                     </select>
                   </div>
 
                   <div className="h-4 w-[1px]" style={{ backgroundColor: "var(--border-color)" }} />
 
                   <span className="text-[11px] font-semibold" style={{ color: "var(--text-muted)" }}>
-                    {filteredGames.length} {filteredGames.length === 1 ? "titolo trovato" : "titoli trovati"}
+                    {t('topbar.filtered_count', { count: filteredGames.length })}
                   </span>
                 </div>
 
@@ -2884,7 +2911,7 @@ export default function App() {
                         }}
                       >
                         <ArrowLeft className="w-3.5 h-3.5" style={{ color: "var(--accent-primary)" }} />
-                        <span>Torna alla Griglia</span>
+                        <span>{t('game_details.back_to_grid')}</span>
                       </button>
 
                       <div
@@ -2999,7 +3026,7 @@ export default function App() {
                               }}
                             >
                               <Play className="w-4 h-4 fill-white" />
-                              <span>{selectedGame.is_installed ? "GIOCA ORA" : "INSTALLA ORA"}</span>
+                              <span>{selectedGame.is_installed ? t('game_details.play_now') : t('game_details.install_now')}</span>
                             </button>
 
                             <button
@@ -3018,7 +3045,7 @@ export default function App() {
                                 }`}
                               />
                               <span>
-                                {isEnrichingSingle ? "Arricchimento..." : "Arricchisci con Pipeline"}
+                                {isEnrichingSingle ? t('game_details.enriching') : t('game_details.enrich_pipeline')}
                               </span>
                             </button>
 
@@ -3035,7 +3062,7 @@ export default function App() {
                               title="Modifica manualmente tutti i metadati, immagini, percorsi e azioni di avvio"
                             >
                               <Pencil className="w-4 h-4 text-indigo-400" />
-                              <span>Modifica Informazioni (Manuale)</span>
+                              <span>{t('game_details.edit_manual')}</span>
                             </button>
 
                             <button
@@ -3051,7 +3078,7 @@ export default function App() {
                               title="Cerca e risolvi metadati da Steam, SteamGridDB o OpenCritic"
                             >
                               <Search className="w-3.5 h-3.5 text-sky-400" />
-                              <span>Identifica Metadati</span>
+                              <span>{t('game_details.identify_metadata')}</span>
                             </button>
                           </div>
                         </div>
@@ -3073,10 +3100,10 @@ export default function App() {
                           style={{ color: "var(--text-muted)" }}
                         >
                           <BookOpen className="w-3.5 h-3.5 text-indigo-400" />
-                          <span>Sinossi & Descrizione</span>
+                          <span>{t('game_details.description')}</span>
                         </span>
                         <p className="text-sm leading-relaxed" style={{ color: "var(--text-primary)" }}>
-                          {selectedGame.description || "Nessuna descrizione disponibile per questo titolo."}
+                          {selectedGame.description || t('game_details.no_description')}
                         </p>
                       </div>
 
@@ -3093,7 +3120,7 @@ export default function App() {
                             className="text-[10px] font-bold uppercase"
                             style={{ color: "var(--text-muted)" }}
                           >
-                            Serie
+                            {t('game_details.series')}
                           </span>
                           <p className="text-xs font-black text-white truncate">
                             {selectedGame.series || "N/A"}
@@ -3111,7 +3138,7 @@ export default function App() {
                             className="text-[10px] font-bold uppercase"
                             style={{ color: "var(--text-muted)" }}
                           >
-                            Sviluppatore
+                            {t('game_details.developers')}
                           </span>
                           <p className="text-xs font-black text-white truncate">
                             {selectedGame.developers.join(", ") || "N/A"}
@@ -3129,7 +3156,7 @@ export default function App() {
                             className="text-[10px] font-bold uppercase"
                             style={{ color: "var(--text-muted)" }}
                           >
-                            Generi
+                            {t('game_details.genres')}
                           </span>
                           <p className="text-xs font-black text-white truncate">
                             {selectedGame.genres.join(", ") || "N/A"}
@@ -3147,7 +3174,7 @@ export default function App() {
                             className="text-[10px] font-bold uppercase"
                             style={{ color: "var(--text-muted)" }}
                           >
-                            Data di Uscita
+                            {t('game_details.release_date')}
                           </span>
                           <p className="text-xs font-black text-white truncate">
                             {selectedGame.release_date || "N/A"}
@@ -3165,7 +3192,7 @@ export default function App() {
                             className="text-[10px] font-bold uppercase"
                             style={{ color: "var(--text-muted)" }}
                           >
-                            Tempo Giocato
+                            {t('game_details.playtime')}
                           </span>
                           <p className="text-xs font-black text-emerald-400 truncate">
                             {selectedGame.playtime_formatted}
@@ -3183,10 +3210,10 @@ export default function App() {
                             className="text-[10px] font-bold uppercase"
                             style={{ color: "var(--text-muted)" }}
                           >
-                            Stato Completamento
+                            {t('groups.completion_status')}
                           </span>
                           <p className="text-xs font-black text-indigo-400 truncate">
-                            {selectedGame.completion_status || "Non giocato"}
+                            {selectedGame.completion_status || t('game_details.not_played')}
                           </p>
                         </div>
 
@@ -3201,7 +3228,7 @@ export default function App() {
                             className="text-[10px] font-bold uppercase"
                             style={{ color: "var(--text-muted)" }}
                           >
-                            Voto Critica
+                            {t('game_details.critic_score')}
                           </span>
                           <p className="text-xs font-black text-amber-400 truncate">
                             {selectedGame.critic_score ? `★ ${selectedGame.critic_score}` : "N/A"}
@@ -3219,7 +3246,7 @@ export default function App() {
                             className="text-[10px] font-bold uppercase"
                             style={{ color: "var(--text-muted)" }}
                           >
-                            Publisher
+                            {t('game_details.publishers')}
                           </span>
                           <p className="text-xs font-black text-white truncate">
                             {(selectedGame.publishers && selectedGame.publishers.join(", ")) || "N/A"}
@@ -3241,7 +3268,7 @@ export default function App() {
                             style={{ color: "var(--text-muted)" }}
                           >
                             <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-400" />
-                            <span>Note del Giocatore</span>
+                            <span>{t('game_details.player_notes')}</span>
                           </span>
                           <button
                             onClick={() => {
@@ -3250,7 +3277,7 @@ export default function App() {
                             }}
                             className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300 transition-colors"
                           >
-                            Modifica note
+                            {t('common.edit')}
                           </button>
                         </div>
                         <p className="text-xs leading-relaxed whitespace-pre-wrap text-slate-300">
@@ -3273,7 +3300,7 @@ export default function App() {
                             style={{ color: "var(--text-muted)" }}
                           >
                             <ExternalLink className="w-3.5 h-3.5 text-indigo-400" />
-                            <span>Collegamenti Personalizzati</span>
+                            <span>{t('game_details.custom_links')}</span>
                           </span>
                           <div className="flex flex-wrap gap-2.5 pt-1">
                             {selectedGame.custom_links.map((lnk, idx) => (
@@ -4647,6 +4674,16 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* SETTINGS & OPTIONS MODAL */}
+      <SettingsModal
+        isOpen={showSettingsModal}
+        onClose={() => setShowSettingsModal(false)}
+        soundEnabled={soundEnabled}
+        onToggleSound={handleToggleSound}
+        onOpenThemes={() => setShowThemeModal(true)}
+        currentThemeName={currentTheme.name}
+      />
     </div>
   );
 }
