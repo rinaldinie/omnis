@@ -529,7 +529,7 @@ export default function ListViewTable({
                             e.stopPropagation();
                             onLaunchGame(game.id);
                           }}
-                          className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold text-white transition-all transform hover:scale-105 active:scale-95 shadow-sm"
+                          className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold text-white transition-all hover:brightness-110 active:opacity-90 shadow-sm"
                           style={{
                             backgroundColor: "var(--accent-primary)",
                             boxShadow: `0 0 10px var(--accent-glow)`,

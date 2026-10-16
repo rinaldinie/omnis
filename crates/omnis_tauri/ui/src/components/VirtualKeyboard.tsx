@@ -480,7 +480,7 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
                     } ${
                       isSelected
                         ? "scale-105 z-20 text-white shadow-2xl ring-4 ring-white/30"
-                        : "text-slate-200 hover:text-white hover:scale-102 border opacity-90 hover:opacity-100"
+                        : "text-slate-200 hover:text-white hover:bg-white/20 hover:border-white/40 border opacity-90 hover:opacity-100"
                     }`}
                     style={{
                       backgroundColor: isSelected
@@ -563,7 +563,7 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
                 soundEffects.playSelect();
                 onSubmit();
               }}
-              className="px-6 py-2 rounded-xl text-xs font-black text-white shadow-lg transition-transform transform active:scale-95"
+              className="px-6 py-2 rounded-xl text-xs font-black text-white shadow-lg transition-all hover:brightness-110 active:opacity-90"
               style={{
                 backgroundColor: "var(--accent-primary)",
                 boxShadow: `0 0 15px var(--accent-glow)`,

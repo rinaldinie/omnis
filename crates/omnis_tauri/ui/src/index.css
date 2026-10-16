@@ -27,6 +27,14 @@ body {
   user-select: none;
 }
 
+button, a, input, select, textarea {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;

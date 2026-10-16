@@ -340,7 +340,7 @@ export default function MetadataResolutionModal({
           <button
             onClick={() => handleSearch(searchTerm, providerId)}
             disabled={isSearching || !searchTerm.trim()}
-            className="w-full md:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-medium text-white shadow-md transition-all active:scale-95 disabled:opacity-50"
+            className="w-full md:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-medium text-white shadow-md transition-all hover:brightness-110 active:opacity-90 disabled:opacity-50"
             style={{
               backgroundColor: "var(--accent-primary)",
               boxShadow: "0 0 15px var(--accent-glow)",
@@ -408,7 +408,7 @@ export default function MetadataResolutionModal({
                       onClick={() => setSelectedCandidate(cand)}
                       className={`p-3.5 rounded-2xl border cursor-pointer transition-all flex gap-4 items-start ${
                         isSelected
-                          ? "ring-2 ring-indigo-500 shadow-lg scale-[1.01]"
+                          ? "ring-2 ring-indigo-500 shadow-lg"
                           : "hover:border-slate-600 opacity-90 hover:opacity-100"
                       }`}
                       style={{
@@ -643,7 +643,7 @@ export default function MetadataResolutionModal({
             <button
               onClick={handleApply}
               disabled={!selectedCandidate || selectedFields.length === 0 || isApplying}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-medium text-white shadow-xl transition-all transform active:scale-95 disabled:opacity-50"
+              className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-medium text-white shadow-xl transition-all hover:brightness-110 active:opacity-90 disabled:opacity-50"
               style={{
                 backgroundColor: "var(--accent-primary)",
                 boxShadow: "0 0 20px var(--accent-glow)",
