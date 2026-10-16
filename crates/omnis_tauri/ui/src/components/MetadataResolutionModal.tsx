@@ -15,6 +15,7 @@ import {
   Gamepad2,
   Layers,
 } from "lucide-react";
+import { useTranslation } from "../i18n";
 
 export interface MetadataCandidateDto {
   provider_id: string;
@@ -123,6 +124,7 @@ export default function MetadataResolutionModal({
   game,
   onApply,
 }: MetadataResolutionModalProps) {
+  const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [providerId, setProviderId] = useState<string>("all");
   const [candidates, setCandidates] = useState<MetadataCandidateDto[]>([]);
@@ -275,7 +277,7 @@ export default function MetadataResolutionModal({
             </div>
             <div>
               <h2 className="text-lg font-semibold tracking-wide text-white">
-                Risoluzione & Identificazione Metadati
+                {t('game_details.identify_metadata')}
               </h2>
               <p className="text-xs" style={{ color: "var(--text-muted)" }}>
                 Titolo attuale: <span className="font-medium text-white">{game.title}</span> ({game.library})
@@ -351,7 +353,7 @@ export default function MetadataResolutionModal({
             ) : (
               <Search className="w-4 h-4" />
             )}
-            <span>Cerca</span>
+            <span>{isSearching ? t('common.loading') : t('common.search')}</span>
           </button>
         </div>
 
@@ -637,7 +639,7 @@ export default function MetadataResolutionModal({
               className="px-5 py-2.5 rounded-xl border text-xs font-medium text-slate-300 hover:bg-white/5 transition-all"
               style={{ borderColor: "var(--border-color)" }}
             >
-              Annulla
+              {t('common.cancel')}
             </button>
 
             <button

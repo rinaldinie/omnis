@@ -20,6 +20,7 @@ import {
   FolderOpen,
   Folder,
 } from "lucide-react";
+import { useTranslation } from "../i18n";
 
 export interface CustomLink {
   title: string;
@@ -74,6 +75,7 @@ export default function GameEditorModal({
   game,
   onSave,
 }: GameEditorModalProps) {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<
     "general" | "description" | "media" | "actions" | "links"
   >("general");
@@ -336,7 +338,7 @@ export default function GameEditorModal({
             </div>
             <div>
               <h2 className="text-base font-semibold tracking-normal text-white">
-                Modifica Scheda Gioco
+                {t('editor_modal.title')}
               </h2>
               <p className="text-xs" style={{ color: "var(--text-muted)" }}>
                 {formData.title || game.title} (ID: {game.id})
@@ -374,7 +376,7 @@ export default function GameEditorModal({
             }}
           >
             <Sliders className="w-4 h-4" />
-            <span>Generale</span>
+            <span>{t('editor_modal.tab_general')}</span>
           </button>
 
           <button
@@ -391,7 +393,7 @@ export default function GameEditorModal({
             }}
           >
             <FileText className="w-4 h-4" />
-            <span>Descrizione & Note</span>
+            <span>{t('editor_modal.tab_notes')}</span>
           </button>
 
           <button
@@ -408,7 +410,7 @@ export default function GameEditorModal({
             }}
           >
             <ImageIcon className="w-4 h-4" />
-            <span>Media</span>
+            <span>{t('editor_modal.tab_media')}</span>
           </button>
 
           <button
@@ -425,7 +427,7 @@ export default function GameEditorModal({
             }}
           >
             <Terminal className="w-4 h-4" />
-            <span>Azioni di Avvio ({formData.play_actions.length})</span>
+            <span>{t('editor_modal.tab_launch')} ({formData.play_actions.length})</span>
           </button>
 
           <button
@@ -442,7 +444,7 @@ export default function GameEditorModal({
             }}
           >
             <LinkIcon className="w-4 h-4" />
-            <span>Collegamenti ({formData.custom_links.length})</span>
+            <span>{t('editor_modal.tab_links')} ({formData.custom_links.length})</span>
           </button>
         </div>
 
@@ -1304,7 +1306,7 @@ export default function GameEditorModal({
               borderColor: "var(--border-color)",
             }}
           >
-            Annulla
+            {t('common.cancel')}
           </button>
 
           <button
@@ -1322,7 +1324,7 @@ export default function GameEditorModal({
             ) : (
               <Save className="w-4 h-4" />
             )}
-            <span>{isSaving ? "Salvataggio..." : "Salva Modifiche"}</span>
+            <span>{isSaving ? t('common.loading') : t('editor_modal.save_changes')}</span>
           </button>
         </div>
       </div>

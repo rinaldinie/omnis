@@ -10,6 +10,7 @@ import {
   Gamepad2,
 } from "lucide-react";
 import soundEffects from "../utils/soundEffects";
+import { useTranslation } from "../i18n";
 
 export interface VirtualKeyboardProps {
   isOpen: boolean;
@@ -107,8 +108,10 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
   onChange,
   onSubmit,
   onClose,
-  placeholder = "Cerca nella libreria...",
+  placeholder,
 }) => {
+  const { t } = useTranslation();
+  const effectivePlaceholder = placeholder || t('topbar.search_placeholder');
   // Cursor position in [row, col]
   const [cursor, setCursor] = useState<[number, number]>([1, 0]); // Start on 'Q'
   const lastGamepadNav = useRef<number>(0);
@@ -435,7 +438,7 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
                 </>
               ) : (
                 <span className="text-slate-500 font-normal italic select-none">
-                  {placeholder}
+                  {effectivePlaceholder}
                 </span>
               )}
             </div>
@@ -461,6 +464,10 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
             <div key={rIdx} className="flex items-center gap-2 md:gap-2.5 w-full">
               {row.map((key, cIdx) => {
                 const isSelected = cursor[0] === rIdx && cursor[1] === cIdx;
+                let displayLabel = key.label;
+                if (key.action === "backspace") displayLabel = t('common.delete');
+                else if (key.action === "clear") displayLabel = t('common.delete');
+                else if (key.action === "close") displayLabel = `${t('common.close')} (B)`;
 
                 return (
                   <button
@@ -495,7 +502,7 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
                     }}
                   >
                     {key.icon}
-                    <span>{key.label}</span>
+                    <span>{displayLabel}</span>
                   </button>
                 );
               })}
@@ -540,7 +547,7 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
               <kbd className="w-5 h-5 rounded-full bg-black/40 border border-white/20 flex items-center justify-center text-[10px] text-white">
                 B
               </kbd>
-              <span>Chiudi</span>
+              <span>{t('common.close')}</span>
             </span>
           </div>
 
@@ -556,7 +563,7 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
                 color: "var(--text-primary)",
               }}
             >
-              Annulla (Esc)
+              {t('common.cancel')} (Esc)
             </button>
             <button
               onClick={() => {
@@ -569,7 +576,7 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
                 boxShadow: `0 0 15px var(--accent-glow)`,
               }}
             >
-              Cerca (Invio)
+              {t('common.search')} (↵)
             </button>
           </div>
         </div>

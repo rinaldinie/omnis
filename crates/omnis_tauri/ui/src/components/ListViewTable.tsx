@@ -12,6 +12,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { StoreBadge } from "./StoreBadge";
+import { useTranslation, TranslationSchema } from "../i18n";
 
 export interface GameItem {
   id: string;
@@ -126,6 +127,7 @@ export default function ListViewTable({
   className = "",
   isGroupedChild = false,
 }: ListViewTableProps) {
+  const { t } = useTranslation();
   const [sortField, setSortField] = useState<SortField>("title");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
@@ -200,7 +202,7 @@ export default function ListViewTable({
 
   const formatPlaytime = (seconds: number, formatted: string) => {
     if (!seconds || seconds <= 0) {
-      return <span style={{ color: "var(--text-muted)", opacity: 0.7 }}>Non giocato</span>;
+      return <span style={{ color: "var(--text-muted)", opacity: 0.7 }}>{t('game_details.not_played')}</span>;
     }
     return <span className="font-mono text-emerald-400 font-semibold">{formatted}</span>;
   };
@@ -243,6 +245,17 @@ export default function ListViewTable({
       dot: "#94a3b8",
     };
 
+    const statusMap: Record<string, string> = {
+      NotPlayed: t('completion_status.not_played'),
+      Playing: t('completion_status.playing'),
+      Beaten: t('completion_status.beaten'),
+      Completed: t('completion_status.completed'),
+      Abandoned: t('completion_status.abandoned'),
+      Backlog: t('completion_status.backlog'),
+      PlanToPlay: t('completion_status.plan_to_play'),
+    };
+    const displayLabel = statusMap[key] || cfg.label;
+
     return (
       <span
         className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold border tracking-wide whitespace-nowrap"
@@ -256,7 +269,7 @@ export default function ListViewTable({
           className="w-1.5 h-1.5 rounded-full shrink-0"
           style={{ backgroundColor: cfg.dot }}
         />
-        <span>{cfg.label}</span>
+        <span>{displayLabel}</span>
       </span>
     );
   };
@@ -283,7 +296,7 @@ export default function ListViewTable({
             }}
           >
             {/* 1. Icon */}
-            <th className="py-2.5 px-3 w-12 text-center">Icona</th>
+            <th className="py-2.5 px-3 w-12 text-center">{t('table.cover')}</th>
 
             {/* 2. Title */}
             <th
@@ -291,7 +304,7 @@ export default function ListViewTable({
               className="py-2.5 px-3.5 cursor-pointer hover:text-white transition-colors group"
             >
               <div className="flex items-center gap-1">
-                <span>Titolo</span>
+                <span>{t('table.title')}</span>
                 {renderSortArrow("title")}
               </div>
             </th>
@@ -302,7 +315,7 @@ export default function ListViewTable({
               className="py-2.5 px-3.5 cursor-pointer hover:text-white transition-colors group w-28"
             >
               <div className="flex items-center gap-1">
-                <span>Store</span>
+                <span>{t('table.platform')}</span>
                 {renderSortArrow("library")}
               </div>
             </th>
@@ -313,7 +326,7 @@ export default function ListViewTable({
               className="py-2.5 px-3.5 cursor-pointer hover:text-white transition-colors group w-28"
             >
               <div className="flex items-center gap-1">
-                <span>Stato</span>
+                <span>{t('table.status')}</span>
                 {renderSortArrow("is_installed")}
               </div>
             </th>
@@ -324,7 +337,7 @@ export default function ListViewTable({
               className="py-2.5 px-3.5 cursor-pointer hover:text-white transition-colors group w-32"
             >
               <div className="flex items-center gap-1">
-                <span>Tempo Gioco</span>
+                <span>{t('table.playtime')}</span>
                 {renderSortArrow("playtime_seconds")}
               </div>
             </th>
@@ -335,7 +348,7 @@ export default function ListViewTable({
               className="py-2.5 px-3.5 cursor-pointer hover:text-white transition-colors group w-24 text-center"
             >
               <div className="flex items-center justify-center gap-1">
-                <span>Voto</span>
+                <span>{t('table.critic_score')}</span>
                 {renderSortArrow("critic_score")}
               </div>
             </th>
@@ -346,7 +359,7 @@ export default function ListViewTable({
               className="py-2.5 px-3.5 cursor-pointer hover:text-white transition-colors group w-36"
             >
               <div className="flex items-center gap-1">
-                <span>Serie</span>
+                <span>{t('table.series')}</span>
                 {renderSortArrow("series")}
               </div>
             </th>
@@ -357,7 +370,7 @@ export default function ListViewTable({
               className="py-2.5 px-3.5 cursor-pointer hover:text-white transition-colors group w-36"
             >
               <div className="flex items-center gap-1">
-                <span>Completamento</span>
+                <span>{t('table.completion')}</span>
                 {renderSortArrow("completion_status")}
               </div>
             </th>
@@ -368,13 +381,13 @@ export default function ListViewTable({
               className="py-2.5 px-3.5 cursor-pointer hover:text-white transition-colors group w-32"
             >
               <div className="flex items-center gap-1">
-                <span>Uscita</span>
+                <span>{t('table.release_date')}</span>
                 {renderSortArrow("release_date")}
               </div>
             </th>
 
             {/* 10. Actions */}
-            <th className="py-2.5 px-3.5 text-right pr-4 w-44">Azioni</th>
+            <th className="py-2.5 px-3.5 text-right pr-4 w-44">{t('table.actions')}</th>
           </tr>
         </thead>
 
@@ -390,7 +403,7 @@ export default function ListViewTable({
                 className="py-8 text-center text-xs"
                 style={{ color: "var(--text-muted)" }}
               >
-                Nessun gioco corrisponde ai criteri attuali
+                {t('table.no_games_found')}
               </td>
             </tr>
           ) : (
@@ -534,10 +547,10 @@ export default function ListViewTable({
                             backgroundColor: "var(--accent-primary)",
                             boxShadow: `0 0 10px var(--accent-glow)`,
                           }}
-                          title="Avvia gioco"
+                          title={t('common.play')}
                         >
                           <Play className="w-3 h-3 fill-white" />
-                          <span>Gioca</span>
+                          <span>{t('common.play')}</span>
                         </button>
                       ) : (
                         <button
@@ -547,9 +560,9 @@ export default function ListViewTable({
                           }}
                           className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold text-slate-400 hover:text-white border border-slate-700/60 hover:border-slate-500 transition-colors"
                           style={{ backgroundColor: "var(--bg-surface)" }}
-                          title="Installa o visualizza dettagli"
+                          title={t('common.install')}
                         >
-                          <span>Installa</span>
+                          <span>{t('common.install')}</span>
                         </button>
                       )}
 
