@@ -1,0 +1,74 @@
+# =============================================================================
+# Omnis Game Library - Git Ignore Configuration
+# =============================================================================
+
+# --- Rust & Cargo ---
+/target/
+target/
+**/target/
+**/*.rs.bk
+*.pdb
+
+# --- Node & Frontend (Vite / React) ---
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+.vite/
+**/.vite/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.eslintcache
+
+# --- Tauri Build Artifacts ---
+crates/omnis_tauri/target/
+
+# --- Local Databases & Runtime Cache ---
+data/
+**/data/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.db
+*.db-shm
+*.db-wal
+*.log
+
+# --- External References & Large Archives ---
+Playnite-master/
+Playnite-master.zip
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# --- Rigid Rules: Documentation, Plans & Design Documents ---
+docs/
+**/docs/
+AI_IMPLEMENTATION_SPEC.md
+*.plan.md
+*implementation_plan*
+*design_document*
+
+# --- Environment & Credentials ---
+.env
+.env.*
+!.env.example
+
+# --- IDE & Editor Settings ---
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+*.swp
+*.swo
+*~
+*.sublime-*
+
+# --- Operating System Files ---
+.DS_Store
+Thumbs.db
+desktop.ini
