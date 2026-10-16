@@ -3748,7 +3748,7 @@ export default function App() {
       )}
 
       {/* =========================================================================
-          DIAMOND STANDARD METADATA PLUGIN & PIPELINE MODAL
+          METADATA PLUGIN & PIPELINE MODAL
       ========================================================================= */}
       {showPluginModal && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-6">
@@ -3774,9 +3774,6 @@ export default function App() {
                 <div>
                   <h3 className="text-lg font-black text-white flex items-center gap-2">
                     <span>Centro Plugin & Fonti Metadati</span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-cyan-500 to-indigo-500 text-white shadow-sm">
-                      Diamond Standard
-                    </span>
                   </h3>
                   <p className="text-xs" style={{ color: "var(--text-muted)" }}>
                     Gestisci fonti multiple, configura API Key personali e personalizza la cascata di fallback
