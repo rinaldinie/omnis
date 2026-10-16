@@ -1,0 +1,19 @@
+[package]
+name = "omnis_plugin_steam"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Steam library importer plugin for Omnis Game Library"
+
+[dependencies]
+omnis_sdk = { path = "../../crates/omnis_sdk" }
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+async-trait.workspace = true
+reqwest.workspace = true
+tracing.workspace = true
+chrono.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+winreg = "0.56"

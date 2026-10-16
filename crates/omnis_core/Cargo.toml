@@ -1,0 +1,31 @@
+[package]
+name = "omnis_core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "High-performance Core Engine for Omnis Game Library"
+
+[dependencies]
+omnis_sdk = { path = "../omnis_sdk" }
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+tokio.workspace = true
+async-trait.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+rusqlite.workspace = true
+chrono.workspace = true
+reqwest.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.58", features = [
+    "Win32_Foundation",
+    "Win32_System_JobObjects",
+    "Win32_System_Threading",
+    "Win32_Security",
+    "Win32_System_IO",
+] }
+
+[dev-dependencies]
+omnis_plugin_epic = { path = "../../plugins/omnis_plugin_epic" }

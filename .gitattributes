@@ -1,0 +1,38 @@
+# =============================================================================
+# Omnis Game Library - Git Attributes Configuration
+# =============================================================================
+
+# Default to auto text handling with LF line endings
+* text=auto eol=lf
+
+# Windows specific scripts require CRLF line endings
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Source Code
+*.rs text diff=rust eol=lf
+*.toml text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.css text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.js text eol=lf
+*.jsx text eol=lf
+*.html text eol=lf
+*.slint text eol=lf
+
+# Binary Assets
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.bmp binary
+*.exe binary
+*.dll binary
+*.so binary
+*.dylib binary
+*.zip binary

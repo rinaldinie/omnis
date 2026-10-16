@@ -1,0 +1,28 @@
+[package]
+name = "omnis_tauri"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Tauri UI for Omnis Game Library"
+
+[[bin]]
+name = "omnis_tauri"
+path = "src/main.rs"
+
+[dependencies]
+tauri = { version = "2.1", features = ["protocol-asset"] }
+omnis_core = { path = "../omnis_core" }
+omnis_sdk = { path = "../omnis_sdk" }
+omnis_plugin_steam = { path = "../../plugins/omnis_plugin_steam" }
+omnis_plugin_epic = { path = "../../plugins/omnis_plugin_epic" }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+uuid = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+base64 = "0.22"
+rfd = "0.15"
+
+[build-dependencies]
+tauri-build = { version = "2.1", features = [] }

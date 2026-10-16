@@ -1,0 +1,19 @@
+[package]
+name = "omnis_cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "CLI driver for Omnis Game Library"
+
+[[bin]]
+name = "omnis"
+path = "src/main.rs"
+
+[dependencies]
+omnis_sdk = { path = "../omnis_sdk" }
+omnis_core = { path = "../omnis_core" }
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+uuid.workspace = true
+chrono.workspace = true
