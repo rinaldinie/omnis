@@ -1,0 +1,78 @@
+name: Release Multi-Platform Installers
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-and-release:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: 'windows-latest'
+            target: 'x86_64-pc-windows-msvc'
+            args: '--bundles nsis,msi'
+          - platform: 'ubuntu-22.04'
+            target: 'x86_64-unknown-linux-gnu'
+            args: '--bundles deb,appimage'
+          - platform: 'macos-latest'
+            target: 'x86_64-apple-darwin'
+            args: '--bundles dmg,app'
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: 'crates/omnis_tauri/ui/package-lock.json'
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install Linux build dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libayatana-appindicator3-dev
+
+      - name: Install Frontend Dependencies & Build UI
+        run: |
+          cd crates/omnis_tauri/ui
+          npm ci
+          npm run build
+
+      - name: Build and Package with Tauri Action
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: './crates/omnis_tauri'
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Omnis Game Library ${{ github.ref_name }}'
+          releaseBody: |
+            ## Omnis Game Library ${{ github.ref_name }}
+
+            ### Installers inclusi:
+            - **Windows**: Installer setup `.exe` (NSIS) e pacchetto `.msi`
+            - **Linux**: Pacchetto `.deb` (Debian/Ubuntu/Mint) e `.AppImage` (universale)
+            - **macOS**: Immagine disco `.dmg`
+          releaseDraft: false
+          prerelease: false
+          args: ${{ matrix.args }}
