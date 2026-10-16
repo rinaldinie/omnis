@@ -25,5 +25,43 @@
         "scope": ["**"]
       }
     }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.png",
+      "icons/icon.ico"
+    ],
+    "shortDescription": "High-performance reactive game library manager",
+    "longDescription": "Omnis Game Library connects multiple platforms (Steam, Epic Games, Custom) with an immersive Big Picture mode and extensive metadata enrichment.",
+    "copyright": "Copyright © 2026 Omnis Game Library Team",
+    "category": "Game",
+    "windows": {
+      "nsis": {
+        "installerIcon": "icons/icon.ico",
+        "installMode": "currentUser"
+      },
+      "wix": {
+        "language": "it-IT"
+      }
+    },
+    "linux": {
+      "deb": {
+        "depends": [
+          "libwebkit2gtk-4.1-0 | libwebkit2gtk-4.0-37",
+          "libappindicator3-1"
+        ]
+      },
+      "appimage": {
+        "bundleMediaFramework": false
+      }
+    },
+    "macOS": {
+      "minimumSystemVersion": "10.15"
+    }
   }
 }
