@@ -1311,7 +1311,7 @@ export default function GameEditorModal({
             type="button"
             onClick={handleSave}
             disabled={isSaving || !formData.title.trim()}
-            className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-medium text-white shadow-xl transition-all transform active:scale-95 disabled:opacity-50"
+            className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-medium text-white shadow-xl transition-all hover:brightness-110 active:opacity-90 disabled:opacity-50"
             style={{
               backgroundColor: "var(--accent-primary)",
               boxShadow: "0 0 20px var(--accent-glow)",

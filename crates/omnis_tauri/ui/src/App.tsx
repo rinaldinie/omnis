@@ -1530,7 +1530,7 @@ export default function App() {
               <div className="flex items-center gap-4 pt-2">
                 <button
                   onClick={() => focusedGame && handleLaunch(focusedGame.id)}
-                  className="flex items-center gap-3 px-8 py-4 rounded-2xl text-base font-black text-white transition-all transform hover:scale-105 active:scale-95 shadow-2xl"
+                  className="flex items-center gap-3 px-8 py-4 rounded-2xl text-base font-black text-white transition-all hover:brightness-110 active:opacity-90 shadow-2xl"
                   style={{
                     backgroundColor: "var(--accent-primary)",
                     boxShadow: `0 0 30px var(--accent-glow)`,
@@ -1548,7 +1548,7 @@ export default function App() {
                     soundEffects.playSelect();
                     setShowFullscreenDetails(true);
                   }}
-                  className="flex items-center gap-2.5 px-6 py-4 rounded-2xl text-white text-sm font-bold border transition-all backdrop-blur-md"
+                  className="flex items-center gap-2.5 px-6 py-4 rounded-2xl text-white text-sm font-bold border transition-all hover:bg-white/10 active:opacity-90 backdrop-blur-md"
                   style={{
                     backgroundColor: "var(--bg-card)",
                     borderColor: "var(--border-color)",
@@ -1996,7 +1996,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={toggleBigPicture}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-extrabold text-white transition-all shadow-md transform hover:scale-105 active:scale-95 shrink-0"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-extrabold text-white transition-all shadow-md hover:brightness-110 active:opacity-90 shrink-0"
                 style={{
                   backgroundColor: "var(--accent-primary)",
                   boxShadow: `0 0 15px var(--accent-glow)`,
@@ -2011,7 +2011,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={handleToggleSound}
-                className="flex items-center gap-1 px-2 py-1.5 rounded-lg border text-xs font-bold transition-all shadow-sm hover:bg-white/10 shrink-0"
+                className="flex items-center gap-1 px-2 py-1.5 rounded-lg border text-xs font-bold transition-all shadow-sm hover:bg-white/10 active:opacity-90 shrink-0"
                 style={{
                   backgroundColor: "var(--bg-card)",
                   borderColor: "var(--border-color)",
@@ -2030,7 +2030,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => setShowThemeModal(true)}
-                className="flex items-center gap-1 px-2 py-1.5 rounded-lg border text-xs font-bold transition-all shrink-0"
+                className="flex items-center gap-1 px-2 py-1.5 rounded-lg border text-xs font-bold transition-all hover:bg-white/10 active:opacity-90 shrink-0"
                 style={{
                   backgroundColor: "var(--bg-card)",
                   borderColor: "var(--border-color)",
@@ -2048,7 +2048,7 @@ export default function App() {
                   loadProvidersAndConfig();
                   setShowPluginModal(true);
                 }}
-                className="flex items-center gap-1 px-2 py-1.5 rounded-lg border text-xs font-bold transition-all shadow-sm shrink-0"
+                className="flex items-center gap-1 px-2 py-1.5 rounded-lg border text-xs font-bold transition-all hover:bg-white/10 active:opacity-90 shadow-sm shrink-0"
                 style={{
                   backgroundColor: "var(--bg-card)",
                   borderColor: "var(--border-color)",
@@ -2066,7 +2066,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => setShowAddCustomModal(true)}
-                className="flex items-center gap-1 px-2 py-1.5 rounded-lg border text-xs font-bold transition-all hover:scale-105 active:scale-95 shadow-sm shrink-0"
+                className="flex items-center gap-1 px-2 py-1.5 rounded-lg border text-xs font-bold transition-all hover:bg-white/10 hover:border-slate-400 active:opacity-90 shadow-sm shrink-0"
                 style={{
                   backgroundColor: "var(--bg-card)",
                   borderColor: "var(--border-color)",
@@ -2085,7 +2085,7 @@ export default function App() {
                     setGameToEdit(selectedGame);
                     setShowEditorModal(true);
                   }}
-                  className="flex items-center gap-1 px-2 py-1.5 rounded-lg border text-xs font-bold transition-all hover:scale-105 active:scale-95 shadow-sm shrink-0"
+                  className="flex items-center gap-1 px-2 py-1.5 rounded-lg border text-xs font-bold transition-all hover:bg-white/10 hover:border-slate-400 active:opacity-90 shadow-sm shrink-0"
                   style={{
                     backgroundColor: "var(--bg-card)",
                     borderColor: "var(--border-color)",
@@ -2554,9 +2554,9 @@ export default function App() {
                             >
                               <div className="flex items-center gap-2.5">
                                 {isCollapsed ? (
-                                  <ChevronRight className="w-4 h-4 text-indigo-400 group-hover:scale-110 transition-transform" />
+                                  <ChevronRight className="w-4 h-4 text-indigo-400 group-hover:text-indigo-300 transition-colors" />
                                 ) : (
-                                  <ChevronDown className="w-4 h-4 text-indigo-400 group-hover:scale-110 transition-transform" />
+                                  <ChevronDown className="w-4 h-4 text-indigo-400 group-hover:text-indigo-300 transition-colors" />
                                 )}
                                 <span className="text-xs font-black uppercase tracking-wider text-white">
                                   {groupName}
@@ -2659,7 +2659,7 @@ export default function App() {
                                             e.stopPropagation();
                                             handleLaunch(game.id);
                                           }}
-                                          className="w-9 h-9 rounded-full bg-emerald-500/30 hover:bg-emerald-500/60 text-white border border-emerald-400/40 backdrop-blur-md shadow-xl flex items-center justify-center transition-all transform hover:scale-110 active:scale-95"
+                                          className="w-9 h-9 rounded-full bg-emerald-500/30 hover:bg-emerald-500/60 text-white border border-emerald-400/40 backdrop-blur-md shadow-xl flex items-center justify-center transition-all hover:brightness-125 active:opacity-80"
                                           title="Avvia Gioco"
                                         >
                                           <Play className="w-4 h-4 fill-white" />
@@ -2672,7 +2672,7 @@ export default function App() {
                                           setSelectedGame(game);
                                           setViewMode("details");
                                         }}
-                                        className="w-9 h-9 rounded-full bg-white/20 hover:bg-white/40 text-white border border-white/30 backdrop-blur-md shadow-xl flex items-center justify-center transition-all transform hover:scale-110 active:scale-95"
+                                        className="w-9 h-9 rounded-full bg-white/20 hover:bg-white/40 text-white border border-white/30 backdrop-blur-md shadow-xl flex items-center justify-center transition-all hover:brightness-125 active:opacity-80"
                                         title="Mostra Dettagli"
                                       >
                                         <Info className="w-4 h-4" />
@@ -2684,7 +2684,7 @@ export default function App() {
                                           setGameToEdit(game);
                                           setShowEditorModal(true);
                                         }}
-                                        className="w-9 h-9 rounded-full bg-indigo-500/25 hover:bg-indigo-500/50 text-indigo-200 hover:text-white border border-indigo-400/40 backdrop-blur-md shadow-xl flex items-center justify-center transition-all transform hover:scale-110 active:scale-95"
+                                        className="w-9 h-9 rounded-full bg-indigo-500/25 hover:bg-indigo-500/50 text-indigo-200 hover:text-white border border-indigo-400/40 backdrop-blur-md shadow-xl flex items-center justify-center transition-all hover:brightness-125 active:opacity-80"
                                         title="Modifica Informazioni (Manuale)"
                                       >
                                         <Pencil className="w-4 h-4" />
@@ -2876,7 +2876,7 @@ export default function App() {
                     >
                       <button
                         onClick={() => setViewMode("grid")}
-                        className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl border text-xs font-black transition-all hover:scale-105 active:scale-95 shadow-sm"
+                        className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl border text-xs font-black transition-all hover:bg-white/10 hover:border-slate-400 active:opacity-90 shadow-sm"
                         style={{
                           backgroundColor: "var(--bg-card)",
                           borderColor: "var(--border-color)",
@@ -2992,7 +2992,7 @@ export default function App() {
                           <div className="flex flex-wrap items-center gap-3 pt-2">
                             <button
                               onClick={() => handleLaunch(selectedGame.id)}
-                              className="flex items-center gap-2.5 px-6 py-3 rounded-xl font-black text-xs text-white shadow-xl transition-all transform hover:scale-105 active:scale-95"
+                              className="flex items-center gap-2.5 px-6 py-3 rounded-xl font-black text-xs text-white shadow-xl transition-all hover:brightness-110 active:opacity-90"
                               style={{
                                 backgroundColor: "var(--accent-primary)",
                                 boxShadow: `0 0 25px var(--accent-glow)`,
@@ -3005,7 +3005,7 @@ export default function App() {
                             <button
                               onClick={() => handleEnrichSingleGame(selectedGame.id)}
                               disabled={isEnrichingSingle}
-                              className="flex items-center gap-2 px-4 py-3 rounded-xl border text-xs font-bold text-white transition-all backdrop-blur-md transform hover:scale-105 active:scale-95"
+                              className="flex items-center gap-2 px-4 py-3 rounded-xl border text-xs font-bold text-white transition-all backdrop-blur-md hover:bg-white/15 hover:border-slate-400 active:opacity-90"
                               style={{
                                 backgroundColor: "var(--bg-card)",
                                 borderColor: "var(--border-color)",
@@ -3027,7 +3027,7 @@ export default function App() {
                                 setGameToEdit(selectedGame);
                                 setShowEditorModal(true);
                               }}
-                              className="flex items-center gap-2 px-4 py-3 rounded-xl border text-xs font-bold text-white transition-all backdrop-blur-md transform hover:scale-105 active:scale-95 shadow-md"
+                              className="flex items-center gap-2 px-4 py-3 rounded-xl border text-xs font-bold text-white transition-all backdrop-blur-md hover:bg-white/15 hover:border-indigo-400 active:opacity-90 shadow-md"
                               style={{
                                 backgroundColor: "var(--bg-card)",
                                 borderColor: "var(--accent-primary)",
@@ -3043,7 +3043,7 @@ export default function App() {
                                 setGameToResolve(selectedGame);
                                 setShowResolutionModal(true);
                               }}
-                              className="flex items-center gap-2 px-4 py-3 rounded-xl border text-xs font-bold text-white transition-all backdrop-blur-md transform hover:scale-105 active:scale-95"
+                              className="flex items-center gap-2 px-4 py-3 rounded-xl border text-xs font-bold text-white transition-all backdrop-blur-md hover:bg-white/15 hover:border-slate-400 active:opacity-90"
                               style={{
                                 backgroundColor: "var(--bg-card)",
                                 borderColor: "var(--border-color)",
@@ -3282,7 +3282,7 @@ export default function App() {
                                 href={lnk.url}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-bold text-white transition-all hover:bg-white/10 hover:scale-105 active:scale-95 shadow-sm"
+                                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-bold text-white transition-all hover:bg-white/15 hover:border-indigo-400 active:opacity-90 shadow-sm"
                                 style={{
                                   backgroundColor: "var(--bg-surface)",
                                   borderColor: "var(--border-color)",
@@ -3346,9 +3346,9 @@ export default function App() {
                           >
                             <div className="flex items-center gap-2.5">
                               {isCollapsed ? (
-                                <ChevronRight className="w-4 h-4 text-indigo-400 group-hover:scale-110 transition-transform" />
+                                <ChevronRight className="w-4 h-4 text-indigo-400 group-hover:text-indigo-300 transition-colors" />
                               ) : (
-                                <ChevronDown className="w-4 h-4 text-indigo-400 group-hover:scale-110 transition-transform" />
+                                <ChevronDown className="w-4 h-4 text-indigo-400 group-hover:text-indigo-300 transition-colors" />
                               )}
                               <span className="text-xs font-black uppercase tracking-wider text-white">
                                 {groupName}
@@ -4357,7 +4357,7 @@ export default function App() {
                       <button
                         onClick={handleRunMassivePipeline}
                         disabled={isPipelineEnriching}
-                        className="w-full py-3 rounded-xl font-black text-xs text-white shadow-lg transition-all flex items-center justify-center gap-2 transform hover:scale-[1.01] active:scale-[0.99]"
+                        className="w-full py-3 rounded-xl font-black text-xs text-white shadow-lg transition-all flex items-center justify-center gap-2 hover:brightness-110 active:opacity-90"
                         style={{
                           backgroundColor: "var(--accent-primary)",
                           boxShadow: `0 0 20px var(--accent-glow)`,
@@ -4634,7 +4634,7 @@ export default function App() {
                 <button
                   type="submit"
                   disabled={isAddingCustom}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium text-white shadow-lg transition-transform active:scale-95"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium text-white shadow-lg transition-all hover:brightness-110 active:opacity-90"
                   style={{ backgroundColor: "var(--accent-primary)" }}
                 >
                   <PlusCircle className="w-4 h-4" />
