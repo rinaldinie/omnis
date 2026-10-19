@@ -1,7 +1,7 @@
 use base64::prelude::*;
 use omnis_core::{
-    Database, EventBus, GameLauncher, LibraryCounts, MetadataCandidateDto, MetadataDownloader,
-    MetadataPipelineConfig, PluginHost, ProviderInfo,
+    Database, EventBus, GameLauncher, LibraryCounts, MarketplaceCatalog, MarketplaceManager,
+    MetadataCandidateDto, MetadataDownloader, MetadataPipelineConfig, PluginHost, ProviderInfo,
 };
 use omnis_plugin_epic::EpicLibraryPlugin;
 use omnis_plugin_steam::SteamPlugin;
@@ -107,6 +107,7 @@ pub struct AppState {
     pub db: Arc<Database>,
     pub host: Arc<PluginHost>,
     pub downloader: Arc<MetadataDownloader>,
+    pub marketplace: Arc<MarketplaceManager>,
     pub app_dir: PathBuf,
     pub covers_dir: PathBuf,
     pub backgrounds_dir: PathBuf,
@@ -488,34 +489,101 @@ async fn save_metadata_pipeline_config(
     Ok(true)
 }
 
+#[tauri::command]
+async fn get_marketplace_catalog(
+    state: State<'_, AppState>,
+) -> Result<MarketplaceCatalog, String> {
+    state.marketplace.get_catalog(None).await
+}
+
+#[tauri::command]
+async fn install_marketplace_plugin(
+    plugin_id: String,
+    state: State<'_, AppState>,
+) -> Result<ProviderInfo, String> {
+    state
+        .marketplace
+        .install_plugin(&plugin_id, &state.downloader)
+        .await
+}
+
+#[tauri::command]
+async fn uninstall_marketplace_plugin(
+    plugin_id: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    state
+        .marketplace
+        .uninstall_plugin(&plugin_id, &state.downloader)
+        .await
+}
+
 
 #[tauri::command]
 async fn launch_game(game_id: String, state: State<'_, AppState>) -> Result<u64, String> {
     let id = Uuid::parse_str(&game_id).map_err(|e| e.to_string())?;
-    let config = LaunchConfiguration {
-        executable: if cfg!(windows) {
-            "cmd.exe".to_string()
-        } else {
-            "sh".to_string()
-        },
-        arguments: if cfg!(windows) {
-            vec![
-                "/c".to_string(),
-                "echo".to_string(),
-                "Omnis Game Launched".to_string(),
-            ]
-        } else {
-            vec!["-c".to_string(), "echo Omnis Game Launched".to_string()]
-        },
-        working_dir: None,
-        tracking_mode: ProcessTrackingMode::KernelJobObject,
+    let game = state
+        .db
+        .get_game_by_id(id)
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "Gioco non trovato".to_string())?;
+
+    let is_installed = game.is_installed;
+    let config = if !is_installed {
+        // Native store installation launch protocol
+        let install_uri = match game.library_id.as_str() {
+            "steam" => format!("steam://install/{}", game.external_id),
+            "epic" => format!("com.epicgames.launcher://apps/{}?action=install", game.external_id),
+            _ => format!("steam://install/{}", game.external_id),
+        };
+
+        LaunchConfiguration {
+            executable: if cfg!(windows) {
+                "cmd.exe".to_string()
+            } else {
+                "xdg-open".to_string()
+            },
+            arguments: if cfg!(windows) {
+                vec!["/c".to_string(), "start".to_string(), install_uri]
+            } else {
+                vec![install_uri]
+            },
+            working_dir: None,
+            tracking_mode: ProcessTrackingMode::KernelJobObject,
+        }
+    } else if let Some(play_action) = game.play_actions.into_iter().next() {
+        play_action
+    } else {
+        // Default launch protocol for installed store games
+        let play_uri = match game.library_id.as_str() {
+            "steam" => format!("steam://rungameid/{}", game.external_id),
+            "epic" => format!("com.epicgames.launcher://apps/{}?action=launch&silent=true", game.external_id),
+            _ => format!("steam://rungameid/{}", game.external_id),
+        };
+
+        LaunchConfiguration {
+            executable: if cfg!(windows) {
+                "cmd.exe".to_string()
+            } else {
+                "xdg-open".to_string()
+            },
+            arguments: if cfg!(windows) {
+                vec!["/c".to_string(), "start".to_string(), play_uri]
+            } else {
+                vec![play_uri]
+            },
+            working_dir: None,
+            tracking_mode: ProcessTrackingMode::KernelJobObject,
+        }
     };
 
     let session_duration = GameLauncher::launch_and_track(id, config, |_| {})
         .await
         .map_err(|e| e.to_string())?;
 
-    let _ = state.db.record_play_session(id, session_duration);
+    if is_installed {
+        let _ = state.db.record_play_session(id, session_duration);
+    }
     Ok(session_duration)
 }
 
@@ -853,11 +921,13 @@ fn main() {
     host.register_plugin(Box::new(SteamPlugin::new()));
 
     let downloader = Arc::new(MetadataDownloader::new());
+    let marketplace = Arc::new(MarketplaceManager::new());
 
     let runtime = tokio::runtime::Runtime::new().expect("Impossibile inizializzare Tokio runtime");
     runtime.block_on(async {
         let _ = host.initialize_all().await;
         downloader.set_plugins_dir(plugins_dir.clone()).await;
+        marketplace.set_plugins_dir(plugins_dir.clone()).await;
     });
     let host = Arc::new(host);
     let image_cache = Arc::new(ImageCache::new());
@@ -866,6 +936,7 @@ fn main() {
         db,
         host,
         downloader,
+        marketplace,
         app_dir,
         covers_dir,
         backgrounds_dir,
@@ -891,6 +962,9 @@ fn main() {
             test_provider_connection,
             get_metadata_pipeline_config,
             save_metadata_pipeline_config,
+            get_marketplace_catalog,
+            install_marketplace_plugin,
+            uninstall_marketplace_plugin,
             launch_game,
             open_folder,
             window_start_dragging,

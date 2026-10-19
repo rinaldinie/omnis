@@ -7,6 +7,7 @@ members = [
     "crates/omnis_tauri",
     "plugins/omnis_plugin_steam",
     "plugins/omnis_plugin_epic",
+    "examples/sample_plugin",
 ]
 
 [workspace.package]

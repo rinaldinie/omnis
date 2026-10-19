@@ -214,10 +214,14 @@ export default function MetadataResolutionModal({
       setIsApplying(true);
       setApplyError(null);
 
+      const fieldsToSend = selectedFields.includes("developers") && !selectedFields.includes("publishers")
+        ? [...selectedFields, "publishers"]
+        : selectedFields;
+
       const updated = await callTauri<any>("apply_metadata_candidate", {
         gameId: game.id,
         candidate: selectedCandidate,
-        fields: selectedFields,
+        fields: fieldsToSend,
       });
 
       setApplySuccess(true);
@@ -242,6 +246,8 @@ export default function MetadataResolutionModal({
         return { name: "SteamGridDB HD", bg: "rgba(35, 38, 46, 0.9)", border: "#e5e7eb", text: "#ffffff" };
       case "opencritic":
         return { name: "OpenCritic", bg: "rgba(50, 20, 20, 0.9)", border: "#f87171", text: "#f87171" };
+      case "igdb":
+        return { name: "IGDB", bg: "rgba(45, 20, 80, 0.9)", border: "#9146ff", text: "#a970ff" };
       default:
         return { name: pId, bg: "rgba(30, 41, 59, 0.9)", border: "#94a3b8", text: "#cbd5e1" };
     }
@@ -337,6 +343,7 @@ export default function MetadataResolutionModal({
             <option value="steam">Steam Store (Ufficiale)</option>
             <option value="steamgriddb">SteamGridDB (Artwork HD)</option>
             <option value="opencritic">OpenCritic (Recensioni)</option>
+            <option value="igdb">IGDB (Twitch / Database Globale)</option>
           </select>
 
           <button
