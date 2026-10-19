@@ -161,6 +161,7 @@ export interface TranslationSchema {
   editor_modal: {
     title: string;
     tab_general: string;
+    tab_description: string;
     tab_notes: string;
     tab_media: string;
     tab_launch: string;

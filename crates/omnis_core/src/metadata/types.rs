@@ -160,6 +160,10 @@ impl MetadataProvider for ExternalMetadataProvider {
     }
 }
 
+fn default_true() -> bool {
+    true
+}
+
 /// Pipeline configuration determining provider source priority per field
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MetadataPipelineConfig {
@@ -167,6 +171,8 @@ pub struct MetadataPipelineConfig {
     pub background_source: String,
     pub score_source: String,
     pub details_source: String,
+    #[serde(default = "default_true")]
+    pub preserve_existing_artwork: bool,
 }
 
 impl Default for MetadataPipelineConfig {
@@ -176,6 +182,8 @@ impl Default for MetadataPipelineConfig {
             background_source: "steamgriddb".to_string(),
             score_source: "opencritic".to_string(),
             details_source: "steam".to_string(),
+            preserve_existing_artwork: true,
         }
     }
 }
+

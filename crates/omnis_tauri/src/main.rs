@@ -1,3 +1,6 @@
+// Prevents additional console window on Windows in release
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 pub mod active_game;
 pub mod commands;
 pub mod store_manager;
@@ -141,6 +144,7 @@ fn main() {
             get_store_accounts,
             disconnect_store_account,
             sync_store_library,
+            save_store_api_key,
             clear_library,
             get_game_trailer_url,
             get_vault_status,

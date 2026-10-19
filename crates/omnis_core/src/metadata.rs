@@ -984,7 +984,24 @@ impl MetadataDownloader {
         let enabled_guard = self.enabled_providers.read().await;
         let providers_guard = self.providers.read().await;
 
+        let has_existing_cover = game
+            .cover_image_path
+            .as_ref()
+            .map(|p| !p.trim().is_empty())
+            .unwrap_or(false);
+        let has_existing_background = game
+            .background_image_path
+            .as_ref()
+            .map(|p| !p.trim().is_empty())
+            .unwrap_or(false);
+
+        let should_fetch_cover = !pipeline.preserve_existing_artwork || !has_existing_cover;
+        let should_fetch_background =
+            !pipeline.preserve_existing_artwork || !has_existing_background;
+
         let mut final_patch = GameMetadataPatch::default();
+        let mut details_cover_fallback = None;
+        let mut details_bg_fallback = None;
 
         // 1. Fetch Primary Details & Descriptions (Default: Steam)
         if enabled_guard
@@ -1003,50 +1020,86 @@ impl MetadataDownloader {
                     final_patch.genres = patch.genres;
                     final_patch.developers = patch.developers;
                     final_patch.publishers = patch.publishers;
-                    final_patch.cover_url = patch.cover_url;
-                    final_patch.background_url = patch.background_url;
                     final_patch.critic_score = patch.critic_score;
                     final_patch.community_score = patch.community_score;
+
+                    if should_fetch_cover {
+                        if pipeline.cover_source == pipeline.details_source {
+                            final_patch.cover_url = patch.cover_url;
+                        } else {
+                            details_cover_fallback = patch.cover_url;
+                        }
+                    }
+
+                    if should_fetch_background {
+                        if pipeline.background_source == pipeline.details_source {
+                            final_patch.background_url = patch.background_url;
+                        } else {
+                            details_bg_fallback = patch.background_url;
+                        }
+                    }
                 }
             }
         }
 
         // 2. Resolve High-Res Artwork (SteamGridDB or IGDB if enabled, fallback to Steam)
-        if (pipeline.cover_source == "steamgriddb" || pipeline.background_source == "steamgriddb")
-            && enabled_guard.get("steamgriddb").copied().unwrap_or(true)
-        {
-            if let Some(prov) = providers_guard.get("steamgriddb") {
-                let settings = settings_guard
-                    .get("steamgriddb")
-                    .cloned()
-                    .unwrap_or_default();
-                if let Ok(sgdb_patch) = prov.fetch_metadata(&request, &settings).await {
-                    if pipeline.cover_source == "steamgriddb" && sgdb_patch.cover_url.is_some() {
-                        final_patch.cover_url = sgdb_patch.cover_url;
-                    }
-                    if pipeline.background_source == "steamgriddb" && sgdb_patch.background_url.is_some() {
-                        final_patch.background_url = sgdb_patch.background_url;
+        if should_fetch_cover || should_fetch_background {
+            if (pipeline.cover_source == "steamgriddb" || pipeline.background_source == "steamgriddb")
+                && enabled_guard.get("steamgriddb").copied().unwrap_or(true)
+            {
+                if let Some(prov) = providers_guard.get("steamgriddb") {
+                    let settings = settings_guard
+                        .get("steamgriddb")
+                        .cloned()
+                        .unwrap_or_default();
+                    if let Ok(sgdb_patch) = prov.fetch_metadata(&request, &settings).await {
+                        if should_fetch_cover
+                            && pipeline.cover_source == "steamgriddb"
+                            && sgdb_patch.cover_url.is_some()
+                        {
+                            final_patch.cover_url = sgdb_patch.cover_url;
+                        }
+                        if should_fetch_background
+                            && pipeline.background_source == "steamgriddb"
+                            && sgdb_patch.background_url.is_some()
+                        {
+                            final_patch.background_url = sgdb_patch.background_url;
+                        }
                     }
                 }
             }
-        }
 
-        if (pipeline.cover_source == "igdb" || pipeline.background_source == "igdb")
-            && enabled_guard.get("igdb").copied().unwrap_or(true)
-        {
-            if let Some(prov) = providers_guard.get("igdb") {
-                let settings = settings_guard
-                    .get("igdb")
-                    .cloned()
-                    .unwrap_or_default();
-                if let Ok(igdb_patch) = prov.fetch_metadata(&request, &settings).await {
-                    if pipeline.cover_source == "igdb" && igdb_patch.cover_url.is_some() {
-                        final_patch.cover_url = igdb_patch.cover_url;
-                    }
-                    if pipeline.background_source == "igdb" && igdb_patch.background_url.is_some() {
-                        final_patch.background_url = igdb_patch.background_url;
+            if (pipeline.cover_source == "igdb" || pipeline.background_source == "igdb")
+                && enabled_guard.get("igdb").copied().unwrap_or(true)
+            {
+                if let Some(prov) = providers_guard.get("igdb") {
+                    let settings = settings_guard
+                        .get("igdb")
+                        .cloned()
+                        .unwrap_or_default();
+                    if let Ok(igdb_patch) = prov.fetch_metadata(&request, &settings).await {
+                        if should_fetch_cover
+                            && pipeline.cover_source == "igdb"
+                            && igdb_patch.cover_url.is_some()
+                        {
+                            final_patch.cover_url = igdb_patch.cover_url;
+                        }
+                        if should_fetch_background
+                            && pipeline.background_source == "igdb"
+                            && igdb_patch.background_url.is_some()
+                        {
+                            final_patch.background_url = igdb_patch.background_url;
+                        }
                     }
                 }
+            }
+
+            // Fallback to details provider artwork if cover/bg was needed and still unresolved
+            if should_fetch_cover && final_patch.cover_url.is_none() {
+                final_patch.cover_url = details_cover_fallback;
+            }
+            if should_fetch_background && final_patch.background_url.is_none() {
+                final_patch.background_url = details_bg_fallback;
             }
         }
 
@@ -1129,22 +1182,52 @@ impl MetadataDownloader {
         let bg_dest = bgs_dir.join(format!("{}.jpg", game_id));
 
         if let Some(ref curl) = final_patch.cover_url.clone() {
-            if curl.starts_with("http") {
-                if let Ok(bytes) = self.download_image_bytes(curl).await {
-                    if std::fs::write(&cover_dest, bytes).is_ok() {
-                        final_patch.cover_url = Some(cover_dest.to_string_lossy().to_string());
+            let curl_trim = curl.trim();
+            if curl_trim.is_empty() {
+                final_patch.cover_url = None;
+            } else if curl_trim.starts_with("http://") || curl_trim.starts_with("https://") {
+                match self.download_image_bytes(curl_trim).await {
+                    Ok(bytes) => {
+                        if std::fs::write(&cover_dest, bytes).is_ok() {
+                            final_patch.cover_url = Some(cover_dest.to_string_lossy().to_string());
+                        } else {
+                            warn!("Failed to write downloaded cover image to {:?}", cover_dest);
+                            final_patch.cover_url = None;
+                        }
+                    }
+                    Err(e) => {
+                        warn!("Failed to download cover image from {}: {}", curl_trim, e);
+                        final_patch.cover_url = None;
                     }
                 }
+            } else if !std::path::Path::new(curl_trim).exists() {
+                warn!("Local cover path does not exist: {}", curl_trim);
+                final_patch.cover_url = None;
             }
         }
 
         if let Some(ref burl) = final_patch.background_url.clone() {
-            if burl.starts_with("http") {
-                if let Ok(bytes) = self.download_image_bytes(burl).await {
-                    if std::fs::write(&bg_dest, bytes).is_ok() {
-                        final_patch.background_url = Some(bg_dest.to_string_lossy().to_string());
+            let burl_trim = burl.trim();
+            if burl_trim.is_empty() {
+                final_patch.background_url = None;
+            } else if burl_trim.starts_with("http://") || burl_trim.starts_with("https://") {
+                match self.download_image_bytes(burl_trim).await {
+                    Ok(bytes) => {
+                        if std::fs::write(&bg_dest, bytes).is_ok() {
+                            final_patch.background_url = Some(bg_dest.to_string_lossy().to_string());
+                        } else {
+                            warn!("Failed to write downloaded background image to {:?}", bg_dest);
+                            final_patch.background_url = None;
+                        }
+                    }
+                    Err(e) => {
+                        warn!("Failed to download background image from {}: {}", burl_trim, e);
+                        final_patch.background_url = None;
                     }
                 }
+            } else if !std::path::Path::new(burl_trim).exists() {
+                warn!("Local background path does not exist: {}", burl_trim);
+                final_patch.background_url = None;
             }
         }
 
@@ -1379,6 +1462,43 @@ mod tests {
         assert!(patch_result.is_ok());
         let patch = patch_result.unwrap();
         assert!(patch.critic_score.is_some(), "Steam score should be fetched when score_source is steam even if details_source != steam");
+
+        let _ = std::fs::remove_dir_all(&temp_cache);
+    }
+
+    #[tokio::test]
+    async fn test_pipeline_preserve_existing_artwork() {
+        let db = Database::open_in_memory().expect("Failed to open DB");
+        db.seed_sample_games().expect("Failed to seed");
+        let games = db.get_all_games().expect("Failed to get games");
+        let portal = games.iter().find(|g| g.title.contains("Portal")).expect("Portal not found");
+
+        let custom_cover = "C:\\existing_steam_cover.jpg".to_string();
+        let custom_bg = "C:\\existing_steam_bg.jpg".to_string();
+        let manual_patch = GameMetadataPatch {
+            cover_url: Some(custom_cover.clone()),
+            background_url: Some(custom_bg.clone()),
+            ..Default::default()
+        };
+        db.apply_metadata_patch(portal.id, &manual_patch).expect("Failed to apply manual patch");
+
+        let saved = db.get_game_by_id(portal.id).unwrap().unwrap();
+        assert_eq!(saved.cover_image_path.as_deref(), Some("C:\\existing_steam_cover.jpg"));
+        assert_eq!(saved.background_image_path.as_deref(), Some("C:\\existing_steam_bg.jpg"));
+
+        let temp_cache = std::env::temp_dir().join(format!("omnis_test_pipe_preserve_{}", uuid::Uuid::new_v4()));
+        let _ = std::fs::create_dir_all(&temp_cache);
+
+        let downloader = MetadataDownloader::new();
+        let cfg = downloader.get_pipeline_config().await;
+        assert!(cfg.preserve_existing_artwork, "preserve_existing_artwork should default to true");
+
+        let patch_result = downloader.download_for_game(&db, portal.id, &temp_cache).await;
+        assert!(patch_result.is_ok());
+
+        let reloaded = db.get_game_by_id(portal.id).unwrap().unwrap();
+        assert_eq!(reloaded.cover_image_path.as_deref(), Some("C:\\existing_steam_cover.jpg"), "Existing cover must be preserved");
+        assert_eq!(reloaded.background_image_path.as_deref(), Some("C:\\existing_steam_bg.jpg"), "Existing background must be preserved");
 
         let _ = std::fs::remove_dir_all(&temp_cache);
     }

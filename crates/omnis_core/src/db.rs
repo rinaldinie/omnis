@@ -121,7 +121,11 @@ impl Database {
                     playtime_seconds = MAX(games.playtime_seconds, excluded.playtime_seconds),
                     play_count = MAX(games.play_count, excluded.play_count),
                     last_activity = COALESCE(excluded.last_activity, games.last_activity),
-                    cover_image_path = COALESCE(games.cover_image_path, excluded.cover_image_path),
+                    cover_image_path = CASE
+                        WHEN games.cover_image_path LIKE '%/header.jpg' AND excluded.cover_image_path IS NOT NULL AND excluded.cover_image_path NOT LIKE '%/header.jpg'
+                        THEN excluded.cover_image_path
+                        ELSE COALESCE(games.cover_image_path, excluded.cover_image_path)
+                    END,
                     background_image_path = COALESCE(games.background_image_path, excluded.background_image_path),
                     play_actions = CASE
                         WHEN games.is_installed = 1 AND games.play_actions IS NOT NULL AND TRIM(games.play_actions) != '' AND TRIM(games.play_actions) != '[]' AND excluded.is_installed = 0

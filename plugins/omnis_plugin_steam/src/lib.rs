@@ -161,7 +161,12 @@ impl CloudStorePlugin for SteamPlugin {
     }
 
     async fn sync_games(&self, session: &StoreAccountSession) -> Result<Vec<DiscoveredGame>, PluginError> {
-        client::fetch_user_games_web_api(&self.client, &session.user_id, self.config.api_key.as_deref()).await
+        let api_key = if !session.access_token.starts_with("steam_session:") && !session.access_token.trim().is_empty() {
+            Some(session.access_token.as_str())
+        } else {
+            self.config.api_key.as_deref()
+        };
+        client::fetch_user_games_web_api(&self.client, &session.user_id, api_key).await
     }
 }
 
@@ -399,6 +404,10 @@ mod tests {
         assert_eq!(tf2.playtime_seconds, 120 * 60);
         assert_eq!(
             tf2.cover_image_path,
+            Some("https://cdn.cloudflare.steamstatic.com/steam/apps/440/library_600x900_2x.jpg".to_string())
+        );
+        assert_eq!(
+            tf2.background_image_path,
             Some("https://cdn.cloudflare.steamstatic.com/steam/apps/440/header.jpg".to_string())
         );
 
@@ -417,6 +426,10 @@ mod tests {
         assert_eq!(cs2.playtime_seconds, 350 * 60);
         assert_eq!(
             cs2.cover_image_path,
+            Some("https://cdn.cloudflare.steamstatic.com/steam/apps/730/library_600x900_2x.jpg".to_string())
+        );
+        assert_eq!(
+            cs2.background_image_path,
             Some("https://cdn.cloudflare.steamstatic.com/steam/apps/730/header.jpg".to_string())
         );
     }
@@ -475,6 +488,10 @@ mod tests {
         assert_eq!(discovered[0].title, "Half-Life 2");
         assert_eq!(
             discovered[0].cover_image_path,
+            Some("https://cdn.cloudflare.steamstatic.com/steam/apps/220/library_600x900_2x.jpg".to_string())
+        );
+        assert_eq!(
+            discovered[0].background_image_path,
             Some("https://cdn.cloudflare.steamstatic.com/steam/apps/220/header.jpg".to_string())
         );
     }

@@ -145,6 +145,7 @@ export const es: TranslationSchema = {
   editor_modal: {
     title: 'Editar Juego',
     tab_general: 'General',
+    tab_description: 'Descripción y Notas',
     tab_notes: 'Descripción y Notas',
     tab_media: 'Multimedia y Arte',
     tab_launch: 'Acciones de Lanzamiento',

@@ -117,8 +117,17 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({ onSyncComple
             [payload.store_id]: payload,
           }));
           if (payload.status === "completed") {
+            setBanner({
+              type: "success",
+              message: payload.message || `Sincronizzazione completata con successo per ${payload.store_id.toUpperCase()}!`,
+            });
             loadAccounts();
             if (onSyncComplete) onSyncComplete();
+          } else if (payload.status === "error") {
+            setBanner({
+              type: "error",
+              message: payload.message || `Errore nella sincronizzazione di ${payload.store_id.toUpperCase()}`,
+            });
           }
         }
       );
@@ -171,6 +180,24 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({ onSyncComple
     }
   };
 
+  const handleSaveApiKey = async (storeId: string, apiKey: string) => {
+    soundEffects.playSelect();
+    try {
+      await invokeTauri("save_store_api_key", { storeId, apiKey });
+      setBanner({
+        type: "success",
+        message: `Chiave Web API per ${storeId.toUpperCase()} salvata con successo! Avvio sincronizzazione...`,
+      });
+      await loadAccounts();
+      handleSync(storeId);
+    } catch (err: any) {
+      setBanner({
+        type: "error",
+        message: `Errore salvataggio API Key: ${err?.toString() || "Errore sconosciuto"}`,
+      });
+    }
+  };
+
   const handleSync = async (storeId?: string) => {
     soundEffects.playSelect();
     if (storeId) {
@@ -190,8 +217,8 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({ onSyncComple
       await invokeTauri("sync_store_library", storeId ? { storeId } : {});
       if (!storeId) {
         setBanner({
-          type: "success",
-          message: "Sincronizzazione di tutti gli account avviata con successo.",
+          type: "info",
+          message: "Sincronizzazione di tutti gli account avviata in background.",
         });
       }
     } catch (err: any) {
@@ -382,6 +409,7 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({ onSyncComple
             onConnect={handleConnect}
             onDisconnect={handleDisconnect}
             onSync={handleSync}
+            onSaveApiKey={handleSaveApiKey}
           />
 
           <CloudStoreCard

@@ -67,6 +67,57 @@ interface BigPictureViewProps {
   onDismissToast?: () => void;
 }
 
+function BigPictureCardCover({ game }: { game: GameDto }) {
+  const [imgSrc, setImgSrc] = React.useState<string | null>(game.cover_image || null);
+  const [isFallback, setIsFallback] = React.useState(false);
+  const [hasError, setHasError] = React.useState(!game.cover_image);
+
+  React.useEffect(() => {
+    setImgSrc(game.cover_image || null);
+    setIsFallback(false);
+    setHasError(!game.cover_image);
+  }, [game.cover_image]);
+
+  const handleError = () => {
+    if (imgSrc && imgSrc.includes("library_600x900_2x.jpg") && !isFallback) {
+      setIsFallback(true);
+      setImgSrc(imgSrc.replace("library_600x900_2x.jpg", "header.jpg"));
+    } else if (game.background_image && imgSrc !== game.background_image && !isFallback) {
+      setIsFallback(true);
+      setImgSrc(game.background_image);
+    } else {
+      setHasError(true);
+    }
+  };
+
+  if (hasError || !imgSrc) {
+    return (
+      <div
+        className="w-full h-full flex flex-col justify-between p-4 select-none [transform:translateZ(0)] [backface-visibility:hidden]"
+        style={{ backgroundColor: "var(--bg-card)" }}
+      >
+        <StoreBadge library={game.library} showName={true} />
+        <span className="font-black text-sm text-white line-clamp-3 leading-snug break-words select-none [transform:translateZ(0)]">
+          {game.title}
+        </span>
+        <span className="text-[10px] font-semibold select-none" style={{ color: "var(--text-muted)" }}>
+          {game.playtime_formatted}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={imgSrc}
+      alt={game.title}
+      className="w-full h-full object-cover [transform:translateZ(0)] [backface-visibility:hidden]"
+      loading="lazy"
+      onError={handleError}
+    />
+  );
+}
+
 export default function BigPictureView({
   focusedGame,
   filteredGames,
@@ -548,7 +599,7 @@ export default function BigPictureView({
                     soundEffects.playSelect();
                     setShowFullscreenDetails(true);
                   }}
-                  className={`relative flex-shrink-0 w-44 aspect-[2/3] rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 transform ${
+                  className={`relative flex-shrink-0 w-44 aspect-[2/3] rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 transform-gpu will-change-transform [backface-visibility:hidden] [transform:translateZ(0)] ${
                     isFocused
                       ? "scale-110 z-20 shadow-2xl ring-4"
                       : "scale-95 opacity-60 hover:opacity-90 hover:scale-100"
@@ -559,29 +610,14 @@ export default function BigPictureView({
                     boxShadow: isFocused ? `0 0 30px var(--accent-glow)` : undefined,
                   }}
                 >
-                  {game.cover_image ? (
-                    <img src={game.cover_image} alt={game.title} className="w-full h-full object-cover" />
-                  ) : (
-                    <div
-                      className="w-full h-full flex flex-col justify-between p-4"
-                      style={{ backgroundColor: "var(--bg-card)" }}
-                    >
-                      <StoreBadge library={game.library} showName={true} />
-                      <span className="font-black text-sm text-white line-clamp-3 leading-snug">
-                        {game.title}
-                      </span>
-                      <span className="text-[10px] font-semibold" style={{ color: "var(--text-muted)" }}>
-                        {game.playtime_formatted}
-                      </span>
-                    </div>
-                  )}
+                  <BigPictureCardCover game={game} />
 
                   <div className="absolute top-2.5 right-2.5">
                     <StoreBadge library={game.library} />
                   </div>
 
                   {isFocused && (
-                    <div className="absolute bottom-2.5 left-2.5 right-2.5 px-3 py-1 rounded-lg bg-black/80 backdrop-blur-md text-center text-xs font-black text-white border border-white/20 truncate">
+                    <div className="absolute bottom-2.5 left-2.5 right-2.5 px-3 py-1 rounded-lg bg-black/90 text-center text-xs font-black text-white border border-white/20 truncate select-none [transform:translateZ(0)]">
                       {game.title}
                     </div>
                   )}

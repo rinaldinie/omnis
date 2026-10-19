@@ -9,7 +9,10 @@ import {
   X,
   Square,
   AlertTriangle,
+  RefreshCw,
+  CheckCircle2,
 } from "lucide-react";
+import { listen } from "@tauri-apps/api/event";
 import GameEditorModal from "./components/GameEditorModal";
 import MetadataResolutionModal from "./components/MetadataResolutionModal";
 import ListViewTable from "./components/ListViewTable";
@@ -60,6 +63,15 @@ export interface SessionToastInfo {
   gameId: string;
 }
 
+export interface SyncBannerInfo {
+  storeId: string;
+  storeName: string;
+  message: string;
+  current: number;
+  total: number;
+  status: "syncing" | "completed" | "error";
+}
+
 export function formatDuration(seconds: number): string {
   const s = Math.max(0, Math.floor(seconds));
   const hrs = Math.floor(s / 3600);
@@ -104,8 +116,10 @@ export default function App() {
   const [activeGame, setActiveGame] = useState<ActiveGameSession | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
   const [sessionToast, setSessionToast] = useState<SessionToastInfo | null>(null);
+  const [syncBanner, setSyncBanner] = useState<SyncBannerInfo | null>(null);
   const [showKillConfirmModal, setShowKillConfirmModal] = useState<boolean>(false);
   const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const syncBannerTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const gamesRef = useRef<GameDto[]>([]);
   gamesRef.current = games;
   const activeGameRef = useRef<ActiveGameSession | null>(null);
@@ -132,6 +146,7 @@ export default function App() {
   useEffect(() => {
     return () => {
       if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+      if (syncBannerTimeoutRef.current) clearTimeout(syncBannerTimeoutRef.current);
     };
   }, []);
 
@@ -354,6 +369,7 @@ export default function App() {
     background_source: "steamgriddb",
     score_source: "opencritic",
     details_source: "steam",
+    preserve_existing_artwork: true,
   });
   const [editingSettings, setEditingSettings] = useState<Record<string, Record<string, any>>>({});
   const [showApiKey, setShowApiKey] = useState<Record<string, boolean>>({});
@@ -500,140 +516,180 @@ export default function App() {
 
     (async () => {
       try {
-        if (typeof window !== "undefined" && (window as any).__TAURI_INTERNALS__) {
-          const { listen } = await import("@tauri-apps/api/event");
-          if (!isMounted) return;
+        if (!isMounted) return;
 
-          const hSync = await listen<{
-            store_id: string;
-            current: number;
-            total: number;
-            status: string;
-            message?: string;
-          }>("store-sync-progress", (event) => {
-            const p = event.payload;
-            const storeName =
-              p.store_id === "gog"
-                ? "GOG Galaxy"
-                : p.store_id === "xbox"
-                ? "Xbox Game Pass"
-                : p.store_id.toUpperCase();
+        const hSync = await listen<{
+          store_id: string;
+          current: number;
+          total: number;
+          status: string;
+          message?: string;
+        }>("store-sync-progress", (event) => {
+          const p = event.payload;
+          const storeName =
+            p.store_id === "gog"
+              ? "GOG Galaxy"
+              : p.store_id === "xbox"
+              ? "Xbox Game Pass"
+              : p.store_id === "steam"
+              ? "Steam"
+              : p.store_id === "epic"
+              ? "Epic Games"
+              : p.store_id.toUpperCase();
 
-            if (p.status === "syncing") {
-              setIsSyncing(true);
-              setStatusMessage(
-                p.message || `Sincronizzazione in corso per ${storeName}... (${p.current}/${p.total})`
-              );
-            } else if (p.status === "completed") {
-              setIsSyncing(false);
-              setStatusMessage(
-                p.message || `Sincronizzazione completata per ${storeName}: ${p.total} giochi!`
-              );
-              loadGames();
-            } else if (p.status === "error") {
-              setIsSyncing(false);
-              setStatusMessage(p.message || `Errore sincronizzazione per ${storeName}`);
-            }
-          });
-          if (!isMounted) { hSync(); } else { unlistenSync = hSync; }
-
-          const hLib = await listen("library-updated", () => {
+          if (p.status === "syncing") {
+            setIsSyncing(true);
+            if (syncBannerTimeoutRef.current) clearTimeout(syncBannerTimeoutRef.current);
+            setSyncBanner({
+              storeId: p.store_id,
+              storeName,
+              message: p.message || `Sincronizzazione in corso per ${storeName}...`,
+              current: p.current,
+              total: p.total,
+              status: "syncing",
+            });
+            setStatusMessage(
+              p.message || `Sincronizzazione in corso per ${storeName}... (${p.current}/${p.total})`
+            );
+          } else if (p.status === "completed") {
+            setIsSyncing(false);
+            setSyncBanner({
+              storeId: p.store_id,
+              storeName,
+              message: p.message || `Sincronizzazione completata per ${storeName}: ${p.total} giochi!`,
+              current: p.current,
+              total: p.total,
+              status: "completed",
+            });
+            setStatusMessage(
+              p.message || `Sincronizzazione completata per ${storeName}: ${p.total} giochi!`
+            );
             loadGames();
-          });
-          if (!isMounted) { hLib(); } else { unlistenLib = hLib; }
-
-          const hStarted = await listen<{
-            session_id: string;
-            game_id: string;
-            title: string;
-            state?: string;
-            started_at: string;
-          }>("game-started", (event) => {
-            setIsGameRunning(true);
-            setActiveGame({
-              session_id: event.payload.session_id,
-              game_id: event.payload.game_id,
-              title: event.payload.title,
-              state: (event.payload.state as any) || "launching",
-              started_at: event.payload.started_at,
-              process_detected_at: null,
-            });
-            soundEffects.suspendAudio();
-            setStatusMessage(`Avvio di '${event.payload.title}' in corso...`);
-          });
-          if (!isMounted) { hStarted(); } else { unlistenGameStarted = hStarted; }
-
-          const hStatus = await listen<{
-            session_id: string;
-            game_id: string;
-            state: string;
-            pid?: number;
-          }>("game-status-changed", (event) => {
-            if (activeGameRef.current && activeGameRef.current.session_id === event.payload.session_id) {
-              const newState = event.payload.state as any;
-              setActiveGame((prev) => prev ? {
-                ...prev,
-                state: newState,
-                pid: event.payload.pid ?? prev.pid,
-                process_detected_at: newState === "running" ? (prev.process_detected_at || new Date().toISOString()) : prev.process_detected_at,
-              } : null);
-              if (newState === "running") {
-                setStatusMessage(`Gioco '${activeGameRef.current.title}' in esecuzione (PID: ${event.payload.pid})`);
-              }
-            }
-          });
-          if (!isMounted) { hStatus(); } else { unlistenGameStatus = hStatus; }
-
-          const hStopped = await listen<{
-            session_id?: string;
-            game_id: string;
-            duration_seconds: number;
-          }>("game-stopped", (event) => {
-            // Ignore events from stale sessions (Requirement B3)
-            if (
-              event.payload.session_id &&
-              activeGameRef.current &&
-              activeGameRef.current.session_id !== event.payload.session_id
-            ) {
-              return;
-            }
-
-            setIsGameRunning(false);
-            setActiveGame(null);
-            soundEffects.resumeAudio();
-
-            const stoppedGameId = event.payload.game_id;
-            const durationSec = event.payload.duration_seconds;
-
-            const found = gamesRef.current.find((g) => g.id === stoppedGameId);
-            const stoppedTitle = found?.title || activeGameRef.current?.title || "Gioco";
-            const mins = Math.max(1, Math.round(durationSec / 60));
-
-            setStatusMessage(`Sessione terminata: ${stoppedTitle} (+${mins} minuti)`);
-
-            if (toastTimeoutRef.current) {
-              clearTimeout(toastTimeoutRef.current);
-            }
-            setSessionToast({
-              title: stoppedTitle,
-              durationSeconds: durationSec,
-              gameId: stoppedGameId,
-            });
-            toastTimeoutRef.current = setTimeout(() => {
-              setSessionToast(null);
+            if (syncBannerTimeoutRef.current) clearTimeout(syncBannerTimeoutRef.current);
+            syncBannerTimeoutRef.current = setTimeout(() => {
+              setSyncBanner(null);
             }, 6000);
+          } else if (p.status === "error") {
+            setIsSyncing(false);
+            setSyncBanner({
+              storeId: p.store_id,
+              storeName,
+              message: p.message || `Errore sincronizzazione per ${storeName}`,
+              current: 0,
+              total: 0,
+              status: "error",
+            });
+            setStatusMessage(p.message || `Errore sincronizzazione per ${storeName}`);
+            if (syncBannerTimeoutRef.current) clearTimeout(syncBannerTimeoutRef.current);
+            syncBannerTimeoutRef.current = setTimeout(() => {
+              setSyncBanner(null);
+            }, 8000);
+          }
+        });
+        if (!isMounted) { hSync(); } else { unlistenSync = hSync; }
 
-            loadGames();
+        const hLib = await listen("library-updated", () => {
+          loadGames();
+        });
+        if (!isMounted) { hLib(); } else { unlistenLib = hLib; }
+
+        const hStarted = await listen<{
+          session_id: string;
+          game_id: string;
+          title: string;
+          state?: string;
+          started_at: string;
+        }>("game-started", (event) => {
+          setIsGameRunning(true);
+          setActiveGame({
+            session_id: event.payload.session_id,
+            game_id: event.payload.game_id,
+            title: event.payload.title,
+            state: (event.payload.state as any) || "launching",
+            started_at: event.payload.started_at,
+            process_detected_at: null,
           });
-          if (!isMounted) { hStopped(); } else { unlistenGameStopped = hStopped; }
-        }
+          soundEffects.suspendAudio();
+          setStatusMessage(`Avvio di '${event.payload.title}' in corso...`);
+        });
+        if (!isMounted) { hStarted(); } else { unlistenGameStarted = hStarted; }
+
+        const hStatus = await listen<{
+          session_id: string;
+          game_id: string;
+          state: string;
+          pid?: number;
+        }>("game-status-changed", (event) => {
+          if (activeGameRef.current && activeGameRef.current.session_id === event.payload.session_id) {
+            const newState = event.payload.state as any;
+            setActiveGame((prev) => prev ? {
+              ...prev,
+              state: newState,
+              pid: event.payload.pid ?? prev.pid,
+              process_detected_at: newState === "running" ? (prev.process_detected_at || new Date().toISOString()) : prev.process_detected_at,
+            } : null);
+            if (newState === "running") {
+              setStatusMessage(`Gioco '${activeGameRef.current.title}' in esecuzione (PID: ${event.payload.pid})`);
+            }
+          }
+        });
+        if (!isMounted) { hStatus(); } else { unlistenGameStatus = hStatus; }
+
+        const hStopped = await listen<{
+          session_id?: string;
+          game_id: string;
+          duration_seconds: number;
+        }>("game-stopped", (event) => {
+          // Ignore events from stale sessions (Requirement B3)
+          if (
+            event.payload.session_id &&
+            activeGameRef.current &&
+            activeGameRef.current.session_id !== event.payload.session_id
+          ) {
+            return;
+          }
+
+          setIsGameRunning(false);
+          setActiveGame(null);
+          soundEffects.resumeAudio();
+
+          const stoppedGameId = event.payload.game_id;
+          const durationSec = event.payload.duration_seconds;
+
+          const found = gamesRef.current.find((g) => g.id === stoppedGameId);
+          const stoppedTitle = found?.title || activeGameRef.current?.title || "Gioco";
+          const mins = Math.max(1, Math.round(durationSec / 60));
+
+          setStatusMessage(`Sessione terminata: ${stoppedTitle} (+${mins} minuti)`);
+
+          if (toastTimeoutRef.current) {
+            clearTimeout(toastTimeoutRef.current);
+          }
+          setSessionToast({
+            title: stoppedTitle,
+            durationSeconds: durationSec,
+            gameId: stoppedGameId,
+          });
+          toastTimeoutRef.current = setTimeout(() => {
+            setSessionToast(null);
+          }, 6000);
+
+          loadGames();
+        });
+        if (!isMounted) { hStopped(); } else { unlistenGameStopped = hStopped; }
       } catch (e) {
         console.warn("Failed to register store sync listener in App:", e);
       }
     })();
 
+    const handleFocus = () => {
+      loadGames();
+    };
+    window.addEventListener("focus", handleFocus);
+
     return () => {
       isMounted = false;
+      window.removeEventListener("focus", handleFocus);
       if (unlistenSync) unlistenSync();
       if (unlistenLib) unlistenLib();
       if (unlistenGameStarted) unlistenGameStarted();
@@ -662,11 +718,15 @@ export default function App() {
 
   const handleSync = async () => {
     setIsSyncing(true);
-    setStatusMessage("Sincronizzazione Playnite con Steam & Epic Games in corso...");
-    await invokeTauri("sync_library");
-    await refreshLibrary();
-    setIsSyncing(false);
-    setStatusMessage("Sincronizzazione completata! Catalogo aggiornato.");
+    setStatusMessage("Sincronizzazione cataloghi store collegati avviata in background...");
+    try {
+      await invokeTauri("sync_store_library");
+    } catch {
+      await invokeTauri("sync_library");
+      await refreshLibrary();
+      setIsSyncing(false);
+      setStatusMessage("Sincronizzazione completata! Catalogo aggiornato.");
+    }
   };
 
   const handleDownloadAll = async () => {
@@ -1123,6 +1183,13 @@ export default function App() {
                     Termina
                   </button>
                 </div>
+              ) : isSyncing ? (
+                <div className="flex items-center gap-2 truncate">
+                  <span className="text-sky-300 font-bold flex items-center gap-1.5 truncate">
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin text-sky-400 shrink-0" />
+                    <span className="truncate">{statusMessage || "Sincronizzazione in corso..."}</span>
+                  </span>
+                </div>
               ) : (
                 <span className="truncate">{statusMessage}</span>
               )}
@@ -1308,6 +1375,74 @@ export default function App() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* CLOUD STORE SYNC TOAST / FLOATING NOTIFICATION */}
+      {syncBanner && (
+        <div
+          className="fixed top-14 right-6 z-50 flex items-center gap-3.5 p-3.5 rounded-2xl text-white shadow-2xl backdrop-blur-xl animate-in slide-in-from-top-4 duration-300 max-w-md border"
+          style={{
+            backgroundColor:
+              syncBanner.status === "error"
+                ? "rgba(225, 29, 72, 0.95)"
+                : syncBanner.status === "completed"
+                ? "rgba(16, 185, 129, 0.95)"
+                : "rgba(15, 23, 42, 0.92)",
+            borderColor:
+              syncBanner.status === "error"
+                ? "rgba(255, 150, 150, 0.4)"
+                : syncBanner.status === "completed"
+                ? "rgba(52, 211, 153, 0.5)"
+                : "rgba(99, 102, 241, 0.4)",
+            boxShadow:
+              syncBanner.status === "completed"
+                ? "0 10px 30px -5px rgba(16, 185, 129, 0.4)"
+                : "0 10px 30px -5px rgba(0, 0, 0, 0.6)",
+          }}
+        >
+          <div
+            className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border"
+            style={{
+              backgroundColor:
+                syncBanner.status === "error"
+                  ? "rgba(255, 255, 255, 0.2)"
+                  : syncBanner.status === "completed"
+                  ? "rgba(255, 255, 255, 0.2)"
+                  : "rgba(99, 102, 241, 0.2)",
+              borderColor: "rgba(255, 255, 255, 0.25)",
+            }}
+          >
+            {syncBanner.status === "syncing" ? (
+              <RefreshCw className="w-4 h-4 animate-spin text-indigo-400" />
+            ) : syncBanner.status === "completed" ? (
+              <CheckCircle2 className="w-5 h-5 text-white" />
+            ) : (
+              <AlertTriangle className="w-5 h-5 text-white" />
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[10px] font-black uppercase tracking-wider text-slate-300">
+                {syncBanner.storeName}
+              </span>
+              {syncBanner.status === "syncing" && syncBanner.total > 0 && (
+                <span className="text-[10px] font-mono opacity-80">
+                  {syncBanner.current}/{syncBanner.total}
+                </span>
+              )}
+            </div>
+            <p className="text-xs font-bold text-white truncate mt-0.5">
+              {syncBanner.message}
+            </p>
+          </div>
+          <button
+            onClick={() => setSyncBanner(null)}
+            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+            title="Chiudi notifica"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
 

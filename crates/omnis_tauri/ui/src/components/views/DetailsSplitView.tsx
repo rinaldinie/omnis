@@ -18,6 +18,39 @@ import { ActiveGameSession, GameDto, ThemeConfig, ViewMode } from "../../types";
 import { StoreBadge } from "../StoreBadge";
 import { VideoBackdrop } from "../common/VideoBackdrop";
 import { Slot } from "../common/Slot";
+import { GameCardCover } from "../common/GameCardCover";
+
+function ListThumbCover({ thumb, title }: { thumb?: string | null; title: string }) {
+  const [hasError, setHasError] = React.useState(false);
+
+  React.useEffect(() => {
+    setHasError(false);
+  }, [thumb]);
+
+  if (!thumb || hasError) {
+    return (
+      <div
+        className="w-full h-full flex items-center justify-center text-[10px] font-black select-none"
+        style={{
+          backgroundColor: "var(--accent-glow)",
+          color: "var(--accent-primary)",
+        }}
+      >
+        {title ? title.slice(0, 2).toUpperCase() : "??"}
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={thumb}
+      alt=""
+      className="w-full h-full object-cover"
+      loading="lazy"
+      onError={() => setHasError(true)}
+    />
+  );
+}
 
 interface DetailsSplitViewProps {
   currentTheme?: ThemeConfig;
@@ -172,19 +205,7 @@ export default function DetailsSplitView({
                       borderColor: "var(--border-color)",
                     }}
                   >
-                    {thumb ? (
-                      <img src={thumb} alt="" className="w-full h-full object-cover" loading="lazy" />
-                    ) : (
-                      <div
-                        className="w-full h-full flex items-center justify-center text-[10px] font-black"
-                        style={{
-                          backgroundColor: "var(--accent-glow)",
-                          color: "var(--accent-primary)",
-                        }}
-                      >
-                        {game.title.slice(0, 2).toUpperCase()}
-                      </div>
-                    )}
+                    <ListThumbCover thumb={thumb} title={game.title} />
                   </div>
 
                   <div className="flex-1 min-w-0">
@@ -301,21 +322,14 @@ export default function DetailsSplitView({
 
           <div className="relative z-10 flex items-end gap-6 w-full">
             {/* 3D Boxart Cover with Border & Shadow */}
-            <div className="w-40 aspect-[2/3] rounded-2xl overflow-hidden shadow-2xl border-2 border-white/20 flex-shrink-0 bg-black/60">
-              {selectedGame.cover_image ? (
-                <img
-                  src={selectedGame.cover_image}
-                  alt=""
-                  className="w-full h-full object-cover shadow-inner"
-                />
-              ) : (
-                <div
-                  className="w-full h-full flex flex-col items-center justify-center font-black text-2xl text-white"
-                  style={{ backgroundColor: "var(--bg-card)" }}
-                >
-                  <span>{selectedGame.title.slice(0, 2).toUpperCase()}</span>
-                </div>
-              )}
+            <div className="w-40 aspect-[2/3] rounded-2xl overflow-hidden shadow-2xl border-2 border-white/20 flex-shrink-0 bg-black/60 [transform:translateZ(0)]">
+              <GameCardCover
+                coverImage={selectedGame.cover_image}
+                backgroundImage={selectedGame.background_image}
+                title={selectedGame.title}
+                imgClassName="w-full h-full object-cover shadow-inner [transform:translateZ(0)] [backface-visibility:hidden]"
+                placeholderClassName="w-full h-full flex flex-col items-center justify-center p-3 text-center bg-gradient-to-b from-slate-800/80 via-slate-900/90 to-slate-950/95 select-none [transform:translateZ(0)]"
+              />
             </div>
 
             {/* Title, Badges & Hero Actions */}

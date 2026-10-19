@@ -38,6 +38,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   if (!isOpen) return null;
 
+  const handleClose = () => {
+    soundEffects.playSelect();
+    if (onSyncComplete) onSyncComplete();
+    onClose();
+  };
+
   const handleSelectLanguage = (code: LocaleCode) => {
     soundEffects.playSelect();
     setLocale(code);
@@ -75,10 +81,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           </div>
           <button
-            onClick={() => {
-              soundEffects.playSelect();
-              onClose();
-            }}
+            onClick={handleClose}
             className="w-8 h-8 rounded-full border flex items-center justify-center font-bold hover:bg-white/10 active:opacity-90"
             style={{
               backgroundColor: 'var(--bg-card)',
@@ -276,10 +279,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
           <button
             type="button"
-            onClick={() => {
-              soundEffects.playSelect();
-              onClose();
-            }}
+            onClick={handleClose}
             className="px-6 py-2 rounded-xl text-xs font-bold text-white shadow-md hover:brightness-110 active:opacity-90"
             style={{ backgroundColor: 'var(--accent-primary)' }}
           >

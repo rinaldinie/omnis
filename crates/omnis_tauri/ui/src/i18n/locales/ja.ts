@@ -145,6 +145,7 @@ export const ja: TranslationSchema = {
   editor_modal: {
     title: 'ゲーム情報を編集',
     tab_general: '基本情報',
+    tab_description: '説明 & メモ',
     tab_notes: '説明 & メモ',
     tab_media: 'メディア & アート',
     tab_launch: '起動設定',

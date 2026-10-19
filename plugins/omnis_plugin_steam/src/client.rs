@@ -229,10 +229,13 @@ pub fn map_steam_games_to_discovered(games: Vec<SteamApiGameItem>) -> Vec<Discov
             play_count: 0,
             last_activity: None,
             cover_image_path: Some(format!(
+                "https://cdn.cloudflare.steamstatic.com/steam/apps/{}/library_600x900_2x.jpg",
+                game.appid
+            )),
+            background_image_path: Some(format!(
                 "https://cdn.cloudflare.steamstatic.com/steam/apps/{}/header.jpg",
                 game.appid
             )),
-            background_image_path: None,
         })
         .collect()
 }
@@ -326,9 +329,15 @@ pub async fn fetch_user_games_web_api(
                     }
                 }
                 Ok(response) => {
+                    let status = response.status();
+                    if status == reqwest::StatusCode::FORBIDDEN || status == reqwest::StatusCode::UNAUTHORIZED {
+                        return Err(PluginError::Other(
+                            "Steam Web API Key non valida o non autorizzata. Verifica la chiave nelle impostazioni.".to_string(),
+                        ));
+                    }
                     tracing::warn!(
                         "Steam Web API returned status {} for steamid: {}",
-                        response.status(),
+                        status,
                         steam_id
                     );
                 }
@@ -348,11 +357,31 @@ pub async fn fetch_user_games_web_api(
 
     match client.get(&community_url).send().await {
         Ok(response) if response.status().is_success() => {
+            let final_url = response.url().as_str().to_lowercase();
+            if final_url.contains("/login") {
+                return Err(PluginError::Other(
+                    "Profilo Steam non pubblico o protetto da login. Inserisci la tua Steam Web API Key gratuita nelle impostazioni per sincronizzare la libreria cloud dei giochi posseduti.".to_string(),
+                ));
+            }
+
             let xml_content = response
                 .text()
                 .await
                 .map_err(|e| PluginError::Other(format!("Failed to read Steam community XML: {}", e)))?;
+
             let games = parse_steam_community_games_xml(&xml_content);
+            if games.is_empty() {
+                if let Some(err_msg) = extract_xml_tag(&xml_content, "error") {
+                    return Err(PluginError::Other(format!(
+                        "Steam ha restituito un errore: '{}'. Imposta 'Dettagli dei giochi' su Pubblico nel profilo Steam o inserisci una Steam Web API Key.",
+                        err_msg
+                    )));
+                }
+                return Err(PluginError::Other(
+                    "Nessun gioco rilevato dal profilo Steam pubblico. Valve richiede una Steam Web API Key per scaricare la libreria cloud dei giochi posseduti.".to_string(),
+                ));
+            }
+
             Ok(map_steam_games_to_discovered(games))
         }
         Ok(response) => {
