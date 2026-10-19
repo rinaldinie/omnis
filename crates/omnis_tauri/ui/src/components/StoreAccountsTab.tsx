@@ -28,12 +28,29 @@ interface StoreAccountsTabProps {
   onSyncComplete?: () => void;
 }
 
+interface VaultStatus {
+  is_fallback: boolean;
+  warning?: string | null;
+}
+
 export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({ onSyncComplete }) => {
   const [accounts, setAccounts] = useState<StoreAccount[]>(DEFAULT_ACCOUNTS);
+  const [vaultStatus, setVaultStatus] = useState<VaultStatus | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
   const [syncProgress, setSyncProgress] = useState<Record<string, StoreSyncProgress>>({});
   const [banner, setBanner] = useState<{ type: "success" | "info" | "error"; message: string } | null>(null);
+
+  const checkVaultStatus = async () => {
+    try {
+      const res = await invokeTauri<VaultStatus>("get_vault_status");
+      if (res) {
+        setVaultStatus(res);
+      }
+    } catch (e) {
+      console.debug("Failed getting vault status:", e);
+    }
+  };
 
   const loadAccounts = async () => {
     setIsLoading(true);
@@ -54,6 +71,7 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({ onSyncComple
 
   useEffect(() => {
     loadAccounts();
+    checkVaultStatus();
 
     let unlistenConnected: (() => void) | null = null;
     let unlistenDisconnected: (() => void) | null = null;
@@ -259,10 +277,17 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({ onSyncComple
               <h4 className="text-sm font-black text-white whitespace-nowrap">
                 Sincronizzazione Account Cloud &amp; OAuth
               </h4>
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 whitespace-nowrap shrink-0">
-                <ShieldCheck className="w-3 h-3 text-indigo-400" />
-                <span>Keyring Sicuro</span>
-              </span>
+              {vaultStatus?.is_fallback ? (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 whitespace-nowrap shrink-0">
+                  <AlertCircle className="w-3 h-3 text-amber-400" />
+                  <span>File Protetto (Fallback 0600)</span>
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 whitespace-nowrap shrink-0">
+                  <ShieldCheck className="w-3 h-3 text-indigo-400" />
+                  <span>Keyring Sicuro</span>
+                </span>
+              )}
             </div>
             <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--text-muted)" }}>
               Collega le tue librerie digitali per importare e sincronizzare automaticamente tutti i tuoi giochi.
@@ -296,6 +321,17 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({ onSyncComple
           </button>
         </div>
       </div>
+
+      {/* Fallback Keyring Warning */}
+      {vaultStatus?.is_fallback && (
+        <div className="p-3.5 rounded-xl border flex items-center gap-2.5 text-xs bg-amber-500/15 border-amber-500/30 text-amber-300">
+          <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+          <span>
+            {vaultStatus.warning ||
+              "Archiviazione sicura di sistema (Keyring) non disponibile. Chiave master salvata in file protetto locale (chmod 0600)."}
+          </span>
+        </div>
+      )}
 
       {/* Notifications / Feedback Banner */}
       {banner && (

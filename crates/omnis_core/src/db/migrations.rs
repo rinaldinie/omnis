@@ -75,6 +75,14 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
         CREATE INDEX IF NOT EXISTS idx_game_sessions_game_id ON game_sessions (game_id);
         CREATE INDEX IF NOT EXISTS idx_game_sessions_started_at ON game_sessions (started_at);
         CREATE INDEX IF NOT EXISTS idx_game_sessions_game_id_started_at ON game_sessions (game_id, started_at DESC);
+
+        CREATE TABLE IF NOT EXISTS secrets (
+            id TEXT PRIMARY KEY NOT NULL,
+            nonce BLOB NOT NULL,
+            ciphertext BLOB NOT NULL,
+            updated_at INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_secrets_updated_at ON secrets (updated_at);
         ",
     )?;
 
@@ -92,6 +100,7 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
     let _ = conn.execute("ALTER TABLE games ADD COLUMN user_notes TEXT;", []);
     let _ = conn.execute("ALTER TABLE games ADD COLUMN custom_links TEXT;", []);
     let _ = conn.execute("ALTER TABLE games ADD COLUMN play_actions TEXT;", []);
+    let _ = conn.execute("ALTER TABLE games ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0;", []);
 
     // Ensure performance indexes exist on existing DBs
     let _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_games_series ON games(series);", []);
@@ -99,5 +108,37 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
     let _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_games_critic_score ON games(critic_score);", []);
     let _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_games_playtime ON games(playtime_seconds);", []);
 
+    // Virtual column name mapping to title if not already present
+    let _ = conn.execute("ALTER TABLE games ADD COLUMN name TEXT GENERATED ALWAYS AS (title) VIRTUAL;", []);
+
+    // G3. FTS5 Virtual Table with trigram tokenizer + sync triggers
+    conn.execute_batch(
+        "
+        CREATE VIRTUAL TABLE IF NOT EXISTS games_fts USING fts5(
+            name, title, description, content='games', content_rowid='rowid', tokenize='trigram'
+        );
+
+        CREATE TRIGGER IF NOT EXISTS games_ai AFTER INSERT ON games BEGIN
+            INSERT INTO games_fts(rowid, name, title, description) VALUES (new.rowid, new.name, new.title, new.description);
+        END;
+
+        CREATE TRIGGER IF NOT EXISTS games_ad AFTER DELETE ON games BEGIN
+            INSERT INTO games_fts(games_fts, rowid, name, title, description) VALUES('delete', old.rowid, old.name, old.title, old.description);
+        END;
+
+        CREATE TRIGGER IF NOT EXISTS games_au AFTER UPDATE ON games BEGIN
+            INSERT INTO games_fts(games_fts, rowid, name, title, description) VALUES('delete', old.rowid, old.name, old.title, old.description);
+            INSERT INTO games_fts(rowid, name, title, description) VALUES (new.rowid, new.name, new.title, new.description);
+        END;
+        ",
+    )?;
+
+    // Ensure any pre-existing games are indexed into games_fts
+    let _ = conn.execute(
+        "INSERT OR IGNORE INTO games_fts(rowid, name, title, description) SELECT rowid, name, title, description FROM games;",
+        [],
+    );
+
     Ok(())
 }
+

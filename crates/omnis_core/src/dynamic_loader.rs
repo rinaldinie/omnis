@@ -13,6 +13,7 @@ use std::os::raw::c_char;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+pub type FnAbiVersion = unsafe extern "C" fn() -> u32;
 pub type FnGetManifest = unsafe extern "C" fn() -> *mut c_char;
 pub type FnMetadataFetch = unsafe extern "C" fn(*const c_char, *const c_char) -> *mut c_char;
 pub type FnMetadataTest = unsafe extern "C" fn(*const c_char) -> *mut c_char;
@@ -300,6 +301,31 @@ impl DynamicPluginLoader {
         };
 
         let lib = Arc::new(lib);
+
+        // ABI version handshake: check omnis_plugin_abi_version() -> u32. Reject if missing or != OMNIS_PLUGIN_ABI_VERSION
+        let fn_abi_version: Option<FnAbiVersion> = unsafe {
+            lib.get::<FnAbiVersion>(b"omnis_plugin_abi_version\0")
+                .map(|sym| *sym)
+                .ok()
+        };
+        let abi_version = match fn_abi_version {
+            Some(f) => unsafe { f() },
+            None => {
+                return Err(format!(
+                    "Plugin '{}' is missing required FFI symbol 'omnis_plugin_abi_version'",
+                    library_path.display()
+                ));
+            }
+        };
+
+        if abi_version != omnis_sdk::ffi::OMNIS_PLUGIN_ABI_VERSION {
+            return Err(format!(
+                "Unsupported plugin ABI version {} for '{}'. Omnis requires ABI version {}",
+                abi_version,
+                library_path.display(),
+                omnis_sdk::ffi::OMNIS_PLUGIN_ABI_VERSION
+            ));
+        }
 
         let fn_get_manifest: FnGetManifest = unsafe {
             let sym = lib

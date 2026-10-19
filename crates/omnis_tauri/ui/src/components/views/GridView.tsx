@@ -2,6 +2,7 @@ import React from "react";
 import { Gamepad2, ChevronRight, ChevronDown, Play, Download, Info, Pencil, Square } from "lucide-react";
 import { ActiveGameSession, GameDto, GroupBy, ViewMode } from "../../types";
 import { StoreBadge } from "../StoreBadge";
+import { Slot } from "../common/Slot";
 
 interface GridViewProps {
   filteredGames: GameDto[];
@@ -105,8 +106,10 @@ export default function GridView({
                     const isRunning = activeGame?.game_id === game.id;
 
                     return (
-                    <div
+                    <article
                       key={game.id}
+                      data-omnis="game-card"
+                      data-state={isRunning ? "running" : game.is_installed ? "installed" : "missing"}
                       onClick={() => {
                         setSelectedGame(game);
                         setViewMode("details");
@@ -132,6 +135,7 @@ export default function GridView({
                       <div className="aspect-[2/3] w-full relative overflow-hidden bg-black/40">
                         {game.cover_image ? (
                           <img
+                            data-omnis="game-card.cover"
                             src={game.cover_image}
                             alt={game.title}
                             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
@@ -155,7 +159,7 @@ export default function GridView({
                         )}
 
                         {/* Top Left: Store Badge & Status */}
-                        <div className="absolute top-2 left-2 flex items-center gap-1.5 z-10 pointer-events-none">
+                        <div data-omnis="game-card.badge" className="absolute top-2 left-2 flex items-center gap-1.5 z-10 pointer-events-none">
                           <StoreBadge library={game.library} />
                           {isRunning ? (
                             <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-bold shadow-lg backdrop-blur-md ${
@@ -264,12 +268,13 @@ export default function GridView({
 
                       {/* Bottom Info Bar */}
                       <div className="p-2.5 flex flex-col gap-0.5">
-                        <span
+                        <h3
+                          data-omnis="game-card.title"
                           className="font-bold text-xs text-white truncate leading-snug"
                           title={game.title}
                         >
                           {game.title}
-                        </span>
+                        </h3>
                         <div
                           className="flex items-center justify-between text-[10px]"
                           style={{ color: "var(--text-muted)" }}
@@ -279,8 +284,9 @@ export default function GridView({
                             {game.genres[0] || "Gioco"}
                           </span>
                         </div>
+                        <Slot name="game-card.badges" gameId={game.id} />
                       </div>
-                    </div>
+                    </article>
                   );
                 })}
                 </div>

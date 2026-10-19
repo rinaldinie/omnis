@@ -6,15 +6,18 @@ use omnis_sdk::{
 use rusqlite::{params, Connection, OptionalExtension, Result};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::{Mutex, RwLock};
 use uuid::Uuid;
+
+use crate::search::{FuzzyGameSearchIndex, SearchItem};
 
 pub mod migrations;
 
 pub type DatabaseError = rusqlite::Error;
 
 pub struct Database {
-    conn: Mutex<Connection>,
+    pub(crate) conn: Mutex<Connection>,
+    search_index: RwLock<FuzzyGameSearchIndex>,
 }
 
 impl Database {
@@ -35,8 +38,10 @@ impl Database {
 
         let db = Self {
             conn: Mutex::new(conn),
+            search_index: RwLock::new(FuzzyGameSearchIndex::new()),
         };
         db.migrate()?;
+        let _ = db.reload_search_index();
         Ok(db)
     }
 
@@ -51,8 +56,10 @@ impl Database {
         )?;
         let db = Self {
             conn: Mutex::new(conn),
+            search_index: RwLock::new(FuzzyGameSearchIndex::new()),
         };
         db.migrate()?;
+        let _ = db.reload_search_index();
         Ok(db)
     }
 
@@ -144,7 +151,44 @@ impl Database {
         }
 
         tx.commit()?;
+        drop(conn);
+        let _ = self.reload_search_index();
         Ok(count)
+    }
+
+    /// Reload all titles from database into the in-memory fuzzy search index
+    pub fn reload_search_index(&self) -> Result<()> {
+        let items = {
+            let conn = self.conn.lock().unwrap();
+            let mut stmt = conn.prepare("SELECT id, title FROM games;")?;
+            let rows = stmt.query_map([], |row| {
+                let id_str: String = row.get(0)?;
+                let title: String = row.get(1)?;
+                let id = Uuid::parse_str(&id_str).map_err(|_| {
+                    rusqlite::Error::FromSqlConversionFailure(
+                        0,
+                        rusqlite::types::Type::Text,
+                        Box::new(std::io::Error::new(
+                            std::io::ErrorKind::InvalidData,
+                            "Invalid UUID",
+                        )),
+                    )
+                })?;
+                Ok(SearchItem { id, title })
+            })?;
+
+            let mut items = Vec::new();
+            for r in rows {
+                if let Ok(item) = r {
+                    items.push(item);
+                }
+            }
+            items
+        };
+
+        let mut index = self.search_index.write().unwrap();
+        index.build_from_items(items);
+        Ok(())
     }
 
     /// Insert a custom game / non-store executable into the database
@@ -181,6 +225,7 @@ impl Database {
         )?;
 
         drop(conn);
+        self.search_index.write().unwrap().insert_or_update(id, title);
         self.get_game_by_id(id)?
             .ok_or(rusqlite::Error::QueryReturnedNoRows)
     }
@@ -374,8 +419,115 @@ impl Database {
         }
     }
 
-    /// Search games across titles, series, genres, developers, publishers, tags, notes
+    /// Search game IDs using SQLite FTS5 with trigram matching across titles and descriptions
+    pub fn search_games_fts(&self, search_term: &str) -> Result<Vec<Uuid>> {
+        let trimmed = search_term.trim();
+        if trimmed.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let conn = self.conn.lock().unwrap();
+        let safe_query = format!("\"{}\"", trimmed.replace('"', "\"\""));
+
+        let mut stmt = match conn.prepare(
+            "SELECT g.id FROM games g JOIN games_fts f ON g.rowid = f.rowid WHERE games_fts MATCH ?1 ORDER BY rank;"
+        ) {
+            Ok(s) => s,
+            Err(_) => return Ok(Vec::new()),
+        };
+
+        let rows = stmt.query_map(params![safe_query], |row| {
+            let id_str: String = row.get(0)?;
+            Uuid::parse_str(&id_str).map_err(|_| {
+                rusqlite::Error::FromSqlConversionFailure(
+                    0,
+                    rusqlite::types::Type::Text,
+                    Box::new(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        "Invalid UUID",
+                    )),
+                )
+            })
+        })?;
+
+        let mut ids = Vec::new();
+        for r in rows {
+            if let Ok(id) = r {
+                ids.push(id);
+            }
+        }
+        Ok(ids)
+    }
+
+    /// Retrieve games by their IDs preserving the requested slice ordering
+    pub fn get_games_by_ids(&self, ids: &[Uuid]) -> Result<Vec<Game>> {
+        if ids.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let conn = self.conn.lock().unwrap();
+        let placeholders = ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+        let sql = format!(
+            "SELECT {} FROM games WHERE id IN ({});",
+            GAME_COLUMNS, placeholders
+        );
+
+        let mut stmt = conn.prepare(&sql)?;
+        let id_strings: Vec<String> = ids.iter().map(|id| id.to_string()).collect();
+        let rusqlite_params = rusqlite::params_from_iter(id_strings.iter());
+
+        let rows = stmt.query_map(rusqlite_params, map_row_to_game)?;
+        let mut map = std::collections::HashMap::new();
+        for r in rows {
+            let game = r?;
+            map.insert(game.id, game);
+        }
+
+        let mut ordered = Vec::with_capacity(ids.len());
+        for id in ids {
+            if let Some(game) = map.remove(id) {
+                ordered.push(game);
+            }
+        }
+        Ok(ordered)
+    }
+
+    /// Search games using in-memory fuzzy title matching (nucleo-matcher)
+    /// + SQLite FTS5 trigram search on descriptions and titles.
     pub fn search_games(&self, search_term: &str) -> Result<Vec<Game>> {
+        let term = search_term.trim();
+        if term.is_empty() {
+            return self.get_all_games();
+        }
+
+        // 1. In-memory fuzzy search on titles (nucleo-matcher)
+        let fuzzy_matches = {
+            let index = self.search_index.read().unwrap();
+            index.search(term)
+        };
+
+        let mut matched_ids: Vec<Uuid> = fuzzy_matches.into_iter().map(|(id, _)| id).collect();
+
+        // 2. Full-text search (SQLite FTS5 with trigram) on descriptions & titles
+        if let Ok(fts_ids) = self.search_games_fts(term) {
+            for id in fts_ids {
+                if !matched_ids.contains(&id) {
+                    matched_ids.push(id);
+                }
+            }
+        }
+
+        // 3. Fallback to LIKE query across metadata if no matches found or short queries
+        if matched_ids.is_empty() {
+            return self.search_games_like(term);
+        }
+
+        // 4. Retrieve full Game objects preserving order
+        self.get_games_by_ids(&matched_ids)
+    }
+
+    /// Legacy LIKE-based search fallback across genres, developers, tags, notes
+    pub fn search_games_like(&self, search_term: &str) -> Result<Vec<Game>> {
         let conn = self.conn.lock().unwrap();
         let pattern = format!("%{}%", search_term);
         let sql = format!(
@@ -498,6 +650,11 @@ impl Database {
                 return Err(rusqlite::Error::QueryReturnedNoRows);
             }
         }
+
+        self.search_index
+            .write()
+            .unwrap()
+            .insert_or_update(update.id, &update.title);
 
         self.get_game_by_id(update.id)?
             .ok_or(rusqlite::Error::QueryReturnedNoRows)
@@ -943,6 +1100,41 @@ impl Database {
             })
         })?;
         Ok(counts)
+    }
+
+    /// Store an encrypted secret record (Requirement D1)
+    pub fn store_secret(&self, id: &str, nonce: &[u8], ciphertext: &[u8]) -> Result<(), DatabaseError> {
+        let conn = self.conn.lock().unwrap();
+        let now = chrono::Utc::now().timestamp();
+        conn.execute(
+            "INSERT INTO secrets (id, nonce, ciphertext, updated_at)
+             VALUES (?1, ?2, ?3, ?4)
+             ON CONFLICT(id) DO UPDATE SET
+                nonce = excluded.nonce,
+                ciphertext = excluded.ciphertext,
+                updated_at = excluded.updated_at",
+            params![id, nonce, ciphertext, now],
+        )?;
+        Ok(())
+    }
+
+    /// Retrieve an encrypted secret record by ID (Requirement D1)
+    pub fn get_secret(&self, id: &str) -> Result<Option<(Vec<u8>, Vec<u8>)>, DatabaseError> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare("SELECT nonce, ciphertext FROM secrets WHERE id = ?1")?;
+        let res = stmt.query_row(params![id], |row| {
+            let nonce: Vec<u8> = row.get(0)?;
+            let ciphertext: Vec<u8> = row.get(1)?;
+            Ok((nonce, ciphertext))
+        }).optional()?;
+        Ok(res)
+    }
+
+    /// Delete a secret by ID
+    pub fn delete_secret(&self, id: &str) -> Result<(), DatabaseError> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute("DELETE FROM secrets WHERE id = ?1", params![id])?;
+        Ok(())
     }
 }
 

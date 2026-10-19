@@ -269,6 +269,13 @@ export default function App() {
     if (currentTheme.font_family) {
       root.style.fontFamily = currentTheme.font_family;
     }
+    if (currentTheme.tokens && typeof currentTheme.tokens === "object") {
+      Object.entries(currentTheme.tokens).forEach(([tokenKey, tokenValue]) => {
+        if (tokenKey.startsWith("--")) {
+          root.style.setProperty(tokenKey, tokenValue);
+        }
+      });
+    }
     document.body.style.backgroundColor = currentTheme.bg_base;
     document.body.style.color = currentTheme.text_primary;
 

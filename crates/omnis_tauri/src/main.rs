@@ -52,7 +52,11 @@ fn main() {
         marketplace.set_plugins_dir(plugins_dir.clone()).await;
     });
 
-    let store_account_manager = Arc::new(store_manager::StoreAccountManager::new(db.clone()));
+    let vault = Arc::new(omnis_core::SecretVault::new(&app_dir).unwrap_or_else(|e| {
+        tracing::warn!("SecretVault initialization warning: {}. Using fallback.", e);
+        omnis_core::SecretVault::from_key([0x42; 32])
+    }));
+    let store_account_manager = Arc::new(store_manager::StoreAccountManager::new(db.clone(), vault.clone()));
     store_account_manager.register_plugin(Arc::new(omnis_plugin_gog::GogCloudPlugin::new()));
     store_account_manager.register_plugin(Arc::new(omnis_plugin_xbox::XboxCloudPlugin::new()));
     store_account_manager.register_plugin(Arc::new(omnis_plugin_steam::SteamPlugin::new()));
@@ -133,6 +137,8 @@ fn main() {
             sync_store_library,
             clear_library,
             get_game_trailer_url,
+            get_vault_status,
+            get_slot_widgets,
         ])
         .run(tauri::generate_context!())
         .expect("Errore durante l'esecuzione dell'applicazione Tauri");

@@ -341,6 +341,10 @@ impl MetadataDownloader {
                             ],
                             entry_point: None,
                             settings_schema: None,
+                            permissions: val.get("permissions")
+                                .and_then(|p| p.as_array())
+                                .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
+                                .unwrap_or_default(),
                         })
                     } else {
                         None
@@ -374,6 +378,10 @@ impl MetadataDownloader {
                             ],
                             entry_point: None,
                             settings_schema: None,
+                            permissions: val.get("permissions")
+                                .and_then(|p| p.as_array())
+                                .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
+                                .unwrap_or_default(),
                         })
                     } else {
                         None

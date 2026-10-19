@@ -77,16 +77,38 @@ pub trait LibraryPlugin: Send + Sync {
     async fn scan(&self) -> Result<Vec<DiscoveredGame>, PluginError>;
 }
 
+use std::fmt;
+use zeroize::{Zeroize, ZeroizeOnDrop};
+
 /// Authenticated session for a cloud game store (GOG, Xbox, Steam, etc.)
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
 pub struct StoreAccountSession {
+    #[zeroize(skip)]
     pub store_id: String,
+    #[zeroize(skip)]
     pub user_id: String,
+    #[zeroize(skip)]
     pub username: String,
+    #[zeroize(skip)]
     pub avatar_url: Option<String>,
     pub access_token: String,
     pub refresh_token: Option<String>,
+    #[zeroize(skip)]
     pub expires_at: Option<i64>, // Unix timestamp in seconds
+}
+
+impl fmt::Debug for StoreAccountSession {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("StoreAccountSession")
+            .field("store_id", &self.store_id)
+            .field("user_id", &self.user_id)
+            .field("username", &self.username)
+            .field("avatar_url", &self.avatar_url)
+            .field("access_token", &"[REDACTED]")
+            .field("refresh_token", &self.refresh_token.as_ref().map(|_| "[REDACTED]"))
+            .field("expires_at", &self.expires_at)
+            .finish()
+    }
 }
 
 impl StoreAccountSession {
@@ -206,6 +228,7 @@ pub trait MetadataProvider: Send + Sync {
             supported_fields: self.supported_fields(),
             entry_point: None,
             settings_schema: self.settings_schema(),
+            permissions: Vec::new(),
         }
     }
 }
@@ -235,6 +258,8 @@ pub struct PluginManifest {
     pub entry_point: Option<String>,
     #[serde(default)]
     pub settings_schema: Option<PluginSettingsSchema>,
+    #[serde(default)]
+    pub permissions: Vec<String>,
 }
 
 pub fn default_manifest_version() -> String {
@@ -264,6 +289,7 @@ impl Default for PluginManifest {
             supported_fields: Vec::new(),
             entry_point: None,
             settings_schema: None,
+            permissions: Vec::new(),
         }
     }
 }
@@ -288,25 +314,36 @@ mod tests {
         let now = chrono::Utc::now().timestamp();
 
         // Expired in the past
-        let session_past = StoreAccountSession {
-            expires_at: Some(now - 100),
-            ..session_no_exp.clone()
-        };
+        let mut session_past = session_no_exp.clone();
+        session_past.expires_at = Some(now - 100);
         assert!(session_past.is_expired());
 
         // Expiring within 60 second buffer (e.g. 30 seconds from now)
-        let session_buffer = StoreAccountSession {
-            expires_at: Some(now + 30),
-            ..session_no_exp.clone()
-        };
+        let mut session_buffer = session_no_exp.clone();
+        session_buffer.expires_at = Some(now + 30);
         assert!(session_buffer.is_expired());
 
         // Valid far in future (e.g. 1 hour from now)
-        let session_future = StoreAccountSession {
-            expires_at: Some(now + 3600),
-            ..session_no_exp
-        };
+        let mut session_future = session_no_exp.clone();
+        session_future.expires_at = Some(now + 3600);
         assert!(!session_future.is_expired());
+    }
+
+    #[test]
+    fn test_store_account_session_debug_redaction_and_zeroize() {
+        let session = StoreAccountSession {
+            store_id: "xbox".to_string(),
+            user_id: "user1".to_string(),
+            username: "Gamer".to_string(),
+            avatar_url: None,
+            access_token: "super_secret_jwt_token_12345".to_string(),
+            refresh_token: Some("super_secret_refresh_token_67890".to_string()),
+            expires_at: None,
+        };
+        let debug_str = format!("{:?}", session);
+        assert!(!debug_str.contains("super_secret_jwt_token_12345"));
+        assert!(!debug_str.contains("super_secret_refresh_token_67890"));
+        assert!(debug_str.contains("[REDACTED]"));
     }
 }
 
