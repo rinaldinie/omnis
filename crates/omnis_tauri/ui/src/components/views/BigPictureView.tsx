@@ -21,6 +21,7 @@ import { ActiveGameSession, GameDto, LibraryCounts, ThemeConfig } from "../../ty
 import { StoreBadge, StoreIcon } from "../StoreBadge";
 import soundEffects from "../../utils/soundEffects";
 import { VideoBackdrop } from "../common/VideoBackdrop";
+import { Slot } from "../common/Slot";
 
 interface BigPictureViewProps {
   focusedGame: GameDto | null;
@@ -123,7 +124,8 @@ export default function BigPictureView({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [activeGame, focusedGame, handleKillRunningGame]);
   return (
-    <div
+    <main
+      data-omnis="bigpicture"
       className="relative flex flex-col h-screen w-screen overflow-hidden transition-colors duration-500"
       style={{ backgroundColor: "var(--bg-base)" }}
     >
@@ -392,7 +394,7 @@ export default function BigPictureView({
 
       {/* MAIN HERO STAGE */}
       <div className="relative z-10 flex-1 flex flex-col justify-end px-16 pb-8">
-        <div className="max-w-3xl mb-8 space-y-4">
+        <section data-omnis="bigpicture.hero" className="max-w-3xl mb-8 space-y-4">
           <div className="flex items-center gap-3">
             {focusedGame && (
               <StoreBadge library={focusedGame.library} showName={true} className="py-1 px-3 text-xs" />
@@ -413,7 +415,7 @@ export default function BigPictureView({
             </span>
           </div>
 
-          <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight drop-shadow-md">
+          <h1 data-omnis="bigpicture.title" className="text-4xl md:text-5xl font-black text-white tracking-tight drop-shadow-md">
             {focusedGame?.title}
           </h1>
 
@@ -510,7 +512,10 @@ export default function BigPictureView({
               <span>{t("common.refresh")}</span>
             </button>
           </div>
-        </div>
+
+          {/* Declarative Plugin Slot */}
+          <Slot name="bigpicture.hero" gameId={focusedGame?.id} />
+        </section>
 
         {/* HORIZONTAL CAROUSEL SHELF */}
         <div className="w-full">
@@ -876,6 +881,6 @@ export default function BigPictureView({
           )}
         </div>
       )}
-    </div>
+    </main>
   );
 }

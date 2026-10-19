@@ -38,6 +38,7 @@ export default function Sidebar({
 
   return (
     <aside
+      data-omnis="sidebar"
       className="w-64 min-w-[256px] max-w-[256px] border-r flex flex-col justify-between p-3 select-none transition-colors duration-300"
       style={{
         backgroundColor: "var(--bg-surface)",
@@ -87,6 +88,7 @@ export default function Sidebar({
             return (
               <button
                 key={item.id}
+                data-omnis="sidebar.item"
                 onClick={() => setActiveFilter(item.id)}
                 className="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-bold transition-all"
                 style={{

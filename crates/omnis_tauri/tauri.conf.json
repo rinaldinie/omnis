@@ -19,7 +19,7 @@
       }
     ],
     "security": {
-      "csp": null,
+      "csp": "default-src 'self' ipc: tauri:; style-src 'self' 'unsafe-inline' asset: omnis-theme:; font-src 'self' asset: omnis-theme: data:; img-src 'self' asset: omnis-theme: https: data: blob:; media-src 'self' asset: https: blob:; connect-src 'self' https: ipc: tauri:; script-src 'self' 'wasm-unsafe-eval';",
       "assetProtocol": {
         "enable": true,
         "scope": ["**"]

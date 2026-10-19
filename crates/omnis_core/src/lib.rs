@@ -5,15 +5,38 @@ pub mod host;
 pub mod launcher;
 pub mod marketplace;
 pub mod metadata;
+pub mod playnite;
+pub mod search;
+pub mod security;
+pub mod theme;
+pub mod wasm_host;
 
 pub use db::{Database, DatabaseError, LibraryCounts};
 pub use dynamic_loader::{DynamicNativeMetadataProvider, DynamicPluginHandle, DynamicPluginLoader};
 pub use event_bus::EventBus;
 pub use host::PluginHost;
-pub use launcher::GameLauncher;
+pub use playnite::{
+    export_csharp_script, map_playnite_plugin_id, PlayniteGameDto, PlayniteImportOptions,
+    PlayniteImportStats,
+};
+pub use search::{FuzzyGameSearchIndex, SearchItem};
+pub use launcher::{
+    get_current_app_memory_bytes, get_process_tree_memory_bytes,
+    get_process_tree_memory_from_system, GameLauncher,
+};
 pub use marketplace::{
     MarketplaceCatalog, MarketplaceManager, MarketplacePlatformAsset, MarketplacePluginItem,
 };
 pub use metadata::{MetadataCandidateDto, MetadataDownloader, MetadataPipelineConfig, ProviderInfo};
+pub use security::{SecretVault, VaultError, VaultStatus};
+pub use theme::{
+    parse_and_validate_theme_manifest, validate_theme_css_security, ThemeManifest,
+    CURRENT_THEME_API_VERSION,
+};
+pub use wasm_host::{
+    WasmExecutionError, WasmHostState, WasmPluginEngine, WasmPluginInstance, WasmPluginPermissions,
+    WasmSandboxConfig,
+};
+
 
 

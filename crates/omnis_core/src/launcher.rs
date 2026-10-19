@@ -439,6 +439,52 @@ pub async fn kill_process_graceful(pid: u32, timeout_secs: u64) -> Result<(), St
     kill_process(pid)
 }
 
+/// Calculates the total resident memory in bytes of a process and ALL its descendants.
+/// Correctly accounts for multi-process architectures such as Chromium/WebView2,
+/// game launchers, anti-cheat wrappers, and worker subprocesses.
+pub fn get_process_tree_memory_bytes(root_pid: u32) -> u64 {
+    let mut sys = System::new();
+    sys.refresh_processes();
+    get_process_tree_memory_from_system(&sys, root_pid)
+}
+
+/// Calculates the total resident memory given an existing sysinfo::System snapshot.
+pub fn get_process_tree_memory_from_system(sys: &System, root_pid: u32) -> u64 {
+    let target_pid = Pid::from(root_pid as usize);
+    let mut pids_in_tree = std::collections::HashSet::new();
+    pids_in_tree.insert(target_pid);
+
+    let mut added = true;
+    while added {
+        added = false;
+        for (pid, proc) in sys.processes() {
+            if !pids_in_tree.contains(pid) {
+                if let Some(parent_pid) = proc.parent() {
+                    if pids_in_tree.contains(&parent_pid) {
+                        pids_in_tree.insert(*pid);
+                        added = true;
+                    }
+                }
+            }
+        }
+    }
+
+    let mut total_bytes = 0u64;
+    for pid in &pids_in_tree {
+        if let Some(proc) = sys.process(*pid) {
+            total_bytes = total_bytes.saturating_add(proc.memory());
+        }
+    }
+
+    total_bytes
+}
+
+/// Returns the total memory in bytes consumed by the Omnis host process and all its
+/// WebView2 / helper child processes.
+pub fn get_current_app_memory_bytes() -> u64 {
+    get_process_tree_memory_bytes(std::process::id())
+}
+
 /// High-performance process runner & monitoring engine for Omnis
 pub struct GameLauncher;
 

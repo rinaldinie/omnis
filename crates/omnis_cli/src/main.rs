@@ -93,8 +93,57 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("  Installed Plugins: {}", host.plugin_count());
             println!("  Cold Startup Latency: {:.2}ms", start_total.elapsed().as_secs_f64() * 1000.0);
         }
+        "import-playnite" => {
+            let file_path = match args.get(2) {
+                Some(p) => p,
+                None => {
+                    eprintln!("Error: Missing path to Playnite export JSON file.");
+                    eprintln!("Usage: omnis import-playnite <file.json> [--dry-run]");
+                    return Ok(());
+                }
+            };
+
+            let dry_run = args.iter().any(|a| a == "--dry-run");
+            let cache_dir = app_dir.join("cache").join("images");
+
+            let options = omnis_core::PlayniteImportOptions {
+                dry_run,
+                image_cache_dir: Some(cache_dir),
+            };
+
+            info!("Starting Playnite 10 library import from '{}' (dry_run: {})...", file_path, dry_run);
+            let t_import = Instant::now();
+
+            match db.import_playnite_from_file(file_path, &options) {
+                Ok(stats) => {
+                    println!("\n🎮 ================== PLAYNITE IMPORT REPORT ================== 🎮");
+                    println!("Source File:          {}", file_path);
+                    println!("Dry-Run Mode:         {}", dry_run);
+                    println!("Total Games Read:     {}", stats.total_read);
+                    println!("New Games Created:    {}", stats.games_created);
+                    println!("Existing Merged:      {}", stats.games_merged);
+                    println!("Playtime Updated:     {}", stats.playtime_updated);
+                    println!("Images Cached:        {}", stats.images_cached);
+                    println!("Tags Associated:      {}", stats.tags_added);
+                    println!("Categories Linked:    {}", stats.categories_added);
+                    println!("Elapsed Duration:     {:.2}ms", t_import.elapsed().as_secs_f64() * 1000.0);
+                    println!("===============================================================");
+                    if dry_run {
+                        println!("ℹ️ Dry-run completed: No modifications were committed to the database.");
+                    } else {
+                        println!("✅ Playnite library successfully imported and indexed!");
+                    }
+                }
+                Err(e) => {
+                    eprintln!("\n❌ Failed to import Playnite library: {}", e);
+                }
+            }
+        }
+        "playnite-exporter-script" => {
+            println!("{}", omnis_core::export_csharp_script());
+        }
         _ => {
-            println!("Usage: omnis <sync | list | stats>");
+            println!("Usage: omnis <sync | list | stats | import-playnite <file.json> [--dry-run] | playnite-exporter-script>");
         }
     }
 

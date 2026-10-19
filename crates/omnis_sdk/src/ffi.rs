@@ -50,9 +50,36 @@ pub fn string_to_c_str(s: &str) -> *mut c_char {
     c_string.into_raw()
 }
 
+/// Current ABI version for native Omnis dynamic plugins.
+pub const OMNIS_PLUGIN_ABI_VERSION: u32 = 1;
+
+/// Safely executes an FFI closure inside a panic unwinding boundary.
+/// If the closure panics, returns a C string containing a serialized JSON error object,
+/// ensuring that host processes never crash due to plugin panics.
+pub fn guard<F>(f: F) -> *mut c_char
+where
+    F: FnOnce() -> *mut c_char + std::panic::UnwindSafe,
+{
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)) {
+        Ok(ptr) => ptr,
+        Err(e) => {
+            let msg = if let Some(s) = e.downcast_ref::<&str>() {
+                *s
+            } else if let Some(s) = e.downcast_ref::<String>() {
+                s.as_str()
+            } else {
+                "Unknown panic during dynamic plugin FFI execution"
+            };
+            let err_json = format!("{{\"error\":\"Panic caught by FFI guard: {}\"}}", msg);
+            string_to_c_str(&err_json)
+        }
+    }
+}
+
 /// Declarative macro to export a struct implementing `MetadataProvider` as a dynamic C-ABI plugin (`cdylib`).
 ///
 /// Exports the following C symbols:
+/// - `omnis_plugin_abi_version() -> u32`
 /// - `omnis_plugin_get_manifest() -> *mut c_char`
 /// - `omnis_metadata_fetch(request_json: *const c_char, settings_json: *const c_char) -> *mut c_char`
 /// - `omnis_metadata_test(settings_json: *const c_char) -> *mut c_char`
@@ -61,8 +88,13 @@ pub fn string_to_c_str(s: &str) -> *mut c_char {
 macro_rules! export_omnis_plugin {
     ($provider_type:ty) => {
         #[no_mangle]
+        pub extern "C" fn omnis_plugin_abi_version() -> u32 {
+            $crate::ffi::OMNIS_PLUGIN_ABI_VERSION
+        }
+
+        #[no_mangle]
         pub unsafe extern "C" fn omnis_plugin_get_manifest() -> *mut ::std::os::raw::c_char {
-            let unwind_res = ::std::panic::catch_unwind(::std::panic::AssertUnwindSafe(|| {
+            $crate::ffi::guard(|| {
                 let provider = <$provider_type as ::std::default::Default>::default();
                 let manifest = <$provider_type as $crate::MetadataProvider>::manifest(&provider);
                 match ::serde_json::to_string(&manifest) {
@@ -72,14 +104,7 @@ macro_rules! export_omnis_plugin {
                         $crate::ffi::string_to_c_str(&err_json)
                     }
                 }
-            }));
-            match unwind_res {
-                Ok(ptr) => ptr,
-                Err(_) => {
-                    let err_json = "{\"error\":\"Panic during omnis_plugin_get_manifest\"}";
-                    $crate::ffi::string_to_c_str(err_json)
-                }
-            }
+            })
         }
 
         #[no_mangle]
@@ -87,7 +112,7 @@ macro_rules! export_omnis_plugin {
             request_json: *const ::std::os::raw::c_char,
             settings_json: *const ::std::os::raw::c_char,
         ) -> *mut ::std::os::raw::c_char {
-            let unwind_res = ::std::panic::catch_unwind(::std::panic::AssertUnwindSafe(|| {
+            $crate::ffi::guard(|| {
                 let req_str = match $crate::ffi::c_str_to_string(request_json) {
                     Ok(s) => s,
                     Err(e) => {
@@ -146,23 +171,14 @@ macro_rules! export_omnis_plugin {
                     }
                 };
                 $crate::ffi::string_to_c_str(&json)
-            }));
-
-            match unwind_res {
-                Ok(ptr) => ptr,
-                Err(_) => {
-                    let res: Result<$crate::GameMetadataPatch, String> = Err("Panic occurred during omnis_metadata_fetch invocation".to_string());
-                    let json = ::serde_json::to_string(&res).unwrap_or_default();
-                    $crate::ffi::string_to_c_str(&json)
-                }
-            }
+            })
         }
 
         #[no_mangle]
         pub unsafe extern "C" fn omnis_metadata_test(
             settings_json: *const ::std::os::raw::c_char,
         ) -> *mut ::std::os::raw::c_char {
-            let unwind_res = ::std::panic::catch_unwind(::std::panic::AssertUnwindSafe(|| {
+            $crate::ffi::guard(|| {
                 let settings: ::serde_json::Map<String, ::serde_json::Value> = if settings_json.is_null() {
                     ::serde_json::Map::new()
                 } else {
@@ -203,16 +219,7 @@ macro_rules! export_omnis_plugin {
                     }
                 };
                 $crate::ffi::string_to_c_str(&json)
-            }));
-
-            match unwind_res {
-                Ok(ptr) => ptr,
-                Err(_) => {
-                    let res: Result<String, String> = Err("Panic occurred during omnis_metadata_test invocation".to_string());
-                    let json = ::serde_json::to_string(&res).unwrap_or_default();
-                    $crate::ffi::string_to_c_str(&json)
-                }
-            }
+            })
         }
 
         #[no_mangle]
@@ -247,5 +254,32 @@ mod tests {
 
         // free null pointer must not crash
         unsafe { free_c_string(std::ptr::null_mut()) };
+    }
+
+    #[test]
+    fn test_ffi_guard_catches_panic_and_returns_error_json() {
+        let ptr = guard(|| {
+            panic!("Intentional test panic in FFI function");
+        });
+        assert!(!ptr.is_null());
+
+        let res_str = unsafe { c_str_to_string(ptr) }.expect("Valid string");
+        assert!(res_str.contains("Panic caught by FFI guard"));
+        assert!(res_str.contains("Intentional test panic"));
+
+        unsafe { free_c_string(ptr) };
+    }
+
+    #[test]
+    fn test_ffi_guard_normal_return() {
+        let ptr = guard(|| {
+            string_to_c_str("{\"success\":true}")
+        });
+        assert!(!ptr.is_null());
+
+        let res_str = unsafe { c_str_to_string(ptr) }.expect("Valid string");
+        assert_eq!(res_str, "{\"success\":true}");
+
+        unsafe { free_c_string(ptr) };
     }
 }

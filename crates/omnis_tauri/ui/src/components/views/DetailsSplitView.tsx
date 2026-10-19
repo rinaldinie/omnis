@@ -17,6 +17,7 @@ import {
 import { ActiveGameSession, GameDto, ThemeConfig, ViewMode } from "../../types";
 import { StoreBadge } from "../StoreBadge";
 import { VideoBackdrop } from "../common/VideoBackdrop";
+import { Slot } from "../common/Slot";
 
 interface DetailsSplitViewProps {
   currentTheme?: ThemeConfig;
@@ -259,7 +260,7 @@ export default function DetailsSplitView({
         </div>
 
         {/* Hero Background Full-Width with Ambient Gradient / Video Trailer */}
-        <div className="relative h-88 min-h-[340px] w-full overflow-hidden flex items-end p-8">
+        <section data-omnis="details.hero" className="relative h-88 min-h-[340px] w-full overflow-hidden flex items-end p-8">
           {currentTheme ? (
             <VideoBackdrop
               game={selectedGame}
@@ -368,12 +369,12 @@ export default function DetailsSplitView({
                 )}
               </div>
 
-              <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight drop-shadow-md">
+              <h1 data-omnis="details.title" className="text-3xl md:text-4xl font-black text-white tracking-tight drop-shadow-md">
                 {selectedGame.title}
               </h1>
 
               {/* Action Buttons Bar */}
-              <div className="flex flex-wrap items-center gap-3 pt-2">
+              <div data-omnis="details.actions" className="flex flex-wrap items-center gap-3 pt-2">
                 {isSelectedGameRunning ? (
                   <>
                     <button
@@ -470,12 +471,17 @@ export default function DetailsSplitView({
                   <span>{t("game_details.identify_metadata")}</span>
                 </button>
               </div>
+
+              {/* Slot: Details Hero */}
+              <Slot name="details.hero" gameId={selectedGame.id} />
             </div>
           </div>
-        </div>
+        </section>
 
         {/* Information Cards & Metadata Tabs */}
         <div className="p-8 space-y-6">
+          {/* Slot: Details Info */}
+          <Slot name="details.info" gameId={selectedGame.id} />
           {/* Card 1: Synopsis & Description */}
           <div
             className="p-6 rounded-2xl border space-y-3 shadow-md"

@@ -74,7 +74,11 @@ export const VideoBackdrop: React.FC<VideoBackdropProps> = ({
     };
   }, [game?.id, game?.external_id, isEnabled, delayMs, isPaused]);
 
-  // 2. Attach Video Source (HLS Stream or MP4/WebM)
+  // 2. Attach Video Source with 4-tier Cascade:
+  // Tier 1: Native HLS (macOS / Safari / iOS WebKit)
+  // Tier 2: Hls.js via Media Source Extensions (Windows WebView2 / Linux WebKitGTK / Blink)
+  // Tier 3: Direct MP4/WebM progressive video stream fallback
+  // Tier 4: Static poster background
   useEffect(() => {
     const videoEl = videoRef.current;
     if (!videoEl || !videoSrc) {
@@ -87,8 +91,38 @@ export const VideoBackdrop: React.FC<VideoBackdropProps> = ({
     }
 
     const isHlsUrl = videoSrc.includes(".m3u8");
+    const mp4FallbackUrl = isHlsUrl
+      ? videoSrc.replace("movie.m3u8", "movie_max.mp4").replace(".m3u8", ".mp4")
+      : null;
 
-    if (isHlsUrl && Hls.isSupported()) {
+    // Helper to fall back to direct MP4
+    const tryMp4Fallback = () => {
+      if (mp4FallbackUrl && videoEl) {
+        console.debug("[VideoBackdrop] Falling back to direct MP4 stream:", mp4FallbackUrl);
+        videoEl.src = mp4FallbackUrl;
+        if (!isPaused) {
+          videoEl.play().catch(() => {
+            setIsVideoPlaying(false);
+          });
+        }
+      } else {
+        setIsVideoPlaying(false);
+        setVideoSrc(null);
+      }
+    };
+
+    // Tier 1: Native HLS (Safari / macOS WebKit)
+    if (isHlsUrl && videoEl.canPlayType("application/vnd.apple.mpegurl")) {
+      videoEl.src = videoSrc;
+      if (!isPaused) {
+        videoEl.play().catch((err) => {
+          console.debug("[VideoBackdrop] Native HLS play error, attempting MP4 fallback:", err);
+          tryMp4Fallback();
+        });
+      }
+    }
+    // Tier 2: Hls.js via Media Source Extensions (Windows WebView2, Linux WebKitGTK)
+    else if (isHlsUrl && Hls.isSupported()) {
       const hls = new Hls({
         enableWorker: true,
         lowLatencyMode: false,
@@ -101,7 +135,6 @@ export const VideoBackdrop: React.FC<VideoBackdropProps> = ({
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         if (!isPaused) {
           videoEl.play().catch((err) => {
-            // Autoplay was blocked or aborted, wait for interaction
             console.debug("[VideoBackdrop] Autoplay blocked:", err);
           });
         }
@@ -109,24 +142,22 @@ export const VideoBackdrop: React.FC<VideoBackdropProps> = ({
 
       hls.on(Hls.Events.ERROR, (_event, data) => {
         if (data.fatal) {
-          console.warn("[VideoBackdrop] HLS fatal error:", data.type);
+          console.warn("[VideoBackdrop] HLS fatal error, falling back to MP4:", data.type);
           hls.destroy();
           hlsRef.current = null;
-          setIsVideoPlaying(false);
-          setVideoSrc(null);
+          tryMp4Fallback();
         }
       });
 
       hlsRef.current = hls;
-    } else if (isHlsUrl && videoEl.canPlayType("application/vnd.apple.mpegurl")) {
+    }
+    // Tier 3: Direct video file (MP4 / WebM)
+    else {
       videoEl.src = videoSrc;
       if (!isPaused) {
-        videoEl.play().catch(() => {});
-      }
-    } else {
-      videoEl.src = videoSrc;
-      if (!isPaused) {
-        videoEl.play().catch(() => {});
+        videoEl.play().catch(() => {
+          setIsVideoPlaying(false);
+        });
       }
     }
 

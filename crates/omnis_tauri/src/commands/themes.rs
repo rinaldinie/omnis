@@ -91,16 +91,55 @@ pub fn scan_themes_directory(themes_dir: &Path) -> Vec<ThemeConfig> {
                 let json_file = path.join("theme.json");
                 if json_file.exists() {
                     if let Ok(content) = std::fs::read_to_string(&json_file) {
+                        // Validate apiVersion if present in manifest
+                        if content.contains("apiVersion") {
+                            if let Err(err) = omnis_core::parse_and_validate_theme_manifest(&content) {
+                                eprintln!("Theme at {:?} rejected: {}", path, err);
+                                continue;
+                            }
+                        }
+
                         if let Ok(mut theme) = serde_json::from_str::<ThemeConfig>(&content) {
                             // Check if a companion style.css exists
+                            let mut combined_css = String::new();
                             let css_file = path.join("style.css");
                             if css_file.exists() {
                                 if let Ok(css_content) = std::fs::read_to_string(&css_file) {
                                     if !css_content.trim().is_empty() {
-                                        theme.custom_css = Some(css_content);
+                                        if let Err(sec_err) = omnis_core::validate_theme_css_security(&css_content) {
+                                            eprintln!("Theme {:?} style.css security violation: {}", theme.id, sec_err);
+                                        } else {
+                                            combined_css.push_str(&css_content);
+                                            combined_css.push('\n');
+                                        }
                                     }
                                 }
                             }
+
+                            // Check additional style files listed in styles array
+                            for style_rel in &theme.styles {
+                                let add_css_path = path.join(style_rel);
+                                if add_css_path.exists() && add_css_path != css_file {
+                                    if let Ok(css_content) = std::fs::read_to_string(&add_css_path) {
+                                        if let Err(sec_err) = omnis_core::validate_theme_css_security(&css_content) {
+                                            eprintln!("Theme {:?} style '{}' security violation: {}", theme.id, style_rel, sec_err);
+                                        } else {
+                                            combined_css.push_str(&css_content);
+                                            combined_css.push('\n');
+                                        }
+                                    }
+                                }
+                            }
+
+                            if !combined_css.trim().is_empty() {
+                                theme.custom_css = Some(combined_css);
+                            } else if let Some(ref inline_css) = theme.custom_css {
+                                if let Err(sec_err) = omnis_core::validate_theme_css_security(inline_css) {
+                                    eprintln!("Theme {:?} inline CSS security violation: {}", theme.id, sec_err);
+                                    theme.custom_css = None;
+                                }
+                            }
+
                             theme.is_custom = true;
                             if !theme_order.contains(&theme.id) {
                                 theme_order.push(theme.id.clone());
@@ -113,7 +152,20 @@ pub fn scan_themes_directory(themes_dir: &Path) -> Vec<ThemeConfig> {
             // 2. Flat file-based theme (e.g., themes/my_theme.json)
             else if path.extension().and_then(|e| e.to_str()) == Some("json") {
                 if let Ok(content) = std::fs::read_to_string(&path) {
+                    if content.contains("apiVersion") {
+                        if let Err(err) = omnis_core::parse_and_validate_theme_manifest(&content) {
+                            eprintln!("Theme file {:?} rejected: {}", path, err);
+                            continue;
+                        }
+                    }
+
                     if let Ok(mut theme) = serde_json::from_str::<ThemeConfig>(&content) {
+                        if let Some(ref inline_css) = theme.custom_css {
+                            if let Err(sec_err) = omnis_core::validate_theme_css_security(inline_css) {
+                                eprintln!("Theme {:?} inline CSS security violation: {}", theme.id, sec_err);
+                                theme.custom_css = None;
+                            }
+                        }
                         theme.is_custom = true;
                         if !theme_order.contains(&theme.id) {
                             theme_order.push(theme.id.clone());
@@ -187,7 +239,7 @@ mod tests {
 
         let updated_themes = scan_themes_directory(&temp_dir);
         let cyberpunk = updated_themes.iter().find(|t| t.id == "cyberpunk").unwrap();
-        assert_eq!(cyberpunk.custom_css.as_deref(), Some(".game-card { border-radius: 20px; }"));
+        assert_eq!(cyberpunk.custom_css.as_deref().map(|s| s.trim()), Some(".game-card { border-radius: 20px; }"));
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }

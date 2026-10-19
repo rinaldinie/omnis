@@ -97,6 +97,7 @@ export default function TopBar({
 }: TopBarProps) {
   return (
     <header
+      data-omnis="topbar"
       onMouseDown={handleStartDragging}
       onDoubleClick={handleToggleMaximize}
       data-tauri-drag-region

@@ -64,10 +64,14 @@ export interface ActiveGameSession {
 
 export interface ThemeConfig {
   id: string;
+  apiVersion?: number;
   name: string;
   description: string;
   author: string;
   is_custom: boolean;
+  tokens?: Record<string, string>;
+  styles?: string[];
+  layouts?: Record<string, string>;
   bg_base: string;
   bg_surface: string;
   bg_card: string;
@@ -298,10 +302,22 @@ export const BUILTIN_THEMES: ThemeConfig[] = [
   },
   {
     id: "cinema_trailer",
+    apiVersion: 1,
     name: "Cinema Lounge (Trailer Videos)",
     description: "Atmosfera cinematografica con video trailer dinamici di sfondo e accenti ambra e oro",
     author: "Omnis Cinema",
     is_custom: false,
+    tokens: {
+      "--omnis-accent": "#f59e0b",
+      "--omnis-card-radius": "14px",
+      "--omnis-bg-base": "#08080a",
+      "--omnis-bg-surface": "#101014",
+      "--omnis-bg-card": "#18181f",
+    },
+    styles: ["style.css"],
+    layouts: {
+      library: "grid-large",
+    },
     bg_base: "#08080a",
     bg_surface: "#101014",
     bg_card: "#18181f",
@@ -312,7 +328,27 @@ export const BUILTIN_THEMES: ThemeConfig[] = [
     border_color: "#27272a",
     card_radius: "14px",
     font_family: "system-ui, sans-serif",
-    custom_css: ".big-picture-hero { backdrop-filter: blur(8px); }",
+    custom_css: `
+[data-omnis="game-card"] {
+  border-radius: var(--omnis-card-radius, 14px);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+}
+[data-omnis="game-card"]:hover {
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.35);
+}
+[data-omnis="game-card.cover"] {
+  border-radius: var(--omnis-card-radius, 14px);
+}
+[data-omnis="details.hero"] {
+  backdrop-filter: blur(8px);
+}
+[data-omnis="details.title"] {
+  color: var(--omnis-accent, #f59e0b);
+}
+[data-omnis-slot="details.hero"] [data-omnis-widget="progress"] {
+  color: var(--omnis-accent, #f59e0b);
+}
+    `.trim(),
     target_mode: "all",
     enable_video_backdrop: true,
     video_backdrop_opacity: 0.55,

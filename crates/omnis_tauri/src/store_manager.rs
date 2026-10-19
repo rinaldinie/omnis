@@ -4,7 +4,7 @@
 //! and library catalog synchronization for cloud store platforms (GOG Galaxy, Xbox Live / Game Pass).
 
 use chrono::{DateTime, Utc};
-use omnis_core::Database;
+use omnis_core::{Database, SecretVault};
 use omnis_sdk::models::{DiscoveredGame, StoreAccountDto, StoreSyncProgressPayload};
 use omnis_sdk::plugin::{CloudStorePlugin, StoreAccountSession};
 use std::collections::HashMap;
@@ -12,23 +12,49 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 
-/// Manages cloud store accounts, OAuth authentication, credentials in OS keyring, and catalog synchronization.
+/// Manages cloud store accounts, OAuth authentication, credentials in envelope-encrypted SQLite vault, and catalog synchronization.
 #[derive(Clone)]
 pub struct StoreAccountManager {
     plugins: Arc<RwLock<HashMap<String, Arc<dyn CloudStorePlugin>>>>,
     db: Arc<Database>,
+    vault: Arc<SecretVault>,
     local_cache: Arc<RwLock<HashMap<String, StoreAccountSession>>>,
     last_syncs: Arc<tokio::sync::RwLock<HashMap<String, DateTime<Utc>>>>,
 }
 
 impl StoreAccountManager {
-    /// Create a new StoreAccountManager bound to the given database
-    pub fn new(db: Arc<Database>) -> Self {
-        Self {
+    /// Create a new StoreAccountManager bound to the given database and envelope vault (Requirement D1, D3)
+    pub fn new(db: Arc<Database>, vault: Arc<SecretVault>) -> Self {
+        let mgr = Self {
             plugins: Arc::new(RwLock::new(HashMap::new())),
             db,
+            vault,
             local_cache: Arc::new(RwLock::new(HashMap::new())),
             last_syncs: Arc::new(tokio::sync::RwLock::new(HashMap::new())),
+        };
+        // Migrate legacy keyring entries to envelope-encrypted SQLite vault (Requirement D4)
+        mgr.migrate_legacy_keyring();
+        mgr
+    }
+
+    /// Returns true if master key is stored in filesystem fallback instead of OS keyring (Requirement D3)
+    pub fn is_fallback(&self) -> bool {
+        self.vault.is_fallback()
+    }
+
+    /// Idempotent migration from legacy keyring storage to envelope-encrypted SQLite vault (Requirement D4)
+    pub fn migrate_legacy_keyring(&self) {
+        for store_id in &["steam", "epic", "gog", "xbox"] {
+            if let Ok(entry) = keyring::Entry::new("omnis_store_accounts", store_id) {
+                if let Ok(json) = entry.get_password() {
+                    if let Ok(session) = serde_json::from_str::<StoreAccountSession>(&json) {
+                        tracing::info!("Migrating legacy keyring session for {} to encrypted vault", store_id);
+                        if self.save_session(store_id, &session).is_ok() {
+                            let _ = entry.delete_password();
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -56,9 +82,10 @@ impl StoreAccountManager {
         guard.get(store_id).cloned()
     }
 
-    /// Persist a store account session to the OS keyring and memory fallback cache
+    /// Persist a store account session using envelope encryption (AES-256-GCM + secret_id as AAD) in SQLite (Requirement D1)
     pub fn save_session(&self, store_id: &str, session: &StoreAccountSession) -> Result<(), String> {
         let json = serde_json::to_string(session).map_err(|e| e.to_string())?;
+        let secret_id = format!("store_account:{}", store_id);
 
         // 1. Update memory fallback cache
         {
@@ -69,58 +96,22 @@ impl StoreAccountManager {
             cache.insert(store_id.to_string(), session.clone());
         }
 
-        // 2. Persist in OS keyring
-        match keyring::Entry::new("omnis_store_accounts", store_id) {
-            Ok(entry) => {
-                if let Err(e) = entry.set_password(&json) {
-                    tracing::warn!(
-                        "Keyring set_password failed for {}: {}. Kept in local_cache.",
-                        store_id,
-                        e
-                    );
-                }
-            }
-            Err(e) => {
-                tracing::warn!(
-                    "Keyring Entry::new failed for {}: {}. Kept in local_cache.",
-                    store_id,
-                    e
-                );
-            }
-        }
+        // 2. Encrypt with master key using secret_id as AAD and persist in SQLite
+        let (nonce, ciphertext) = self
+            .vault
+            .encrypt(&secret_id, json.as_bytes())
+            .map_err(|e| format!("Vault encryption error for {}: {}", store_id, e))?;
+
+        self.db
+            .store_secret(&secret_id, &nonce, &ciphertext)
+            .map_err(|e| format!("DB store_secret error for {}: {}", store_id, e))?;
 
         Ok(())
     }
 
-    /// Retrieve an existing session from OS keyring, falling back to local memory cache
+    /// Retrieve an existing session from envelope-encrypted SQLite vault, falling back to local memory cache (Requirement D1)
     pub fn load_session(&self, store_id: &str) -> Result<Option<StoreAccountSession>, String> {
-        // 1. Check OS keyring first
-        if let Ok(entry) = keyring::Entry::new("omnis_store_accounts", store_id) {
-            match entry.get_password() {
-                Ok(json) => {
-                    if let Ok(session) = serde_json::from_str::<StoreAccountSession>(&json) {
-                        let mut cache = match self.local_cache.write() {
-                            Ok(g) => g,
-                            Err(poisoned) => poisoned.into_inner(),
-                        };
-                        cache.insert(store_id.to_string(), session.clone());
-                        return Ok(Some(session));
-                    }
-                }
-                Err(keyring::Error::NoEntry) => {
-                    // Entry not present in keyring, check cache
-                }
-                Err(e) => {
-                    tracing::debug!(
-                        "Keyring get_password failed for {}: {}. Falling back to local_cache.",
-                        store_id,
-                        e
-                    );
-                }
-            }
-        }
-
-        // 2. Check local memory cache
+        // 1. Check local memory cache first
         {
             let cache = match self.local_cache.read() {
                 Ok(g) => g,
@@ -131,10 +122,30 @@ impl StoreAccountManager {
             }
         }
 
+        // 2. Query encrypted secret from SQLite and decrypt using secret_id as AAD
+        let secret_id = format!("store_account:{}", store_id);
+        if let Some((nonce, ciphertext)) = self.db.get_secret(&secret_id).map_err(|e| e.to_string())? {
+            let decrypted = self
+                .vault
+                .decrypt(&secret_id, &nonce, &ciphertext)
+                .map_err(|e| format!("Vault decryption error for {}: {}", store_id, e))?;
+
+            let session = serde_json::from_slice::<StoreAccountSession>(&decrypted)
+                .map_err(|e| format!("Session deserialization error for {}: {}", store_id, e))?;
+
+            // Populate memory cache
+            let mut cache = match self.local_cache.write() {
+                Ok(g) => g,
+                Err(poisoned) => poisoned.into_inner(),
+            };
+            cache.insert(store_id.to_string(), session.clone());
+            return Ok(Some(session));
+        }
+
         Ok(None)
     }
 
-    /// Remove a store account session from both OS keyring and memory cache
+    /// Remove a store account session from SQLite, memory cache, and legacy keyring
     pub fn delete_session(&self, store_id: &str) -> Result<(), String> {
         // 1. Remove from memory cache
         {
@@ -145,15 +156,13 @@ impl StoreAccountManager {
             cache.remove(store_id);
         }
 
-        // 2. Remove from OS keyring
+        // 2. Remove encrypted secret from SQLite
+        let secret_id = format!("store_account:{}", store_id);
+        self.db.delete_secret(&secret_id).map_err(|e| e.to_string())?;
+
+        // 3. Remove from legacy OS keyring if lingering
         if let Ok(entry) = keyring::Entry::new("omnis_store_accounts", store_id) {
-            match entry.delete_password() {
-                Ok(()) => {}
-                Err(keyring::Error::NoEntry) => {}
-                Err(e) => {
-                    tracing::warn!("Keyring delete_password failed for {}: {}", store_id, e);
-                }
-            }
+            let _ = entry.delete_password();
         }
 
         Ok(())
@@ -171,7 +180,7 @@ impl StoreAccountManager {
             name: "Steam".to_string(),
             is_connected: steam_session.is_some(),
             username: steam_session.as_ref().map(|s| s.username.clone()),
-            avatar_url: steam_session.and_then(|s| s.avatar_url),
+            avatar_url: steam_session.as_ref().and_then(|s| s.avatar_url.clone()),
             last_sync: steam_sync,
         });
 
@@ -183,7 +192,7 @@ impl StoreAccountManager {
             name: "Epic Games Store".to_string(),
             is_connected: epic_session.is_some(),
             username: epic_session.as_ref().map(|s| s.username.clone()),
-            avatar_url: epic_session.and_then(|s| s.avatar_url),
+            avatar_url: epic_session.as_ref().and_then(|s| s.avatar_url.clone()),
             last_sync: epic_sync,
         });
 
@@ -195,7 +204,7 @@ impl StoreAccountManager {
             name: "GOG Galaxy".to_string(),
             is_connected: gog_session.is_some(),
             username: gog_session.as_ref().map(|s| s.username.clone()),
-            avatar_url: gog_session.and_then(|s| s.avatar_url),
+            avatar_url: gog_session.as_ref().and_then(|s| s.avatar_url.clone()),
             last_sync: gog_sync,
         });
 
@@ -207,7 +216,7 @@ impl StoreAccountManager {
             name: "Xbox / PC Game Pass".to_string(),
             is_connected: xbox_session.is_some(),
             username: xbox_session.as_ref().map(|s| s.username.clone()),
-            avatar_url: xbox_session.and_then(|s| s.avatar_url),
+            avatar_url: xbox_session.as_ref().and_then(|s| s.avatar_url.clone()),
             last_sync: xbox_sync,
         });
 
@@ -504,10 +513,17 @@ impl StoreAccountManager {
 mod tests {
     use super::*;
 
+    fn make_test_manager() -> (StoreAccountManager, Arc<Database>) {
+        let db = Arc::new(Database::open_in_memory().unwrap());
+        db.migrate().unwrap();
+        let vault = Arc::new(SecretVault::from_key([0x55; 32]));
+        let manager = StoreAccountManager::new(db.clone(), vault);
+        (manager, db)
+    }
+
     #[test]
     fn test_session_save_load_delete() {
-        let db = Arc::new(Database::open_in_memory().unwrap());
-        let manager = StoreAccountManager::new(db);
+        let (manager, _db) = make_test_manager();
         let test_store = "test_store_crud";
 
         let session = StoreAccountSession {
@@ -541,8 +557,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_store_accounts() {
-        let db = Arc::new(Database::open_in_memory().unwrap());
-        let manager = StoreAccountManager::new(db);
+        let (manager, _db) = make_test_manager();
 
         // Ensure clean state before test
         let _ = manager.delete_session("gog");
@@ -583,8 +598,7 @@ mod tests {
 
     #[test]
     fn test_plugin_registration() {
-        let db = Arc::new(Database::open_in_memory().unwrap());
-        let manager = StoreAccountManager::new(db);
+        let (manager, _db) = make_test_manager();
 
         manager.register_plugin(Arc::new(omnis_plugin_gog::GogCloudPlugin::new()));
         manager.register_plugin(Arc::new(omnis_plugin_xbox::XboxCloudPlugin::new()));
@@ -613,8 +627,8 @@ mod tests {
 
     #[test]
     fn test_concurrent_session_cache_access() {
-        let db = Arc::new(Database::open_in_memory().unwrap());
-        let manager = Arc::new(StoreAccountManager::new(db));
+        let (manager_inst, _db) = make_test_manager();
+        let manager = Arc::new(manager_inst);
 
         let mut handles = Vec::new();
         for i in 0..10 {
