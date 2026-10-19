@@ -53,12 +53,15 @@ import {
   Volume2,
   VolumeX,
   Globe,
+  Store,
+  Download,
 } from "lucide-react";
 import GameEditorModal from "./components/GameEditorModal";
 import MetadataResolutionModal from "./components/MetadataResolutionModal";
 import ListViewTable from "./components/ListViewTable";
 import VirtualKeyboard from "./components/VirtualKeyboard";
 import { SettingsModal } from "./components/SettingsModal";
+import { MarketplaceTab } from "./components/MarketplaceTab";
 import { useTranslation } from "./i18n";
 import soundEffects from "./utils/soundEffects";
 import {
@@ -722,7 +725,7 @@ export default function App() {
 
   // DIAMOND METADATA PLUGIN & PIPELINE STATES
   const [showPluginModal, setShowPluginModal] = useState<boolean>(false);
-  const [pluginModalTab, setPluginModalTab] = useState<"providers" | "pipeline" | "enrich">("providers");
+  const [pluginModalTab, setPluginModalTab] = useState<"providers" | "pipeline" | "enrich" | "marketplace">("providers");
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
   const [pipelineConfig, setPipelineConfig] = useState<MetadataPipelineConfig>({
     cover_source: "steamgriddb",
@@ -1225,9 +1228,18 @@ export default function App() {
 
   const handleLaunch = async (gameId: string) => {
     soundEffects.playLaunch();
-    setStatusMessage("Avvio del gioco in corso...");
+    const g = games.find((x) => x.id === gameId);
+    if (g && !g.is_installed) {
+      setStatusMessage(`Apertura installazione per "${g.title}" nel client ${g.library.toUpperCase()}...`);
+    } else {
+      setStatusMessage("Avvio del gioco in corso...");
+    }
     await invokeTauri("launch_game", { gameId });
-    setStatusMessage("Gioco in esecuzione (Tracking kernel zero-CPU)");
+    if (g && !g.is_installed) {
+      setStatusMessage(`Procedura di installazione avviata nel client nativo!`);
+    } else {
+      setStatusMessage("Gioco in esecuzione (Tracking kernel zero-CPU)");
+    }
   };
 
   const handleOpenFolder = (folderType: string) => {
@@ -1543,8 +1555,17 @@ export default function App() {
                     boxShadow: `0 0 30px var(--accent-glow)`,
                   }}
                 >
-                  <Play className="w-5 h-5 fill-white" />
-                  <span>{t('big_picture.play_action')}</span>
+                  {focusedGame?.is_installed ? (
+                    <>
+                      <Play className="w-5 h-5 fill-white" />
+                      <span>{t('big_picture.play_action')}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-5 h-5 text-white" />
+                      <span>{t('game_details.install_now')}</span>
+                    </>
+                  )}
                   <span className="w-6 h-6 rounded-full bg-black/30 flex items-center justify-center text-[11px] font-black border border-white/20">
                     A
                   </span>
@@ -2680,7 +2701,7 @@ export default function App() {
 
                                     {/* Transparent Minimalist Hover Action Dock */}
                                     <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-3 p-2 transition-all duration-300 backdrop-blur-[1.5px]">
-                                      {game.is_installed && (
+                                      {game.is_installed ? (
                                         <button
                                           onClick={(e) => {
                                             e.stopPropagation();
@@ -2690,6 +2711,17 @@ export default function App() {
                                           title="Avvia Gioco"
                                         >
                                           <Play className="w-4 h-4 fill-white" />
+                                        </button>
+                                      ) : (
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleLaunch(game.id);
+                                          }}
+                                          className="w-9 h-9 rounded-full bg-indigo-500/40 hover:bg-indigo-500/70 text-white border border-indigo-400/50 backdrop-blur-md shadow-xl flex items-center justify-center transition-all hover:brightness-125 active:opacity-80"
+                                          title="Installa Gioco (Client Nativo)"
+                                        >
+                                          <Download className="w-4 h-4 text-white" />
                                         </button>
                                       )}
 
@@ -3025,7 +3057,11 @@ export default function App() {
                                 boxShadow: `0 0 25px var(--accent-glow)`,
                               }}
                             >
-                              <Play className="w-4 h-4 fill-white" />
+                              {selectedGame.is_installed ? (
+                                <Play className="w-4 h-4 fill-white" />
+                              ) : (
+                                <Download className="w-4 h-4 text-white" />
+                              )}
                               <span>{selectedGame.is_installed ? t('game_details.play_now') : t('game_details.install_now')}</span>
                             </button>
 
@@ -3891,6 +3927,17 @@ export default function App() {
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>Arricchimento Massivo</span>
               </button>
+              <button
+                onClick={() => setPluginModalTab("marketplace")}
+                className="flex-1 py-2 rounded-lg text-xs font-bold transition-all text-center flex items-center justify-center gap-2"
+                style={{
+                  backgroundColor: pluginModalTab === "marketplace" ? "var(--accent-primary)" : "transparent",
+                  color: pluginModalTab === "marketplace" ? "#ffffff" : "var(--text-muted)",
+                }}
+              >
+                <Store className="w-3.5 h-3.5" />
+                <span>Community Hub</span>
+              </button>
             </div>
 
             {/* MODAL CONTENT AREA (SCROLLABLE) */}
@@ -3919,22 +3966,26 @@ export default function App() {
                               className="w-9 h-9 rounded-xl flex items-center justify-center font-black text-xs text-white shadow-md shrink-0"
                               style={{
                                 backgroundColor:
-                                  prov.is_builtin === false
-                                    ? "#8b5cf6"
+                                  prov.id === "igdb"
+                                    ? "#9146ff"
                                     : prov.id === "steamgriddb"
                                     ? "#00aaff"
                                     : prov.id === "opencritic"
                                     ? "#ff5900"
-                                    : "#10b981",
+                                    : prov.id === "steam"
+                                    ? "#10b981"
+                                    : "#8b5cf6",
                               }}
                             >
-                              {prov.is_builtin === false
-                                ? "EXT"
+                              {prov.id === "igdb"
+                                ? "IG"
                                 : prov.id === "steamgriddb"
                                 ? "SG"
                                 : prov.id === "opencritic"
                                 ? "OC"
-                                : "ST"}
+                                : prov.id === "steam"
+                                ? "ST"
+                                : "EXT"}
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex flex-wrap items-center gap-2">
@@ -4053,11 +4104,10 @@ export default function App() {
                                       )}
                                     </div>
 
-                                    <div className="relative flex items-center">
-                                      <input
-                                        type={field.field_type?.type === "SecretString" && !isEyeOpen ? "password" : "text"}
-                                        placeholder={field.field_type?.placeholder || "Inserisci valore..."}
-                                        value={settings[field.key] || ""}
+                                    {/* Field input */}
+                                    {((field as any).type === "Enum" || field.field_type?.type === "Enum" || (field as any).options) ? (
+                                      <select
+                                        value={settings[field.key] || (field as any).default || field.field_type?.default || ""}
                                         onChange={(e) => {
                                           const val = e.target.value;
                                           setEditingSettings((prev) => ({
@@ -4068,25 +4118,55 @@ export default function App() {
                                             },
                                           }));
                                         }}
-                                        className="w-full h-8 px-3 pr-9 rounded-lg text-xs border font-mono focus:outline-none"
+                                        className="w-full h-8 px-3 rounded-lg text-xs border font-sans focus:outline-none"
                                         style={{
                                           backgroundColor: "var(--bg-card)",
                                           borderColor: "var(--border-color)",
                                           color: "var(--text-primary)",
                                         }}
-                                      />
-                                      {field.field_type?.type === "SecretString" && (
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            setShowApiKey((prev) => ({ ...prev, [prov.id]: !prev[prov.id] }))
-                                          }
-                                          className="absolute right-2.5 text-slate-400 hover:text-white"
-                                        >
-                                          {isEyeOpen ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                                        </button>
-                                      )}
-                                    </div>
+                                      >
+                                        {((field as any).options || field.field_type?.options || []).map((opt: string) => (
+                                          <option key={opt} value={opt}>
+                                            {opt}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    ) : (
+                                      <div className="relative flex items-center">
+                                        <input
+                                          type={((field as any).type === "SecretString" || field.field_type?.type === "SecretString") && !isEyeOpen ? "password" : "text"}
+                                          placeholder={(field as any).placeholder || field.field_type?.placeholder || "Inserisci valore..."}
+                                          value={settings[field.key] || ""}
+                                          onChange={(e) => {
+                                            const val = e.target.value;
+                                            setEditingSettings((prev) => ({
+                                              ...prev,
+                                              [prov.id]: {
+                                                ...(prev[prov.id] || {}),
+                                                [field.key]: val,
+                                              },
+                                            }));
+                                          }}
+                                          className="w-full h-8 px-3 pr-9 rounded-lg text-xs border font-mono focus:outline-none"
+                                          style={{
+                                            backgroundColor: "var(--bg-card)",
+                                            borderColor: "var(--border-color)",
+                                            color: "var(--text-primary)",
+                                          }}
+                                        />
+                                        {((field as any).type === "SecretString" || field.field_type?.type === "SecretString") && (
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              setShowApiKey((prev) => ({ ...prev, [prov.id]: !prev[prov.id] }))
+                                            }
+                                            className="absolute right-2.5 text-slate-400 hover:text-white"
+                                          >
+                                            {isEyeOpen ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                                          </button>
+                                        )}
+                                      </div>
+                                    )}
                                     {field.description && (
                                       <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>
                                         {field.description}
@@ -4201,6 +4281,7 @@ export default function App() {
                         }}
                       >
                         <option value="steamgriddb">SteamGridDB (Consigliato - Artwork 600x900 HD)</option>
+                        <option value="igdb">IGDB (Cover Verticale Ufficiale)</option>
                         <option value="steam">Steam Store CDN (Ufficiale)</option>
                       </select>
                       <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>
@@ -4233,6 +4314,7 @@ export default function App() {
                         }}
                       >
                         <option value="steamgriddb">SteamGridDB (Consigliato - Hero 1920x1080 / 4K)</option>
+                        <option value="igdb">IGDB (Artwork / Screenshot HD)</option>
                         <option value="steam">Steam Store CDN (Ufficiale)</option>
                       </select>
                       <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>
@@ -4265,6 +4347,7 @@ export default function App() {
                         }}
                       >
                         <option value="opencritic">OpenCritic (Consigliato - Top Critic Score)</option>
+                        <option value="igdb">IGDB (Total Rating / Critic Score)</option>
                         <option value="steam">Steam Metacritic (Punteggio Metacritic di Steam)</option>
                         {providers
                           .filter((p) => p.is_builtin === false && p.supported_fields.includes("critic_score"))
@@ -4304,6 +4387,7 @@ export default function App() {
                         }}
                       >
                         <option value="steam">Steam Store Engine (Localizzato in Italiano)</option>
+                        <option value="igdb">IGDB (Twitch / Database Globale)</option>
                       </select>
                       <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>
                         Include tag, categorie, sviluppatori e data di rilascio ufficiale.
@@ -4399,6 +4483,15 @@ export default function App() {
                   </div>
                 </div>
               )}
+
+              {/* TAB 4: COMMUNITY MARKETPLACE HUB */}
+              {pluginModalTab === "marketplace" && (
+                <MarketplaceTab
+                  onPluginInstalled={() => {
+                    loadProvidersAndConfig();
+                  }}
+                />
+              )}
             </div>
           </div>
         </div>
@@ -4436,7 +4529,7 @@ export default function App() {
               </span>
             </div>
 
-            {contextMenu.game.is_installed && (
+            {contextMenu.game.is_installed ? (
               <button
                 onClick={() => {
                   handleLaunch(contextMenu.game.id);
@@ -4446,6 +4539,17 @@ export default function App() {
               >
                 <Play className="w-3.5 h-3.5 fill-emerald-400" />
                 <span>Avvia Gioco</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  handleLaunch(contextMenu.game.id);
+                  setContextMenu(null);
+                }}
+                className="w-full flex items-center gap-2.5 px-3.5 py-2 text-left font-bold text-indigo-400 hover:bg-indigo-500/10 transition-colors"
+              >
+                <Download className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Installa Gioco (Client Nativo)...</span>
               </button>
             )}
 

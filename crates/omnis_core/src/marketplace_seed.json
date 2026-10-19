@@ -1,0 +1,110 @@
+{
+  "version": "1.0.0",
+  "updated_at": "2026-10-19T00:00:00Z",
+  "plugins": [
+    {
+      "id": "sample_dynamic",
+      "name": "Sample Community Dynamic Provider",
+      "description": "Provider nativo dinamico di esempio per metadati comunitari, compatibile FFI C-ABI.",
+      "author": "Omnis Community",
+      "version": "0.1.0",
+      "plugin_type": "metadata",
+      "icon_url": "https://raw.githubusercontent.com/omnis-game-library/plugins/main/icons/sample_dynamic.png",
+      "platforms": {
+        "windows-x86_64": {
+          "download_url": "sample://sample_dynamic_provider.dll",
+          "filename": "sample_dynamic_provider.dll",
+          "sha256": null,
+          "size_bytes": 1048576
+        },
+        "linux-x86_64": {
+          "download_url": "sample://libsample_dynamic_provider.so",
+          "filename": "libsample_dynamic_provider.so",
+          "sha256": null,
+          "size_bytes": 1048576
+        }
+      },
+      "is_installed": false,
+      "installed_version": null,
+      "has_update": false
+    },
+    {
+      "id": "howlongtobeat",
+      "name": "HowLongToBeat Community Extension",
+      "description": "Recupera i tempi stimati di completamento (Main Story, Main+Extra, Completionist) da HowLongToBeat.",
+      "author": "HLTB Community",
+      "version": "1.1.0",
+      "plugin_type": "metadata",
+      "icon_url": "https://howlongtobeat.com/img/hltb_brand.png",
+      "platforms": {
+        "windows-x86_64": {
+          "download_url": "mock://howlongtobeat_windows.zip",
+          "filename": "howlongtobeat.dll",
+          "sha256": null,
+          "size_bytes": 524288
+        },
+        "linux-x86_64": {
+          "download_url": "mock://howlongtobeat_linux.tar.gz",
+          "filename": "howlongtobeat.so",
+          "sha256": null,
+          "size_bytes": 524288
+        }
+      },
+      "is_installed": false,
+      "installed_version": null,
+      "has_update": false
+    },
+    {
+      "id": "retro_achievements",
+      "name": "RetroAchievements Metadata Provider",
+      "description": "Integrazione dei dati sugli obiettivi retrocompatibili, badge e trofei da RetroAchievements.org.",
+      "author": "RA Community",
+      "version": "2.0.0",
+      "plugin_type": "metadata",
+      "icon_url": "https://retroachievements.org/static/images/ra-icon.png",
+      "platforms": {
+        "windows-x86_64": {
+          "download_url": "mock://retro_achievements_windows.zip",
+          "filename": "retro_achievements.dll",
+          "sha256": null,
+          "size_bytes": 786432
+        },
+        "linux-x86_64": {
+          "download_url": "mock://retro_achievements_linux.tar.gz",
+          "filename": "retro_achievements.so",
+          "sha256": null,
+          "size_bytes": 786432
+        }
+      },
+      "is_installed": false,
+      "installed_version": null,
+      "has_update": false
+    },
+    {
+      "id": "gog_galaxy_scanner",
+      "name": "GOG Galaxy Library Scanner",
+      "description": "Scansiona e sincronizza automaticamente i titoli installati tramite client GOG Galaxy.",
+      "author": "Omnis Community",
+      "version": "1.0.5",
+      "plugin_type": "library",
+      "icon_url": "https://images.gog-statics.com/galaxy_icon.png",
+      "platforms": {
+        "windows-x86_64": {
+          "download_url": "mock://gog_galaxy_scanner_windows.zip",
+          "filename": "gog_galaxy_scanner.dll",
+          "sha256": null,
+          "size_bytes": 1048576
+        },
+        "linux-x86_64": {
+          "download_url": "mock://gog_galaxy_scanner_linux.tar.gz",
+          "filename": "gog_galaxy_scanner.so",
+          "sha256": null,
+          "size_bytes": 1048576
+        }
+      },
+      "is_installed": false,
+      "installed_version": null,
+      "has_update": false
+    }
+  ]
+}

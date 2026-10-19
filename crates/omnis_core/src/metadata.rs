@@ -1,8 +1,8 @@
 use crate::db::Database;
+use crate::dynamic_loader::{find_shared_library_in_dir, DynamicPluginLoader};
 use async_trait::async_trait;
 use omnis_sdk::{
     GameMetadataPatch, MetadataField, MetadataProvider, MetadataSearchRequest, PluginSettingsSchema,
-    SettingField, SettingGroup, SettingType,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
@@ -12,6 +12,16 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{info, warn};
 use uuid::Uuid;
+
+pub mod igdb;
+pub mod opencritic;
+pub mod steam;
+pub mod steamgriddb;
+
+pub use igdb::IgdbMetadataProvider;
+pub use opencritic::OpenCriticProvider;
+pub use steam::SteamMetadataProvider;
+pub use steamgriddb::SteamGridDbProvider;
 
 /// DTO representing a registered metadata provider for frontend UI management
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -51,44 +61,8 @@ pub struct MetadataCandidateDto {
     pub raw_patch: omnis_sdk::GameMetadataPatch,
 }
 
-/// Declarative plugin manifest schema (Playnite / Omnis extension manifest)
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PluginManifest {
-    pub id: String,
-    pub name: String,
-    #[serde(default = "default_version")]
-    pub version: String,
-    #[serde(default = "default_author")]
-    pub author: String,
-    #[serde(default)]
-    pub description: String,
-    #[serde(default = "default_plugin_type", alias = "type")]
-    pub plugin_type: String, // "metadata" | "library" | "generic"
-    #[serde(default)]
-    pub website: Option<String>,
-    #[serde(default)]
-    pub key_help_url: Option<String>,
-    #[serde(default)]
-    pub requires_api_key: bool,
-    #[serde(default)]
-    pub supported_fields: Vec<MetadataField>,
-    #[serde(default)]
-    pub entry_point: Option<String>,
-    #[serde(default)]
-    pub settings_schema: Option<PluginSettingsSchema>,
-}
-
-fn default_version() -> String {
-    "1.0.0".to_string()
-}
-
-fn default_author() -> String {
-    "Omnis Community Developer".to_string()
-}
-
-fn default_plugin_type() -> String {
-    "metadata".to_string()
-}
+// PluginManifest is re-exported from omnis_sdk
+pub use omnis_sdk::PluginManifest;
 
 /// Dynamic wrapper for external community metadata providers loaded from disk
 pub struct ExternalMetadataProvider {
@@ -225,654 +199,6 @@ impl Default for MetadataPipelineConfig {
 }
 
 // ============================================================================
-// 1. Steam Metadata Provider (Built-in, zero-config)
-// ============================================================================
-pub struct SteamMetadataProvider {
-    client: reqwest::Client,
-}
-
-impl SteamMetadataProvider {
-    pub fn new(client: reqwest::Client) -> Self {
-        Self { client }
-    }
-
-    async fn resolve_appid(&self, library: &str, external_id: &str, title: &str) -> Option<String> {
-        if library.eq_ignore_ascii_case("steam")
-            && external_id.chars().all(|c| c.is_ascii_digit())
-            && !external_id.is_empty()
-        {
-            return Some(external_id.to_string());
-        }
-
-        let search_url = reqwest::Url::parse_with_params(
-            "https://store.steampowered.com/api/storesearch/",
-            &[("term", title), ("l", "italian"), ("cc", "IT")],
-        )
-        .ok()?;
-
-        if let Ok(resp) = self.client.get(search_url).send().await {
-            if let Ok(json) = resp.json::<Value>().await {
-                if let Some(items) = json.get("items").and_then(|v| v.as_array()) {
-                    if let Some(first) = items.first() {
-                        if let Some(id) = first.get("id").and_then(|v| v.as_u64()) {
-                            return Some(id.to_string());
-                        }
-                    }
-                }
-            }
-        }
-
-        None
-    }
-}
-
-#[async_trait]
-impl MetadataProvider for SteamMetadataProvider {
-    fn id(&self) -> &'static str {
-        "steam"
-    }
-
-    fn name(&self) -> &'static str {
-        "Steam Store & Community Engine"
-    }
-
-    fn description(&self) -> &'static str {
-        "Recupera descrizioni ufficiali localizzate, generi, sviluppatori, date di rilascio, cover 600x900 e hero banner tramite Steam Store API."
-    }
-
-    fn author(&self) -> &'static str {
-        "Valve / Omnis Team"
-    }
-
-    fn website(&self) -> Option<&'static str> {
-        Some("https://store.steampowered.com")
-    }
-
-    fn requires_api_key(&self) -> bool {
-        false
-    }
-
-    fn supported_fields(&self) -> Vec<MetadataField> {
-        vec![
-            MetadataField::CoverImage,
-            MetadataField::BackgroundImage,
-            MetadataField::Description,
-            MetadataField::ReleaseDate,
-            MetadataField::Genres,
-            MetadataField::Developers,
-            MetadataField::Publishers,
-            MetadataField::CriticScore,
-        ]
-    }
-
-    fn settings_schema(&self) -> Option<PluginSettingsSchema> {
-        Some(PluginSettingsSchema {
-            plugin_id: "steam".to_string(),
-            title: "Configurazione Steam Store".to_string(),
-            groups: vec![SettingGroup {
-                id: "general".to_string(),
-                title: "Preferenze Lingua".to_string(),
-                fields: vec![SettingField {
-                    key: "language".to_string(),
-                    label: "Lingua preferita".to_string(),
-                    description: Some("Lingua usata per sinossi e generi ufficiali".to_string()),
-                    required: false,
-                    field_type: SettingType::Enum {
-                        options: vec![
-                            "italian".to_string(),
-                            "english".to_string(),
-                            "french".to_string(),
-                            "german".to_string(),
-                            "spanish".to_string(),
-                        ],
-                        default: Some("italian".to_string()),
-                    },
-                }],
-            }],
-        })
-    }
-
-    async fn fetch_metadata(
-        &self,
-        request: &MetadataSearchRequest,
-        settings: &Map<String, Value>,
-    ) -> Result<GameMetadataPatch, String> {
-        let lang = settings
-            .get("language")
-            .and_then(|v| v.as_str())
-            .unwrap_or("italian");
-        let external = request.external_id.as_deref().unwrap_or("");
-        let appid = match self
-            .resolve_appid(&request.library_id, external, &request.title)
-            .await
-        {
-            Some(id) => id,
-            None => {
-                return Err(format!(
-                    "Nessun titolo corrispondente trovato su Steam Store per '{}'",
-                    request.title
-                ))
-            }
-        };
-
-        let details_url = format!(
-            "https://store.steampowered.com/api/appdetails?appids={}&l={}",
-            appid, lang
-        );
-
-        let resp = self
-            .client
-            .get(&details_url)
-            .send()
-            .await
-            .map_err(|e| e.to_string())?;
-        let json: Value = resp.json().await.map_err(|e| e.to_string())?;
-        let app_obj = json
-            .get(&appid)
-            .and_then(|v| v.as_object())
-            .ok_or_else(|| "Missing appid in steam response".to_string())?;
-
-        let success = app_obj
-            .get("success")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false);
-        if !success {
-            return Err("Steam API reported success: false".to_string());
-        }
-
-        let data = app_obj
-            .get("data")
-            .and_then(|v| v.as_object())
-            .ok_or_else(|| "Missing data object in Steam response".to_string())?;
-
-        let short_desc = data
-            .get("short_description")
-            .and_then(|v| v.as_str())
-            .map(html_to_plain_text);
-        let release_date = data
-            .get("release_date")
-            .and_then(|v| v.get("date"))
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string());
-        let critic_score = data
-            .get("metacritic")
-            .and_then(|v| v.get("score"))
-            .and_then(|v| v.as_u64())
-            .map(|s| s as u8);
-
-        let mut genres = Vec::new();
-        if let Some(genres_arr) = data.get("genres").and_then(|v| v.as_array()) {
-            for g in genres_arr {
-                if let Some(desc) = g.get("description").and_then(|v| v.as_str()) {
-                    genres.push(desc.to_string());
-                }
-            }
-        }
-
-        let mut developers = Vec::new();
-        if let Some(devs_arr) = data.get("developers").and_then(|v| v.as_array()) {
-            for d in devs_arr {
-                if let Some(name) = d.as_str() {
-                    developers.push(name.to_string());
-                }
-            }
-        }
-
-        let mut publishers = Vec::new();
-        if let Some(pubs_arr) = data.get("publishers").and_then(|v| v.as_array()) {
-            for p in pubs_arr {
-                if let Some(name) = p.as_str() {
-                    publishers.push(name.to_string());
-                }
-            }
-        }
-
-        let primary_cover_url = format!(
-            "https://steamcdn-a.akamaihd.net/steam/apps/{}/library_600x900_2x.jpg",
-            appid
-        );
-        let hero_bg_url = format!(
-            "https://steamcdn-a.akamaihd.net/steam/apps/{}/library_hero.jpg",
-            appid
-        );
-
-        Ok(GameMetadataPatch {
-            description: short_desc,
-            release_date,
-            cover_url: Some(primary_cover_url),
-            background_url: Some(hero_bg_url),
-            icon_url: None,
-            critic_score,
-            community_score: critic_score.map(|s| s.saturating_add(2).min(100)),
-            genres,
-            developers,
-            publishers,
-            tags: Vec::new(),
-        })
-    }
-
-    async fn test_connection(&self, _settings: &Map<String, Value>) -> Result<String, String> {
-        let url = "https://store.steampowered.com/api/storesearch/?term=Portal&l=italian&cc=IT";
-        let resp = self
-            .client
-            .get(url)
-            .send()
-            .await
-            .map_err(|e| format!("Errore di rete Steam Store: {}", e))?;
-        if resp.status().is_success() {
-            Ok("Connessione a Steam Store API verificata con successo (200 OK).".to_string())
-        } else {
-            Err(format!(
-                "Steam Store API ha risposto con codice HTTP {}",
-                resp.status()
-            ))
-        }
-    }
-}
-
-// ============================================================================
-// 2. SteamGridDB Metadata Provider (High-res covers & heroes)
-// ============================================================================
-pub struct SteamGridDbProvider {
-    client: reqwest::Client,
-}
-
-impl SteamGridDbProvider {
-    pub fn new(client: reqwest::Client) -> Self {
-        Self { client }
-    }
-}
-
-#[async_trait]
-impl MetadataProvider for SteamGridDbProvider {
-    fn id(&self) -> &'static str {
-        "steamgriddb"
-    }
-
-    fn name(&self) -> &'static str {
-        "SteamGridDB Artwork"
-    }
-
-    fn description(&self) -> &'static str {
-        "Database n.1 per locandine verticali (600x900), sfondi panoramici hero 4K, loghi e icone personalizzate create dalla community."
-    }
-
-    fn author(&self) -> &'static str {
-        "SteamGridDB Community"
-    }
-
-    fn website(&self) -> Option<&'static str> {
-        Some("https://www.steamgriddb.com")
-    }
-
-    fn key_help_url(&self) -> Option<&'static str> {
-        Some("https://www.steamgriddb.com/profile/preferences/api")
-    }
-
-    fn requires_api_key(&self) -> bool {
-        true
-    }
-
-    fn supported_fields(&self) -> Vec<MetadataField> {
-        vec![
-            MetadataField::CoverImage,
-            MetadataField::BackgroundImage,
-            MetadataField::Icon,
-        ]
-    }
-
-    fn settings_schema(&self) -> Option<PluginSettingsSchema> {
-        Some(PluginSettingsSchema {
-            plugin_id: "steamgriddb".to_string(),
-            title: "Configurazione SteamGridDB".to_string(),
-            groups: vec![SettingGroup {
-                id: "auth".to_string(),
-                title: "Autenticazione".to_string(),
-                fields: vec![SettingField {
-                    key: "api_key".to_string(),
-                    label: "API Key Personale".to_string(),
-                    description: Some(
-                        "Genera la tua chiave gratuita su steamgriddb.com/profile/preferences/api"
-                            .to_string(),
-                    ),
-                    required: true,
-                    field_type: SettingType::SecretString {
-                        placeholder: Some("Incolla qui la chiave API SteamGridDB...".to_string()),
-                    },
-                }],
-            }],
-        })
-    }
-
-    async fn fetch_metadata(
-        &self,
-        request: &MetadataSearchRequest,
-        settings: &Map<String, Value>,
-    ) -> Result<GameMetadataPatch, String> {
-        let api_key = settings
-            .get("api_key")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .trim();
-        if api_key.is_empty() {
-            return Err("Chiave API SteamGridDB non configurata.".to_string());
-        }
-
-        let search_url = match reqwest::Url::parse_with_params(
-            "https://www.steamgriddb.com/api/v2/search/autocomplete",
-            &[("term", request.title.as_str())],
-        ) {
-            Ok(u) => u,
-            Err(_) => return Err("URL SteamGridDB non valido".to_string()),
-        };
-
-        let search_resp = self
-            .client
-            .get(search_url)
-            .header("Authorization", format!("Bearer {}", api_key))
-            .send()
-            .await
-            .map_err(|e| format!("Errore ricerca SteamGridDB: {}", e))?;
-
-        if !search_resp.status().is_success() {
-            return Err(format!(
-                "SteamGridDB search ha risposto con codice HTTP {}",
-                search_resp.status()
-            ));
-        }
-
-        let json: Value = search_resp.json().await.map_err(|e| e.to_string())?;
-        let game_id = json
-            .get("data")
-            .and_then(|d| d.as_array())
-            .and_then(|arr| arr.first())
-            .and_then(|item| item.get("id"))
-            .and_then(|id| id.as_u64())
-            .ok_or_else(|| format!("Titolo '{}' non trovato su SteamGridDB", request.title))?;
-
-        // 1. Fetch 600x900 vertical covers
-        let grids_url = format!(
-            "https://www.steamgriddb.com/api/v2/grids/game/{}?dimensions=600x900",
-            game_id
-        );
-        let mut cover_url = None;
-        if let Ok(resp) = self
-            .client
-            .get(&grids_url)
-            .header("Authorization", format!("Bearer {}", api_key))
-            .send()
-            .await
-        {
-            if let Ok(data) = resp.json::<Value>().await {
-                cover_url = data
-                    .get("data")
-                    .and_then(|d| d.as_array())
-                    .and_then(|arr| arr.first())
-                    .and_then(|item| item.get("url"))
-                    .and_then(|u| u.as_str())
-                    .map(|s| s.to_string());
-            }
-        }
-
-        // 2. Fetch hero panoramic background
-        let heroes_url = format!(
-            "https://www.steamgriddb.com/api/v2/heroes/game/{}",
-            game_id
-        );
-        let mut bg_url = None;
-        if let Ok(resp) = self
-            .client
-            .get(&heroes_url)
-            .header("Authorization", format!("Bearer {}", api_key))
-            .send()
-            .await
-        {
-            if let Ok(data) = resp.json::<Value>().await {
-                bg_url = data
-                    .get("data")
-                    .and_then(|d| d.as_array())
-                    .and_then(|arr| arr.first())
-                    .and_then(|item| item.get("url"))
-                    .and_then(|u| u.as_str())
-                    .map(|s| s.to_string());
-            }
-        }
-
-        Ok(GameMetadataPatch {
-            cover_url,
-            background_url: bg_url,
-            ..Default::default()
-        })
-    }
-
-    async fn test_connection(&self, settings: &Map<String, Value>) -> Result<String, String> {
-        let api_key = settings
-            .get("api_key")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .trim();
-        if api_key.is_empty() {
-            return Err(
-                "Chiave API SteamGridDB non impostata. Inserisci la tua API Key e riprova."
-                    .to_string(),
-            );
-        }
-
-        let url = "https://www.steamgriddb.com/api/v2/search/autocomplete/Cyberpunk";
-        let resp = self
-            .client
-            .get(url)
-            .header("Authorization", format!("Bearer {}", api_key))
-            .send()
-            .await
-            .map_err(|e| format!("Errore di rete SteamGridDB: {}", e))?;
-
-        let status = resp.status();
-        if status.is_success() {
-            if let Ok(json) = resp.json::<Value>().await {
-                if json.get("success").and_then(|v| v.as_bool()) == Some(true) {
-                    return Ok(
-                        "Autenticazione SteamGridDB riuscita! API Key verificata e attiva."
-                            .to_string(),
-                    );
-                }
-            }
-            return Ok("Connessione a SteamGridDB riuscita.".to_string());
-        }
-
-        if status.as_u16() == 401 {
-            return Err(
-                "Autenticazione fallita: API Key SteamGridDB non valida o non autorizzata."
-                    .to_string(),
-            );
-        }
-
-        Err(format!(
-            "SteamGridDB ha restituito codice HTTP {}",
-            status
-        ))
-    }
-}
-
-// ============================================================================
-// 3. OpenCritic Metadata Provider (Top Critic Score & Recommendation %)
-// ============================================================================
-pub struct OpenCriticProvider {
-    client: reqwest::Client,
-}
-
-impl OpenCriticProvider {
-    pub fn new(client: reqwest::Client) -> Self {
-        Self { client }
-    }
-}
-
-#[async_trait]
-impl MetadataProvider for OpenCriticProvider {
-    fn id(&self) -> &'static str {
-        "opencritic"
-    }
-
-    fn name(&self) -> &'static str {
-        "OpenCritic Aggregate Reviews"
-    }
-
-    fn description(&self) -> &'static str {
-        "Punteggi della critica globale con Top Critic Score (0-100), Tier e percentuale di raccomandazione."
-    }
-
-    fn author(&self) -> &'static str {
-        "OpenCritic"
-    }
-
-    fn website(&self) -> Option<&'static str> {
-        Some("https://opencritic.com")
-    }
-
-    fn key_help_url(&self) -> Option<&'static str> {
-        Some("https://rapidapi.com/opencritic-opencritic-default/api/opencritic-api")
-    }
-
-    fn requires_api_key(&self) -> bool {
-        true
-    }
-
-    fn supported_fields(&self) -> Vec<MetadataField> {
-        vec![MetadataField::CriticScore, MetadataField::CommunityScore]
-    }
-
-    fn settings_schema(&self) -> Option<PluginSettingsSchema> {
-        Some(PluginSettingsSchema {
-            plugin_id: "opencritic".to_string(),
-            title: "Configurazione OpenCritic".to_string(),
-            groups: vec![SettingGroup {
-                id: "auth".to_string(),
-                title: "Autenticazione RapidAPI".to_string(),
-                fields: vec![SettingField {
-                    key: "api_key".to_string(),
-                    label: "RapidAPI Key".to_string(),
-                    description: Some(
-                        "Chiave RapidAPI per accedere all'endpoint ufficiale OpenCritic".to_string(),
-                    ),
-                    required: true,
-                    field_type: SettingType::SecretString {
-                        placeholder: Some(
-                            "Incolla chiave RapidAPI per OpenCritic...".to_string(),
-                        ),
-                    },
-                }],
-            }],
-        })
-    }
-
-    async fn fetch_metadata(
-        &self,
-        request: &MetadataSearchRequest,
-        settings: &Map<String, Value>,
-    ) -> Result<GameMetadataPatch, String> {
-        let api_key = settings
-            .get("api_key")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .trim();
-        if api_key.is_empty() {
-            return Err("Chiave API OpenCritic mancante.".to_string());
-        }
-
-        let search_url = match reqwest::Url::parse_with_params(
-            "https://opencritic-api.p.rapidapi.com/game/search",
-            &[("criteria", request.title.as_str())],
-        ) {
-            Ok(u) => u,
-            Err(_) => return Err("URL OpenCritic non valido".to_string()),
-        };
-
-        let search_resp = self
-            .client
-            .get(search_url)
-            .header("X-RapidAPI-Key", api_key)
-            .header("X-RapidAPI-Host", "opencritic-api.p.rapidapi.com")
-            .send()
-            .await
-            .map_err(|e| format!("Errore connessione OpenCritic: {}", e))?;
-
-        if !search_resp.status().is_success() {
-            return Err(format!(
-                "OpenCritic search error: HTTP {}",
-                search_resp.status()
-            ));
-        }
-
-        let json: Value = search_resp.json().await.map_err(|e| e.to_string())?;
-        let first_id = json
-            .as_array()
-            .and_then(|arr| arr.first())
-            .and_then(|g| g.get("id"))
-            .and_then(|id| id.as_u64())
-            .ok_or_else(|| format!("Titolo '{}' non trovato su OpenCritic", request.title))?;
-
-        let detail_url = format!("https://opencritic-api.p.rapidapi.com/game/{}", first_id);
-        let detail_resp = self
-            .client
-            .get(&detail_url)
-            .header("X-RapidAPI-Key", api_key)
-            .send()
-            .await
-            .map_err(|e| e.to_string())?;
-
-        let data: Value = detail_resp.json().await.map_err(|e| e.to_string())?;
-        let score = data
-            .get("topCriticScore")
-            .and_then(|s| s.as_f64())
-            .map(|s| s.round() as u8);
-        let percent_rec = data
-            .get("percentRecommended")
-            .and_then(|s| s.as_f64())
-            .map(|s| s.round() as u8);
-
-        Ok(GameMetadataPatch {
-            critic_score: score,
-            community_score: percent_rec,
-            ..Default::default()
-        })
-    }
-
-    async fn test_connection(&self, settings: &Map<String, Value>) -> Result<String, String> {
-        let api_key = settings
-            .get("api_key")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .trim();
-        if api_key.is_empty() {
-            return Err(
-                "Chiave API OpenCritic mancante. Inserisci una chiave RapidAPI valida.".to_string(),
-            );
-        }
-
-        let url = "https://opencritic-api.p.rapidapi.com/game/search?criteria=Portal";
-        let resp = self
-            .client
-            .get(url)
-            .header("X-RapidAPI-Key", api_key)
-            .header("X-RapidAPI-Host", "opencritic-api.p.rapidapi.com")
-            .send()
-            .await
-            .map_err(|e| format!("Errore di rete OpenCritic: {}", e))?;
-
-        if resp.status().is_success() {
-            Ok("Connessione a OpenCritic API verificata con successo!".to_string())
-        } else if resp.status().as_u16() == 401 || resp.status().as_u16() == 403 {
-            Err("Autenticazione fallita: RapidAPI Key per OpenCritic non autorizzata.".to_string())
-        } else {
-            Err(format!(
-                "OpenCritic ha risposto con codice HTTP {}",
-                resp.status()
-            ))
-        }
-    }
-}
-
-// ============================================================================
 // 4. Diamond Metadata Pipeline & Engine Manager
 // ============================================================================
 pub struct MetadataDownloader {
@@ -882,6 +208,7 @@ pub struct MetadataDownloader {
     enabled_providers: Arc<RwLock<HashMap<String, bool>>>,
     settings_cache: Arc<RwLock<HashMap<String, Map<String, Value>>>>,
     pipeline_config: Arc<RwLock<MetadataPipelineConfig>>,
+    igdb_provider: Arc<IgdbMetadataProvider>,
 }
 
 impl Default for MetadataDownloader {
@@ -898,6 +225,8 @@ impl MetadataDownloader {
             .build()
             .unwrap_or_default();
 
+        let igdb = Arc::new(IgdbMetadataProvider::new(client.clone()));
+
         let mut providers: HashMap<String, Box<dyn MetadataProvider>> = HashMap::new();
         providers.insert(
             "steam".to_string(),
@@ -911,11 +240,13 @@ impl MetadataDownloader {
             "opencritic".to_string(),
             Box::new(OpenCriticProvider::new(client.clone())),
         );
+        providers.insert("igdb".to_string(), Box::new((*igdb).clone()));
 
         let mut enabled = HashMap::new();
         enabled.insert("steam".to_string(), true);
         enabled.insert("steamgriddb".to_string(), true);
         enabled.insert("opencritic".to_string(), true);
+        enabled.insert("igdb".to_string(), true);
 
         Self {
             client,
@@ -924,6 +255,7 @@ impl MetadataDownloader {
             enabled_providers: Arc::new(RwLock::new(enabled)),
             settings_cache: Arc::new(RwLock::new(HashMap::new())),
             pipeline_config: Arc::new(RwLock::new(MetadataPipelineConfig::default())),
+            igdb_provider: igdb,
         }
     }
 
@@ -933,6 +265,20 @@ impl MetadataDownloader {
         self.scaffold_plugins_directory(&dir).await;
         self.load_persisted_state(&dir).await;
         self.scan_and_load_external_plugins(&dir).await;
+    }
+
+    pub async fn get_plugins_dir(&self) -> Option<PathBuf> {
+        self.plugins_dir.read().await.clone()
+    }
+
+    pub async fn unregister_provider(&self, provider_id: &str) -> Result<(), String> {
+        let mut providers = self.providers.write().await;
+        providers.remove(provider_id);
+        let mut enabled = self.enabled_providers.write().await;
+        enabled.remove(provider_id);
+        let mut settings = self.settings_cache.write().await;
+        settings.remove(provider_id);
+        Ok(())
     }
 
     /// Automatically generates README.txt documentation and an example plugin scaffold
@@ -1025,74 +371,189 @@ module.exports = {
 "#;
             let _ = std::fs::write(&index_path, index_content);
         }
+
+        // Scaffold Steam external plugin directory
+        let steam_dir = dir.join("steam");
+        if !steam_dir.exists() {
+            let _ = std::fs::create_dir_all(&steam_dir);
+            let manifest_path = steam_dir.join("manifest.json");
+            let manifest_content = r#"{
+  "id": "steam",
+  "name": "Steam Metadata Provider",
+  "version": "1.0.0",
+  "author": "Valve / Steam Community",
+  "description": "Provider per l'estrazione ufficiale da Steam Store Web API di sinossi, generi, sviluppatori ed editori.",
+  "type": "metadata",
+  "website": "https://store.steampowered.com",
+  "requires_api_key": false,
+  "supported_fields": [
+    "cover_image",
+    "background_image",
+    "description",
+    "release_date",
+    "genres",
+    "developers",
+    "publishers",
+    "critic_score"
+  ]
+}"#;
+            let _ = std::fs::write(&manifest_path, manifest_content);
+        }
+
+        // Scaffold SteamGridDB external plugin directory
+        let sgdb_dir = dir.join("steamgriddb");
+        if !sgdb_dir.exists() {
+            let _ = std::fs::create_dir_all(&sgdb_dir);
+            let manifest_path = sgdb_dir.join("manifest.json");
+            let manifest_content = r#"{
+  "id": "steamgriddb",
+  "name": "SteamGridDB Artwork",
+  "version": "1.0.0",
+  "author": "SteamGridDB Community",
+  "description": "Database n.1 per locandine verticali (600x900), sfondi panoramici hero 4K, loghi e icone personalizzate create dalla community.",
+  "type": "metadata",
+  "website": "https://www.steamgriddb.com",
+  "requires_api_key": true,
+  "supported_fields": [
+    "cover_image",
+    "background_image",
+    "icon"
+  ]
+}"#;
+            let _ = std::fs::write(&manifest_path, manifest_content);
+        }
+
+        // Scaffold OpenCritic external plugin directory
+        let oc_dir = dir.join("opencritic");
+        if !oc_dir.exists() {
+            let _ = std::fs::create_dir_all(&oc_dir);
+            let manifest_path = oc_dir.join("manifest.json");
+            let manifest_content = r#"{
+  "id": "opencritic",
+  "name": "OpenCritic Aggregate Reviews",
+  "version": "1.0.0",
+  "author": "OpenCritic",
+  "description": "Punteggi della critica globale con Top Critic Score (0-100), Tier e percentuale di raccomandazione.",
+  "type": "metadata",
+  "website": "https://opencritic.com",
+  "requires_api_key": true,
+  "supported_fields": [
+    "critic_score",
+    "community_score"
+  ]
+}"#;
+            let _ = std::fs::write(&manifest_path, manifest_content);
+        }
     }
 
-    /// Scans the plugins folder for subdirectories with manifest.json and loads them dynamically
+    /// Scans the plugins folder for subdirectories with native shared libraries or manifest.json and loads them dynamically
     async fn scan_and_load_external_plugins(&self, dir: &Path) {
         let entries = match std::fs::read_dir(dir) {
             Ok(e) => e,
             Err(_) => return,
         };
 
-        let mut discovered = Vec::new();
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if path.is_dir() {
-                let manifest_json = path.join("manifest.json");
-                let extension_yaml = path.join("extension.yaml");
-
-                let manifest_opt: Option<PluginManifest> = if manifest_json.exists() {
-                    if let Ok(content) = std::fs::read_to_string(&manifest_json) {
-                        serde_json::from_str(&content).ok()
-                    } else {
-                        None
-                    }
-                } else if extension_yaml.exists() {
-                    if let Ok(content) = std::fs::read_to_string(&extension_yaml) {
-                        serde_json::from_str(&content).ok()
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                };
-
-                if let Some(manifest) = manifest_opt {
-                    discovered.push((manifest, path));
-                }
-            }
-        }
-
         let mut providers_guard = self.providers.write().await;
         let mut enabled_guard = self.enabled_providers.write().await;
         let mut settings_guard = self.settings_cache.write().await;
 
-        for (manifest, root_path) in discovered {
-            let id = manifest.id.clone();
-            info!(
-                "Caricato plugin esterno: {} ({}) v{} da {}",
-                manifest.name,
-                id,
-                manifest.version,
-                root_path.display()
-            );
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if !path.is_dir() {
+                continue;
+            }
 
-            // Load settings if present
-            let settings_file = root_path.join("settings.json");
-            if let Ok(content) = std::fs::read_to_string(&settings_file) {
-                if let Ok(val) = serde_json::from_str::<Value>(&content) {
-                    if let Some(map) = val.as_object() {
-                        settings_guard.insert(id.clone(), map.clone());
+            // 1. Check for native shared library binary (.dll, .so, .dylib)
+            if let Some(lib_path) = find_shared_library_in_dir(&path) {
+                let loader = DynamicPluginLoader::new();
+                match loader.load_metadata_provider_from_library(&lib_path) {
+                    Ok(dynamic_provider) => {
+                        let id = dynamic_provider.id().to_string();
+                        info!(
+                            "Caricato plugin dinamico nativo: {} ({}) v{} da {}",
+                            dynamic_provider.name(),
+                            id,
+                            dynamic_provider.version().unwrap_or("unknown"),
+                            lib_path.display()
+                        );
+
+                        // Load settings if present
+                        let settings_file = path.join("settings.json");
+                        if let Ok(content) = std::fs::read_to_string(&settings_file) {
+                            if let Ok(val) = serde_json::from_str::<Value>(&content) {
+                                if let Some(map) = val.as_object() {
+                                    settings_guard.insert(id.clone(), map.clone());
+                                }
+                            }
+                        }
+
+                        if !enabled_guard.contains_key(&id) {
+                            enabled_guard.insert(id.clone(), true);
+                        }
+
+                        providers_guard.insert(id, Box::new(dynamic_provider));
+                        continue;
+                    }
+                    Err(e) => {
+                        warn!(
+                            "Errore nel caricamento del plugin dinamico nativo {}: {}",
+                            lib_path.display(),
+                            e
+                        );
                     }
                 }
             }
 
-            if !enabled_guard.contains_key(&id) {
-                enabled_guard.insert(id.clone(), true);
-            }
+            // 2. Fallback: check for manifest.json or extension.yaml for external / script-based plugins
+            let manifest_json = path.join("manifest.json");
+            let extension_yaml = path.join("extension.yaml");
 
-            let provider = ExternalMetadataProvider::new(manifest, root_path, self.client.clone());
-            providers_guard.insert(id, Box::new(provider));
+            let manifest_opt: Option<PluginManifest> = if manifest_json.exists() {
+                if let Ok(content) = std::fs::read_to_string(&manifest_json) {
+                    serde_json::from_str(&content).ok()
+                } else {
+                    None
+                }
+            } else if extension_yaml.exists() {
+                if let Ok(content) = std::fs::read_to_string(&extension_yaml) {
+                    serde_json::from_str(&content).ok()
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+
+            if let Some(manifest) = manifest_opt {
+                let id = manifest.id.clone();
+                info!(
+                    "Caricato plugin esterno: {} ({}) v{} da {}",
+                    manifest.name,
+                    id,
+                    manifest.version,
+                    path.display()
+                );
+
+                // Load settings if present
+                let settings_file = path.join("settings.json");
+                if let Ok(content) = std::fs::read_to_string(&settings_file) {
+                    if let Ok(val) = serde_json::from_str::<Value>(&content) {
+                        if let Some(map) = val.as_object() {
+                            settings_guard.insert(id.clone(), map.clone());
+                        }
+                    }
+                }
+
+                if !enabled_guard.contains_key(&id) {
+                    enabled_guard.insert(id.clone(), true);
+                }
+
+                // Only register generic ExternalMetadataProvider if not a core or specialized provider
+                if id != "steam" && id != "steamgriddb" && id != "opencritic" && id != "igdb" {
+                    let provider = ExternalMetadataProvider::new(manifest, path, self.client.clone());
+                    providers_guard.insert(id, Box::new(provider));
+                }
+            }
         }
     }
 
@@ -1104,6 +565,228 @@ module.exports = {
             self.scan_and_load_external_plugins(dir).await;
         }
         Ok(self.get_providers_info().await)
+    }
+
+    /// Dynamically load and hot-register a native or manifest-based plugin from a library or directory
+    pub async fn load_and_register_dynamic_plugin(&self, path: &Path) -> Result<ProviderInfo, String> {
+        let library_path = if path.is_file() {
+            Some(path.to_path_buf())
+        } else if path.is_dir() {
+            find_shared_library_in_dir(path)
+        } else {
+            return Err(format!("Il percorso specificato non esiste: {}", path.display()));
+        };
+
+        if let Some(ref lib_path) = library_path {
+            let loader = DynamicPluginLoader::new();
+            match loader.load_metadata_provider_from_library(lib_path) {
+                Ok(dynamic_provider) => {
+                    let id = dynamic_provider.id().to_string();
+                    let root_path = lib_path
+                        .parent()
+                        .map(|p| p.to_path_buf())
+                        .unwrap_or_else(|| lib_path.clone());
+
+                    let mut settings_guard = self.settings_cache.write().await;
+                    let settings_file = root_path.join("settings.json");
+                    if let Ok(content) = std::fs::read_to_string(&settings_file) {
+                        if let Ok(val) = serde_json::from_str::<Value>(&content) {
+                            if let Some(map) = val.as_object() {
+                                settings_guard.insert(id.clone(), map.clone());
+                            }
+                        }
+                    }
+
+                    let mut enabled_guard = self.enabled_providers.write().await;
+                    if !enabled_guard.contains_key(&id) {
+                        enabled_guard.insert(id.clone(), true);
+                    }
+                    let is_enabled = enabled_guard.get(&id).copied().unwrap_or(true);
+                    let settings_map = settings_guard.get(&id).cloned().unwrap_or_default();
+
+                    let has_key = if !dynamic_provider.requires_api_key() {
+                        true
+                    } else {
+                        settings_map
+                            .get("api_key")
+                            .and_then(|v| v.as_str())
+                            .map(|s| !s.trim().is_empty())
+                            .unwrap_or(false)
+                    };
+
+                    let info = ProviderInfo {
+                        id: id.clone(),
+                        name: dynamic_provider.name().to_string(),
+                        description: dynamic_provider.description().to_string(),
+                        author: dynamic_provider.author().to_string(),
+                        website: dynamic_provider.website().map(|s| s.to_string()),
+                        key_help_url: dynamic_provider.key_help_url().map(|s| s.to_string()),
+                        requires_api_key: dynamic_provider.requires_api_key(),
+                        supported_fields: dynamic_provider.supported_fields(),
+                        is_enabled,
+                        settings_schema: dynamic_provider.settings_schema(),
+                        settings_values: Value::Object(settings_map),
+                        has_configured_key: has_key,
+                        is_builtin: dynamic_provider.is_builtin(),
+                        version: dynamic_provider.version().map(|s| s.to_string()),
+                        plugin_path: Some(root_path.to_string_lossy().to_string()),
+                    };
+
+                    let mut providers_guard = self.providers.write().await;
+                    providers_guard.insert(id, Box::new(dynamic_provider));
+
+                    return Ok(info);
+                }
+                Err(e) => {
+                    tracing::warn!("Errore nel caricamento nativo da {}: {}", lib_path.display(), e);
+                }
+            }
+        }
+
+        // Fallback: check if directory contains manifest.json or extension.yaml
+        let dir = if path.is_dir() {
+            path
+        } else {
+            path.parent().unwrap_or(path)
+        };
+        let manifest_json = dir.join("manifest.json");
+        let extension_yaml = dir.join("extension.yaml");
+        let manifest_opt: Option<PluginManifest> = if manifest_json.exists() {
+            std::fs::read_to_string(&manifest_json).ok().and_then(|c| {
+                serde_json::from_str::<PluginManifest>(&c).ok().or_else(|| {
+                    if let Ok(val) = serde_json::from_str::<Value>(&c) {
+                        let id = val.get("id").and_then(|v| v.as_str())?.to_string();
+                        let name = val.get("name").and_then(|v| v.as_str()).unwrap_or(&id).to_string();
+                        let version = val.get("version").and_then(|v| v.as_str()).unwrap_or("1.0.0").to_string();
+                        let author = val.get("author").and_then(|v| v.as_str()).unwrap_or("Omnis Community").to_string();
+                        let description = val.get("description").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                        let plugin_type = val.get("plugin_type").or_else(|| val.get("type")).and_then(|v| v.as_str()).unwrap_or("metadata").to_string();
+                        Some(PluginManifest {
+                            id,
+                            name,
+                            version,
+                            author,
+                            description,
+                            plugin_type,
+                            website: val.get("website").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                            key_help_url: val.get("key_help_url").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                            requires_api_key: val.get("requires_api_key").and_then(|v| v.as_bool()).unwrap_or(false),
+                            supported_fields: vec![
+                                MetadataField::CriticScore,
+                                MetadataField::CommunityScore,
+                                MetadataField::Description,
+                            ],
+                            entry_point: None,
+                            settings_schema: None,
+                        })
+                    } else {
+                        None
+                    }
+                })
+            })
+        } else if extension_yaml.exists() {
+            std::fs::read_to_string(&extension_yaml).ok().and_then(|c| {
+                serde_json::from_str::<PluginManifest>(&c).ok().or_else(|| {
+                    if let Ok(val) = serde_json::from_str::<Value>(&c) {
+                        let id = val.get("id").and_then(|v| v.as_str())?.to_string();
+                        let name = val.get("name").and_then(|v| v.as_str()).unwrap_or(&id).to_string();
+                        let version = val.get("version").and_then(|v| v.as_str()).unwrap_or("1.0.0").to_string();
+                        let author = val.get("author").and_then(|v| v.as_str()).unwrap_or("Omnis Community").to_string();
+                        let description = val.get("description").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                        let plugin_type = val.get("plugin_type").or_else(|| val.get("type")).and_then(|v| v.as_str()).unwrap_or("metadata").to_string();
+                        Some(PluginManifest {
+                            id,
+                            name,
+                            version,
+                            author,
+                            description,
+                            plugin_type,
+                            website: val.get("website").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                            key_help_url: val.get("key_help_url").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                            requires_api_key: val.get("requires_api_key").and_then(|v| v.as_bool()).unwrap_or(false),
+                            supported_fields: vec![
+                                MetadataField::CriticScore,
+                                MetadataField::CommunityScore,
+                                MetadataField::Description,
+                            ],
+                            entry_point: None,
+                            settings_schema: None,
+                        })
+                    } else {
+                        None
+                    }
+                })
+            })
+        } else {
+            None
+        };
+
+        if let Some(manifest) = manifest_opt {
+            let id = manifest.id.clone();
+            let mut settings_guard = self.settings_cache.write().await;
+            let settings_file = dir.join("settings.json");
+            if let Ok(content) = std::fs::read_to_string(&settings_file) {
+                if let Ok(val) = serde_json::from_str::<Value>(&content) {
+                    if let Some(map) = val.as_object() {
+                        settings_guard.insert(id.clone(), map.clone());
+                    }
+                }
+            }
+
+            let mut enabled_guard = self.enabled_providers.write().await;
+            if !enabled_guard.contains_key(&id) {
+                enabled_guard.insert(id.clone(), true);
+            }
+            let is_enabled = enabled_guard.get(&id).copied().unwrap_or(true);
+            let settings_map = settings_guard.get(&id).cloned().unwrap_or_default();
+
+            let has_key = if !manifest.requires_api_key {
+                true
+            } else {
+                settings_map
+                    .get("api_key")
+                    .and_then(|v| v.as_str())
+                    .map(|s| !s.trim().is_empty())
+                    .unwrap_or(false)
+            };
+
+            let info = ProviderInfo {
+                id: id.clone(),
+                name: manifest.name.clone(),
+                description: manifest.description.clone(),
+                author: manifest.author.clone(),
+                website: manifest.website.clone(),
+                key_help_url: manifest.key_help_url.clone(),
+                requires_api_key: manifest.requires_api_key,
+                supported_fields: if manifest.supported_fields.is_empty() {
+                    vec![
+                        MetadataField::CriticScore,
+                        MetadataField::CommunityScore,
+                        MetadataField::Description,
+                    ]
+                } else {
+                    manifest.supported_fields.clone()
+                },
+                is_enabled,
+                settings_schema: manifest.settings_schema.clone(),
+                settings_values: Value::Object(settings_map),
+                has_configured_key: has_key,
+                is_builtin: false,
+                version: Some(manifest.version.clone()),
+                plugin_path: Some(dir.to_string_lossy().to_string()),
+            };
+
+            let provider = ExternalMetadataProvider::new(manifest, dir.to_path_buf(), self.client.clone());
+            let mut providers_guard = self.providers.write().await;
+            providers_guard.insert(id, Box::new(provider));
+
+            return Ok(info);
+        }
+
+        Err(format!(
+            "Nessuna libreria nativa valida né manifest.json trovato in {}",
+            path.display()
+        ))
     }
 
     async fn load_persisted_state(&self, dir: &Path) {
@@ -1134,16 +817,43 @@ module.exports = {
         let enabled_guard = self.enabled_providers.read().await;
         let settings_guard = self.settings_cache.read().await;
         let providers_guard = self.providers.read().await;
+        let plugins_dir_guard = self.plugins_dir.read().await;
 
         let mut list = Vec::new();
         for (id, prov) in &*providers_guard {
             let is_enabled = enabled_guard.get(id).copied().unwrap_or(true);
             let settings_map = settings_guard.get(id).cloned().unwrap_or_default();
-            let has_key = settings_map
-                .get("api_key")
-                .and_then(|v| v.as_str())
-                .map(|s| !s.trim().is_empty())
-                .unwrap_or(false);
+            let has_key = if id == "igdb" {
+                let client_id = settings_map
+                    .get("client_id")
+                    .and_then(|v| v.as_str())
+                    .map(|s| !s.trim().is_empty())
+                    .unwrap_or(false);
+                let client_secret = settings_map
+                    .get("client_secret")
+                    .and_then(|v| v.as_str())
+                    .map(|s| !s.trim().is_empty())
+                    .unwrap_or(false);
+                client_id && client_secret
+            } else if !prov.requires_api_key() {
+                true
+            } else {
+                settings_map
+                    .get("api_key")
+                    .and_then(|v| v.as_str())
+                    .map(|s| !s.trim().is_empty())
+                    .unwrap_or(false)
+            };
+
+            let mut plugin_path_val = prov.plugin_path().map(|p| p.to_string_lossy().to_string());
+            if plugin_path_val.is_none() && !prov.is_builtin() {
+                if let Some(ref dir) = *plugins_dir_guard {
+                    let candidate = dir.join(id);
+                    if candidate.exists() {
+                        plugin_path_val = Some(candidate.to_string_lossy().to_string());
+                    }
+                }
+            }
 
             list.push(ProviderInfo {
                 id: id.clone(),
@@ -1160,11 +870,12 @@ module.exports = {
                 has_configured_key: has_key,
                 is_builtin: prov.is_builtin(),
                 version: prov.version().map(|s| s.to_string()),
-                plugin_path: prov.plugin_path().map(|p| p.to_string_lossy().to_string()),
+                plugin_path: plugin_path_val,
             });
         }
 
-        list.sort_by(|a, b| a.name.cmp(&b.name));
+        // Built-in providers first, then alphabetical
+        list.sort_by(|a, b| b.is_builtin.cmp(&a.is_builtin).then_with(|| a.name.cmp(&b.name)));
         list
     }
 
@@ -1184,6 +895,10 @@ module.exports = {
             .write()
             .await
             .insert(provider_id.to_string(), settings.clone());
+
+        if provider_id == "igdb" {
+            self.igdb_provider.invalidate_token().await;
+        }
 
         if let Some(ref dir) = *self.plugins_dir.read().await {
             let prov_dir = dir.join(provider_id);
@@ -1537,7 +1252,18 @@ module.exports = {
             }
         }
 
-        // 4. Guarantee candidates: if no online provider returned results, produce aesthetic fallback candidate
+        // 4. IGDB APICalypse v4 Search
+        if filter == "all" || filter == "igdb" {
+            let igdb_settings = {
+                let settings_guard = self.settings_cache.read().await;
+                settings_guard.get("igdb").cloned().unwrap_or_default()
+            };
+            if let Ok(igdb_candidates) = self.igdb_provider.search_candidates(title, &igdb_settings, 8).await {
+                candidates.extend(igdb_candidates);
+            }
+        }
+
+        // 5. Guarantee candidates: if no online provider returned results, produce aesthetic fallback candidate
         if candidates.is_empty() {
             let fallback = self.generate_fallback_metadata(title, "catalogo");
             candidates.push(MetadataCandidateDto {
@@ -1614,8 +1340,8 @@ module.exports = {
             }
         }
 
-        // 2. Resolve High-Res Artwork (Default: SteamGridDB if enabled & key present, fallback to Steam)
-        if pipeline.cover_source == "steamgriddb"
+        // 2. Resolve High-Res Artwork (SteamGridDB or IGDB if enabled, fallback to Steam)
+        if (pipeline.cover_source == "steamgriddb" || pipeline.background_source == "steamgriddb")
             && enabled_guard.get("steamgriddb").copied().unwrap_or(true)
         {
             if let Some(prov) = providers_guard.get("steamgriddb") {
@@ -1624,11 +1350,30 @@ module.exports = {
                     .cloned()
                     .unwrap_or_default();
                 if let Ok(sgdb_patch) = prov.fetch_metadata(&request, &settings).await {
-                    if sgdb_patch.cover_url.is_some() {
+                    if pipeline.cover_source == "steamgriddb" && sgdb_patch.cover_url.is_some() {
                         final_patch.cover_url = sgdb_patch.cover_url;
                     }
-                    if sgdb_patch.background_url.is_some() {
+                    if pipeline.background_source == "steamgriddb" && sgdb_patch.background_url.is_some() {
                         final_patch.background_url = sgdb_patch.background_url;
+                    }
+                }
+            }
+        }
+
+        if (pipeline.cover_source == "igdb" || pipeline.background_source == "igdb")
+            && enabled_guard.get("igdb").copied().unwrap_or(true)
+        {
+            if let Some(prov) = providers_guard.get("igdb") {
+                let settings = settings_guard
+                    .get("igdb")
+                    .cloned()
+                    .unwrap_or_default();
+                if let Ok(igdb_patch) = prov.fetch_metadata(&request, &settings).await {
+                    if pipeline.cover_source == "igdb" && igdb_patch.cover_url.is_some() {
+                        final_patch.cover_url = igdb_patch.cover_url;
+                    }
+                    if pipeline.background_source == "igdb" && igdb_patch.background_url.is_some() {
+                        final_patch.background_url = igdb_patch.background_url;
                     }
                 }
             }
@@ -1647,6 +1392,18 @@ module.exports = {
                     if oc_patch.critic_score.is_some() {
                         final_patch.critic_score = oc_patch.critic_score;
                         final_patch.community_score = oc_patch.community_score;
+                    }
+                }
+            }
+        } else if pipeline.score_source == "steam" && pipeline.details_source != "steam" {
+            if enabled_guard.get("steam").copied().unwrap_or(true) {
+                if let Some(prov) = providers_guard.get("steam") {
+                    let settings = settings_guard.get("steam").cloned().unwrap_or_default();
+                    if let Ok(st_patch) = prov.fetch_metadata(&request, &settings).await {
+                        if st_patch.critic_score.is_some() {
+                            final_patch.critic_score = st_patch.critic_score;
+                            final_patch.community_score = st_patch.community_score;
+                        }
                     }
                 }
             }
@@ -1954,6 +1711,55 @@ mod tests {
         assert_eq!(first.provider_id, "steam");
         assert!(!first.title.is_empty());
         assert!(first.raw_patch.description.is_some() || first.description.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_igdb_provider_registration_and_settings() {
+        let downloader = MetadataDownloader::new();
+        let providers = downloader.get_providers_info().await;
+
+        let igdb = providers.iter().find(|p| p.id == "igdb");
+        assert!(igdb.is_some(), "IGDB provider must be registered in MetadataDownloader");
+
+        let igdb_info = igdb.unwrap();
+        assert_eq!(igdb_info.name, "IGDB (Internet Game Database)");
+        assert!(igdb_info.is_builtin);
+        assert!(igdb_info.requires_api_key);
+        assert!(!igdb_info.has_configured_key, "Initially credentials should not be configured");
+
+        // Save valid client_id and client_secret
+        let mut settings = Map::new();
+        settings.insert("client_id".to_string(), Value::String("twitch_test_id".to_string()));
+        settings.insert("client_secret".to_string(), Value::String("twitch_test_secret".to_string()));
+        downloader.save_provider_settings("igdb", settings).await.expect("Failed to save settings");
+
+        let updated_providers = downloader.get_providers_info().await;
+        let updated_igdb = updated_providers.iter().find(|p| p.id == "igdb").unwrap();
+        assert!(updated_igdb.has_configured_key, "has_configured_key should be true when both client_id and client_secret are provided");
+    }
+
+    #[tokio::test]
+    async fn test_pipeline_score_steam_when_details_not_steam() {
+        let db = Database::open_in_memory().expect("Failed to open DB");
+        db.seed_sample_games().expect("Failed to seed");
+        let games = db.get_all_games().expect("Failed to get games");
+        let portal = games.iter().find(|g| g.title.contains("Portal")).expect("Portal not found");
+
+        let temp_cache = std::env::temp_dir().join(format!("omnis_test_pipe_{}", uuid::Uuid::new_v4()));
+        let _ = std::fs::create_dir_all(&temp_cache);
+
+        let downloader = MetadataDownloader::new();
+        let mut cfg = downloader.get_pipeline_config().await;
+        cfg.details_source = "metacritic_provider".to_string();
+        cfg.score_source = "steam".to_string();
+        downloader.save_pipeline_config(cfg).await.unwrap();
+
+        let patch_result = downloader.download_for_game(&db, portal.id, &temp_cache).await;
+        assert!(patch_result.is_ok());
+        let patch = patch_result.unwrap();
+        assert!(patch.critic_score.is_some(), "Steam score should be fetched when score_source is steam even if details_source != steam");
+
+        let _ = std::fs::remove_dir_all(&temp_cache);
     }
 }
 

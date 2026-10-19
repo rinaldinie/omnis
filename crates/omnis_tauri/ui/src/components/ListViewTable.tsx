@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   Clock,
   Sparkles,
+  Download,
 } from "lucide-react";
 import { StoreBadge } from "./StoreBadge";
 import { useTranslation, TranslationSchema } from "../i18n";
@@ -556,12 +557,13 @@ export default function ListViewTable({
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            onOpenDetails(game);
+                            onLaunchGame(game.id);
                           }}
-                          className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold text-slate-400 hover:text-white border border-slate-700/60 hover:border-slate-500 transition-colors"
-                          style={{ backgroundColor: "var(--bg-surface)" }}
+                          className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold text-indigo-300 hover:text-white border border-indigo-500/40 hover:bg-indigo-500/20 transition-all shadow-sm"
+                          style={{ backgroundColor: "rgba(99, 102, 241, 0.15)" }}
                           title={t('common.install')}
                         >
+                          <Download className="w-3 h-3 text-indigo-300" />
                           <span>{t('common.install')}</span>
                         </button>
                       )}
