@@ -68,12 +68,13 @@ import {
   SteamIcon,
   EpicIcon,
   GogIcon,
+  XboxIcon,
   StoreIcon,
   StoreBadge,
 } from "./components/StoreBadge";
 import { convertFileSrc } from "@tauri-apps/api/core";
 
-export { SteamIcon, EpicIcon, GogIcon, StoreIcon, StoreBadge };
+export { SteamIcon, EpicIcon, GogIcon, XboxIcon, StoreIcon, StoreBadge };
 
 /**
  * Converts local file paths to zero-memory streaming asset URLs via Tauri's asset protocol
@@ -150,6 +151,7 @@ interface LibraryCounts {
   steam: number;
   gog: number;
   epic: number;
+  xbox: number;
   recent: number;
   favorites: number;
   action: number;
@@ -479,7 +481,7 @@ async function invokeTauri<T>(cmd: string, args?: Record<string, unknown>): Prom
   return null;
 }
 
-const FILTER_ORDER = ["all", "installed", "recent", "favorites", "steam", "gog", "epic", "action", "rpg", "strategy", "indie"];
+const FILTER_ORDER = ["all", "installed", "recent", "favorites", "steam", "gog", "epic", "xbox", "action", "rpg", "strategy", "indie"];
 
 export default function App() {
   const [games, setGames] = useState<GameDto[]>(SAMPLE_GAMES);
@@ -489,6 +491,7 @@ export default function App() {
     steam: 5,
     gog: 1,
     epic: 0,
+    xbox: 0,
     recent: 6,
     favorites: 4,
     action: 3,
@@ -606,7 +609,7 @@ export default function App() {
   }, [currentTheme]);
 
   // Load library & themes from backend
-  const refreshLibrary = async () => {
+  const loadGames = async () => {
     const loadedGames = await invokeTauri<GameDto[]>("get_games");
     if (loadedGames && loadedGames.length > 0) {
       setGames(loadedGames.map(normalizeGame));
@@ -614,6 +617,7 @@ export default function App() {
       if (loadedCounts) setCounts(loadedCounts);
     }
   };
+  const refreshLibrary = loadGames;
 
   // CUSTOM GAME MODAL STATE
   const [showAddCustomModal, setShowAddCustomModal] = useState<boolean>(false);
@@ -721,6 +725,62 @@ export default function App() {
     refreshLibrary();
     loadThemes();
     loadProvidersAndConfig();
+
+    let unlistenSync: (() => void) | null = null;
+    let unlistenLib: (() => void) | null = null;
+
+    (async () => {
+      try {
+        if (typeof window !== "undefined" && (window as any).__TAURI_INTERNALS__) {
+          const { listen } = await import("@tauri-apps/api/event");
+
+          unlistenSync = await listen<{
+            store_id: string;
+            current: number;
+            total: number;
+            status: string;
+            message?: string;
+          }>("store-sync-progress", (event) => {
+            const p = event.payload;
+            const storeName =
+              p.store_id === "gog"
+                ? "GOG Galaxy"
+                : p.store_id === "xbox"
+                ? "Xbox Game Pass"
+                : p.store_id.toUpperCase();
+
+            if (p.status === "syncing") {
+              setIsSyncing(true);
+              setStatusMessage(
+                p.message || `Sincronizzazione in corso per ${storeName}... (${p.current}/${p.total})`
+              );
+            } else if (p.status === "completed") {
+              setIsSyncing(false);
+              setStatusMessage(
+                p.message || `Sincronizzazione completata per ${storeName}: ${p.total} giochi!`
+              );
+              loadGames();
+            } else if (p.status === "error") {
+              setIsSyncing(false);
+              setStatusMessage(
+                p.message || `Errore sincronizzazione per ${storeName}`
+              );
+            }
+          });
+
+          unlistenLib = await listen("library-updated", () => {
+            loadGames();
+          });
+        }
+      } catch (e) {
+        console.warn("Failed to register store sync listener in App:", e);
+      }
+    })();
+
+    return () => {
+      if (unlistenSync) unlistenSync();
+      if (unlistenLib) unlistenLib();
+    };
   }, []);
 
   // DIAMOND METADATA PLUGIN & PIPELINE STATES
@@ -892,6 +952,7 @@ export default function App() {
       if (activeFilter === "steam" && g.library.toLowerCase() !== "steam") return false;
       if (activeFilter === "gog" && g.library.toLowerCase() !== "gog") return false;
       if (activeFilter === "epic" && g.library.toLowerCase() !== "epic") return false;
+      if (activeFilter === "xbox" && g.library.toLowerCase() !== "xbox") return false;
       if (activeFilter === "action" && !g.genres.some((x) => x.toLowerCase().includes("azione") || x.toLowerCase().includes("action"))) return false;
       if (activeFilter === "rpg" && !g.genres.some((x) => x.toLowerCase().includes("gdr") || x.toLowerCase().includes("rpg"))) return false;
       if (activeFilter === "strategy" && !g.genres.some((x) => x.toLowerCase().includes("strategia") || x.toLowerCase().includes("puzzle"))) return false;
@@ -1475,6 +1536,7 @@ export default function App() {
                 { id: "steam", label: "Steam", count: counts.steam },
                 { id: "epic", label: "Epic Games", count: counts.epic },
                 { id: "gog", label: "GOG Galaxy", count: counts.gog },
+                { id: "xbox", label: "Xbox", count: counts.xbox || 0 },
               ].map((f) => (
                 <button
                   key={f.id}
@@ -1491,7 +1553,7 @@ export default function App() {
                     boxShadow: activeFilter === f.id ? `0 0 15px var(--accent-glow)` : undefined,
                   }}
                 >
-                  {(f.id === "steam" || f.id === "epic" || f.id === "gog") && (
+                  {(f.id === "steam" || f.id === "epic" || f.id === "gog" || f.id === "xbox") && (
                     <StoreIcon library={f.id} className="w-3.5 h-3.5 shrink-0" />
                   )}
                   <span>{f.label}</span>
@@ -2334,6 +2396,7 @@ export default function App() {
                     { id: "steam", label: "Steam", count: counts.steam },
                     { id: "epic", label: "Epic Games", count: counts.epic },
                     { id: "gog", label: "GOG Galaxy", count: counts.gog },
+                    { id: "xbox", label: "Xbox Game Pass", count: counts.xbox || 0 },
                   ].map((store) => {
                     const isActive = activeFilter === store.id;
                     return (
@@ -4787,6 +4850,7 @@ export default function App() {
         onToggleSound={handleToggleSound}
         onOpenThemes={() => setShowThemeModal(true)}
         currentThemeName={currentTheme.name}
+        onSyncComplete={loadGames}
       />
     </div>
   );

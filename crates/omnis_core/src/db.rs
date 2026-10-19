@@ -51,6 +51,11 @@ impl Database {
         Ok(db)
     }
 
+    /// Initialize an in-memory database (alias for open_in_memory)
+    pub fn new_in_memory() -> Result<Self> {
+        Self::open_in_memory()
+    }
+
     /// Create tables and indexes if they do not exist
     pub fn migrate(&self) -> Result<()> {
         let conn = self.conn.lock().unwrap();
@@ -185,13 +190,17 @@ impl Database {
                     title = excluded.title,
                     sorting_title = excluded.sorting_title,
                     install_dir = COALESCE(excluded.install_dir, games.install_dir),
-                    is_installed = excluded.is_installed,
+                    is_installed = MAX(games.is_installed, excluded.is_installed),
                     playtime_seconds = MAX(games.playtime_seconds, excluded.playtime_seconds),
                     play_count = MAX(games.play_count, excluded.play_count),
                     last_activity = COALESCE(excluded.last_activity, games.last_activity),
                     cover_image_path = COALESCE(games.cover_image_path, excluded.cover_image_path),
                     background_image_path = COALESCE(games.background_image_path, excluded.background_image_path),
-                    play_actions = COALESCE(excluded.play_actions, games.play_actions),
+                    play_actions = CASE
+                        WHEN games.is_installed = 1 AND games.play_actions IS NOT NULL AND TRIM(games.play_actions) != '' AND TRIM(games.play_actions) != '[]' AND excluded.is_installed = 0
+                        THEN games.play_actions
+                        ELSE COALESCE(excluded.play_actions, games.play_actions)
+                    END,
                     modified_timestamp = excluded.modified_timestamp
                 ",
                 params![
@@ -764,6 +773,7 @@ impl Database {
                 COALESCE(SUM(CASE WHEN LOWER(library_id) = 'steam' THEN 1 ELSE 0 END), 0),
                 COALESCE(SUM(CASE WHEN LOWER(library_id) = 'gog' THEN 1 ELSE 0 END), 0),
                 COALESCE(SUM(CASE WHEN LOWER(library_id) = 'epic' THEN 1 ELSE 0 END), 0),
+                COALESCE(SUM(CASE WHEN LOWER(library_id) = 'xbox' THEN 1 ELSE 0 END), 0),
                 COALESCE(SUM(CASE WHEN playtime_seconds > 0 THEN 1 ELSE 0 END), 0),
                 COALESCE(SUM(CASE WHEN critic_score >= 90 THEN 1 ELSE 0 END), 0),
                 COALESCE(SUM(CASE WHEN LOWER(genres) LIKE '%action%' OR LOWER(genres) LIKE '%azione%' THEN 1 ELSE 0 END), 0),
@@ -779,12 +789,13 @@ impl Database {
                 steam: row.get::<_, i64>(2)? as usize,
                 gog: row.get::<_, i64>(3)? as usize,
                 epic: row.get::<_, i64>(4)? as usize,
-                recent: row.get::<_, i64>(5)? as usize,
-                favorites: row.get::<_, i64>(6)? as usize,
-                action: row.get::<_, i64>(7)? as usize,
-                rpg: row.get::<_, i64>(8)? as usize,
-                strategy: row.get::<_, i64>(9)? as usize,
-                indie: row.get::<_, i64>(10)? as usize,
+                xbox: row.get::<_, i64>(5)? as usize,
+                recent: row.get::<_, i64>(6)? as usize,
+                favorites: row.get::<_, i64>(7)? as usize,
+                action: row.get::<_, i64>(8)? as usize,
+                rpg: row.get::<_, i64>(9)? as usize,
+                strategy: row.get::<_, i64>(10)? as usize,
+                indie: row.get::<_, i64>(11)? as usize,
             })
         })?;
         Ok(counts)
@@ -799,6 +810,7 @@ pub struct LibraryCounts {
     pub steam: usize,
     pub gog: usize,
     pub epic: usize,
+    pub xbox: usize,
     pub recent: usize,
     pub favorites: usize,
     pub action: usize,
@@ -1096,5 +1108,75 @@ mod tests {
 
         let result = db.update_game(&non_existent);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_library_counts_aggregation() {
+        let db = Database::open_in_memory().expect("Failed to open DB");
+        let samples = vec![
+            DiscoveredGame {
+                library_id: "steam".to_string(),
+                external_id: "s1".to_string(),
+                title: "Steam Game".to_string(),
+                install_dir: Some(PathBuf::from("C:\\Steam\\g1")),
+                is_installed: true,
+                play_action: None,
+                playtime_seconds: 3600,
+                play_count: 5,
+                last_activity: Some(Utc::now()),
+                cover_image_path: None,
+                background_image_path: None,
+            },
+            DiscoveredGame {
+                library_id: "gog".to_string(),
+                external_id: "g1".to_string(),
+                title: "GOG Game".to_string(),
+                install_dir: None,
+                is_installed: false,
+                play_action: None,
+                playtime_seconds: 0,
+                play_count: 0,
+                last_activity: None,
+                cover_image_path: None,
+                background_image_path: None,
+            },
+            DiscoveredGame {
+                library_id: "epic".to_string(),
+                external_id: "e1".to_string(),
+                title: "Epic Game".to_string(),
+                install_dir: None,
+                is_installed: false,
+                play_action: None,
+                playtime_seconds: 0,
+                play_count: 0,
+                last_activity: None,
+                cover_image_path: None,
+                background_image_path: None,
+            },
+            DiscoveredGame {
+                library_id: "xbox".to_string(),
+                external_id: "x1".to_string(),
+                title: "Xbox Title".to_string(),
+                install_dir: None,
+                is_installed: false,
+                play_action: None,
+                playtime_seconds: 1200,
+                play_count: 2,
+                last_activity: None,
+                cover_image_path: None,
+                background_image_path: None,
+            },
+        ];
+
+        db.ingest_discovered_batch(&samples).expect("Ingest failed");
+        let counts = db.get_library_counts().expect("get_library_counts failed");
+
+        assert_eq!(counts.total, 4);
+        assert_eq!(counts.installed, 1);
+        assert_eq!(counts.steam, 1);
+        assert_eq!(counts.gog, 1);
+        assert_eq!(counts.epic, 1);
+        assert_eq!(counts.xbox, 1);
+        assert_eq!(counts.recent, 2); // 2 games with playtime_seconds > 0
     }
 }

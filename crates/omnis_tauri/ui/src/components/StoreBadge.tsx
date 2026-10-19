@@ -25,6 +25,14 @@ export function GogIcon({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
+export function XboxIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-label="Xbox">
+      <path d="M4.654 2.825A11.944 11.944 0 0 0 .5 12c0 4.195 2.158 7.886 5.438 10.027-.378-1.557-.506-3.26-.372-5.02.195-2.584 1.025-5.071 2.376-7.147-1.402-2.183-2.583-4.63-3.288-7.035zm14.692 0c-.705 2.405-1.886 4.852-3.288 7.035 1.351 2.076 2.181 4.563 2.376 7.147.134 1.76.006 3.463-.372 5.02C21.342 19.886 23.5 16.195 23.5 12a11.944 11.944 0 0 0-4.154-9.175zM12 0C8.384 0 5.127 1.576 2.898 4.09c1.472 2.684 3.565 5.048 6.096 6.828-1.404.992-2.608 2.222-3.56 3.633.204.425.435.836.689 1.23 1.206-1.577 2.766-2.923 4.582-3.924l1.295.735 1.295-.735c1.816 1.001 3.376 2.347 4.582 3.924.254-.394.485-.805.689-1.23-.952-1.411-2.156-2.641-3.56-3.633 2.531-1.78 4.624-4.144 6.096-6.828C18.873 1.576 15.616 0 12 0zm0 13.57l-1.31 1.765c-.822 1.107-1.488 2.336-1.977 3.652 1.034.654 2.188 1.05 3.287 1.05s2.253-.396 3.287-1.05c-.489-1.316-1.155-2.545-1.977-3.652L12 13.57z" />
+    </svg>
+  );
+}
+
 export function StoreIcon({ library, className = "w-3.5 h-3.5" }: { library: string; className?: string }) {
   const lib = library.toLowerCase();
   if (lib.includes("steam")) {
@@ -35,6 +43,9 @@ export function StoreIcon({ library, className = "w-3.5 h-3.5" }: { library: str
   }
   if (lib.includes("gog")) {
     return <GogIcon className={className} />;
+  }
+  if (lib.includes("xbox")) {
+    return <XboxIcon className={className} />;
   }
   return <Gamepad2 className={className} />;
 }
@@ -97,6 +108,23 @@ export function StoreBadge({
       >
         <GogIcon className="w-3.5 h-3.5 text-[#e28aff] shrink-0" />
         {showName && <span className="font-bold">GOG</span>}
+      </span>
+    );
+  }
+
+  if (lib.includes("xbox")) {
+    return (
+      <span
+        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider border shadow-sm ${className}`}
+        style={{
+          background: "linear-gradient(135deg, rgba(16, 124, 65, 0.9) 0%, rgba(8, 64, 32, 0.9) 100%)",
+          borderColor: "rgba(50, 205, 50, 0.45)",
+          color: "#4ade80",
+        }}
+        title="Disponibile su Xbox / Game Pass"
+      >
+        <XboxIcon className="w-3.5 h-3.5 text-[#4ade80] shrink-0" />
+        {showName && <span className="font-bold">Xbox</span>}
       </span>
     );
   }
