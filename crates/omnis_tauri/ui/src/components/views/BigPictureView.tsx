@@ -19,6 +19,7 @@ import {
 import { GameDto, LibraryCounts, ThemeConfig } from "../../types";
 import { StoreBadge, StoreIcon } from "../StoreBadge";
 import soundEffects from "../../utils/soundEffects";
+import { VideoBackdrop } from "../common/VideoBackdrop";
 
 interface BigPictureViewProps {
   focusedGame: GameDto | null;
@@ -90,35 +91,12 @@ export default function BigPictureView({
       className="relative flex flex-col h-screen w-screen overflow-hidden transition-colors duration-500"
       style={{ backgroundColor: "var(--bg-base)" }}
     >
-      {/* Ambient Cinema Backdrop */}
-      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-        {focusedGame?.background_image ? (
-          <img
-            src={focusedGame.background_image}
-            alt="Backdrop"
-            className="w-full h-full object-cover opacity-25 filter blur-2xl scale-110 transition-all duration-700"
-          />
-        ) : focusedGame?.cover_image ? (
-          <img
-            src={focusedGame.cover_image}
-            alt="Backdrop"
-            className="w-full h-full object-cover opacity-20 filter blur-3xl scale-125 transition-all duration-700"
-          />
-        ) : (
-          <div
-            className="w-full h-full opacity-20"
-            style={{
-              background: `radial-gradient(circle at 50% 30%, var(--accent-primary), transparent 70%)`,
-            }}
-          />
-        )}
-        <div
-          className="absolute inset-0"
-          style={{
-            background: `linear-gradient(to top, var(--bg-base) 0%, transparent 80%)`,
-          }}
-        />
-      </div>
+      {/* Ambient Cinema Backdrop / Dynamic Video Trailer */}
+      <VideoBackdrop
+        game={focusedGame}
+        theme={currentTheme}
+        blurLevel={currentTheme.enable_video_backdrop ? "subtle" : "ambient"}
+      />
 
       {/* 10-FOOT TOP BAR */}
       <header

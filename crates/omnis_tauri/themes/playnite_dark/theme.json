@@ -1,0 +1,20 @@
+{
+  "id": "playnite_dark",
+  "name": "Playnite Classic Dark",
+  "description": "Playnite desktop & fullscreen signature warm slate and radiant orange",
+  "author": "Josef Nemec Inspired",
+  "is_custom": false,
+  "bg_base": "#181a1f",
+  "bg_surface": "#20232a",
+  "bg_card": "#282c34",
+  "text_primary": "#ffffff",
+  "text_muted": "#abb2bf",
+  "accent_primary": "#ea7300",
+  "accent_glow": "rgba(234, 115, 0, 0.45)",
+  "border_color": "#343842",
+  "card_radius": "6px",
+  "font_family": "Segoe UI, system-ui, sans-serif",
+  "custom_css": null,
+  "target_mode": "desktop",
+  "enable_video_backdrop": false
+}

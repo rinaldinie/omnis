@@ -65,6 +65,10 @@ export interface ThemeConfig {
   card_radius: string;
   font_family: string;
   custom_css?: string | null;
+  target_mode?: "all" | "desktop" | "bigpicture";
+  enable_video_backdrop?: boolean;
+  video_backdrop_opacity?: number;
+  video_delay_ms?: number;
 }
 
 export interface ProviderInfo {
@@ -275,6 +279,30 @@ export const BUILTIN_THEMES: ThemeConfig[] = [
     card_radius: "10px",
     font_family: "system-ui, sans-serif",
     custom_css: null,
+    target_mode: "all",
+    enable_video_backdrop: false,
+  },
+  {
+    id: "cinema_trailer",
+    name: "Cinema Lounge (Trailer Videos)",
+    description: "Atmosfera cinematografica con video trailer dinamici di sfondo e accenti ambra e oro",
+    author: "Omnis Cinema",
+    is_custom: false,
+    bg_base: "#08080a",
+    bg_surface: "#101014",
+    bg_card: "#18181f",
+    text_primary: "#ffffff",
+    text_muted: "#a1a1aa",
+    accent_primary: "#f59e0b",
+    accent_glow: "rgba(245, 158, 11, 0.45)",
+    border_color: "#27272a",
+    card_radius: "14px",
+    font_family: "system-ui, sans-serif",
+    custom_css: ".big-picture-hero { backdrop-filter: blur(8px); }",
+    target_mode: "all",
+    enable_video_backdrop: true,
+    video_backdrop_opacity: 0.55,
+    video_delay_ms: 1000,
   },
 ];
 

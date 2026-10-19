@@ -1,0 +1,10 @@
+/* Steam Deck OLED Theme Custom Stylesheet */
+
+.game-card {
+  border: 1px solid rgba(26, 159, 255, 0.15) !important;
+}
+
+.game-card:hover {
+  border-color: rgba(26, 159, 255, 0.5) !important;
+  box-shadow: 0 0 20px rgba(26, 159, 255, 0.3) !important;
+}

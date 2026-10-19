@@ -48,6 +48,14 @@ pub struct ThemeConfig {
     pub card_radius: String,
     pub font_family: String,
     pub custom_css: Option<String>,
+    #[serde(default)]
+    pub target_mode: Option<String>,
+    #[serde(default)]
+    pub enable_video_backdrop: bool,
+    #[serde(default)]
+    pub video_backdrop_opacity: Option<f32>,
+    #[serde(default)]
+    pub video_delay_ms: Option<u32>,
 }
 
 pub struct ImageCache {
@@ -185,6 +193,10 @@ pub fn get_builtin_themes() -> Vec<ThemeConfig> {
             card_radius: "12px".to_string(),
             font_family: "system-ui, -apple-system, sans-serif".to_string(),
             custom_css: None,
+            target_mode: Some("all".to_string()),
+            enable_video_backdrop: false,
+            video_backdrop_opacity: None,
+            video_delay_ms: None,
         },
         ThemeConfig {
             id: "steam_deck".to_string(),
@@ -203,6 +215,10 @@ pub fn get_builtin_themes() -> Vec<ThemeConfig> {
             card_radius: "8px".to_string(),
             font_family: "system-ui, sans-serif".to_string(),
             custom_css: None,
+            target_mode: Some("bigpicture".to_string()),
+            enable_video_backdrop: false,
+            video_backdrop_opacity: None,
+            video_delay_ms: None,
         },
         ThemeConfig {
             id: "playnite_dark".to_string(),
@@ -221,6 +237,10 @@ pub fn get_builtin_themes() -> Vec<ThemeConfig> {
             card_radius: "6px".to_string(),
             font_family: "Segoe UI, system-ui, sans-serif".to_string(),
             custom_css: None,
+            target_mode: Some("desktop".to_string()),
+            enable_video_backdrop: false,
+            video_backdrop_opacity: None,
+            video_delay_ms: None,
         },
         ThemeConfig {
             id: "epic_dark".to_string(),
@@ -239,6 +259,10 @@ pub fn get_builtin_themes() -> Vec<ThemeConfig> {
             card_radius: "10px".to_string(),
             font_family: "Brutal, system-ui, sans-serif".to_string(),
             custom_css: None,
+            target_mode: Some("desktop".to_string()),
+            enable_video_backdrop: false,
+            video_backdrop_opacity: None,
+            video_delay_ms: None,
         },
         ThemeConfig {
             id: "synthwave".to_string(),
@@ -257,6 +281,10 @@ pub fn get_builtin_themes() -> Vec<ThemeConfig> {
             card_radius: "14px".to_string(),
             font_family: "system-ui, sans-serif".to_string(),
             custom_css: None,
+            target_mode: Some("all".to_string()),
+            enable_video_backdrop: false,
+            video_backdrop_opacity: None,
+            video_delay_ms: None,
         },
         ThemeConfig {
             id: "nordic_frost".to_string(),
@@ -275,6 +303,32 @@ pub fn get_builtin_themes() -> Vec<ThemeConfig> {
             card_radius: "10px".to_string(),
             font_family: "system-ui, sans-serif".to_string(),
             custom_css: None,
+            target_mode: Some("all".to_string()),
+            enable_video_backdrop: false,
+            video_backdrop_opacity: None,
+            video_delay_ms: None,
+        },
+        ThemeConfig {
+            id: "cinema_trailer".to_string(),
+            name: "Cinema Lounge (Trailer Videos)".to_string(),
+            description: "Cinematic atmosphere with dynamic game trailer video backgrounds and golden amber highlights".to_string(),
+            author: "Omnis Cinema".to_string(),
+            is_custom: false,
+            bg_base: "#08080a".to_string(),
+            bg_surface: "#101014".to_string(),
+            bg_card: "#18181f".to_string(),
+            text_primary: "#ffffff".to_string(),
+            text_muted: "#a1a1aa".to_string(),
+            accent_primary: "#f59e0b".to_string(),
+            accent_glow: "rgba(245, 158, 11, 0.45)".to_string(),
+            border_color: "#27272a".to_string(),
+            card_radius: "14px".to_string(),
+            font_family: "system-ui, sans-serif".to_string(),
+            custom_css: Some(".big-picture-hero { backdrop-filter: blur(8px); }".to_string()),
+            target_mode: Some("all".to_string()),
+            enable_video_backdrop: true,
+            video_backdrop_opacity: Some(0.55),
+            video_delay_ms: Some(1000),
         },
     ]
 }

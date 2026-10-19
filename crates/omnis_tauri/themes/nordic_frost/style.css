@@ -1,0 +1,10 @@
+/* Nordic Polar Frost Theme Custom Stylesheet */
+
+.game-card {
+  border: 1px solid rgba(136, 192, 208, 0.2) !important;
+}
+
+.game-card:hover {
+  border-color: rgba(136, 192, 208, 0.6) !important;
+  box-shadow: 0 4px 20px rgba(136, 192, 208, 0.2) !important;
+}

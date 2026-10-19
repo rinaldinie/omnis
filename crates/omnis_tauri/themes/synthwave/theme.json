@@ -1,0 +1,20 @@
+{
+  "id": "synthwave",
+  "name": "Retro Synthwave 80s",
+  "description": "Vibrant arcade retro vibes with hot neon magenta and deep purple horizons",
+  "author": "RetroWave",
+  "is_custom": false,
+  "bg_base": "#120024",
+  "bg_surface": "#1d0038",
+  "bg_card": "#2c0252",
+  "text_primary": "#ffffff",
+  "text_muted": "#d896ff",
+  "accent_primary": "#ff007f",
+  "accent_glow": "rgba(255, 0, 127, 0.55)",
+  "border_color": "#58008a",
+  "card_radius": "14px",
+  "font_family": "system-ui, sans-serif",
+  "custom_css": null,
+  "target_mode": "all",
+  "enable_video_backdrop": false
+}
