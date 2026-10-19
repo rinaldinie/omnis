@@ -46,7 +46,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
       <div
-        className="relative max-w-3xl w-full rounded-3xl border shadow-2xl max-h-[85vh] flex flex-col overflow-hidden"
+        className="relative max-w-4xl w-full rounded-3xl border shadow-2xl max-h-[85vh] flex flex-col overflow-hidden"
         style={{
           backgroundColor: 'var(--bg-surface)',
           borderColor: 'var(--border-color)',

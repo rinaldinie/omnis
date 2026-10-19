@@ -34,6 +34,10 @@ export const CloudStoreCard: React.FC<CloudStoreCardProps> = ({
   onSync,
 }) => {
   const isSyncing = syncProgress?.status === "syncing";
+  const isLightAccent =
+    accentColor.toLowerCase() === "#ffffff" ||
+    accentColor.toLowerCase() === "#fff" ||
+    accentColor.toLowerCase() === "white";
   const progressPercent =
     syncProgress && syncProgress.total > 0
       ? Math.round((syncProgress.current / syncProgress.total) * 100)
@@ -198,16 +202,18 @@ export const CloudStoreCard: React.FC<CloudStoreCardProps> = ({
             type="button"
             disabled={actionLoading}
             onClick={() => onConnect(account.store_id)}
-            className="w-full flex items-center justify-center gap-2 py-2 px-4 rounded-xl text-xs font-bold text-white shadow-lg transition-all hover:brightness-110 active:scale-98 disabled:opacity-50"
+            className={`w-full flex items-center justify-center gap-2 py-2 px-4 rounded-xl text-xs shadow-lg transition-all hover:brightness-110 active:scale-98 disabled:opacity-50 ${
+              isLightAccent ? "text-slate-950 font-black" : "text-white font-bold"
+            }`}
             style={{
               backgroundColor: accentColor,
               boxShadow: `0 0 15px ${accentColor}4D`,
             }}
           >
             {actionLoading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Loader2 className={`w-4 h-4 animate-spin ${isLightAccent ? "text-slate-950" : "text-white"}`} />
             ) : (
-              <LogIn className="w-4 h-4" />
+              <LogIn className={`w-4 h-4 ${isLightAccent ? "text-slate-950" : "text-white"}`} />
             )}
             <span>Connetti Account</span>
           </button>
