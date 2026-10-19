@@ -1,15 +1,19 @@
+pub mod client;
 pub mod vdf_parser;
+
+pub use client::*;
 
 use async_trait::async_trait;
 use omnis_sdk::{
-    LogLevel, PluginEvent, PluginSettingsSchema, ReactivePlugin, SettingField, SettingGroup,
-    SettingType,
+    CloudStorePlugin, DiscoveredGame, LibraryPlugin, LogLevel, PluginError, PluginEvent,
+    PluginSettingsSchema, ReactivePlugin, SettingField, SettingGroup, SettingType,
+    StoreAccountSession,
 };
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tracing::info;
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SteamConfig {
     pub custom_steam_path: Option<PathBuf>,
     pub api_key: Option<String>,
@@ -17,9 +21,9 @@ pub struct SteamConfig {
     pub import_free_games: bool,
 }
 
+#[derive(Clone)]
 pub struct SteamPlugin {
     config: SteamConfig,
-    #[allow(dead_code)]
     client: reqwest::Client,
 }
 
@@ -36,9 +40,88 @@ impl SteamPlugin {
             client: reqwest::Client::builder()
                 .pool_max_idle_per_host(4)
                 .tcp_nodelay(true)
+                .timeout(std::time::Duration::from_secs(30))
                 .build()
                 .unwrap_or_default(),
         }
+    }
+
+    pub fn with_config(config: SteamConfig) -> Self {
+        Self {
+            config,
+            client: reqwest::Client::builder()
+                .pool_max_idle_per_host(4)
+                .tcp_nodelay(true)
+                .timeout(std::time::Duration::from_secs(30))
+                .build()
+                .unwrap_or_default(),
+        }
+    }
+
+    pub fn with_client(config: SteamConfig, client: reqwest::Client) -> Self {
+        Self { config, client }
+    }
+}
+
+#[async_trait]
+impl LibraryPlugin for SteamPlugin {
+    fn id(&self) -> &str {
+        "steam"
+    }
+
+    fn name(&self) -> &str {
+        "Steam"
+    }
+
+    async fn scan(&self) -> Result<Vec<DiscoveredGame>, PluginError> {
+        let steam_path = self
+            .config
+            .custom_steam_path
+            .clone()
+            .or_else(vdf_parser::detect_steam_installation);
+
+        if let Some(path) = steam_path {
+            Ok(vdf_parser::scan_installed_games(&path))
+        } else {
+            Ok(Vec::new())
+        }
+    }
+}
+
+#[async_trait]
+impl CloudStorePlugin for SteamPlugin {
+    fn login_url(&self) -> String {
+        client::STEAM_COMMUNITY_LOGIN_URL.to_string()
+    }
+
+    fn is_redirect_url(&self, url: &str) -> bool {
+        client::is_steam_redirect(url)
+    }
+
+    async fn exchange_code(&self, redirect_url: &str) -> Result<StoreAccountSession, PluginError> {
+        client::extract_session_from_redirect(redirect_url)
+    }
+
+    async fn refresh_session(&self, refresh_token: &str) -> Result<StoreAccountSession, PluginError> {
+        let user_id = if let Some(stripped) = refresh_token.strip_prefix("steam_session:") {
+            stripped
+        } else {
+            refresh_token
+        };
+
+        Ok(StoreAccountSession {
+            store_id: "steam".to_string(),
+            user_id: user_id.to_string(),
+            username: user_id.to_string(),
+            avatar_url: None,
+            access_token: format!("steam_session:{}", user_id),
+            refresh_token: Some(refresh_token.to_string()),
+            expires_at: None,
+        })
+    }
+
+    async fn sync_games(&self, session: &StoreAccountSession) -> Result<Vec<DiscoveredGame>, PluginError> {
+        client::fetch_user_games_web_api(&self.client, &session.user_id, self.config.api_key.as_deref()).await
     }
 }
 
@@ -139,21 +222,224 @@ impl ReactivePlugin for SteamPlugin {
                         message: "Steam installation directory not found on system.".to_string(),
                     });
                 }
-
-                // Playnite multi-store discovery: Scan Epic Games manifests if "all" requested
-                if library_id == "all" {
-                    let epic_games = vdf_parser::scan_epic_installed_games();
-                    if !epic_games.is_empty() {
-                        responses.push(PluginEvent::BatchGamesDiscovered {
-                            library_id: "epic".to_string(),
-                            games: epic_games,
-                        });
-                    }
-                }
             }
             _ => {}
         }
 
         Ok(responses)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use omnis_sdk::ProcessTrackingMode;
+
+    #[test]
+    fn test_is_steam_redirect() {
+        // Positive tests
+        assert!(is_steam_redirect(
+            "https://steamcommunity.com/profiles/76561198000000000/games?xml=1"
+        ));
+        assert!(is_steam_redirect(
+            "https://steamcommunity.com/id/gabelogannewell/games?xml=1"
+        ));
+        assert!(is_steam_redirect(
+            "https://steamcommunity.com/profiles/76561198000000000/games"
+        ));
+        assert!(is_steam_redirect(
+            "https://steamcommunity.com/profiles/76561198000000000"
+        ));
+        assert!(is_steam_redirect(
+            "https://steamcommunity.com/id/gabelogannewell"
+        ));
+
+        // Negative tests
+        assert!(!is_steam_redirect(
+            "https://steamcommunity.com/login/home/?goto=%2Fmy%2Fgames%3Fxml%3D1"
+        ));
+        assert!(!is_steam_redirect("https://store.steampowered.com/app/440"));
+        assert!(!is_steam_redirect("https://google.com"));
+        assert!(!is_steam_redirect("https://example.com/games?xml=1"));
+    }
+
+    #[test]
+    fn test_extract_session_from_redirect_profiles() {
+        let url = "https://steamcommunity.com/profiles/76561198000000000/games?xml=1";
+        let session = extract_session_from_redirect(url).expect("Should extract session");
+        assert_eq!(session.store_id, "steam");
+        assert_eq!(session.user_id, "76561198000000000");
+        assert_eq!(session.username, "76561198000000000");
+        assert_eq!(session.access_token, "steam_session:76561198000000000");
+        assert_eq!(session.refresh_token, None);
+        assert_eq!(session.avatar_url, None);
+    }
+
+    #[test]
+    fn test_extract_session_from_redirect_vanity() {
+        let url = "https://steamcommunity.com/id/gabelogannewell/games?tab=all";
+        let session = extract_session_from_redirect(url).expect("Should extract vanity session");
+        assert_eq!(session.store_id, "steam");
+        assert_eq!(session.user_id, "gabelogannewell");
+        assert_eq!(session.username, "gabelogannewell");
+        assert_eq!(session.access_token, "steam_session:gabelogannewell");
+    }
+
+    #[test]
+    fn test_extract_session_invalid_url() {
+        let url = "https://steamcommunity.com/about";
+        assert!(extract_session_from_redirect(url).is_err());
+    }
+
+    #[test]
+    fn test_steam_owned_games_deserialization_and_mapping() {
+        let json_payload = r#"{
+            "response": {
+                "game_count": 2,
+                "games": [
+                    {
+                        "appid": 440,
+                        "name": "Team Fortress 2",
+                        "playtime_forever": 120,
+                        "img_icon_url": "tf2_icon_hash"
+                    },
+                    {
+                        "appid": 730,
+                        "name": "Counter-Strike 2",
+                        "playtime_forever": 350,
+                        "img_icon_url": "cs2_icon_hash"
+                    }
+                ]
+            }
+        }"#;
+
+        let api_resp: SteamOwnedGamesApiResponse =
+            serde_json::from_str(json_payload).expect("Failed to deserialize Steam API response");
+
+        assert_eq!(api_resp.response.game_count, Some(2));
+        let games = api_resp.response.games.expect("Games list should be present");
+        assert_eq!(games.len(), 2);
+
+        let discovered = map_steam_games_to_discovered(games);
+        assert_eq!(discovered.len(), 2);
+
+        // Check first game mapping
+        let tf2 = &discovered[0];
+        assert_eq!(tf2.library_id, "steam");
+        assert_eq!(tf2.external_id, "440");
+        assert_eq!(tf2.title, "Team Fortress 2");
+        assert!(!tf2.is_installed);
+        assert_eq!(tf2.playtime_seconds, 120 * 60);
+        assert_eq!(
+            tf2.cover_image_path,
+            Some("https://cdn.cloudflare.steamstatic.com/steam/apps/440/header.jpg".to_string())
+        );
+
+        let action = tf2.play_action.as_ref().expect("Play action should exist");
+        assert_eq!(action.executable, "steam://install/440");
+        assert!(action.arguments.is_empty());
+        assert_eq!(
+            action.tracking_mode,
+            ProcessTrackingMode::ProcessName("steam.exe".to_string())
+        );
+
+        // Check second game
+        let cs2 = &discovered[1];
+        assert_eq!(cs2.external_id, "730");
+        assert_eq!(cs2.title, "Counter-Strike 2");
+        assert_eq!(cs2.playtime_seconds, 350 * 60);
+        assert_eq!(
+            cs2.cover_image_path,
+            Some("https://cdn.cloudflare.steamstatic.com/steam/apps/730/header.jpg".to_string())
+        );
+    }
+
+    #[test]
+    fn test_parse_steam_community_games_xml() {
+        let xml_payload = r#"
+        <gamesList>
+            <error>
+                <![CDATA[The specified profile could not be found.]]>
+            </error>
+            <steamID64>76561198000000000</steamID64>
+            <steamID>
+                <![CDATA[User]]>
+            </steamID>
+            <games>
+                <game>
+                    <appID>220</appID>
+                    <name>
+                        <![CDATA[Half-Life 2]]>
+                    </name>
+                    <logo><![CDATA[https://cdn.example.com/logo.jpg]]></logo>
+                    <storeLink><![CDATA[https://steamcommunity.com/app/220]]></storeLink>
+                    <hoursOnRecord>10.5</hoursOnRecord>
+                </game>
+                <game>
+                    <appID>400</appID>
+                    <name><![CDATA[Portal]]></name>
+                    <logo><![CDATA[https://cdn.example.com/portal.jpg]]></logo>
+                    <storeLink><![CDATA[https://steamcommunity.com/app/400]]></storeLink>
+                    <hoursOnRecord>5.0</hoursOnRecord>
+                </game>
+            </games>
+        </gamesList>
+        "#;
+
+        assert_eq!(
+            extract_xml_tag(xml_payload, "error").as_deref(),
+            Some("The specified profile could not be found.")
+        );
+        assert_eq!(extract_xml_tag(xml_payload, "steamID").as_deref(), Some("User"));
+
+        let parsed = parse_steam_community_games_xml(xml_payload);
+        assert_eq!(parsed.len(), 2);
+
+        assert_eq!(parsed[0].appid, 220);
+        assert_eq!(parsed[0].name.as_deref(), Some("Half-Life 2"));
+        assert_eq!(parsed[0].playtime_forever, Some(630)); // 10.5 * 60
+
+        assert_eq!(parsed[1].appid, 400);
+        assert_eq!(parsed[1].name.as_deref(), Some("Portal"));
+        assert_eq!(parsed[1].playtime_forever, Some(300)); // 5.0 * 60
+
+        let discovered = map_steam_games_to_discovered(parsed);
+        assert_eq!(discovered.len(), 2);
+        assert_eq!(discovered[0].title, "Half-Life 2");
+        assert_eq!(
+            discovered[0].cover_image_path,
+            Some("https://cdn.cloudflare.steamstatic.com/steam/apps/220/header.jpg".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn test_steam_plugin_library_and_cloud_traits() {
+        let plugin = SteamPlugin::new();
+
+        // LibraryPlugin tests
+        assert_eq!(LibraryPlugin::id(&plugin), "steam");
+        assert_eq!(LibraryPlugin::name(&plugin), "Steam");
+
+        // ReactivePlugin tests
+        assert_eq!(ReactivePlugin::id(&plugin), "steam");
+        assert_eq!(ReactivePlugin::name(&plugin), "Steam Integration");
+
+        // CloudStorePlugin tests
+        assert_eq!(plugin.login_url(), STEAM_COMMUNITY_LOGIN_URL);
+        assert!(plugin.is_redirect_url("https://steamcommunity.com/profiles/76561198000000000/games?xml=1"));
+        assert!(!plugin.is_redirect_url("https://google.com"));
+
+        let session = plugin
+            .exchange_code("https://steamcommunity.com/profiles/76561198000000000/games?xml=1")
+            .await
+            .expect("Should exchange code");
+        assert_eq!(session.user_id, "76561198000000000");
+
+        let refreshed = plugin
+            .refresh_session(&session.access_token)
+            .await
+            .expect("Should refresh session");
+        assert_eq!(refreshed.user_id, "76561198000000000");
+        assert_eq!(refreshed.store_id, "steam");
     }
 }

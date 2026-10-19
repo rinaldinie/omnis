@@ -52,10 +52,10 @@ export const CloudStoreCard: React.FC<CloudStoreCardProps> = ({
     >
       <div>
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-white/10">
-          <div className="flex items-center gap-2.5">
+        <div className="flex items-start justify-between pb-3 border-b border-white/10 gap-2">
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
             <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center border shadow-md"
+              className="w-9 h-9 rounded-xl flex items-center justify-center border shadow-md shrink-0"
               style={{
                 backgroundColor: `${accentColor}26`,
                 borderColor: `${accentColor}66`,
@@ -64,29 +64,33 @@ export const CloudStoreCard: React.FC<CloudStoreCardProps> = ({
             >
               {icon}
             </div>
-            <div>
-              <h5 className="text-sm font-bold text-white flex items-center gap-1.5">
-                {account.name}
-                <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono ${badgeBg} ${badgeText}`}>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5">
+                <h5 className="text-sm font-bold text-white truncate leading-tight">
+                  {account.name}
+                </h5>
+                <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono shrink-0 uppercase tracking-wider ${badgeBg} ${badgeText}`}>
                   Cloud API
                 </span>
-              </h5>
-              <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+              </div>
+              <p className="text-[11px] truncate mt-0.5" style={{ color: "var(--text-muted)" }}>
                 {subtitle}
-              </span>
+              </p>
             </div>
           </div>
 
-          {account.is_connected ? (
-            <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              Connesso
-            </span>
-          ) : (
-            <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-500/20 text-slate-400 border border-slate-500/30">
-              Non connesso
-            </span>
-          )}
+          <div className="shrink-0 pt-0.5">
+            {account.is_connected ? (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 whitespace-nowrap">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                Connesso
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-500/20 text-slate-400 border border-slate-500/30 whitespace-nowrap">
+                Non connesso
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Body */}
@@ -124,7 +128,7 @@ export const CloudStoreCard: React.FC<CloudStoreCardProps> = ({
             </div>
           ) : (
             <p className="text-xs text-slate-300 leading-relaxed">
-              Autenticati via browser per sincronizzare la tua libreria completa con licenze cloud e giochi non installati.
+              Autenticati per sincronizzare la libreria cloud e i giochi non installati.
             </p>
           )}
 

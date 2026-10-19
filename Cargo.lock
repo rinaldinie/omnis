@@ -2917,6 +2917,7 @@ dependencies = [
  "libloading 0.8.9",
  "omnis_plugin_epic",
  "omnis_plugin_gog",
+ "omnis_plugin_steam",
  "omnis_plugin_xbox",
  "omnis_sdk",
  "reqwest 0.12.28",
@@ -2936,11 +2937,15 @@ name = "omnis_plugin_epic"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "chrono",
  "omnis_sdk",
+ "reqwest 0.12.28",
  "serde",
  "serde_json",
  "tokio",
  "tracing",
+ "url",
+ "urlencoding",
  "uuid",
 ]
 
@@ -2972,6 +2977,8 @@ dependencies = [
  "serde_json",
  "tokio",
  "tracing",
+ "url",
+ "urlencoding",
  "winreg",
 ]
 

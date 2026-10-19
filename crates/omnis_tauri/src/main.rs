@@ -33,7 +33,6 @@ fn main() {
 
     let db_path = app_dir.join("library.db");
     let db = Arc::new(Database::open(&db_path).expect("Impossibile aprire il database SQLite"));
-    let _ = db.seed_sample_games();
 
     let event_bus = EventBus::new(256);
     let mut host = PluginHost::new(event_bus.clone(), db.clone());
@@ -52,6 +51,8 @@ fn main() {
     let store_account_manager = Arc::new(store_manager::StoreAccountManager::new(db.clone()));
     store_account_manager.register_plugin(Arc::new(omnis_plugin_gog::GogCloudPlugin::new()));
     store_account_manager.register_plugin(Arc::new(omnis_plugin_xbox::XboxCloudPlugin::new()));
+    store_account_manager.register_plugin(Arc::new(omnis_plugin_steam::SteamPlugin::new()));
+    store_account_manager.register_plugin(Arc::new(omnis_plugin_epic::EpicLibraryPlugin::new()));
 
     let host = Arc::new(host);
     let image_cache = Arc::new(ImageCache::new());
@@ -112,6 +113,7 @@ fn main() {
             get_store_accounts,
             disconnect_store_account,
             sync_store_library,
+            clear_library,
         ])
         .run(tauri::generate_context!())
         .expect("Errore durante l'esecuzione dell'applicazione Tauri");

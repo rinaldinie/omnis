@@ -2,7 +2,6 @@ use omnis_sdk::{DiscoveredGame, LaunchConfiguration, ProcessTrackingMode};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use tracing::info;
 
 /// Locate the primary Steam installation path across Windows and Linux (Playnite algorithm)
 pub fn detect_steam_installation() -> Option<PathBuf> {
@@ -358,63 +357,6 @@ pub fn scan_installed_games(steam_root: &Path) -> Vec<DiscoveredGame> {
                 }
             }
         }
-    }
-
-    games
-}
-
-/// Playnite-style Epic Games Launcher discovery (scans C:\ProgramData\Epic\EpicGamesLauncher\Data\Manifests)
-pub fn scan_epic_installed_games() -> Vec<DiscoveredGame> {
-    let mut games = Vec::new();
-    let manifest_dir = PathBuf::from("C:\\ProgramData\\Epic\\EpicGamesLauncher\\Data\\Manifests");
-
-    if manifest_dir.exists() {
-        if let Ok(entries) = fs::read_dir(&manifest_dir) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if path.extension().and_then(|e| e.to_str()) == Some("item") {
-                    if let Ok(content) = fs::read_to_string(&path) {
-                        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
-                            let display_name = json["DisplayName"].as_str().unwrap_or_default();
-                            let app_name = json["AppName"].as_str().unwrap_or_default();
-                            let install_location = json["InstallLocation"].as_str().unwrap_or_default();
-
-                            if !app_name.is_empty() && !display_name.is_empty() {
-                                let install_path = PathBuf::from(install_location);
-                                let is_installed = install_path.exists();
-
-                                games.push(DiscoveredGame {
-                                    library_id: "epic".to_string(),
-                                    external_id: app_name.to_string(),
-                                    title: display_name.to_string(),
-                                    install_dir: Some(install_path),
-                                    is_installed,
-                                    play_action: Some(LaunchConfiguration {
-                                        executable: "cmd.exe".to_string(),
-                                        arguments: vec![
-                                            "/c".to_string(),
-                                            "start".to_string(),
-                                            format!("com.epicgames.launcher://apps/{}?action=launch&silent=true", app_name),
-                                        ],
-                                        working_dir: None,
-                                        tracking_mode: ProcessTrackingMode::KernelJobObject,
-                                    }),
-                                    playtime_seconds: 0,
-                                    play_count: 0,
-                                    last_activity: None,
-                                    cover_image_path: None,
-                                    background_image_path: None,
-                                });
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    if !games.is_empty() {
-        info!("Discovered {} local Epic Games titles.", games.len());
     }
 
     games

@@ -39,6 +39,11 @@ pub async fn get_counts(state: State<'_, AppState>) -> Result<LibraryCounts, Str
 }
 
 #[tauri::command]
+pub async fn clear_library(state: State<'_, AppState>) -> Result<usize, String> {
+    state.db.clear_all_games().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 pub async fn sync_library(
     app_handle: tauri::AppHandle,
     state: State<'_, AppState>,

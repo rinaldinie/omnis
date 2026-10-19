@@ -10,6 +10,7 @@ import {
   Sparkles,
   Folder,
   Palette,
+  Cloud,
 } from "lucide-react";
 import { LibraryCounts } from "../../types";
 import { SteamIcon, EpicIcon, GogIcon, XboxIcon } from "../StoreBadge";
@@ -21,6 +22,7 @@ interface SidebarProps {
   gamepadConnected: boolean;
   gamepadName: string;
   handleOpenFolder: (folderType: string) => void;
+  onOpenStoreAccounts?: () => void;
 }
 
 export default function Sidebar({
@@ -30,6 +32,7 @@ export default function Sidebar({
   gamepadConnected,
   gamepadName,
   handleOpenFolder,
+  onOpenStoreAccounts,
 }: SidebarProps) {
   const installedRatio = counts.total > 0 ? (counts.installed / counts.total) * 100 : 0;
 
@@ -108,12 +111,25 @@ export default function Sidebar({
 
         {/* Section: Negozi & Client */}
         <div className="flex flex-col gap-1">
-          <span
-            className="text-[10px] font-black tracking-widest uppercase px-2 mb-1"
-            style={{ color: "var(--text-muted)" }}
-          >
-            Negozi & Piattaforme
-          </span>
+          <div className="flex items-center justify-between px-2 mb-1">
+            <span
+              className="text-[10px] font-black tracking-widest uppercase"
+              style={{ color: "var(--text-muted)" }}
+            >
+              Negozi & Piattaforme
+            </span>
+            {onOpenStoreAccounts && (
+              <button
+                type="button"
+                onClick={onOpenStoreAccounts}
+                className="px-1.5 py-0.5 rounded text-[10px] font-bold text-indigo-400 hover:text-white hover:bg-indigo-500/20 transition-all flex items-center gap-1 border border-indigo-500/30"
+                title="Gestione e Sincronizzazione Account Store Cloud (OAuth)"
+              >
+                <Cloud className="w-3 h-3" />
+                <span>Collega</span>
+              </button>
+            )}
+          </div>
           {[
             { id: "steam", label: "Steam", count: counts.steam, icon: SteamIcon },
             { id: "gog", label: "GOG Galaxy", count: counts.gog, icon: GogIcon },
