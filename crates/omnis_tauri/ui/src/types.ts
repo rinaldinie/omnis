@@ -13,6 +13,7 @@ export type GroupBy =
 
 export interface GameDto {
   id: string;
+  external_id?: string;
   title: string;
   library: string;
   is_installed: boolean;
@@ -309,6 +310,7 @@ export const BUILTIN_THEMES: ThemeConfig[] = [
 export const SAMPLE_GAMES: GameDto[] = [
   {
     id: "1091500",
+    external_id: "1091500",
     title: "Cyberpunk 2077",
     library: "steam",
     is_installed: true,
@@ -332,6 +334,7 @@ export const SAMPLE_GAMES: GameDto[] = [
   },
   {
     id: "292030",
+    external_id: "292030",
     title: "The Witcher 3: Wild Hunt",
     library: "steam",
     is_installed: true,
@@ -354,6 +357,7 @@ export const SAMPLE_GAMES: GameDto[] = [
   },
   {
     id: "1145360",
+    external_id: "1145360",
     title: "Hades",
     library: "steam",
     is_installed: false,
@@ -376,6 +380,7 @@ export const SAMPLE_GAMES: GameDto[] = [
   },
   {
     id: "620",
+    external_id: "620",
     title: "Portal 2",
     library: "steam",
     is_installed: true,
@@ -398,6 +403,7 @@ export const SAMPLE_GAMES: GameDto[] = [
   },
   {
     id: "1423714649",
+    external_id: "1423714649",
     title: "Baldur's Gate 3",
     library: "gog",
     is_installed: false,
@@ -420,6 +426,7 @@ export const SAMPLE_GAMES: GameDto[] = [
   },
   {
     id: "1245620",
+    external_id: "1245620",
     title: "Elden Ring",
     library: "steam",
     is_installed: false,
