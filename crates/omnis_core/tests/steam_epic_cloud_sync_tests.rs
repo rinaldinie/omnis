@@ -43,7 +43,7 @@ fn test_epic_cloud_plugin_contract_and_normalization() {
     // Verify login URL structure
     let login_url = plugin.login_url();
     assert!(
-        login_url.contains("34a6cf8bd0344e2197fb8514a0e23778"),
+        login_url.contains("34a02cf8f4414e29b15921876da36f9a"),
         "login_url must contain Epic client ID: {}",
         login_url
     );
@@ -57,6 +57,10 @@ fn test_epic_cloud_plugin_contract_and_normalization() {
     assert!(
         plugin.is_redirect_url("https://www.epicgames.com/id/api/redirect?code=MOCK_EXCHANGE_CODE_123"),
         "Should accept Epic redirect callback with code query param"
+    );
+    assert!(
+        plugin.is_redirect_url("https://localhost/launcher/authorized?code=MOCK_AUTH_CODE_123"),
+        "Should accept localhost authorized callback with code query param"
     );
     assert!(
         !plugin.is_redirect_url("https://www.epicgames.com/store/en-US/"),
@@ -107,8 +111,8 @@ fn test_steam_cloud_plugin_contract_and_normalization() {
     // Verify login URL structure
     let login_url = plugin.login_url();
     assert!(
-        login_url.contains("steamcommunity.com/login"),
-        "login_url must direct to steamcommunity.com/login: {}",
+        login_url.contains("steamcommunity.com") && login_url.contains("login"),
+        "login_url must direct to steamcommunity.com login endpoint: {}",
         login_url
     );
 
@@ -120,6 +124,14 @@ fn test_steam_cloud_plugin_contract_and_normalization() {
     assert!(
         is_steam_redirect("https://steamcommunity.com/id/mycustomvanity/games?xml=1"),
         "Should accept Steam community vanity URL games XML redirect"
+    );
+    assert!(
+        is_steam_redirect("https://omnis.app/auth/steam?openid.ns=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0&openid.mode=id_res&openid.claimed_id=https%3A%2F%2Fsteamcommunity.com%2Fopenid%2Fid%2F76561198000000000"),
+        "Should accept Steam OpenID redirect callback"
+    );
+    assert!(
+        !is_steam_redirect("https://steamcommunity.com/my/games?xml=1"),
+        "Must NOT prematurely intercept intermediate /my/ path before Steam resolves profile"
     );
     assert!(
         !is_steam_redirect("https://store.steampowered.com/"),

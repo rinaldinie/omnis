@@ -46,6 +46,7 @@ fn main() {
     let marketplace = Arc::new(MarketplaceManager::new());
 
     let runtime = tokio::runtime::Runtime::new().expect("Impossibile inizializzare Tokio runtime");
+    let _guard = runtime.enter();
     runtime.block_on(async {
         let _ = host.initialize_all().await;
         downloader.set_plugins_dir(plugins_dir.clone()).await;
@@ -85,11 +86,16 @@ fn main() {
     // Check if an installed game is already running and re-attach session on startup (Requirement B2)
     let active_mgr_startup = active_game_manager.clone();
     let db_startup = db.clone();
-    tokio::spawn(async move {
-        active_mgr_startup.check_and_reattach(&db_startup).await;
-    });
 
     tauri::Builder::default()
+        .setup(move |_app| {
+            let active_mgr = active_mgr_startup.clone();
+            let db_ref = db_startup.clone();
+            tauri::async_runtime::spawn(async move {
+                active_mgr.check_and_reattach(&db_ref).await;
+            });
+            Ok(())
+        })
         .manage(state)
         .invoke_handler(tauri::generate_handler![
             get_games,

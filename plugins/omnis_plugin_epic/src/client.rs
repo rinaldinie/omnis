@@ -6,12 +6,13 @@ use omnis_sdk::{
 };
 use serde::{Deserialize, Serialize};
 
-pub const EPIC_CLIENT_ID: &str = "34a6cf8bd0344e2197fb8514a0e23778";
+pub const EPIC_CLIENT_ID: &str = "34a02cf8f4414e29b15921876da36f9a";
 pub const EPIC_REDIRECT_URI: &str = "https://www.epicgames.com/id/api/redirect";
-pub const EPIC_AUTH_URL: &str = "https://www.epicgames.com/id/login?redirectUrl=https%3A%2F%2Fwww.epicgames.com%2Fid%2Fapi%2Fredirect%3FclientId%3D34a6cf8bd0344e2197fb8514a0e23778%26responseType%3Dcode";
+pub const EPIC_AUTH_URL: &str = "https://www.epicgames.com/id/login?redirectUrl=https%3A%2F%2Fwww.epicgames.com%2Fid%2Fapi%2Fredirect%3FclientId%3D34a02cf8f4414e29b15921876da36f9a%26responseType%3Dcode";
 pub const EPIC_TOKEN_URL: &str = "https://account-public-service-prod03.ol.epicgames.com/account/api/oauth/token";
 pub const EPIC_ENTITLEMENTS_URL: &str = "https://entitlement-public-service-prod08.ol.epicgames.com/entitlement/api/account";
-pub const EPIC_BASIC_AUTH: &str = "Basic MzRhNmNmOGJkMDM0NGUyMTk3ZmI4NTE0YTBlMjM3Nzg6ZGFmM2VhZjAyMDI4NDcxNDhhZGFlNDZlcmd1ZmQzNDE=";
+pub const EPIC_BASIC_AUTH: &str = "Basic MzRhMDJjZjhmNDQxNGUyOWIxNTkyMTg3NmRhMzZmOWE6ZGFhZmJjY2M3Mzc3NDUwMzlkZmZlNTNkOTRmYzc2Y2Y=";
+pub const EPIC_USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) EpicGamesLauncher";
 
 /// OAuth token response returned by Epic Games token service
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -75,12 +76,12 @@ pub fn normalize_epic_entitlement(entitlement: &EpicEntitlement) -> DiscoveredGa
     }
 }
 
-/// Extracts exchangeCode or code from the query parameters or URL fragment
+/// Extracts exchangeCode, authorizationCode or code from the query parameters or URL fragment
 pub fn extract_exchange_code(url_str: &str) -> Option<String> {
     if let Ok(parsed) = url::Url::parse(url_str) {
         // 1. Check query parameters
         for (key, val) in parsed.query_pairs() {
-            if key == "exchangeCode" || key == "code" {
+            if key == "exchangeCode" || key == "code" || key == "authorizationCode" {
                 return Some(val.into_owned());
             }
         }
@@ -88,14 +89,19 @@ pub fn extract_exchange_code(url_str: &str) -> Option<String> {
         // 2. Check fragment
         if let Some(fragment) = parsed.fragment() {
             for (key, val) in url::form_urlencoded::parse(fragment.as_bytes()) {
-                if key == "exchangeCode" || key == "code" {
+                if key == "exchangeCode" || key == "code" || key == "authorizationCode" {
                     return Some(val.into_owned());
                 }
             }
         }
     }
 
-    // Fallback: search string directly (checking exchangeCode before code)
+    // Fallback: search string directly (checking authorizationCode and exchangeCode before code)
+    if let Some(pos) = url_str.find("authorizationCode=") {
+        let after = &url_str[pos + 18..];
+        let end = after.find(|c| c == '&' || c == '#' || c == ' ').unwrap_or(after.len());
+        return Some(after[..end].to_string());
+    }
     if let Some(pos) = url_str.find("exchangeCode=") {
         let after = &url_str[pos + 13..];
         let end = after.find(|c| c == '&' || c == '#' || c == ' ').unwrap_or(after.len());
@@ -110,36 +116,61 @@ pub fn extract_exchange_code(url_str: &str) -> Option<String> {
     None
 }
 
-/// Exchanges an exchange code for an authenticated StoreAccountSession
+/// Exchanges an authorization code or exchange code for an authenticated StoreAccountSession
 pub async fn exchange_code(
     client: &reqwest::Client,
     code: &str,
 ) -> Result<StoreAccountSession, PluginError> {
-    let params = [
-        ("grant_type", "exchange_code"),
-        ("exchange_code", code),
+    // 1. Try authorization_code first (standard OAuth flow with responseType=code)
+    let auth_code_params = [
+        ("grant_type", "authorization_code"),
+        ("code", code),
         ("token_type", "eg1"),
     ];
 
     let resp = client
         .post(EPIC_TOKEN_URL)
         .header("Authorization", EPIC_BASIC_AUTH)
-        .form(&params)
+        .header("User-Agent", EPIC_USER_AGENT)
+        .form(&auth_code_params)
         .send()
         .await
         .map_err(|e| PluginError::Io(format!("OAuth token request failed: {}", e)))?;
 
-    if !resp.status().is_success() {
-        return Err(PluginError::Other(format!(
-            "Epic OAuth token exchange failed with HTTP status {}",
-            resp.status()
-        )));
-    }
+    let token_resp: EpicOAuthTokenResponse = if resp.status().is_success() {
+        resp.json().await.map_err(|e| {
+            PluginError::Parse(format!("Failed to parse Epic token response: {}", e))
+        })?
+    } else {
+        // 2. Fallback: try exchange_code grant_type
+        let exchange_code_params = [
+            ("grant_type", "exchange_code"),
+            ("exchange_code", code),
+            ("token_type", "eg1"),
+        ];
 
-    let token_resp: EpicOAuthTokenResponse = resp
-        .json()
-        .await
-        .map_err(|e| PluginError::Parse(format!("Failed to parse Epic token response: {}", e)))?;
+        let fallback_resp = client
+            .post(EPIC_TOKEN_URL)
+            .header("Authorization", EPIC_BASIC_AUTH)
+            .header("User-Agent", EPIC_USER_AGENT)
+            .form(&exchange_code_params)
+            .send()
+            .await
+            .map_err(|e| PluginError::Io(format!("OAuth token fallback request failed: {}", e)))?;
+
+        if !fallback_resp.status().is_success() {
+            let status = fallback_resp.status();
+            let body = fallback_resp.text().await.unwrap_or_default();
+            return Err(PluginError::Other(format!(
+                "Epic OAuth token exchange failed with HTTP status {}: {}",
+                status, body
+            )));
+        }
+
+        fallback_resp.json().await.map_err(|e| {
+            PluginError::Parse(format!("Failed to parse Epic token response: {}", e))
+        })?
+    };
 
     let now = Utc::now().timestamp();
     let expires_at = token_resp.expires_in.map(|exp| now + exp);
@@ -171,6 +202,7 @@ pub async fn refresh_token(
     let resp = client
         .post(EPIC_TOKEN_URL)
         .header("Authorization", EPIC_BASIC_AUTH)
+        .header("User-Agent", EPIC_USER_AGENT)
         .form(&params)
         .send()
         .await

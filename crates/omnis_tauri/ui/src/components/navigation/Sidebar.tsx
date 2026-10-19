@@ -19,8 +19,8 @@ interface SidebarProps {
   counts: LibraryCounts;
   activeFilter: string;
   setActiveFilter: (filter: string) => void;
-  gamepadConnected: boolean;
-  gamepadName: string;
+  gamepadConnected?: boolean;
+  gamepadName?: string;
   handleOpenFolder: (folderType: string) => void;
   onOpenStoreAccounts?: () => void;
 }
@@ -29,80 +29,80 @@ export default function Sidebar({
   counts,
   activeFilter,
   setActiveFilter,
-  gamepadConnected,
-  gamepadName,
+  gamepadConnected: _gamepadConnected,
+  gamepadName: _gamepadName,
   handleOpenFolder,
   onOpenStoreAccounts,
 }: SidebarProps) {
   const installedRatio = counts.total > 0 ? (counts.installed / counts.total) * 100 : 0;
 
+  const catalogItems = [
+    { id: "all", label: "Tutti i Giochi", count: counts.total, icon: Gamepad2 },
+    { id: "installed", label: "Installati", count: counts.installed, icon: CheckCircle2 },
+    { id: "recent", label: "Recenti", count: counts.recent, icon: Clock },
+    { id: "favorites", label: "Preferiti", count: counts.favorites, icon: Star },
+  ];
+
+  const storeItems = [
+    { id: "steam", label: "Steam", count: counts.steam, icon: SteamIcon },
+    { id: "gog", label: "GOG Galaxy", count: counts.gog, icon: GogIcon },
+    { id: "epic", label: "Epic Games", count: counts.epic, icon: EpicIcon },
+    { id: "xbox", label: "Xbox / Pass", count: counts.xbox || 0, icon: XboxIcon },
+  ];
+
+  const genreItems = [
+    { id: "action", label: "Azione", count: counts.action, icon: Swords },
+    { id: "rpg", label: "GDR", count: counts.rpg, icon: Scroll },
+    { id: "strategy", label: "Strategia", count: counts.strategy, icon: Dices },
+    { id: "indie", label: "Indie", count: counts.indie, icon: Sparkles },
+  ];
+
   return (
     <aside
       data-omnis="sidebar"
-      className="w-64 min-w-[256px] max-w-[256px] border-r flex flex-col justify-between p-3 select-none transition-colors duration-300"
+      className="w-52 min-w-[208px] max-w-[208px] border-r flex flex-col justify-between p-2 select-none transition-all duration-300 text-xs"
       style={{
         backgroundColor: "var(--bg-surface)",
         borderColor: "var(--border-color)",
       }}
     >
-      <div className="flex flex-col gap-4 overflow-y-auto pr-1">
-        {/* Profile card */}
-        <div
-          className="p-3 rounded-xl border flex items-center gap-3 shadow-sm"
-          style={{
-            backgroundColor: "var(--bg-card)",
-            borderColor: "var(--border-color)",
-          }}
-        >
-          <div
-            className="w-9 h-9 rounded-lg flex items-center justify-center text-white font-black text-xs shadow-md"
-            style={{ backgroundColor: "var(--accent-primary)" }}
-          >
-            PG
-          </div>
-          <div className="flex flex-col">
-            <span className="text-xs font-bold text-white leading-tight">Player One</span>
-            <span className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-              {gamepadConnected ? gamepadName : "Pronto"}
-            </span>
-          </div>
-        </div>
-
-        {/* Section: Catalogo Giochi */}
-        <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-3 overflow-y-auto pr-0.5 custom-scrollbar">
+        {/* Section: Libreria */}
+        <div className="flex flex-col gap-0.5">
           <span
-            className="text-[10px] font-black tracking-widest uppercase px-2 mb-1"
+            className="text-[9px] font-bold tracking-wider uppercase px-2 pt-1 pb-0.5"
             style={{ color: "var(--text-muted)" }}
           >
-            Catalogo Giochi
+            Libreria
           </span>
-          {[
-            { id: "all", label: "Tutti i Giochi", count: counts.total, icon: Gamepad2 },
-            { id: "installed", label: "Installati", count: counts.installed, icon: CheckCircle2 },
-            { id: "recent", label: "Giocati di Recente", count: counts.recent, icon: Clock },
-            { id: "favorites", label: "Preferiti (90+)", count: counts.favorites, icon: Star },
-          ].map((item) => {
+          {catalogItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeFilter === item.id;
             return (
               <button
                 key={item.id}
                 data-omnis="sidebar.item"
+                data-state={isActive ? "active" : "idle"}
                 onClick={() => setActiveFilter(item.id)}
-                className="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-bold transition-all"
+                className={`flex items-center justify-between px-2 py-1.5 rounded-md text-xs transition-colors group ${
+                  isActive
+                    ? "font-semibold bg-white/10 text-white"
+                    : "font-normal hover:bg-white/5 text-slate-300 hover:text-white"
+                }`}
                 style={{
-                  backgroundColor: isActive ? "var(--accent-primary)" : "transparent",
-                  color: isActive ? "#ffffff" : "var(--text-muted)",
+                  borderLeft: isActive ? "2.5px solid var(--accent-primary)" : "2.5px solid transparent",
+                  backgroundColor: isActive ? "rgba(255, 255, 255, 0.08)" : undefined,
                 }}
               >
-                <div className="flex items-center gap-2.5">
-                  <Icon className="w-4 h-4" />
-                  <span>{item.label}</span>
+                <div className="flex items-center gap-2 min-w-0">
+                  <Icon
+                    className="w-3.5 h-3.5 shrink-0 transition-transform group-hover:scale-105"
+                    style={{ color: isActive ? "var(--accent-primary)" : undefined }}
+                  />
+                  <span className="truncate">{item.label}</span>
                 </div>
                 <span
-                  className="text-[10px] font-mono px-1.5 py-0.5 rounded"
-                  style={{ backgroundColor: "var(--bg-card)" }}
+                  className="text-[9px] font-mono px-1 py-0.2 rounded text-slate-400 bg-black/20 shrink-0"
                 >
                   {item.count}
                 </span>
@@ -111,52 +111,52 @@ export default function Sidebar({
           })}
         </div>
 
-        {/* Section: Negozi & Client */}
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center justify-between px-2 mb-1">
+        {/* Section: Store Accounts */}
+        <div className="flex flex-col gap-0.5">
+          <div className="flex items-center justify-between px-2 pt-1 pb-0.5">
             <span
-              className="text-[10px] font-black tracking-widest uppercase"
+              className="text-[9px] font-bold tracking-wider uppercase"
               style={{ color: "var(--text-muted)" }}
             >
-              Negozi & Piattaforme
+              Negozi
             </span>
             {onOpenStoreAccounts && (
               <button
                 type="button"
                 onClick={onOpenStoreAccounts}
-                className="px-1.5 py-0.5 rounded text-[10px] font-bold text-indigo-400 hover:text-white hover:bg-indigo-500/20 transition-all flex items-center gap-1 border border-indigo-500/30"
+                className="px-1 py-0.2 rounded text-[9px] font-semibold text-sky-400 hover:text-white hover:bg-sky-500/20 transition-all flex items-center gap-1 border border-sky-500/30"
                 title="Gestione e Sincronizzazione Account Store Cloud (OAuth)"
               >
-                <Cloud className="w-3 h-3" />
+                <Cloud className="w-2.5 h-2.5" />
                 <span>Collega</span>
               </button>
             )}
           </div>
-          {[
-            { id: "steam", label: "Steam", count: counts.steam, icon: SteamIcon },
-            { id: "gog", label: "GOG Galaxy", count: counts.gog, icon: GogIcon },
-            { id: "epic", label: "Epic Games", count: counts.epic, icon: EpicIcon },
-            { id: "xbox", label: "Xbox / PC Pass", count: counts.xbox || 0, icon: XboxIcon },
-          ].map((store) => {
+          {storeItems.map((store) => {
             const Icon = store.icon;
             const isActive = activeFilter === store.id;
             return (
               <button
                 key={store.id}
+                data-omnis="sidebar.item"
+                data-state={isActive ? "active" : "idle"}
                 onClick={() => setActiveFilter(store.id)}
-                className="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-bold transition-all"
+                className={`flex items-center justify-between px-2 py-1.5 rounded-md text-xs transition-colors group ${
+                  isActive
+                    ? "font-semibold bg-white/10 text-white"
+                    : "font-normal hover:bg-white/5 text-slate-300 hover:text-white"
+                }`}
                 style={{
-                  backgroundColor: isActive ? "var(--accent-primary)" : "transparent",
-                  color: isActive ? "#ffffff" : "var(--text-muted)",
+                  borderLeft: isActive ? "2.5px solid var(--accent-primary)" : "2.5px solid transparent",
+                  backgroundColor: isActive ? "rgba(255, 255, 255, 0.08)" : undefined,
                 }}
               >
-                <div className="flex items-center gap-2.5">
-                  <Icon className="w-4 h-4" />
-                  <span>{store.label}</span>
+                <div className="flex items-center gap-2 min-w-0">
+                  <Icon className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">{store.label}</span>
                 </div>
                 <span
-                  className="text-[10px] font-mono px-1.5 py-0.5 rounded"
-                  style={{ backgroundColor: "var(--bg-card)" }}
+                  className="text-[9px] font-mono px-1 py-0.2 rounded text-slate-400 bg-black/20 shrink-0"
                 >
                   {store.count}
                 </span>
@@ -166,38 +166,41 @@ export default function Sidebar({
         </div>
 
         {/* Section: Generi */}
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-0.5">
           <span
-            className="text-[10px] font-black tracking-widest uppercase px-2 mb-1"
+            className="text-[9px] font-bold tracking-wider uppercase px-2 pt-1 pb-0.5"
             style={{ color: "var(--text-muted)" }}
           >
-            Generi Principali
+            Generi
           </span>
-          {[
-            { id: "action", label: "Azione", count: counts.action, icon: Swords },
-            { id: "rpg", label: "GDR", count: counts.rpg, icon: Scroll },
-            { id: "strategy", label: "Strategia", count: counts.strategy, icon: Dices },
-            { id: "indie", label: "Indie", count: counts.indie, icon: Sparkles },
-          ].map((genre) => {
+          {genreItems.map((genre) => {
             const Icon = genre.icon;
             const isActive = activeFilter === genre.id;
             return (
               <button
                 key={genre.id}
+                data-omnis="sidebar.item"
+                data-state={isActive ? "active" : "idle"}
                 onClick={() => setActiveFilter(genre.id)}
-                className="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-bold transition-all"
+                className={`flex items-center justify-between px-2 py-1.5 rounded-md text-xs transition-colors group ${
+                  isActive
+                    ? "font-semibold bg-white/10 text-white"
+                    : "font-normal hover:bg-white/5 text-slate-300 hover:text-white"
+                }`}
                 style={{
-                  backgroundColor: isActive ? "var(--accent-primary)" : "transparent",
-                  color: isActive ? "#ffffff" : "var(--text-muted)",
+                  borderLeft: isActive ? "2.5px solid var(--accent-primary)" : "2.5px solid transparent",
+                  backgroundColor: isActive ? "rgba(255, 255, 255, 0.08)" : undefined,
                 }}
               >
-                <div className="flex items-center gap-2.5">
-                  <Icon className="w-4 h-4" />
-                  <span>{genre.label}</span>
+                <div className="flex items-center gap-2 min-w-0">
+                  <Icon
+                    className="w-3.5 h-3.5 shrink-0 transition-transform group-hover:scale-105"
+                    style={{ color: isActive ? "var(--accent-primary)" : undefined }}
+                  />
+                  <span className="truncate">{genre.label}</span>
                 </div>
                 <span
-                  className="text-[10px] font-mono px-1.5 py-0.5 rounded"
-                  style={{ backgroundColor: "var(--bg-card)" }}
+                  className="text-[9px] font-mono px-1 py-0.2 rounded text-slate-400 bg-black/20 shrink-0"
                 >
                   {genre.count}
                 </span>
@@ -207,24 +210,23 @@ export default function Sidebar({
         </div>
       </div>
 
-      {/* Sidebar Footer */}
+      {/* Sidebar Footer (Heroic-style compact storage & folder tools) */}
       <div
-        className="pt-3 border-t flex flex-col gap-2.5"
+        className="pt-2 border-t flex flex-col gap-1.5"
         style={{ borderColor: "var(--border-color)" }}
       >
-        <div className="flex flex-col gap-1 px-1">
+        <div className="flex flex-col gap-0.5 px-1">
           <div
-            className="flex justify-between text-[10px] font-bold"
+            className="flex justify-between text-[9px] font-semibold"
             style={{ color: "var(--text-muted)" }}
           >
             <span>Installati</span>
             <span>
-              {counts.installed} / {counts.total} ({Math.round(installedRatio)}%)
+              {counts.installed}/{counts.total} ({Math.round(installedRatio)}%)
             </span>
           </div>
           <div
-            className="h-1.5 w-full rounded-full overflow-hidden"
-            style={{ backgroundColor: "var(--bg-card)" }}
+            className="h-1 w-full rounded-full overflow-hidden bg-white/10"
           >
             <div
               className="h-full rounded-full transition-all duration-500"
@@ -236,57 +238,41 @@ export default function Sidebar({
           </div>
         </div>
 
-        <div className="grid grid-cols-4 gap-1 pt-1">
+        <div className="grid grid-cols-4 gap-1 pt-0.5">
           <button
+            type="button"
             onClick={() => handleOpenFolder("db")}
-            className="p-1.5 rounded-lg text-[10px] font-bold flex flex-col items-center gap-1 border transition-all"
-            style={{
-              backgroundColor: "var(--bg-card)",
-              borderColor: "var(--border-color)",
-              color: "var(--text-muted)",
-            }}
-            title="Apri cartella Database"
+            className="p-1 rounded text-[9px] font-medium flex flex-col items-center gap-0.5 border border-white/5 hover:border-white/20 bg-white/[0.03] hover:bg-white/10 text-slate-400 hover:text-white transition-all"
+            title="Cartella Database"
           >
-            <Folder className="w-3.5 h-3.5" />
+            <Folder className="w-3 h-3" />
             <span>DB</span>
           </button>
           <button
+            type="button"
             onClick={() => handleOpenFolder("covers")}
-            className="p-1.5 rounded-lg text-[10px] font-bold flex flex-col items-center gap-1 border transition-all"
-            style={{
-              backgroundColor: "var(--bg-card)",
-              borderColor: "var(--border-color)",
-              color: "var(--text-muted)",
-            }}
-            title="Apri cartella Locandine"
+            className="p-1 rounded text-[9px] font-medium flex flex-col items-center gap-0.5 border border-white/5 hover:border-white/20 bg-white/[0.03] hover:bg-white/10 text-slate-400 hover:text-white transition-all"
+            title="Cartella Locandine"
           >
-            <Folder className="w-3.5 h-3.5" />
+            <Folder className="w-3 h-3" />
             <span>Cover</span>
           </button>
           <button
+            type="button"
             onClick={() => handleOpenFolder("themes")}
-            className="p-1.5 rounded-lg text-[10px] font-bold flex flex-col items-center gap-1 border transition-all"
-            style={{
-              backgroundColor: "var(--bg-card)",
-              borderColor: "var(--border-color)",
-              color: "var(--text-muted)",
-            }}
-            title="Apri cartella Temi JSON"
+            className="p-1 rounded text-[9px] font-medium flex flex-col items-center gap-0.5 border border-white/5 hover:border-white/20 bg-white/[0.03] hover:bg-white/10 text-slate-400 hover:text-white transition-all"
+            title="Cartella Temi"
           >
-            <Palette className="w-3.5 h-3.5" />
+            <Palette className="w-3 h-3" />
             <span>Temi</span>
           </button>
           <button
+            type="button"
             onClick={() => handleOpenFolder("plugins")}
-            className="p-1.5 rounded-lg text-[10px] font-bold flex flex-col items-center gap-1 border transition-all"
-            style={{
-              backgroundColor: "var(--bg-card)",
-              borderColor: "var(--border-color)",
-              color: "var(--text-muted)",
-            }}
-            title="Apri cartella Plugin"
+            className="p-1 rounded text-[9px] font-medium flex flex-col items-center gap-0.5 border border-white/5 hover:border-white/20 bg-white/[0.03] hover:bg-white/10 text-slate-400 hover:text-white transition-all"
+            title="Cartella Plugin"
           >
-            <Folder className="w-3.5 h-3.5" />
+            <Folder className="w-3 h-3" />
             <span>Plug</span>
           </button>
         </div>
