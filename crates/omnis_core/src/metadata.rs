@@ -1,10 +1,8 @@
 use crate::db::Database;
 use crate::dynamic_loader::{find_shared_library_in_dir, DynamicPluginLoader};
-use async_trait::async_trait;
 use omnis_sdk::{
-    GameMetadataPatch, MetadataField, MetadataProvider, MetadataSearchRequest, PluginSettingsSchema,
+    GameMetadataPatch, MetadataField, MetadataProvider, MetadataSearchRequest,
 };
-use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -15,188 +13,18 @@ use uuid::Uuid;
 
 pub mod igdb;
 pub mod opencritic;
+pub mod scaffold;
 pub mod steam;
 pub mod steamgriddb;
+pub mod types;
+pub mod utils;
 
 pub use igdb::IgdbMetadataProvider;
 pub use opencritic::OpenCriticProvider;
 pub use steam::SteamMetadataProvider;
 pub use steamgriddb::SteamGridDbProvider;
-
-/// DTO representing a registered metadata provider for frontend UI management
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ProviderInfo {
-    pub id: String,
-    pub name: String,
-    pub description: String,
-    pub author: String,
-    pub website: Option<String>,
-    pub key_help_url: Option<String>,
-    pub requires_api_key: bool,
-    pub supported_fields: Vec<MetadataField>,
-    pub is_enabled: bool,
-    pub settings_schema: Option<PluginSettingsSchema>,
-    pub settings_values: Value,
-    pub has_configured_key: bool,
-    #[serde(default = "default_builtin")]
-    pub is_builtin: bool,
-    pub version: Option<String>,
-    pub plugin_path: Option<String>,
-}
-
-fn default_builtin() -> bool {
-    true
-}
-
-/// DTO representing a metadata candidate result from a provider for resolution and selection
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MetadataCandidateDto {
-    pub provider_id: String,
-    pub provider_game_id: String,
-    pub title: String,
-    pub release_year: Option<i32>,
-    pub cover_url: Option<String>,
-    pub background_url: Option<String>,
-    pub description: Option<String>,
-    pub raw_patch: omnis_sdk::GameMetadataPatch,
-}
-
-// PluginManifest is re-exported from omnis_sdk
-pub use omnis_sdk::PluginManifest;
-
-/// Dynamic wrapper for external community metadata providers loaded from disk
-pub struct ExternalMetadataProvider {
-    pub manifest: PluginManifest,
-    pub root_dir: PathBuf,
-    #[allow(dead_code)]
-    pub client: reqwest::Client,
-}
-
-impl ExternalMetadataProvider {
-    pub fn new(manifest: PluginManifest, root_dir: PathBuf, client: reqwest::Client) -> Self {
-        Self {
-            manifest,
-            root_dir,
-            client,
-        }
-    }
-}
-
-#[async_trait]
-impl MetadataProvider for ExternalMetadataProvider {
-    fn id(&self) -> &str {
-        &self.manifest.id
-    }
-
-    fn name(&self) -> &str {
-        &self.manifest.name
-    }
-
-    fn description(&self) -> &str {
-        &self.manifest.description
-    }
-
-    fn author(&self) -> &str {
-        &self.manifest.author
-    }
-
-    fn website(&self) -> Option<&str> {
-        self.manifest.website.as_deref()
-    }
-
-    fn key_help_url(&self) -> Option<&str> {
-        self.manifest.key_help_url.as_deref()
-    }
-
-    fn requires_api_key(&self) -> bool {
-        self.manifest.requires_api_key
-    }
-
-    fn is_builtin(&self) -> bool {
-        false
-    }
-
-    fn version(&self) -> Option<&str> {
-        Some(&self.manifest.version)
-    }
-
-    fn plugin_path(&self) -> Option<&Path> {
-        Some(&self.root_dir)
-    }
-
-    fn supported_fields(&self) -> Vec<MetadataField> {
-        if self.manifest.supported_fields.is_empty() {
-            vec![
-                MetadataField::CriticScore,
-                MetadataField::CommunityScore,
-                MetadataField::Description,
-            ]
-        } else {
-            self.manifest.supported_fields.clone()
-        }
-    }
-
-    fn settings_schema(&self) -> Option<PluginSettingsSchema> {
-        self.manifest.settings_schema.clone()
-    }
-
-    async fn fetch_metadata(
-        &self,
-        request: &MetadataSearchRequest,
-        settings: &Map<String, Value>,
-    ) -> Result<GameMetadataPatch, String> {
-        let _ = settings;
-        info!(
-            "Esecuzione provider esterno '{}' per il titolo '{}'",
-            self.manifest.name, request.title
-        );
-
-        let score = match request.title.to_lowercase().as_str() {
-            t if t.contains("portal") => Some(95),
-            t if t.contains("witcher") => Some(93),
-            t if t.contains("cyberpunk") => Some(86),
-            t if t.contains("elden") => Some(96),
-            _ => Some(85),
-        };
-
-        Ok(GameMetadataPatch {
-            critic_score: score,
-            description: Some(format!(
-                "Dati arricchiti tramite il plugin esterno '{}' v{}.",
-                self.manifest.name, self.manifest.version
-            )),
-            ..Default::default()
-        })
-    }
-
-    async fn test_connection(&self, settings: &Map<String, Value>) -> Result<String, String> {
-        let _ = settings;
-        Ok(format!(
-            "Plugin esterno '{}' v{} verificato e pronto all'uso.",
-            self.manifest.name, self.manifest.version
-        ))
-    }
-}
-
-/// Pipeline configuration determining provider source priority per field
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MetadataPipelineConfig {
-    pub cover_source: String,
-    pub background_source: String,
-    pub score_source: String,
-    pub details_source: String,
-}
-
-impl Default for MetadataPipelineConfig {
-    fn default() -> Self {
-        Self {
-            cover_source: "steamgriddb".to_string(),
-            background_source: "steamgriddb".to_string(),
-            score_source: "opencritic".to_string(),
-            details_source: "steam".to_string(),
-        }
-    }
-}
+pub use types::*;
+pub use utils::*;
 
 // ============================================================================
 // 4. Diamond Metadata Pipeline & Engine Manager
@@ -262,7 +90,7 @@ impl MetadataDownloader {
     pub async fn set_plugins_dir(&self, dir: PathBuf) {
         let _ = std::fs::create_dir_all(&dir);
         *self.plugins_dir.write().await = Some(dir.clone());
-        self.scaffold_plugins_directory(&dir).await;
+        scaffold::scaffold_plugins_directory(&dir);
         self.load_persisted_state(&dir).await;
         self.scan_and_load_external_plugins(&dir).await;
     }
@@ -279,171 +107,6 @@ impl MetadataDownloader {
         let mut settings = self.settings_cache.write().await;
         settings.remove(provider_id);
         Ok(())
-    }
-
-    /// Automatically generates README.txt documentation and an example plugin scaffold
-    async fn scaffold_plugins_directory(&self, dir: &Path) {
-        let readme_path = dir.join("README.txt");
-        if !readme_path.exists() {
-            let readme_content = r#"================================================================================
- OMNIS GAME LIBRARY - CARTELLA PLUGINS & ESTENSIONI (PLAYNITE COMPATIBLE)
-================================================================================
-
-Questa cartella ospita i plugin, le estensioni e le configurazioni esterne 
-riconosciute automaticamente a runtime dal motore di Omnis Game Library.
-
---- STRUTTURA DELLA CARTELLA ---
-Ogni plugin esterno deve risiedere all'interno di una propria sottocartella contenente
-obbligatoriamente un file di manifest denominato "manifest.json" (o "extension.yaml").
-
-Esempio di struttura:
-  plugins/
-  ├── README.txt
-  ├── pipeline_config.json
-  └── metacritic_provider/
-      ├── manifest.json
-      ├── index.js (script o binario del plugin)
-      └── settings.json (generato automaticamente per salvare le API Key / opzioni)
-
---- ESEMPIO DI MANIFEST.JSON ---
-{
-  "id": "metacritic_provider",
-  "name": "Metacritic Community Scraper",
-  "version": "1.0.0",
-  "author": "Omnis Community / Playnite Bridge",
-  "description": "Provider esterno per l'estrazione di voti e recensioni da Metacritic per titoli PC e console.",
-  "type": "metadata",
-  "website": "https://www.metacritic.com",
-  "requires_api_key": false,
-  "supported_fields": [
-    "critic_score",
-    "community_score",
-    "description"
-  ],
-  "entry_point": "index.js"
-}
-
---- COME INSTALLARE UN NUOVO PLUGIN ---
-1. Scarica la cartella del plugin (o scompatta l'archivio ZIP).
-2. Incolla la cartella all'interno di questa directory ("plugins").
-3. Assicurati che contenga il file "manifest.json".
-4. Nell'interfaccia di Omnis (Centro Plugin), clicca sul pulsante "Ricarica Plugin da Disco".
-5. Il plugin apparirà immediatamente nell'elenco contrassegnato dal badge [PLUGIN ESTERNO]!
-"#;
-            let _ = std::fs::write(&readme_path, readme_content);
-        }
-
-        // Scaffold an example Metacritic provider plugin folder if not exists
-        let sample_dir = dir.join("metacritic_provider");
-        if !sample_dir.exists() {
-            let _ = std::fs::create_dir_all(&sample_dir);
-            let manifest_path = sample_dir.join("manifest.json");
-            let manifest_content = r#"{
-  "id": "metacritic_provider",
-  "name": "Metacritic Community Scraper",
-  "version": "1.0.0",
-  "author": "Omnis Community / Playnite Bridge",
-  "description": "Provider esterno per l'estrazione di voti e recensioni critiche globali da Metacritic.",
-  "type": "metadata",
-  "website": "https://www.metacritic.com",
-  "requires_api_key": false,
-  "supported_fields": [
-    "critic_score",
-    "community_score",
-    "description"
-  ],
-  "entry_point": "index.js"
-}"#;
-            let _ = std::fs::write(&manifest_path, manifest_content);
-
-            let index_path = sample_dir.join("index.js");
-            let index_content = r#"// Omnis Game Library - Metacritic Community Scraper v1.0.0
-// Script di esempio per estrazione metadati da fonti esterne
-module.exports = {
-  async fetchMetadata(query) {
-    console.log(`[Metacritic Scraper] Ricerca voti per: ${query.title}`);
-    return {
-      critic_score: 92,
-      description: `Metadati arricchiti da Metacritic per ${query.title}`
-    };
-  }
-};
-"#;
-            let _ = std::fs::write(&index_path, index_content);
-        }
-
-        // Scaffold Steam external plugin directory
-        let steam_dir = dir.join("steam");
-        if !steam_dir.exists() {
-            let _ = std::fs::create_dir_all(&steam_dir);
-            let manifest_path = steam_dir.join("manifest.json");
-            let manifest_content = r#"{
-  "id": "steam",
-  "name": "Steam Metadata Provider",
-  "version": "1.0.0",
-  "author": "Valve / Steam Community",
-  "description": "Provider per l'estrazione ufficiale da Steam Store Web API di sinossi, generi, sviluppatori ed editori.",
-  "type": "metadata",
-  "website": "https://store.steampowered.com",
-  "requires_api_key": false,
-  "supported_fields": [
-    "cover_image",
-    "background_image",
-    "description",
-    "release_date",
-    "genres",
-    "developers",
-    "publishers",
-    "critic_score"
-  ]
-}"#;
-            let _ = std::fs::write(&manifest_path, manifest_content);
-        }
-
-        // Scaffold SteamGridDB external plugin directory
-        let sgdb_dir = dir.join("steamgriddb");
-        if !sgdb_dir.exists() {
-            let _ = std::fs::create_dir_all(&sgdb_dir);
-            let manifest_path = sgdb_dir.join("manifest.json");
-            let manifest_content = r#"{
-  "id": "steamgriddb",
-  "name": "SteamGridDB Artwork",
-  "version": "1.0.0",
-  "author": "SteamGridDB Community",
-  "description": "Database n.1 per locandine verticali (600x900), sfondi panoramici hero 4K, loghi e icone personalizzate create dalla community.",
-  "type": "metadata",
-  "website": "https://www.steamgriddb.com",
-  "requires_api_key": true,
-  "supported_fields": [
-    "cover_image",
-    "background_image",
-    "icon"
-  ]
-}"#;
-            let _ = std::fs::write(&manifest_path, manifest_content);
-        }
-
-        // Scaffold OpenCritic external plugin directory
-        let oc_dir = dir.join("opencritic");
-        if !oc_dir.exists() {
-            let _ = std::fs::create_dir_all(&oc_dir);
-            let manifest_path = oc_dir.join("manifest.json");
-            let manifest_content = r#"{
-  "id": "opencritic",
-  "name": "OpenCritic Aggregate Reviews",
-  "version": "1.0.0",
-  "author": "OpenCritic",
-  "description": "Punteggi della critica globale con Top Critic Score (0-100), Tier e percentuale di raccomandazione.",
-  "type": "metadata",
-  "website": "https://opencritic.com",
-  "requires_api_key": true,
-  "supported_fields": [
-    "critic_score",
-    "community_score"
-  ]
-}"#;
-            let _ = std::fs::write(&manifest_path, manifest_content);
-        }
     }
 
     /// Scans the plugins folder for subdirectories with native shared libraries or manifest.json and loads them dynamically
@@ -560,7 +223,7 @@ module.exports = {
     /// Re-scans disk for plugins and returns the refreshed provider list
     pub async fn refresh_external_plugins(&self) -> Result<Vec<ProviderInfo>, String> {
         if let Some(ref dir) = *self.plugins_dir.read().await {
-            self.scaffold_plugins_directory(dir).await;
+            scaffold::scaffold_plugins_directory(dir);
             self.load_persisted_state(dir).await;
             self.scan_and_load_external_plugins(dir).await;
         }
@@ -1577,56 +1240,6 @@ module.exports = {
             tags: vec!["Preferito".to_string(), "PC".to_string()],
         }
     }
-}
-
-pub fn html_to_plain_text(input: &str) -> String {
-    let mut out = String::new();
-    let mut in_tag = false;
-
-    for c in input.chars() {
-        if c == '<' {
-            in_tag = true;
-        } else if c == '>' {
-            in_tag = false;
-        } else if !in_tag {
-            out.push(c);
-        }
-    }
-
-    out.replace("&quot;", "\"")
-        .replace("&amp;", "&")
-        .replace("&lt;", "<")
-        .replace("&gt;", ">")
-        .replace("&#39;", "'")
-        .trim()
-        .to_string()
-}
-
-pub fn url_encode(input: &str) -> String {
-    let mut encoded = String::new();
-    for b in input.bytes() {
-        if b.is_ascii_alphanumeric() || b == b'-' || b == b'_' || b == b'.' || b == b'~' {
-            encoded.push(b as char);
-        } else if b == b' ' {
-            encoded.push('+');
-        } else {
-            encoded.push_str(&format!("%{:02X}", b));
-        }
-    }
-    encoded
-}
-
-pub fn extract_year(text: &str) -> Option<i32> {
-    for word in text.split(|c: char| !c.is_numeric()) {
-        if word.len() == 4 {
-            if let Ok(y) = word.parse::<i32>() {
-                if (1970..=2035).contains(&y) {
-                    return Some(y);
-                }
-            }
-        }
-    }
-    None
 }
 
 #[cfg(test)]

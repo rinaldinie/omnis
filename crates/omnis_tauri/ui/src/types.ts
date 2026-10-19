@@ -1,0 +1,415 @@
+import { convertFileSrc } from "@tauri-apps/api/core";
+
+export type ViewMode = "grid" | "details" | "list";
+
+export type GroupBy =
+  | "none"
+  | "library"
+  | "is_installed"
+  | "genre"
+  | "developer"
+  | "release_year"
+  | "completion_status";
+
+export interface GameDto {
+  id: string;
+  title: string;
+  library: string;
+  is_installed: boolean;
+  playtime_seconds: number;
+  playtime_formatted: string;
+  critic_score: number | null;
+  release_date: string | null;
+  description: string | null;
+  cover_image: string | null;
+  background_image: string | null;
+  icon_image?: string | null;
+  series?: string | null;
+  completion_status?: string | null;
+  user_notes?: string | null;
+  custom_links?: Array<{ title: string; url: string }>;
+  genres: string[];
+  developers: string[];
+  publishers?: string[];
+}
+
+export interface LibraryCounts {
+  total: number;
+  installed: number;
+  steam: number;
+  gog: number;
+  epic: number;
+  xbox: number;
+  recent: number;
+  favorites: number;
+  action: number;
+  rpg: number;
+  strategy: number;
+  indie: number;
+}
+
+export interface ThemeConfig {
+  id: string;
+  name: string;
+  description: string;
+  author: string;
+  is_custom: boolean;
+  bg_base: string;
+  bg_surface: string;
+  bg_card: string;
+  text_primary: string;
+  text_muted: string;
+  accent_primary: string;
+  accent_glow: string;
+  border_color: string;
+  card_radius: string;
+  font_family: string;
+  custom_css?: string | null;
+}
+
+export interface ProviderInfo {
+  id: string;
+  name: string;
+  description: string;
+  author: string;
+  website?: string | null;
+  key_help_url?: string | null;
+  requires_api_key: boolean;
+  supported_fields: string[];
+  is_enabled: boolean;
+  is_builtin?: boolean;
+  version?: string | null;
+  plugin_path?: string | null;
+  settings_schema?: {
+    plugin_id: string;
+    title: string;
+    groups: Array<{
+      id: string;
+      title: string;
+      fields: Array<{
+        key: string;
+        label: string;
+        description?: string;
+        required: boolean;
+        type: string;
+        placeholder?: string;
+        options?: string[];
+        default?: any;
+        field_type?: any;
+      }>;
+    }>;
+  } | null;
+  settings_values: Record<string, any>;
+  has_configured_key: boolean;
+}
+
+export interface MetadataPipelineConfig {
+  cover_source: string;
+  background_source: string;
+  score_source: string;
+  details_source: string;
+}
+
+export function formatImageUrl(src: string | null | undefined): string | null {
+  if (!src) return null;
+  if (
+    src.startsWith("http://") ||
+    src.startsWith("https://") ||
+    src.startsWith("data:") ||
+    src.startsWith("asset:")
+  ) {
+    return src;
+  }
+  try {
+    if (
+      typeof window !== "undefined" &&
+      (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__
+    ) {
+      return convertFileSrc(src);
+    }
+  } catch {
+    // fallback
+  }
+  return src;
+}
+
+export const normalizeGame = (g: GameDto): GameDto => ({
+  ...g,
+  cover_image: formatImageUrl(g.cover_image),
+  background_image: formatImageUrl(g.background_image),
+  icon_image: formatImageUrl(g.icon_image || g.cover_image),
+});
+
+export async function invokeTauri<T>(cmd: string, args?: Record<string, unknown>): Promise<T | null> {
+  try {
+    if (typeof window !== "undefined" && (window as any).__TAURI_INTERNALS__) {
+      const { invoke } = await import("@tauri-apps/api/core");
+      return await invoke<T>(cmd, args);
+    }
+  } catch (err) {
+    console.warn(`Tauri command '${cmd}' not available in preview:`, err);
+  }
+  return null;
+}
+
+export const FILTER_ORDER = [
+  "all",
+  "installed",
+  "recent",
+  "favorites",
+  "steam",
+  "gog",
+  "epic",
+  "xbox",
+  "action",
+  "rpg",
+  "strategy",
+  "indie",
+];
+
+export const BUILTIN_THEMES: ThemeConfig[] = [
+  {
+    id: "cyberpunk",
+    name: "Cyberpunk Neon (Default)",
+    description: "Tema scuro moderno ad alto contrasto con bagliore indaco e viola neon",
+    author: "Omnis Team",
+    is_custom: false,
+    bg_base: "#090c14",
+    bg_surface: "#0e1320",
+    bg_card: "#141a2c",
+    text_primary: "#f8fafc",
+    text_muted: "#94a3b8",
+    accent_primary: "#6366f1",
+    accent_glow: "rgba(99, 102, 241, 0.4)",
+    border_color: "#1e293b",
+    card_radius: "12px",
+    font_family: "system-ui, -apple-system, sans-serif",
+    custom_css: null,
+  },
+  {
+    id: "steam_deck",
+    name: "Steam Deck OLED",
+    description: "Nero assoluto al 100% per schermi OLED con accenti ciano e blu elettrico Valve",
+    author: "Valve Inspired",
+    is_custom: false,
+    bg_base: "#000000",
+    bg_surface: "#0d121c",
+    bg_card: "#131b28",
+    text_primary: "#ffffff",
+    text_muted: "#8a9aa8",
+    accent_primary: "#1a9fff",
+    accent_glow: "rgba(26, 159, 255, 0.45)",
+    border_color: "#1e2738",
+    card_radius: "8px",
+    font_family: "system-ui, sans-serif",
+    custom_css: null,
+  },
+  {
+    id: "playnite_dark",
+    name: "Playnite Classic Dark",
+    description: "La celebre palette originale di Playnite con ardesia calda e arancione radiante",
+    author: "Josef Nemec Inspired",
+    is_custom: false,
+    bg_base: "#181a1f",
+    bg_surface: "#21252b",
+    bg_card: "#282c34",
+    text_primary: "#ffffff",
+    text_muted: "#abb2bf",
+    accent_primary: "#ea7300",
+    accent_glow: "rgba(234, 115, 0, 0.45)",
+    border_color: "#353b47",
+    card_radius: "6px",
+    font_family: "Segoe UI, system-ui, sans-serif",
+    custom_css: null,
+  },
+  {
+    id: "epic_dark",
+    name: "Epic Games Launcher V2",
+    description: "Minimalismo grafite ad alta leggibilità con contrasti netti e accenti blu Epic",
+    author: "Epic Games Inspired",
+    is_custom: false,
+    bg_base: "#121212",
+    bg_surface: "#1a1a1a",
+    bg_card: "#242424",
+    text_primary: "#f5f5f5",
+    text_muted: "#aaaaaa",
+    accent_primary: "#0078f2",
+    accent_glow: "rgba(0, 120, 242, 0.4)",
+    border_color: "#2e2e2e",
+    card_radius: "10px",
+    font_family: "system-ui, sans-serif",
+    custom_css: null,
+  },
+  {
+    id: "synthwave",
+    name: "Retro Synthwave 80s",
+    description: "Atmosfera arcade retrò anni '80 con orizzonte viola profondo e magenta fluorescente",
+    author: "RetroWave",
+    is_custom: false,
+    bg_base: "#130026",
+    bg_surface: "#20003b",
+    bg_card: "#300054",
+    text_primary: "#ffffff",
+    text_muted: "#d896ff",
+    accent_primary: "#ff007f",
+    accent_glow: "rgba(255, 0, 127, 0.55)",
+    border_color: "#58008a",
+    card_radius: "14px",
+    font_family: "system-ui, sans-serif",
+    custom_css: null,
+  },
+  {
+    id: "nordic_frost",
+    name: "Nordic Polar Frost",
+    description: "Palette artica fredda e pulita in stile Nord con blu ghiaccio e contrasti riposanti",
+    author: "Nord Theme",
+    is_custom: false,
+    bg_base: "#242933",
+    bg_surface: "#2e3440",
+    bg_card: "#3b4252",
+    text_primary: "#eceff4",
+    text_muted: "#d8dee9",
+    accent_primary: "#88c0d0",
+    accent_glow: "rgba(136, 192, 208, 0.45)",
+    border_color: "#4c566a",
+    card_radius: "10px",
+    font_family: "system-ui, sans-serif",
+    custom_css: null,
+  },
+];
+
+export const SAMPLE_GAMES: GameDto[] = [
+  {
+    id: "1091500",
+    title: "Cyberpunk 2077",
+    library: "steam",
+    is_installed: true,
+    playtime_seconds: 148500,
+    playtime_formatted: "41h 15m",
+    critic_score: 86,
+    release_date: "10 Dic 2020",
+    description: "Cyberpunk 2077 è un gioco di ruolo e azione a mondo aperto ambientato nella megalopoli di Night City.",
+    cover_image: null,
+    background_image: null,
+    series: "Cyberpunk",
+    completion_status: "Playing",
+    user_notes: "Build attuale: Netrunner con Cyberdeck Militech e Smart Sniper. Missione in sospeso: Phantom Liberty.",
+    custom_links: [
+      { title: "Wiki Ufficiale", url: "https://cyberpunk.fandom.com" },
+      { title: "Nexus Mods", url: "https://www.nexusmods.com/cyberpunk2077" },
+    ],
+    genres: ["Azione", "GDR", "Open World"],
+    developers: ["CD PROJEKT RED"],
+    publishers: ["CD PROJEKT RED"],
+  },
+  {
+    id: "292030",
+    title: "The Witcher 3: Wild Hunt",
+    library: "steam",
+    is_installed: true,
+    playtime_seconds: 288000,
+    playtime_formatted: "80h 00m",
+    critic_score: 93,
+    release_date: "18 Mag 2015",
+    description: "Mentre la guerra infuria nei Regni Settentrionali, affronti il contratto più importante della tua vita: trovare la ragazza della profezia.",
+    cover_image: null,
+    background_image: null,
+    series: "The Witcher",
+    completion_status: "Completed",
+    user_notes: "Completato al 100% inclusi Hearts of Stone e Blood and Wine a difficoltà Marcia della Morte.",
+    custom_links: [
+      { title: "Witcher Wiki", url: "https://witcher.fandom.com" },
+    ],
+    genres: ["GDR", "Open World", "Fantasy"],
+    developers: ["CD PROJEKT RED"],
+    publishers: ["CD PROJEKT RED"],
+  },
+  {
+    id: "1145360",
+    title: "Hades",
+    library: "steam",
+    is_installed: false,
+    playtime_seconds: 93600,
+    playtime_formatted: "26h 00m",
+    critic_score: 93,
+    release_date: "17 Set 2020",
+    description: "Sfida il dio dei morti in questo rogue-like dungeoncrawler sviluppato dai creatori di Bastion e Transistor.",
+    cover_image: null,
+    background_image: null,
+    series: "Hades",
+    completion_status: "Beaten",
+    user_notes: "Fuga completata con lo Scudo del Caos e i dardi di Artemide.",
+    custom_links: [
+      { title: "Supergiant Games", url: "https://www.supergiantgames.com/games/hades/" },
+    ],
+    genres: ["Azione", "Indie", "Rogue-like"],
+    developers: ["Supergiant Games"],
+    publishers: ["Supergiant Games"],
+  },
+  {
+    id: "620",
+    title: "Portal 2",
+    library: "steam",
+    is_installed: true,
+    playtime_seconds: 39600,
+    playtime_formatted: "11h 00m",
+    critic_score: 95,
+    release_date: "19 Apr 2011",
+    description: "Portal 2 offre innovativi rompicapo fisici, narrazione satirica ed eccezionale cooperativa a due giocatori.",
+    cover_image: null,
+    background_image: null,
+    series: "Portal",
+    completion_status: "Completed",
+    user_notes: "Completata campagna single player e coop in cooperativa.",
+    custom_links: [
+      { title: "Steam Store", url: "https://store.steampowered.com/app/620/Portal_2/" },
+    ],
+    genres: ["Strategia", "Puzzle", "Fantascienza"],
+    developers: ["Valve"],
+    publishers: ["Valve"],
+  },
+  {
+    id: "1423714649",
+    title: "Baldur's Gate 3",
+    library: "gog",
+    is_installed: false,
+    playtime_seconds: 432000,
+    playtime_formatted: "120h 00m",
+    critic_score: 96,
+    release_date: "3 Ago 2023",
+    description: "Raduna il tuo gruppo e torna nei Forgotten Realms in una storia di amicizia, tradimento, sacrificio e sopravvivenza.",
+    cover_image: null,
+    background_image: null,
+    series: "Baldur's Gate",
+    completion_status: "Playing",
+    user_notes: "Campagna Paladino Giuramento degli Antichi in Atto 3 (Bassa Città).",
+    custom_links: [
+      { title: "BG3 Wiki", url: "https://bg3.wiki" },
+    ],
+    genres: ["GDR", "Strategia", "Turn-Based"],
+    developers: ["Larian Studios"],
+    publishers: ["Larian Studios"],
+  },
+  {
+    id: "1245620",
+    title: "Elden Ring",
+    library: "steam",
+    is_installed: false,
+    playtime_seconds: 252000,
+    playtime_formatted: "70h 00m",
+    critic_score: 96,
+    release_date: "25 Feb 2022",
+    description: "Alzati, Senzaluce, e lasciati guidare dalla grazia per brandire il potere dell'Anello ancestrale.",
+    cover_image: null,
+    background_image: null,
+    series: "Soulsborne",
+    completion_status: "Beaten",
+    user_notes: "Sconfitto Radagon e la Belva Ancestrale. Finale Era delle Stelle.",
+    custom_links: [
+      { title: "Fextralife Elden Ring", url: "https://eldenring.wiki.fextralife.com" },
+    ],
+    genres: ["Azione", "GDR", "Dark Fantasy"],
+    developers: ["FromSoftware Inc."],
+    publishers: ["Bandai Namco"],
+  },
+];

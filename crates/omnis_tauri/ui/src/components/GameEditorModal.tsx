@@ -7,37 +7,25 @@ import {
   Image as ImageIcon,
   Terminal,
   Link as LinkIcon,
-  Plus,
-  Trash2,
-  ExternalLink,
-  Calendar,
-  Star,
-  Tag,
   Check,
   AlertCircle,
   Loader2,
   Gamepad2,
-  FolderOpen,
-  Folder,
 } from "lucide-react";
 import { useTranslation } from "../i18n";
+import {
+  CustomLink,
+  ProcessTrackingMode,
+  LaunchConfiguration,
+  GameEditorFormData,
+} from "./game_editor/types";
+import { GeneralTab } from "./game_editor/GeneralTab";
+import { DescriptionTab } from "./game_editor/DescriptionTab";
+import { MediaTab } from "./game_editor/MediaTab";
+import { PlayActionsTab } from "./game_editor/PlayActionsTab";
+import { CustomLinksTab } from "./game_editor/CustomLinksTab";
 
-export interface CustomLink {
-  title: string;
-  url: string;
-}
-
-export type ProcessTrackingMode =
-  | { type: "KernelJobObject" }
-  | { type: "ProcessName"; target: string }
-  | { type: "WatchDirectory"; target: string };
-
-export interface LaunchConfiguration {
-  executable: string;
-  arguments: string[];
-  working_dir?: string | null;
-  tracking_mode: ProcessTrackingMode;
-}
+export type { CustomLink, ProcessTrackingMode, LaunchConfiguration, GameEditorFormData };
 
 export interface GameEditorModalProps {
   isOpen: boolean;
@@ -45,16 +33,6 @@ export interface GameEditorModalProps {
   game: any;
   onSave: (updated: any) => void;
 }
-
-const COMPLETION_STATUSES = [
-  { value: "NotPlayed", label: "Non giocato", color: "#94a3b8" },
-  { value: "Playing", label: "In corso", color: "#38bdf8" },
-  { value: "Beaten", label: "Finito", color: "#a855f7" },
-  { value: "Completed", label: "Completato al 100%", color: "#22c55e" },
-  { value: "Abandoned", label: "Abbandonato", color: "#ef4444" },
-  { value: "Backlog", label: "Backlog", color: "#f59e0b" },
-  { value: "PlanToPlay", label: "Da iniziare", color: "#6366f1" },
-];
 
 async function callTauri<T>(cmd: string, args?: Record<string, unknown>): Promise<T | null> {
   try {
@@ -80,16 +58,16 @@ export default function GameEditorModal({
     "general" | "description" | "media" | "actions" | "links"
   >("general");
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<GameEditorFormData>({
     title: "",
     sorting_title: "",
     series: "",
     age_rating: "",
     completion_status: "NotPlayed",
     release_date: "",
-    user_score: null as number | null,
-    critic_score: null as number | null,
-    community_score: null as number | null,
+    user_score: null,
+    critic_score: null,
+    community_score: null,
     genresText: "",
     developersText: "",
     publishersText: "",
@@ -99,15 +77,14 @@ export default function GameEditorModal({
     cover_image_path: "",
     background_image_path: "",
     icon_image_path: "",
-    play_actions: [] as LaunchConfiguration[],
-    custom_links: [] as CustomLink[],
+    play_actions: [],
+    custom_links: [],
   });
 
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
-  // Initialize or fetch detailed game properties on open
   useEffect(() => {
     if (!isOpen || !game) return;
 
@@ -141,7 +118,6 @@ export default function GameEditorModal({
 
     initFromGame(game);
 
-    // If game is partial (GameDto), load full record from database
     callTauri<any>("get_game", { gameId: game.id })
       .then((fullGame) => {
         if (fullGame) {
@@ -154,6 +130,10 @@ export default function GameEditorModal({
   }, [isOpen, game]);
 
   if (!isOpen || !game) return null;
+
+  const updateFormData = (fields: Partial<GameEditorFormData>) => {
+    setFormData((prev) => ({ ...prev, ...fields }));
+  };
 
   const handleSave = async () => {
     try {
@@ -214,7 +194,7 @@ export default function GameEditorModal({
     }
   };
 
-  // Play Actions helpers
+  // Play Actions handlers
   const handleAddAction = () => {
     const newAction: LaunchConfiguration = {
       executable: "",
@@ -243,7 +223,7 @@ export default function GameEditorModal({
     });
   };
 
-  // Custom Links helpers
+  // Custom Links handlers
   const handleAddLink = () => {
     const newLink: CustomLink = { title: "", url: "https://" };
     setFormData((prev) => ({
@@ -267,6 +247,7 @@ export default function GameEditorModal({
     });
   };
 
+  // Tauri File Dialog Pickers
   const handlePickExe = async (actionIdx: number) => {
     try {
       const path = await callTauri<string>("pick_executable_file");
@@ -393,7 +374,7 @@ export default function GameEditorModal({
             }}
           >
             <FileText className="w-4 h-4" />
-            <span>{t('editor_modal.tab_notes')}</span>
+            <span>{t('editor_modal.tab_description')}</span>
           </button>
 
           <button
@@ -450,828 +431,40 @@ export default function GameEditorModal({
 
         {/* TAB CONTENTS */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* TAB 1: GENERALE */}
           {activeTab === "general" && (
-            <div className="space-y-5">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium mb-1.5 text-slate-300">
-                    Titolo Gioco *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl border text-sm font-normal text-slate-100 placeholder:text-slate-500 outline-none transition-all focus:border-indigo-500"
-                    style={{
-                      backgroundColor: "var(--bg-card)",
-                      borderColor: "var(--border-color)",
-                      color: "var(--text-primary)",
-                    }}
-                    placeholder="es. Cyberpunk 2077"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium mb-1.5 text-slate-300">
-                    Titolo Ordinamento (Sorting Title)
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.sorting_title}
-                    onChange={(e) => setFormData({ ...formData, sorting_title: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl border text-sm font-normal text-slate-100 placeholder:text-slate-500 outline-none transition-all focus:border-indigo-500"
-                    style={{
-                      backgroundColor: "var(--bg-card)",
-                      borderColor: "var(--border-color)",
-                      color: "var(--text-primary)",
-                    }}
-                    placeholder="es. cyberpunk 2077"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs font-medium mb-1.5 text-slate-300">
-                    Serie / Franchise
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.series}
-                    onChange={(e) => setFormData({ ...formData, series: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl border text-sm font-normal text-slate-100 placeholder:text-slate-500 outline-none transition-all focus:border-indigo-500"
-                    style={{
-                      backgroundColor: "var(--bg-card)",
-                      borderColor: "var(--border-color)",
-                      color: "var(--text-primary)",
-                    }}
-                    placeholder="es. The Witcher, Half-Life"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium mb-1.5 text-slate-300">
-                    Classificazione Età (Rating)
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.age_rating}
-                    onChange={(e) => setFormData({ ...formData, age_rating: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl border text-sm font-normal text-slate-100 placeholder:text-slate-500 outline-none transition-all focus:border-indigo-500"
-                    style={{
-                      backgroundColor: "var(--bg-card)",
-                      borderColor: "var(--border-color)",
-                      color: "var(--text-primary)",
-                    }}
-                    placeholder="es. PEGI 18, ESRB M"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium mb-1.5 text-slate-300">
-                    Stato Completamento
-                  </label>
-                  <select
-                    value={formData.completion_status}
-                    onChange={(e) => setFormData({ ...formData, completion_status: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl border text-sm font-normal text-slate-100 outline-none cursor-pointer"
-                    style={{
-                      backgroundColor: "var(--bg-card)",
-                      borderColor: "var(--border-color)",
-                      color: "var(--text-primary)",
-                    }}
-                  >
-                    {COMPLETION_STATUSES.map((status) => (
-                      <option key={status.value} value={status.value}>
-                        {status.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div>
-                  <label className="block text-xs font-medium mb-1.5 text-slate-300">
-                    Data di Rilascio
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={formData.release_date}
-                      onChange={(e) => setFormData({ ...formData, release_date: e.target.value })}
-                      className="w-full px-3.5 py-2.5 pl-9 rounded-xl border text-sm font-normal text-slate-100 placeholder:text-slate-500 outline-none"
-                      style={{
-                        backgroundColor: "var(--bg-card)",
-                        borderColor: "var(--border-color)",
-                        color: "var(--text-primary)",
-                      }}
-                      placeholder="es. 10 Dic 2020"
-                    />
-                    <Calendar className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium mb-1.5 text-slate-300">
-                    Voto Utente (0-100)
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={formData.user_score ?? ""}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          user_score: e.target.value === "" ? null : Number(e.target.value),
-                        })
-                      }
-                      className="w-full px-3.5 py-2.5 pl-9 rounded-xl border text-sm font-medium text-emerald-400 outline-none"
-                      style={{
-                        backgroundColor: "var(--bg-card)",
-                        borderColor: "var(--border-color)",
-                      }}
-                      placeholder="Nessuno"
-                    />
-                    <Star className="w-4 h-4 absolute left-3 top-3 text-emerald-400" />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium mb-1.5 text-slate-300">
-                    Voto Critica (Metacritic)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={formData.critic_score ?? ""}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        critic_score: e.target.value === "" ? null : Number(e.target.value),
-                      })
-                    }
-                    className="w-full px-3.5 py-2.5 rounded-xl border text-sm font-medium text-amber-300 outline-none"
-                    style={{
-                      backgroundColor: "var(--bg-card)",
-                      borderColor: "var(--border-color)",
-                    }}
-                    placeholder="es. 86"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium mb-1.5 text-slate-300">
-                    Voto Community (%)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={formData.community_score ?? ""}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        community_score: e.target.value === "" ? null : Number(e.target.value),
-                      })
-                    }
-                    className="w-full px-3.5 py-2.5 rounded-xl border text-sm font-medium text-sky-400 outline-none"
-                    style={{
-                      backgroundColor: "var(--bg-card)",
-                      borderColor: "var(--border-color)",
-                    }}
-                    placeholder="es. 92"
-                  />
-                </div>
-              </div>
-
-              {/* Categorization & Metadata tags */}
-              <div className="space-y-4 pt-2">
-                <div>
-                  <label className="block text-xs font-medium mb-1.5 text-slate-300">
-                    Generi (separati da virgola)
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.genresText}
-                    onChange={(e) => setFormData({ ...formData, genresText: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl border text-sm font-normal text-slate-100 placeholder:text-slate-500 outline-none"
-                    style={{
-                      backgroundColor: "var(--bg-card)",
-                      borderColor: "var(--border-color)",
-                      color: "var(--text-primary)",
-                    }}
-                    placeholder="Azione, GDR, Open World, Cyberpunk"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-medium mb-1.5 text-slate-300">
-                      Sviluppatori (separati da virgola)
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.developersText}
-                      onChange={(e) => setFormData({ ...formData, developersText: e.target.value })}
-                      className="w-full px-3.5 py-2.5 rounded-xl border text-sm font-normal text-slate-100 placeholder:text-slate-500 outline-none"
-                      style={{
-                        backgroundColor: "var(--bg-card)",
-                        borderColor: "var(--border-color)",
-                        color: "var(--text-primary)",
-                      }}
-                      placeholder="es. CD PROJEKT RED"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium mb-1.5 text-slate-300">
-                      Editori / Publishers (separati da virgola)
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.publishersText}
-                      onChange={(e) => setFormData({ ...formData, publishersText: e.target.value })}
-                      className="w-full px-3.5 py-2.5 rounded-xl border text-sm font-normal text-slate-100 placeholder:text-slate-500 outline-none"
-                      style={{
-                        backgroundColor: "var(--bg-card)",
-                        borderColor: "var(--border-color)",
-                        color: "var(--text-primary)",
-                      }}
-                      placeholder="es. CD PROJEKT RED"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium mb-1.5 text-slate-300">
-                    Tag Personali (separati da virgola)
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.tagsText}
-                    onChange={(e) => setFormData({ ...formData, tagsText: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl border text-sm font-normal text-slate-100 placeholder:text-slate-500 outline-none"
-                    style={{
-                      backgroundColor: "var(--bg-card)",
-                      borderColor: "var(--border-color)",
-                      color: "var(--text-primary)",
-                    }}
-                    placeholder="Preferiti, Da Finire, Capolavoro, RayTracing"
-                  />
-                </div>
-              </div>
-            </div>
+            <GeneralTab formData={formData} onChange={updateFormData} />
           )}
 
-          {/* TAB 2: DESCRIZIONE & NOTE */}
           {activeTab === "description" && (
-            <div className="space-y-6">
-              <div>
-                <label className="block text-xs font-medium mb-1.5 text-slate-300">
-                  Sinossi / Descrizione Ufficiale
-                </label>
-                <textarea
-                  rows={8}
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border text-sm font-normal leading-relaxed text-slate-100 placeholder:text-slate-500 outline-none transition-all focus:border-indigo-500"
-                  style={{
-                    backgroundColor: "var(--bg-card)",
-                    borderColor: "var(--border-color)",
-                    color: "var(--text-primary)",
-                  }}
-                  placeholder="Inserisci qui la sinossi o descrizione del gioco..."
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium mb-1.5 text-slate-300">
-                  Note Personali (Playnite Parity)
-                </label>
-                <textarea
-                  rows={5}
-                  value={formData.user_notes}
-                  onChange={(e) => setFormData({ ...formData, user_notes: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border text-sm font-normal leading-relaxed text-slate-100 placeholder:text-slate-500 outline-none transition-all focus:border-indigo-500"
-                  style={{
-                    backgroundColor: "var(--bg-card)",
-                    borderColor: "var(--border-color)",
-                    color: "var(--text-primary)",
-                  }}
-                  placeholder="Appunti sul gameplay, build usata, promemoria salvataggi o trucchi..."
-                />
-              </div>
-            </div>
+            <DescriptionTab formData={formData} onChange={updateFormData} />
           )}
 
-          {/* TAB 3: MEDIA */}
           {activeTab === "media" && (
-            <div className="space-y-6">
-              {/* Cover 2:3 */}
-              <div
-                className="p-5 rounded-2xl border space-y-4"
-                style={{
-                  backgroundColor: "var(--bg-card)",
-                  borderColor: "var(--border-color)",
-                }}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-slate-200">
-                    Copertina Verticale (Rapporto 2:3 - Standard 600x900)
-                  </span>
-                  {formData.cover_image_path && (
-                    <button
-                      type="button"
-                      onClick={() => setFormData({ ...formData, cover_image_path: "" })}
-                      className="text-xs text-rose-400 hover:underline"
-                    >
-                      Rimuovi Cover
-                    </button>
-                  )}
-                </div>
-
-                <div className="flex gap-5 items-start">
-                  <div className="w-32 aspect-[2/3] rounded-xl overflow-hidden border border-white/10 bg-black/50 shrink-0 shadow-lg flex items-center justify-center">
-                    {formData.cover_image_path ? (
-                      <img
-                        src={formData.cover_image_path}
-                        alt="Preview Cover"
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLElement).style.display = "none";
-                        }}
-                      />
-                    ) : (
-                      <div className="text-center p-2 text-slate-500 text-xs">
-                        Nessuna Cover
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex-1 space-y-2">
-                    <label className="text-xs font-medium text-slate-300">
-                      Percorso file locale o URL remoto immagine
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={formData.cover_image_path}
-                        onChange={(e) => setFormData({ ...formData, cover_image_path: e.target.value })}
-                        className="flex-1 px-3.5 py-2 rounded-xl border text-xs font-mono outline-none"
-                        style={{
-                          backgroundColor: "var(--bg-surface)",
-                          borderColor: "var(--border-color)",
-                          color: "var(--text-primary)",
-                        }}
-                        placeholder="C:\percorso\cover.jpg oppure https://..."
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handlePickImage("cover_image_path")}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-medium hover:bg-white/10 transition-colors shrink-0"
-                        style={{
-                          backgroundColor: "var(--bg-surface)",
-                          borderColor: "var(--border-color)",
-                          color: "var(--text-primary)",
-                        }}
-                        title="Seleziona file immagine dal computer..."
-                      >
-                        <FolderOpen className="w-4 h-4 text-indigo-400" />
-                        <span>Sfoglia...</span>
-                      </button>
-                    </div>
-                    <p className="text-[11px] text-slate-400">
-                      Supporta percorsi assoluti locali su disco, data URLs base64 o link HTTPS diretti.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Background 16:9 */}
-              <div
-                className="p-5 rounded-2xl border space-y-4"
-                style={{
-                  backgroundColor: "var(--bg-card)",
-                  borderColor: "var(--border-color)",
-                }}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-slate-200">
-                    Sfondo Panoramico Hero (Rapporto 16:9 - 1920x1080)
-                  </span>
-                  {formData.background_image_path && (
-                    <button
-                      type="button"
-                      onClick={() => setFormData({ ...formData, background_image_path: "" })}
-                      className="text-xs text-rose-400 hover:underline"
-                    >
-                      Rimuovi Sfondo
-                    </button>
-                  )}
-                </div>
-
-                <div className="space-y-3">
-                  <div className="w-full h-36 rounded-xl overflow-hidden border border-white/10 bg-black/50 shadow-lg flex items-center justify-center">
-                    {formData.background_image_path ? (
-                      <img
-                        src={formData.background_image_path}
-                        alt="Preview Background"
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLElement).style.display = "none";
-                        }}
-                      />
-                    ) : (
-                      <div className="text-center p-2 text-slate-500 text-xs">
-                        Nessuno Sfondo Panoramico
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={formData.background_image_path}
-                      onChange={(e) => setFormData({ ...formData, background_image_path: e.target.value })}
-                      className="flex-1 px-3.5 py-2 rounded-xl border text-xs font-mono outline-none"
-                      style={{
-                        backgroundColor: "var(--bg-surface)",
-                        borderColor: "var(--border-color)",
-                        color: "var(--text-primary)",
-                      }}
-                      placeholder="C:\percorso\background.jpg oppure https://..."
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handlePickImage("background_image_path")}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-medium hover:bg-white/10 transition-colors shrink-0"
-                      style={{
-                        backgroundColor: "var(--bg-surface)",
-                        borderColor: "var(--border-color)",
-                        color: "var(--text-primary)",
-                      }}
-                      title="Seleziona file sfondo dal computer..."
-                    >
-                      <FolderOpen className="w-4 h-4 text-indigo-400" />
-                      <span>Sfoglia...</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Icon */}
-              <div
-                className="p-5 rounded-2xl border space-y-4"
-                style={{
-                  backgroundColor: "var(--bg-card)",
-                  borderColor: "var(--border-color)",
-                }}
-              >
-                <span className="text-xs font-medium text-slate-200">
-                  Icona Titolo (Rapporto 1:1)
-                </span>
-
-                <div className="flex gap-4 items-center">
-                  <div className="w-14 h-14 rounded-xl overflow-hidden border border-white/10 bg-black/50 shrink-0 shadow-md flex items-center justify-center">
-                    {formData.icon_image_path ? (
-                      <img
-                        src={formData.icon_image_path}
-                        alt="Preview Icon"
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <Gamepad2 className="w-6 h-6 text-slate-500" />
-                    )}
-                  </div>
-
-                  <div className="flex-1 flex gap-2">
-                    <input
-                      type="text"
-                      value={formData.icon_image_path}
-                      onChange={(e) => setFormData({ ...formData, icon_image_path: e.target.value })}
-                      className="flex-1 px-3.5 py-2 rounded-xl border text-xs font-mono outline-none"
-                      style={{
-                        backgroundColor: "var(--bg-surface)",
-                        borderColor: "var(--border-color)",
-                        color: "var(--text-primary)",
-                      }}
-                      placeholder="Percorso icona locale o URL .ico/.png"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handlePickImage("icon_image_path")}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-medium hover:bg-white/10 transition-colors shrink-0"
-                      style={{
-                        backgroundColor: "var(--bg-surface)",
-                        borderColor: "var(--border-color)",
-                        color: "var(--text-primary)",
-                      }}
-                      title="Seleziona icona dal computer..."
-                    >
-                      <FolderOpen className="w-4 h-4 text-indigo-400" />
-                      <span>Sfoglia...</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <MediaTab
+              formData={formData}
+              onChange={updateFormData}
+              onPickImage={handlePickImage}
+            />
           )}
 
-          {/* TAB 4: AZIONI DI AVVIO (PLAY ACTIONS) */}
           {activeTab === "actions" && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between pb-2">
-                <span className="text-xs font-normal text-slate-400">
-                  Configura gli eseguibili, parametri di lancio e modalità di monitoraggio del gioco.
-                </span>
-                <button
-                  type="button"
-                  onClick={handleAddAction}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-medium text-white transition-all shadow-md"
-                  style={{
-                    backgroundColor: "var(--accent-primary)",
-                  }}
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Aggiungi Azione</span>
-                </button>
-              </div>
-
-              {formData.play_actions.length === 0 ? (
-                <div
-                  className="p-10 rounded-2xl border border-dashed text-center space-y-3"
-                  style={{
-                    backgroundColor: "var(--bg-card)",
-                    borderColor: "var(--border-color)",
-                  }}
-                >
-                  <Terminal className="w-10 h-10 text-slate-500 mx-auto" />
-                  <p className="text-sm font-medium text-white">Nessuna azione di avvio configurata</p>
-                  <p className="text-xs text-slate-400">
-                    Fai click su "Aggiungi Azione" per impostare un percorso eseguibile custom o selezionare una cartella.
-                  </p>
-                </div>
-              ) : (
-                formData.play_actions.map((action, idx) => (
-                  <div
-                    key={idx}
-                    className="p-5 rounded-2xl border space-y-4 shadow-sm"
-                    style={{
-                      backgroundColor: "var(--bg-card)",
-                      borderColor: "var(--border-color)",
-                    }}
-                  >
-                    <div className="flex items-center justify-between border-b pb-2" style={{ borderColor: "var(--border-color)" }}>
-                      <span className="text-xs font-medium text-indigo-400">
-                        Azione #{idx + 1}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveAction(idx)}
-                        className="flex items-center gap-1 text-xs text-rose-400 hover:text-rose-300"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span>Rimuovi</span>
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-medium mb-1 text-slate-300">
-                          Eseguibile (File .exe o Comando) *
-                        </label>
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            value={action.executable}
-                            onChange={(e) => handleUpdateAction(idx, "executable", e.target.value)}
-                            className="flex-1 px-3 py-2 rounded-xl border text-xs font-mono outline-none"
-                            style={{
-                              backgroundColor: "var(--bg-surface)",
-                              borderColor: "var(--border-color)",
-                              color: "var(--text-primary)",
-                            }}
-                            placeholder="es. C:\Games\Titolo\game.exe"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => handlePickExe(idx)}
-                            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-medium hover:bg-white/10 transition-colors shrink-0"
-                            style={{
-                              backgroundColor: "var(--bg-surface)",
-                              borderColor: "var(--border-color)",
-                              color: "var(--text-primary)",
-                            }}
-                            title="Sfoglia file eseguibile (.exe)..."
-                          >
-                            <FolderOpen className="w-4 h-4 text-emerald-400" />
-                            <span>Sfoglia...</span>
-                          </button>
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-medium mb-1 text-slate-300">
-                          Working Directory (Cartella di lavoro)
-                        </label>
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            value={action.working_dir || ""}
-                            onChange={(e) => handleUpdateAction(idx, "working_dir", e.target.value || null)}
-                            className="flex-1 px-3 py-2 rounded-xl border text-xs font-mono outline-none"
-                            style={{
-                              backgroundColor: "var(--bg-surface)",
-                              borderColor: "var(--border-color)",
-                              color: "var(--text-primary)",
-                            }}
-                            placeholder="es. C:\Games\Titolo"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => handlePickDir(idx)}
-                            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-medium hover:bg-white/10 transition-colors shrink-0"
-                            style={{
-                              backgroundColor: "var(--bg-surface)",
-                              borderColor: "var(--border-color)",
-                              color: "var(--text-primary)",
-                            }}
-                            title="Seleziona cartella dal computer..."
-                          >
-                            <Folder className="w-4 h-4 text-sky-400" />
-                            <span>Cartella...</span>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium mb-1 text-slate-300">
-                        Argomenti CLI (separati da spazio)
-                      </label>
-                      <input
-                        type="text"
-                        value={action.arguments.join(" ")}
-                        onChange={(e) =>
-                          handleUpdateAction(
-                            idx,
-                            "arguments",
-                            e.target.value.split(" ").filter((s) => s.length > 0)
-                          )
-                        }
-                        className="w-full px-3 py-2 rounded-xl border text-xs font-mono outline-none"
-                        style={{
-                          backgroundColor: "var(--bg-surface)",
-                          borderColor: "var(--border-color)",
-                          color: "var(--text-primary)",
-                        }}
-                        placeholder="es. -windowed -novid -fullscreen"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium mb-1 text-slate-300">
-                        Tracking Mode (Rilevamento Sessione)
-                      </label>
-                      <select
-                        value={action.tracking_mode?.type || "KernelJobObject"}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          if (val === "KernelJobObject") {
-                            handleUpdateAction(idx, "tracking_mode", { type: "KernelJobObject" });
-                          } else if (val === "ProcessName") {
-                            handleUpdateAction(idx, "tracking_mode", {
-                              type: "ProcessName",
-                              target: "game.exe",
-                            });
-                          } else {
-                            handleUpdateAction(idx, "tracking_mode", {
-                              type: "WatchDirectory",
-                              target: ".",
-                            });
-                          }
-                        }}
-                        className="px-3 py-2 rounded-xl border text-xs font-medium outline-none cursor-pointer"
-                        style={{
-                          backgroundColor: "var(--bg-surface)",
-                          borderColor: "var(--border-color)",
-                          color: "var(--text-primary)",
-                        }}
-                      >
-                        <option value="KernelJobObject">Kernel Job Object (Zero CPU, Windows nativo)</option>
-                        <option value="ProcessName">Nome Processo Eseguibile</option>
-                        <option value="WatchDirectory">Cartella di Installazione</option>
-                      </select>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
+            <PlayActionsTab
+              playActions={formData.play_actions}
+              onAddAction={handleAddAction}
+              onRemoveAction={handleRemoveAction}
+              onUpdateAction={handleUpdateAction}
+              onPickExe={handlePickExe}
+              onPickDir={handlePickDir}
+            />
           )}
 
-          {/* TAB 5: COLLEGAMENTI (CUSTOM LINKS) */}
           {activeTab === "links" && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between pb-2">
-                <span className="text-xs font-normal text-slate-400">
-                  Aggiungi link a wiki, forum, pagine di mod o guide ufficiali per questo gioco.
-                </span>
-                <button
-                  type="button"
-                  onClick={handleAddLink}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-medium text-white transition-all shadow-md"
-                  style={{
-                    backgroundColor: "var(--accent-primary)",
-                  }}
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Aggiungi Link</span>
-                </button>
-              </div>
-
-              {formData.custom_links.length === 0 ? (
-                <div
-                  className="p-10 rounded-2xl border border-dashed text-center space-y-3"
-                  style={{
-                    backgroundColor: "var(--bg-card)",
-                    borderColor: "var(--border-color)",
-                  }}
-                >
-                  <LinkIcon className="w-10 h-10 text-slate-500 mx-auto" />
-                  <p className="text-sm font-medium text-white">Nessun collegamento personalizzato</p>
-                  <p className="text-xs text-slate-400">
-                    Fai click su "Aggiungi Link" per salvare siti web e guide utili.
-                  </p>
-                </div>
-              ) : (
-                formData.custom_links.map((link, idx) => (
-                  <div
-                    key={idx}
-                    className="p-4 rounded-xl border flex items-center gap-3"
-                    style={{
-                      backgroundColor: "var(--bg-card)",
-                      borderColor: "var(--border-color)",
-                    }}
-                  >
-                    <div className="w-1/3">
-                      <input
-                        type="text"
-                        value={link.title}
-                        onChange={(e) => handleUpdateLink(idx, "title", e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl border text-xs font-medium outline-none"
-                        style={{
-                          backgroundColor: "var(--bg-surface)",
-                          borderColor: "var(--border-color)",
-                          color: "var(--text-primary)",
-                        }}
-                        placeholder="Nome Link (es. Wiki Fandom)"
-                      />
-                    </div>
-
-                    <div className="flex-1">
-                      <input
-                        type="text"
-                        value={link.url}
-                        onChange={(e) => handleUpdateLink(idx, "url", e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl border text-xs font-mono outline-none"
-                        style={{
-                          backgroundColor: "var(--bg-surface)",
-                          borderColor: "var(--border-color)",
-                          color: "var(--text-primary)",
-                        }}
-                        placeholder="https://..."
-                      />
-                    </div>
-
-                    {link.url && link.url.startsWith("http") && (
-                      <a
-                        href={link.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10"
-                        title="Apri nel browser predefinito"
-                      >
-                        <ExternalLink className="w-4 h-4" />
-                      </a>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveLink(idx)}
-                      className="p-2 rounded-xl text-rose-400 hover:text-rose-300 hover:bg-rose-500/10"
-                      title="Rimuovi questo link"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
+            <CustomLinksTab
+              customLinks={formData.custom_links}
+              onAddLink={handleAddLink}
+              onRemoveLink={handleRemoveLink}
+              onUpdateLink={handleUpdateLink}
+            />
           )}
         </div>
 
