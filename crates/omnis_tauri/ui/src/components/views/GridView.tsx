@@ -10,7 +10,7 @@ interface GridViewProps {
   collapsedGroups: Record<string, boolean>;
   toggleGroup: (groupName: string) => void;
   gridCardWidth: number;
-  selectedGame: GameDto;
+  selectedGame: GameDto | null;
   setSelectedGame: (game: GameDto) => void;
   setViewMode: (mode: ViewMode) => void;
   handleOpenContextMenu: (e: React.MouseEvent, game: GameDto) => void;
@@ -102,14 +102,14 @@ export default function GridView({
                       }}
                       onContextMenu={(e) => handleOpenContextMenu(e, game)}
                       className={`group relative flex flex-col rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 transform hover:-translate-y-1 shadow-lg border ${
-                        selectedGame.id === game.id ? "ring-2" : ""
+                        selectedGame?.id === game.id ? "ring-2" : ""
                       }`}
                       style={{
                         backgroundColor: "var(--bg-card)",
                         borderColor:
-                          selectedGame.id === game.id ? "var(--accent-primary)" : "var(--border-color)",
+                          selectedGame?.id === game.id ? "var(--accent-primary)" : "var(--border-color)",
                         boxShadow:
-                          selectedGame.id === game.id ? `0 0 20px var(--accent-glow)` : undefined,
+                          selectedGame?.id === game.id ? `0 0 20px var(--accent-glow)` : undefined,
                       }}
                     >
                       <div className="aspect-[2/3] w-full relative overflow-hidden bg-black/40">

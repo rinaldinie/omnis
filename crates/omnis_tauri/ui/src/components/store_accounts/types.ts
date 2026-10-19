@@ -58,6 +58,22 @@ export function formatLastSync(isoStr: string | null | undefined): string {
 
 export const DEFAULT_ACCOUNTS: StoreAccount[] = [
   {
+    store_id: "steam",
+    name: "Steam",
+    is_connected: false,
+    username: null,
+    avatar_url: null,
+    last_sync: null,
+  },
+  {
+    store_id: "epic",
+    name: "Epic Games Store",
+    is_connected: false,
+    username: null,
+    avatar_url: null,
+    last_sync: null,
+  },
+  {
     store_id: "gog",
     name: "GOG Galaxy",
     is_connected: false,
@@ -70,22 +86,6 @@ export const DEFAULT_ACCOUNTS: StoreAccount[] = [
     name: "Xbox / PC Game Pass",
     is_connected: false,
     username: null,
-    avatar_url: null,
-    last_sync: null,
-  },
-  {
-    store_id: "steam",
-    name: "Steam",
-    is_connected: true,
-    username: "Rilevato su disco locale (VDF manifest)",
-    avatar_url: null,
-    last_sync: null,
-  },
-  {
-    store_id: "epic",
-    name: "Epic Games Store",
-    is_connected: true,
-    username: "Rilevato su disco locale (Manifest .item)",
     avatar_url: null,
     last_sync: null,
   },

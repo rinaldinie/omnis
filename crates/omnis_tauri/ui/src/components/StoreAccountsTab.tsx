@@ -4,9 +4,9 @@ import {
   CheckCircle2,
   AlertCircle,
   Cloud,
-  HardDrive,
   Sparkles,
   Info,
+  Trash2,
 } from "lucide-react";
 import { SteamIcon, EpicIcon, GogIcon, XboxIcon } from "./StoreBadge";
 import soundEffects from "../utils/soundEffects";
@@ -19,7 +19,6 @@ import {
   listenTauri,
 } from "./store_accounts/types";
 import { CloudStoreCard } from "./store_accounts/CloudStoreCard";
-import { LocalStoreCard } from "./store_accounts/LocalStoreCard";
 import { FutureStoreCard } from "./store_accounts/FutureStoreCard";
 
 export type { StoreAccount, StoreSyncProgress };
@@ -212,7 +211,26 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({ onSyncComple
 
   const gog = getAccount("gog");
   const xbox = getAccount("xbox");
-  const anyCloudConnected = gog.is_connected || xbox.is_connected;
+  const steam = getAccount("steam");
+  const epic = getAccount("epic");
+  const anyCloudConnected = gog.is_connected || xbox.is_connected || steam.is_connected || epic.is_connected;
+
+  const handleClearLibrary = async () => {
+    soundEffects.playSelect();
+    try {
+      await invokeTauri("clear_library");
+      setBanner({
+        type: "info",
+        message: "Libreria svuotata con successo. I giochi mock sono stati rimossi dal database.",
+      });
+      if (onSyncComplete) onSyncComplete();
+    } catch (err: any) {
+      setBanner({
+        type: "error",
+        message: `Errore durante la pulizia della libreria: ${err?.toString() || "Errore sconosciuto"}`,
+      });
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -248,7 +266,7 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({ onSyncComple
           </div>
         </div>
 
-        <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+        <div className="flex items-center gap-2 self-end sm:self-auto shrink-0 flex-wrap">
           <button
             type="button"
             disabled={isLoading || !anyCloudConnected}
@@ -262,6 +280,15 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({ onSyncComple
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} />
             <span>Sincronizza Tutti</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleClearLibrary}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border border-rose-500/30 text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 active:scale-95 transition-all shadow-sm"
+            title="Svuota tutti i giochi dal database locale (rimuove eventuali dati mock o duplicati)"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Svuota Libreria</span>
           </button>
         </div>
       </div>
@@ -302,8 +329,40 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({ onSyncComple
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <CloudStoreCard
+            account={steam}
+            subtitle="Libreria Steam & Comunità"
+            icon={<SteamIcon className="w-5 h-5 text-[#66c0f4]" />}
+            bgGradient="linear-gradient(145deg, rgba(16, 36, 56, 0.6) 0%, rgba(10, 22, 35, 0.8) 100%)"
+            borderColor="rgba(102, 192, 244, 0.4)"
+            accentColor="#66c0f4"
+            badgeBg="bg-sky-500/20"
+            badgeText="text-sky-300"
+            actionLoading={!!actionLoading["steam"]}
+            syncProgress={syncProgress["steam"]}
+            onConnect={handleConnect}
+            onDisconnect={handleDisconnect}
+            onSync={handleSync}
+          />
+
+          <CloudStoreCard
+            account={epic}
+            subtitle="Libreria Epic Games Launcher"
+            icon={<EpicIcon className="w-5 h-5 text-white" />}
+            bgGradient="linear-gradient(145deg, rgba(35, 35, 35, 0.6) 0%, rgba(18, 18, 18, 0.8) 100%)"
+            borderColor="rgba(255, 255, 255, 0.35)"
+            accentColor="#ffffff"
+            badgeBg="bg-slate-500/20"
+            badgeText="text-slate-200"
+            actionLoading={!!actionLoading["epic"]}
+            syncProgress={syncProgress["epic"]}
+            onConnect={handleConnect}
+            onDisconnect={handleDisconnect}
+            onSync={handleSync}
+          />
+
+          <CloudStoreCard
             account={gog}
-            subtitle="CD Projekt Red DRM-Free Catalog"
+            subtitle="Catalogo GOG DRM-Free"
             icon={<GogIcon className="w-5 h-5" />}
             bgGradient="linear-gradient(145deg, rgba(38, 12, 48, 0.6) 0%, rgba(20, 8, 28, 0.8) 100%)"
             borderColor="rgba(226, 138, 255, 0.4)"
@@ -319,7 +378,7 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({ onSyncComple
 
           <CloudStoreCard
             account={xbox}
-            subtitle="Microsoft PC Game Pass & Xbox Catalog"
+            subtitle="Catalogo Microsoft & Game Pass"
             icon={<XboxIcon className="w-5 h-5 text-[#107c10]" />}
             bgGradient="linear-gradient(145deg, rgba(12, 38, 18, 0.6) 0%, rgba(8, 24, 12, 0.8) 100%)"
             borderColor="rgba(16, 124, 16, 0.4)"
@@ -331,38 +390,6 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({ onSyncComple
             onConnect={handleConnect}
             onDisconnect={handleDisconnect}
             onSync={handleSync}
-          />
-        </div>
-      </div>
-
-      {/* SECTION 2: LOCAL DISK STORE SCANNERS */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-2 text-xs font-black tracking-wider uppercase" style={{ color: "var(--text-muted)" }}>
-          <HardDrive className="w-4 h-4 text-sky-400" />
-          <span>Integrazione Store Locali Rilevati su Disco</span>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <LocalStoreCard
-            name="Steam"
-            badge="VDF Manifest"
-            description="Rilevato su disco locale (VDF manifest)"
-            icon={<SteamIcon className="w-5 h-5 text-[#66c0f4]" />}
-            iconBg="linear-gradient(135deg, rgba(23, 53, 77, 0.8) 0%, rgba(16, 33, 48, 0.9) 100%)"
-            iconBorder="rgba(102, 192, 244, 0.4)"
-            cardBorder="rgba(102, 192, 244, 0.25)"
-            badgeColor={{ bg: "bg-sky-500/20", text: "text-sky-300", border: "border-sky-500/30" }}
-          />
-
-          <LocalStoreCard
-            name="Epic Games Store"
-            badge=".item Manifest"
-            description="Rilevato su disco locale (Manifest .item)"
-            icon={<EpicIcon className="w-5 h-5 text-white" />}
-            iconBg="linear-gradient(135deg, rgba(43, 43, 43, 0.8) 0%, rgba(24, 24, 24, 0.9) 100%)"
-            iconBorder="rgba(255, 255, 255, 0.3)"
-            cardBorder="rgba(255, 255, 255, 0.15)"
-            badgeColor={{ bg: "bg-slate-500/20", text: "text-slate-300", border: "border-slate-500/30" }}
           />
         </div>
       </div>

@@ -563,6 +563,13 @@ impl Database {
         Ok(updated > 0)
     }
 
+    /// Clear all games from the database
+    pub fn clear_all_games(&self) -> Result<usize> {
+        let conn = self.conn.lock().unwrap();
+        let deleted = conn.execute("DELETE FROM games", [])?;
+        Ok(deleted)
+    }
+
     /// Seed iconic starter games if the library is empty
     pub fn seed_sample_games(&self) -> Result<usize> {
         let count = self.count_games()?;

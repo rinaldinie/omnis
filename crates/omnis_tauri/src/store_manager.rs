@@ -5,7 +5,7 @@
 
 use chrono::{DateTime, Utc};
 use omnis_core::Database;
-use omnis_sdk::models::{StoreAccountDto, StoreSyncProgressPayload};
+use omnis_sdk::models::{DiscoveredGame, StoreAccountDto, StoreSyncProgressPayload};
 use omnis_sdk::plugin::{CloudStorePlugin, StoreAccountSession};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -159,11 +159,35 @@ impl StoreAccountManager {
         Ok(())
     }
 
-    /// Retrieve summary status of all supported stores (GOG, Xbox, Steam, Epic)
+    /// Retrieve summary status of all supported stores (Steam, Epic, GOG, Xbox)
     pub async fn get_store_accounts(&self) -> Result<Vec<StoreAccountDto>, String> {
         let mut accounts = Vec::new();
 
-        // 1. GOG Galaxy
+        // 1. Steam
+        let steam_session = self.load_session("steam")?;
+        let steam_sync = self.last_syncs.read().await.get("steam").cloned();
+        accounts.push(StoreAccountDto {
+            store_id: "steam".to_string(),
+            name: "Steam".to_string(),
+            is_connected: steam_session.is_some(),
+            username: steam_session.as_ref().map(|s| s.username.clone()),
+            avatar_url: steam_session.and_then(|s| s.avatar_url),
+            last_sync: steam_sync,
+        });
+
+        // 2. Epic Games Store
+        let epic_session = self.load_session("epic")?;
+        let epic_sync = self.last_syncs.read().await.get("epic").cloned();
+        accounts.push(StoreAccountDto {
+            store_id: "epic".to_string(),
+            name: "Epic Games Store".to_string(),
+            is_connected: epic_session.is_some(),
+            username: epic_session.as_ref().map(|s| s.username.clone()),
+            avatar_url: epic_session.and_then(|s| s.avatar_url),
+            last_sync: epic_sync,
+        });
+
+        // 3. GOG Galaxy
         let gog_session = self.load_session("gog")?;
         let gog_sync = self.last_syncs.read().await.get("gog").cloned();
         accounts.push(StoreAccountDto {
@@ -175,7 +199,7 @@ impl StoreAccountManager {
             last_sync: gog_sync,
         });
 
-        // 2. Xbox Live / PC Game Pass
+        // 4. Xbox Live / PC Game Pass
         let xbox_session = self.load_session("xbox")?;
         let xbox_sync = self.last_syncs.read().await.get("xbox").cloned();
         accounts.push(StoreAccountDto {
@@ -185,39 +209,6 @@ impl StoreAccountManager {
             username: xbox_session.as_ref().map(|s| s.username.clone()),
             avatar_url: xbox_session.and_then(|s| s.avatar_url),
             last_sync: xbox_sync,
-        });
-
-        // 3. Steam
-        let steam_detected = omnis_plugin_steam::vdf_parser::detect_steam_installation().is_some();
-        let steam_sync = self.last_syncs.read().await.get("steam").cloned();
-        accounts.push(StoreAccountDto {
-            store_id: "steam".to_string(),
-            name: "Steam".to_string(),
-            is_connected: steam_detected,
-            username: if steam_detected {
-                Some("Client Locale".to_string())
-            } else {
-                None
-            },
-            avatar_url: None,
-            last_sync: steam_sync,
-        });
-
-        // 4. Epic Games Store
-        let epic_plugin = omnis_plugin_epic::EpicLibraryPlugin::new();
-        let epic_detected = epic_plugin.detect_manifests_dir().exists();
-        let epic_sync = self.last_syncs.read().await.get("epic").cloned();
-        accounts.push(StoreAccountDto {
-            store_id: "epic".to_string(),
-            name: "Epic Games Store".to_string(),
-            is_connected: epic_detected,
-            username: if epic_detected {
-                Some("Client Locale".to_string())
-            } else {
-                None
-            },
-            avatar_url: None,
-            last_sync: epic_sync,
         });
 
         Ok(accounts)
@@ -402,7 +393,7 @@ impl StoreAccountManager {
         );
 
         // Fetch catalog from remote store
-        let games = match plugin.sync_games(&session).await {
+        let mut games = match plugin.sync_games(&session).await {
             Ok(g) => g,
             Err(e) => {
                 let err_msg = format!("Errore sincronizzazione giochi per {}: {}", store_id, e);
@@ -419,6 +410,37 @@ impl StoreAccountManager {
                 return Err(err_msg);
             }
         };
+
+        // If the plugin has local scan capabilities (e.g. Steam, Epic), merge local installed games
+        if let Ok(local_games) = plugin.scan().await {
+            if !local_games.is_empty() {
+                let mut local_map: HashMap<String, DiscoveredGame> = local_games
+                    .into_iter()
+                    .map(|g| (g.external_id.clone(), g))
+                    .collect();
+
+                for game in games.iter_mut() {
+                    if let Some(mut local) = local_map.remove(&game.external_id) {
+                        local.playtime_seconds = local.playtime_seconds.max(game.playtime_seconds);
+                        if local.cover_image_path.is_none() {
+                            local.cover_image_path = game.cover_image_path.clone();
+                        }
+                        if local.background_image_path.is_none() {
+                            local.background_image_path = game.background_image_path.clone();
+                        }
+                        if local.last_activity.is_none() {
+                            local.last_activity = game.last_activity;
+                        }
+                        local.is_installed = true;
+                        *game = local;
+                    }
+                }
+
+                for (_, local) in local_map {
+                    games.push(local);
+                }
+            }
+        }
 
         // Ingest into SQLite database
         let count = self
@@ -465,7 +487,7 @@ impl StoreAccountManager {
         let accounts = self.get_store_accounts().await?;
         let mut total_synced = 0;
         for acc in accounts {
-            if acc.is_connected && (acc.store_id == "gog" || acc.store_id == "xbox") {
+            if acc.is_connected {
                 match self.sync_store(app_handle, &acc.store_id).await {
                     Ok(count) => total_synced += count,
                     Err(err) => {
@@ -524,15 +546,19 @@ mod tests {
 
         // Ensure clean state before test
         let _ = manager.delete_session("gog");
+        let _ = manager.delete_session("xbox");
+        let _ = manager.delete_session("steam");
+        let _ = manager.delete_session("epic");
 
         let accounts = manager.get_store_accounts().await.unwrap();
         assert_eq!(accounts.len(), 4);
         let ids: Vec<_> = accounts.iter().map(|a| a.store_id.as_str()).collect();
-        assert_eq!(ids, vec!["gog", "xbox", "steam", "epic"]);
+        assert_eq!(ids, vec!["steam", "epic", "gog", "xbox"]);
 
-        // When not logged in, gog is disconnected
-        let gog = accounts.iter().find(|a| a.store_id == "gog").unwrap();
-        assert!(!gog.is_connected);
+        // When not logged in, all are disconnected
+        for acc in &accounts {
+            assert!(!acc.is_connected, "Account {} should be disconnected", acc.store_id);
+        }
 
         // When logged in, gog is connected
         let session = StoreAccountSession {
@@ -562,6 +588,8 @@ mod tests {
 
         manager.register_plugin(Arc::new(omnis_plugin_gog::GogCloudPlugin::new()));
         manager.register_plugin(Arc::new(omnis_plugin_xbox::XboxCloudPlugin::new()));
+        manager.register_plugin(Arc::new(omnis_plugin_steam::SteamPlugin::new()));
+        manager.register_plugin(Arc::new(omnis_plugin_epic::EpicLibraryPlugin::new()));
 
         let gog = manager.get_plugin_sync("gog");
         assert!(gog.is_some());
@@ -570,6 +598,14 @@ mod tests {
         let xbox = manager.get_plugin_sync("xbox");
         assert!(xbox.is_some());
         assert_eq!(xbox.unwrap().id(), "xbox");
+
+        let steam = manager.get_plugin_sync("steam");
+        assert!(steam.is_some());
+        assert_eq!(steam.unwrap().id(), "steam");
+
+        let epic = manager.get_plugin_sync("epic");
+        assert!(epic.is_some());
+        assert_eq!(epic.unwrap().id(), "epic");
 
         let unknown = manager.get_plugin_sync("unknown");
         assert!(unknown.is_none());

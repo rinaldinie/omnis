@@ -11,7 +11,7 @@ import GameEditorModal from "./components/GameEditorModal";
 import MetadataResolutionModal from "./components/MetadataResolutionModal";
 import ListViewTable from "./components/ListViewTable";
 import VirtualKeyboard from "./components/VirtualKeyboard";
-import { SettingsModal } from "./components/SettingsModal";
+import { SettingsModal, SettingsTab } from "./components/SettingsModal";
 import { useTranslation } from "./i18n";
 import soundEffects from "./utils/soundEffects";
 import {
@@ -54,26 +54,26 @@ export { formatImageUrl, normalizeGame };
 export type { ViewMode, GroupBy, GameDto };
 
 export default function App() {
-  const [games, setGames] = useState<GameDto[]>(SAMPLE_GAMES);
+  const [games, setGames] = useState<GameDto[]>([]);
   const [counts, setCounts] = useState<LibraryCounts>({
-    total: 6,
-    installed: 3,
-    steam: 5,
-    gog: 1,
+    total: 0,
+    installed: 0,
+    steam: 0,
+    gog: 0,
     epic: 0,
     xbox: 0,
-    recent: 6,
-    favorites: 4,
-    action: 3,
-    rpg: 4,
-    strategy: 2,
-    indie: 1,
+    recent: 0,
+    favorites: 0,
+    action: 0,
+    rpg: 0,
+    strategy: 0,
+    indie: 0,
   });
 
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [gridCardWidth, setGridCardWidth] = useState<number>(180);
   const [detailsSidebarOpen, setDetailsSidebarOpen] = useState<boolean>(true);
-  const [selectedGame, setSelectedGame] = useState<GameDto>(SAMPLE_GAMES[0]);
+  const [selectedGame, setSelectedGame] = useState<GameDto | null>(null);
   const [uiZoom, setUiZoom] = useState<number>(1.0);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
@@ -82,6 +82,12 @@ export default function App() {
   // I18N
   const { t, currentLocaleInfo } = useTranslation();
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
+  const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTab>("general");
+
+  const handleOpenSettings = (tab: SettingsTab = "general") => {
+    setSettingsInitialTab(tab);
+    setShowSettingsModal(true);
+  };
 
   // METADATA MODALS
   const [showEditorModal, setShowEditorModal] = useState<boolean>(false);
@@ -212,11 +218,24 @@ export default function App() {
 
   // LOAD GAMES & THEMES
   const loadGames = async () => {
-    const loadedGames = await invokeTauri<GameDto[]>("get_games");
-    if (loadedGames && loadedGames.length > 0) {
-      setGames(loadedGames.map(normalizeGame));
+    try {
+      const loadedGames = await invokeTauri<GameDto[]>("get_games");
+      if (loadedGames) {
+        const normalized = loadedGames.map(normalizeGame);
+        setGames(normalized);
+        setSelectedGame((prev) => {
+          if (prev && normalized.some((g) => g.id === prev.id)) {
+            return prev;
+          }
+          return normalized.length > 0 ? normalized[0] : null;
+        });
+      }
       const loadedCounts = await invokeTauri<LibraryCounts>("get_counts");
-      if (loadedCounts) setCounts(loadedCounts);
+      if (loadedCounts) {
+        setCounts(loadedCounts);
+      }
+    } catch (err) {
+      console.error("Failed to load games or counts", err);
     }
   };
   const refreshLibrary = loadGames;
@@ -583,6 +602,7 @@ export default function App() {
               gamepadConnected={gamepadConnected}
               gamepadName={gamepadName}
               handleOpenFolder={handleOpenFolder}
+              onOpenStoreAccounts={() => handleOpenSettings("accounts")}
             />
 
             {/* MAIN CATALOG VIEW */}
@@ -692,26 +712,39 @@ export default function App() {
               )}
 
               {/* VIEW 2: DETAILS SPLIT-PANEL VIEW */}
-              {viewMode === "details" && selectedGame && (
-                <DetailsSplitView
-                  selectedGame={selectedGame}
-                  setSelectedGame={setSelectedGame}
-                  detailsSidebarOpen={detailsSidebarOpen}
-                  setDetailsSidebarOpen={setDetailsSidebarOpen}
-                  detailsSearchQuery={detailsSearchQuery}
-                  setDetailsSearchQuery={setDetailsSearchQuery}
-                  detailsFilteredGames={detailsFilteredGames}
-                  setViewMode={setViewMode}
-                  handleOpenContextMenu={handleOpenContextMenu}
-                  handleLaunch={handleLaunch}
-                  handleEnrichSingleGame={handleEnrichSingleGame}
-                  isEnrichingSingle={isEnrichingSingle}
-                  setGameToEdit={setGameToEdit}
-                  setShowEditorModal={setShowEditorModal}
-                  setGameToResolve={setGameToResolve}
-                  setShowResolutionModal={setShowResolutionModal}
-                  t={t}
-                />
+              {viewMode === "details" && (
+                selectedGame ? (
+                  <DetailsSplitView
+                    selectedGame={selectedGame}
+                    setSelectedGame={setSelectedGame}
+                    detailsSidebarOpen={detailsSidebarOpen}
+                    setDetailsSidebarOpen={setDetailsSidebarOpen}
+                    detailsSearchQuery={detailsSearchQuery}
+                    setDetailsSearchQuery={setDetailsSearchQuery}
+                    detailsFilteredGames={detailsFilteredGames}
+                    setViewMode={setViewMode}
+                    handleOpenContextMenu={handleOpenContextMenu}
+                    handleLaunch={handleLaunch}
+                    handleEnrichSingleGame={handleEnrichSingleGame}
+                    isEnrichingSingle={isEnrichingSingle}
+                    setGameToEdit={setGameToEdit}
+                    setShowEditorModal={setShowEditorModal}
+                    setGameToResolve={setGameToResolve}
+                    setShowResolutionModal={setShowResolutionModal}
+                    t={t}
+                  />
+                ) : (
+                  <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+                    <Gamepad2
+                      className="w-12 h-12 mb-3 opacity-30"
+                      style={{ color: "var(--text-muted)" }}
+                    />
+                    <h3 className="text-base font-bold text-white mb-1">Nessun gioco selezionato</h3>
+                    <p className="text-xs text-slate-400 max-w-sm">
+                      Seleziona un gioco dalla lista o passa alla vista a griglia per visualizzare la tua libreria.
+                    </p>
+                  </div>
+                )
               )}
 
               {/* VIEW 3: HIGH-PERFORMANCE SPREADSHEET LIST VIEW */}
@@ -900,36 +933,40 @@ export default function App() {
       />
 
       {/* METADATA EDITOR MODAL */}
-      <GameEditorModal
-        isOpen={showEditorModal}
-        onClose={() => {
-          setShowEditorModal(false);
-          setGameToEdit(null);
-        }}
-        game={gameToEdit || selectedGame}
-        onSave={(updated) => {
-          setSelectedGame((prev) => (prev && prev.id === updated.id ? { ...prev, ...updated } : prev));
-          setGames((prev) => prev.map((g) => (g.id === updated.id ? { ...g, ...updated } : g)));
-          refreshLibrary();
-          setStatusMessage(`Modifiche a '${updated.title}' salvate con successo!`);
-        }}
-      />
+      {(gameToEdit || selectedGame) && (
+        <GameEditorModal
+          isOpen={showEditorModal}
+          onClose={() => {
+            setShowEditorModal(false);
+            setGameToEdit(null);
+          }}
+          game={gameToEdit || selectedGame!}
+          onSave={(updated) => {
+            setSelectedGame((prev) => (prev && prev.id === updated.id ? { ...prev, ...updated } : prev));
+            setGames((prev) => prev.map((g) => (g.id === updated.id ? { ...g, ...updated } : g)));
+            refreshLibrary();
+            setStatusMessage(`Modifiche a '${updated.title}' salvate con successo!`);
+          }}
+        />
+      )}
 
       {/* METADATA RESOLUTION MODAL */}
-      <MetadataResolutionModal
-        isOpen={showResolutionModal}
-        onClose={() => {
-          setShowResolutionModal(false);
-          setGameToResolve(null);
-        }}
-        game={gameToResolve || selectedGame}
-        onApply={(updated) => {
-          setSelectedGame((prev) => (prev && prev.id === updated.id ? { ...prev, ...updated } : prev));
-          setGames((prev) => prev.map((g) => (g.id === updated.id ? { ...g, ...updated } : g)));
-          refreshLibrary();
-          setStatusMessage(`Metadati risolti per '${updated.title}' con successo!`);
-        }}
-      />
+      {(gameToResolve || selectedGame) && (
+        <MetadataResolutionModal
+          isOpen={showResolutionModal}
+          onClose={() => {
+            setShowResolutionModal(false);
+            setGameToResolve(null);
+          }}
+          game={gameToResolve || selectedGame!}
+          onApply={(updated) => {
+            setSelectedGame((prev) => (prev && prev.id === updated.id ? { ...prev, ...updated } : prev));
+            setGames((prev) => prev.map((g) => (g.id === updated.id ? { ...g, ...updated } : g)));
+            refreshLibrary();
+            setStatusMessage(`Metadati risolti per '${updated.title}' con successo!`);
+          }}
+        />
+      )}
 
       {/* BIG PICTURE VIRTUAL KEYBOARD */}
       <VirtualKeyboard
@@ -967,6 +1004,7 @@ export default function App() {
         onToggleSound={handleToggleSound}
         onOpenThemes={() => setShowThemeModal(true)}
         currentThemeName={currentTheme.name}
+        initialTab={settingsInitialTab}
         onSyncComplete={refreshLibrary}
       />
     </div>

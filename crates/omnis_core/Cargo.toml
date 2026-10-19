@@ -32,4 +32,5 @@ windows = { version = "0.58", features = [
 [dev-dependencies]
 omnis_plugin_epic = { path = "../../plugins/omnis_plugin_epic" }
 omnis_plugin_gog = { path = "../../plugins/omnis_plugin_gog" }
+omnis_plugin_steam = { path = "../../plugins/omnis_plugin_steam" }
 omnis_plugin_xbox = { path = "../../plugins/omnis_plugin_xbox" }

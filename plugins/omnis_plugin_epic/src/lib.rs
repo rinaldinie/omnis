@@ -1,9 +1,12 @@
 use async_trait::async_trait;
 use omnis_sdk::{
-    DiscoveredGame, LaunchConfiguration, LibraryPlugin, PluginError, ProcessTrackingMode,
+    CloudStorePlugin, DiscoveredGame, LaunchConfiguration, LibraryPlugin, PluginError,
+    ProcessTrackingMode, StoreAccountSession,
 };
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+
+pub mod client;
 
 /// Deserialized structure of an Epic Games Store `.item` manifest
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -21,21 +24,50 @@ pub struct EpicManifest {
 }
 
 /// Epic Games Store Library Plugin for Omnis Game Library
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct EpicLibraryPlugin {
     pub custom_manifests_path: Option<PathBuf>,
+    pub client: reqwest::Client,
+}
+
+impl Default for EpicLibraryPlugin {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl EpicLibraryPlugin {
     pub fn new() -> Self {
         Self {
             custom_manifests_path: None,
+            client: reqwest::Client::builder()
+                .timeout(std::time::Duration::from_secs(30))
+                .build()
+                .unwrap_or_default(),
         }
     }
 
     pub fn with_custom_path(path: PathBuf) -> Self {
         Self {
             custom_manifests_path: Some(path),
+            client: reqwest::Client::builder()
+                .timeout(std::time::Duration::from_secs(30))
+                .build()
+                .unwrap_or_default(),
+        }
+    }
+
+    pub fn with_client(client: reqwest::Client) -> Self {
+        Self {
+            custom_manifests_path: None,
+            client,
+        }
+    }
+
+    pub fn with_custom_path_and_client(path: PathBuf, client: reqwest::Client) -> Self {
+        Self {
+            custom_manifests_path: Some(path),
+            client,
         }
     }
 
@@ -125,9 +157,43 @@ impl LibraryPlugin for EpicLibraryPlugin {
     }
 }
 
+#[async_trait]
+impl CloudStorePlugin for EpicLibraryPlugin {
+    fn login_url(&self) -> String {
+        client::EPIC_AUTH_URL.to_string()
+    }
+
+    fn is_redirect_url(&self, url: &str) -> bool {
+        url.contains("epicgames.com/id/api/redirect")
+            && (url.contains("code=") || url.contains("exchangeCode="))
+    }
+
+    async fn exchange_code(&self, redirect_url: &str) -> Result<StoreAccountSession, PluginError> {
+        let code = client::extract_exchange_code(redirect_url).ok_or_else(|| {
+            PluginError::Parse(format!(
+                "Impossibile estrarre il codice dall'URL di redirect Epic: {}",
+                redirect_url
+            ))
+        })?;
+        client::exchange_code(&self.client, &code).await
+    }
+
+    async fn refresh_session(&self, refresh_token: &str) -> Result<StoreAccountSession, PluginError> {
+        client::refresh_token(&self.client, refresh_token).await
+    }
+
+    async fn sync_games(&self, session: &StoreAccountSession) -> Result<Vec<DiscoveredGame>, PluginError> {
+        client::fetch_user_games(&self.client, session).await
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::client::{
+        extract_exchange_code, normalize_epic_entitlement, EpicEntitlement,
+        EpicOAuthTokenResponse,
+    };
 
     const SAMPLE_EPIC_MANIFEST: &str = r#"{
         "FormatVersion": 0,
@@ -222,5 +288,147 @@ mod tests {
         let plugin = EpicLibraryPlugin::with_custom_path(non_existent);
         let games = plugin.scan().await.expect("Scan should return Ok");
         assert!(games.is_empty());
+    }
+
+    #[test]
+    fn test_extract_code_from_redirect_url() {
+        let url_code = "https://www.epicgames.com/id/api/redirect?code=MOCK_EXCHANGE_CODE_123";
+        assert_eq!(
+            extract_exchange_code(url_code),
+            Some("MOCK_EXCHANGE_CODE_123".to_string())
+        );
+
+        let url_exchange = "https://www.epicgames.com/id/api/redirect?exchangeCode=MOCK_EXCHANGE_CODE_456";
+        assert_eq!(
+            extract_exchange_code(url_exchange),
+            Some("MOCK_EXCHANGE_CODE_456".to_string())
+        );
+
+        let url_fragment = "https://www.epicgames.com/id/api/redirect#exchangeCode=MOCK_EXCHANGE_CODE_789";
+        assert_eq!(
+            extract_exchange_code(url_fragment),
+            Some("MOCK_EXCHANGE_CODE_789".to_string())
+        );
+
+        let url_fragment_code = "https://www.epicgames.com/id/api/redirect#code=MOCK_CODE_ABC";
+        assert_eq!(
+            extract_exchange_code(url_fragment_code),
+            Some("MOCK_CODE_ABC".to_string())
+        );
+
+        let url_invalid = "https://www.epicgames.com/id/api/redirect";
+        assert_eq!(extract_exchange_code(url_invalid), None);
+    }
+
+    #[test]
+    fn test_epic_oauth_token_response_deserialization() {
+        let json_data = r#"{
+            "access_token": "eg1_mock_access_token_12345",
+            "refresh_token": "eg1_mock_refresh_token_67890",
+            "expires_in": 7200,
+            "account_id": "abc123456789def",
+            "display_name": "EpicGamerX"
+        }"#;
+
+        let token_resp: EpicOAuthTokenResponse =
+            serde_json::from_str(json_data).expect("Failed to deserialize EpicOAuthTokenResponse");
+
+        assert_eq!(token_resp.access_token, "eg1_mock_access_token_12345");
+        assert_eq!(
+            token_resp.refresh_token,
+            Some("eg1_mock_refresh_token_67890".to_string())
+        );
+        assert_eq!(token_resp.expires_in, Some(7200));
+        assert_eq!(token_resp.account_id, "abc123456789def");
+        assert_eq!(token_resp.display_name, Some("EpicGamerX".to_string()));
+
+        // Also test camelCase aliases
+        let json_camel = r#"{
+            "access_token": "token_abc",
+            "accountId": "acc_xyz",
+            "displayName": "PlayerOne"
+        }"#;
+        let token_camel: EpicOAuthTokenResponse =
+            serde_json::from_str(json_camel).expect("Failed to deserialize camelCase token");
+        assert_eq!(token_camel.account_id, "acc_xyz");
+        assert_eq!(token_camel.display_name, Some("PlayerOne".to_string()));
+        assert_eq!(token_camel.refresh_token, None);
+        assert_eq!(token_camel.expires_in, None);
+    }
+
+    #[test]
+    fn test_epic_entitlement_deserialization_and_normalization() {
+        let json_entitlement = r#"{
+            "id": "entitlement_001",
+            "entitlementName": "Death Stranding",
+            "namespace": "f96f1301c34a478cbef1f5c6b9d62888",
+            "catalogItemId": "de6747b0a72740bc8f7c9e03d4cc7e41",
+            "grantDate": "2023-12-25T16:00:00.000Z"
+        }"#;
+
+        let entitlement: EpicEntitlement =
+            serde_json::from_str(json_entitlement).expect("Failed to deserialize EpicEntitlement");
+
+        assert_eq!(entitlement.id, "entitlement_001");
+        assert_eq!(entitlement.entitlement_name, Some("Death Stranding".to_string()));
+        assert_eq!(
+            entitlement.catalog_item_id,
+            Some("de6747b0a72740bc8f7c9e03d4cc7e41".to_string())
+        );
+
+        let discovered = normalize_epic_entitlement(&entitlement);
+        assert_eq!(discovered.library_id, "epic");
+        assert_eq!(discovered.external_id, "de6747b0a72740bc8f7c9e03d4cc7e41");
+        assert_eq!(discovered.title, "Death Stranding");
+        assert!(!discovered.is_installed);
+        assert_eq!(discovered.install_dir, None);
+        assert_eq!(discovered.playtime_seconds, 0);
+        assert_eq!(discovered.play_count, 0);
+
+        let play_action = discovered.play_action.expect("Play action must be present");
+        assert_eq!(
+            play_action.executable,
+            "com.epicgames.launcher://apps/de6747b0a72740bc8f7c9e03d4cc7e41?action=install"
+        );
+        assert!(play_action.arguments.is_empty());
+        assert_eq!(play_action.working_dir, None);
+        assert_eq!(
+            play_action.tracking_mode,
+            ProcessTrackingMode::ProcessName("EpicGamesLauncher.exe".to_string())
+        );
+
+        // Test fallback when catalog_item_id and entitlement_name are missing
+        let fallback_entitlement = EpicEntitlement {
+            id: "fallback_id_999".to_string(),
+            entitlement_name: None,
+            namespace: None,
+            catalog_item_id: None,
+            grant_date: None,
+        };
+        let fallback_discovered = normalize_epic_entitlement(&fallback_entitlement);
+        assert_eq!(fallback_discovered.external_id, "fallback_id_999");
+        assert_eq!(fallback_discovered.title, "fallback_id_999");
+        assert_eq!(
+            fallback_discovered.play_action.unwrap().executable,
+            "com.epicgames.launcher://apps/fallback_id_999?action=install"
+        );
+    }
+
+    #[test]
+    fn test_cloud_store_plugin_interface() {
+        let plugin = EpicLibraryPlugin::new();
+        assert_eq!(plugin.id(), "epic");
+        assert_eq!(plugin.name(), "Epic Games Store");
+
+        let login_url = plugin.login_url();
+        assert!(login_url.contains(client::EPIC_CLIENT_ID));
+        assert!(login_url.contains("redirectUrl="));
+
+        assert!(plugin.is_redirect_url("https://www.epicgames.com/id/api/redirect?code=MOCK_CODE"));
+        assert!(plugin.is_redirect_url("https://www.epicgames.com/id/api/redirect?exchangeCode=MOCK_EXCHANGE"));
+        assert!(plugin.is_redirect_url("https://www.epicgames.com/id/api/redirect#code=MOCK_CODE"));
+        assert!(plugin.is_redirect_url("https://www.epicgames.com/id/api/redirect#exchangeCode=MOCK_CODE"));
+        assert!(!plugin.is_redirect_url("https://www.epicgames.com/id/api/redirect"));
+        assert!(!plugin.is_redirect_url("https://store.epicgames.com/browse"));
     }
 }
