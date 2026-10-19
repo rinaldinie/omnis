@@ -1,4 +1,4 @@
-import { convertFileSrc } from "@tauri-apps/api/core";
+import { convertFileSrc, invoke, isTauri } from "@tauri-apps/api/core";
 
 export type ViewMode = "grid" | "details" | "list";
 
@@ -130,10 +130,20 @@ export interface MetadataPipelineConfig {
   background_source: string;
   score_source: string;
   details_source: string;
+  preserve_existing_artwork?: boolean;
+}
+
+export function isTauriEnvironment(): boolean {
+  if (typeof window === "undefined") return false;
+  return isTauri() || !!(window as any).__TAURI_INTERNALS__ || !!(window as any).__TAURI__;
 }
 
 export function formatImageUrl(src: string | null | undefined): string | null {
   if (!src) return null;
+  // If Steam CDN wide banner header.jpg was stored as cover, upgrade to official 2:3 vertical library capsule
+  if (src.includes("cdn.cloudflare.steamstatic.com/steam/apps/") && src.endsWith("/header.jpg")) {
+    src = src.replace("/header.jpg", "/library_600x900_2x.jpg");
+  }
   if (
     src.startsWith("http://") ||
     src.startsWith("https://") ||
@@ -143,10 +153,7 @@ export function formatImageUrl(src: string | null | undefined): string | null {
     return src;
   }
   try {
-    if (
-      typeof window !== "undefined" &&
-      (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__
-    ) {
+    if (isTauriEnvironment()) {
       return convertFileSrc(src);
     }
   } catch {
@@ -164,10 +171,7 @@ export const normalizeGame = (g: GameDto): GameDto => ({
 
 export async function invokeTauri<T>(cmd: string, args?: Record<string, unknown>): Promise<T | null> {
   try {
-    if (typeof window !== "undefined" && (window as any).__TAURI_INTERNALS__) {
-      const { invoke } = await import("@tauri-apps/api/core");
-      return await invoke<T>(cmd, args);
-    }
+    return await invoke<T>(cmd, args);
   } catch (err) {
     console.warn(`Tauri command '${cmd}' not available in preview:`, err);
   }

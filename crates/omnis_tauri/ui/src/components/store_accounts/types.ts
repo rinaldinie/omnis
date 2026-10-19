@@ -1,3 +1,6 @@
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
+
 export interface StoreAccount {
   store_id: string;
   name: string;
@@ -5,6 +8,8 @@ export interface StoreAccount {
   username: string | null;
   avatar_url: string | null;
   last_sync: string | null;
+  has_api_key?: boolean | null;
+  is_syncing?: boolean;
 }
 
 export interface StoreSyncProgress {
@@ -17,10 +22,7 @@ export interface StoreSyncProgress {
 
 export async function invokeTauri<T>(cmd: string, args?: Record<string, unknown>): Promise<T | null> {
   try {
-    if (typeof window !== "undefined" && (window as any).__TAURI_INTERNALS__) {
-      const { invoke } = await import("@tauri-apps/api/core");
-      return await invoke<T>(cmd, args);
-    }
+    return await invoke<T>(cmd, args);
   } catch (err) {
     console.warn(`Tauri command '${cmd}' not available:`, err);
   }
@@ -29,10 +31,7 @@ export async function invokeTauri<T>(cmd: string, args?: Record<string, unknown>
 
 export async function listenTauri<T>(event: string, handler: (payload: T) => void): Promise<(() => void) | null> {
   try {
-    if (typeof window !== "undefined" && (window as any).__TAURI_INTERNALS__) {
-      const { listen } = await import("@tauri-apps/api/event");
-      return await listen<T>(event, (e) => handler(e.payload));
-    }
+    return await listen<T>(event, (e) => handler(e.payload));
   } catch (err) {
     console.warn(`Tauri listen '${event}' not available:`, err);
   }

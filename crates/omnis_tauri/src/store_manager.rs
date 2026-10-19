@@ -20,6 +20,7 @@ pub struct StoreAccountManager {
     vault: Arc<SecretVault>,
     local_cache: Arc<RwLock<HashMap<String, StoreAccountSession>>>,
     last_syncs: Arc<tokio::sync::RwLock<HashMap<String, DateTime<Utc>>>>,
+    syncing_stores: Arc<RwLock<std::collections::HashSet<String>>>,
 }
 
 impl StoreAccountManager {
@@ -31,10 +32,59 @@ impl StoreAccountManager {
             vault,
             local_cache: Arc::new(RwLock::new(HashMap::new())),
             last_syncs: Arc::new(tokio::sync::RwLock::new(HashMap::new())),
+            syncing_stores: Arc::new(RwLock::new(std::collections::HashSet::new())),
         };
         // Migrate legacy keyring entries to envelope-encrypted SQLite vault (Requirement D4)
         mgr.migrate_legacy_keyring();
         mgr
+    }
+
+    /// Mark a store as currently syncing. Returns true if lock was acquired, false if already syncing.
+    pub fn mark_syncing(&self, store_id: &str) -> bool {
+        let mut guard = match self.syncing_stores.write() {
+            Ok(g) => g,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        guard.insert(store_id.to_string())
+    }
+
+    /// Unmark a store after sync completes or fails.
+    pub fn unmark_syncing(&self, store_id: &str) {
+        let mut guard = match self.syncing_stores.write() {
+            Ok(g) => g,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        guard.remove(store_id);
+    }
+
+    /// Check if a store is currently synchronizing in background.
+    pub fn is_store_syncing(&self, store_id: &str) -> bool {
+        let guard = match self.syncing_stores.read() {
+            Ok(g) => g,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        guard.contains(store_id)
+    }
+
+    /// Update or configure API key for a store (e.g. Steam Web API Key)
+    pub fn set_api_key(&self, store_id: &str, api_key: &str) -> Result<(), String> {
+        let trimmed = api_key.trim();
+        if let Some(mut session) = self.load_session(store_id)? {
+            session.access_token = trimmed.to_string();
+            self.save_session(store_id, &session)?;
+        } else {
+            let session = StoreAccountSession {
+                store_id: store_id.to_string(),
+                user_id: String::new(),
+                username: format!("Account {}", store_id.to_uppercase()),
+                avatar_url: None,
+                access_token: trimmed.to_string(),
+                refresh_token: None,
+                expires_at: None,
+            };
+            self.save_session(store_id, &session)?;
+        }
+        Ok(())
     }
 
     /// Returns true if master key is stored in filesystem fallback instead of OS keyring (Requirement D3)
@@ -175,6 +225,9 @@ impl StoreAccountManager {
         // 1. Steam
         let steam_session = self.load_session("steam")?;
         let steam_sync = self.last_syncs.read().await.get("steam").cloned();
+        let steam_has_key = steam_session.as_ref().map(|s| {
+            !s.access_token.starts_with("steam_session:") && !s.access_token.trim().is_empty()
+        });
         accounts.push(StoreAccountDto {
             store_id: "steam".to_string(),
             name: "Steam".to_string(),
@@ -182,6 +235,8 @@ impl StoreAccountManager {
             username: steam_session.as_ref().map(|s| s.username.clone()),
             avatar_url: steam_session.as_ref().and_then(|s| s.avatar_url.clone()),
             last_sync: steam_sync,
+            has_api_key: steam_has_key,
+            is_syncing: self.is_store_syncing("steam"),
         });
 
         // 2. Epic Games Store
@@ -194,6 +249,8 @@ impl StoreAccountManager {
             username: epic_session.as_ref().map(|s| s.username.clone()),
             avatar_url: epic_session.as_ref().and_then(|s| s.avatar_url.clone()),
             last_sync: epic_sync,
+            has_api_key: None,
+            is_syncing: self.is_store_syncing("epic"),
         });
 
         // 3. GOG Galaxy
@@ -206,6 +263,8 @@ impl StoreAccountManager {
             username: gog_session.as_ref().map(|s| s.username.clone()),
             avatar_url: gog_session.as_ref().and_then(|s| s.avatar_url.clone()),
             last_sync: gog_sync,
+            has_api_key: None,
+            is_syncing: self.is_store_syncing("gog"),
         });
 
         // 4. Xbox Live / PC Game Pass
@@ -218,6 +277,8 @@ impl StoreAccountManager {
             username: xbox_session.as_ref().map(|s| s.username.clone()),
             avatar_url: xbox_session.as_ref().and_then(|s| s.avatar_url.clone()),
             last_sync: xbox_sync,
+            has_api_key: None,
+            is_syncing: self.is_store_syncing("xbox"),
         });
 
         Ok(accounts)
@@ -370,6 +431,18 @@ impl StoreAccountManager {
 
     /// Synchronize owned game library from a connected cloud store
     pub async fn sync_store(&self, app_handle: &AppHandle, store_id: &str) -> Result<usize, String> {
+        if !self.mark_syncing(store_id) {
+            tracing::info!("Store {} is already synchronizing", store_id);
+            return Ok(0);
+        }
+        struct SyncGuard<'a>(&'a StoreAccountManager, &'a str);
+        impl Drop for SyncGuard<'_> {
+            fn drop(&mut self) {
+                self.0.unmark_syncing(self.1);
+            }
+        }
+        let _guard = SyncGuard(self, store_id);
+
         let mut session = self
             .load_session(store_id)?
             .ok_or_else(|| format!("Nessun account connesso per {}", store_id))?;
@@ -429,28 +502,35 @@ impl StoreAccountManager {
                 current: 0,
                 total: 0,
                 status: "syncing".to_string(),
-                message: Some("Connessione allo store...".to_string()),
+                message: Some(format!("Connessione a {} e recupero catalogo cloud...", plugin.name())),
             },
         );
 
         // Fetch catalog from remote store
-        let mut games = match plugin.sync_games(&session).await {
-            Ok(g) => g,
+        let (mut games, remote_error) = match plugin.sync_games(&session).await {
+            Ok(g) => (g, None),
             Err(e) => {
-                let err_msg = format!("Errore sincronizzazione giochi per {}: {}", store_id, e);
-                let _ = app_handle.emit(
-                    "store-sync-progress",
-                    StoreSyncProgressPayload {
-                        store_id: store_id.to_string(),
-                        current: 0,
-                        total: 0,
-                        status: "error".to_string(),
-                        message: Some(err_msg.clone()),
-                    },
-                );
-                return Err(err_msg);
+                let err_str = e.to_string();
+                tracing::warn!("Remote sync warning for {}: {}", store_id, err_str);
+                (Vec::new(), Some(err_str))
             }
         };
+
+        // Emit intermediate progress after remote catalog fetch
+        let _ = app_handle.emit(
+            "store-sync-progress",
+            StoreSyncProgressPayload {
+                store_id: store_id.to_string(),
+                current: games.len(),
+                total: games.len(),
+                status: "syncing".to_string(),
+                message: Some(format!(
+                    "Trovati {} titoli cloud da {}. Verifica installazioni locali...",
+                    games.len(),
+                    plugin.name()
+                )),
+            },
+        );
 
         // If the plugin has local scan capabilities (e.g. Steam, Epic), merge local installed games
         if let Ok(local_games) = plugin.scan().await {
@@ -483,6 +563,38 @@ impl StoreAccountManager {
             }
         }
 
+        // Emit progress before SQLite ingestion
+        let _ = app_handle.emit(
+            "store-sync-progress",
+            StoreSyncProgressPayload {
+                store_id: store_id.to_string(),
+                current: games.len(),
+                total: games.len(),
+                status: "syncing".to_string(),
+                message: Some(format!(
+                    "Salvataggio di {} giochi nel database...",
+                    games.len()
+                )),
+            },
+        );
+
+        // If both remote sync and local scan yielded no games and there was a remote error, report the error
+        if games.is_empty() {
+            if let Some(ref err_msg) = remote_error {
+                let _ = app_handle.emit(
+                    "store-sync-progress",
+                    StoreSyncProgressPayload {
+                        store_id: store_id.to_string(),
+                        current: 0,
+                        total: 0,
+                        status: "error".to_string(),
+                        message: Some(err_msg.clone()),
+                    },
+                );
+                return Err(err_msg.clone());
+            }
+        }
+
         // Ingest into SQLite database
         let count = self
             .db
@@ -495,6 +607,21 @@ impl StoreAccountManager {
             .await
             .insert(store_id.to_string(), Utc::now());
 
+        let completion_message = if let Some(ref err_msg) = remote_error {
+            format!(
+                "Sincronizzati {} giochi locali da {}. (Nota catalogo cloud: {})",
+                games.len(),
+                plugin.name(),
+                err_msg
+            )
+        } else {
+            format!(
+                "Sincronizzati {} giochi da {}",
+                games.len(),
+                plugin.name()
+            )
+        };
+
         // Emit completion
         let _ = app_handle.emit(
             "store-sync-progress",
@@ -503,11 +630,7 @@ impl StoreAccountManager {
                 current: games.len(),
                 total: games.len(),
                 status: "completed".to_string(),
-                message: Some(format!(
-                    "Sincronizzati {} giochi da {}",
-                    games.len(),
-                    plugin.name()
-                )),
+                message: Some(completion_message),
             },
         );
 
@@ -687,6 +810,68 @@ mod tests {
         for h in handles {
             h.join().unwrap();
         }
+    }
+
+    #[tokio::test]
+    async fn test_store_sync_concurrency_lock() {
+        let (manager, _db) = make_test_manager();
+        assert!(!manager.is_store_syncing("steam"));
+
+        // First lock acquisition succeeds
+        assert!(manager.mark_syncing("steam"));
+        assert!(manager.is_store_syncing("steam"));
+
+        // Second lock acquisition for same store fails (preventing duplicate simultaneous syncs)
+        assert!(!manager.mark_syncing("steam"));
+
+        // Another store can lock concurrently
+        assert!(manager.mark_syncing("epic"));
+        assert!(manager.is_store_syncing("epic"));
+
+        // Releasing unlock
+        manager.unmark_syncing("steam");
+        assert!(!manager.is_store_syncing("steam"));
+        assert!(manager.is_store_syncing("epic"));
+        manager.unmark_syncing("epic");
+        assert!(!manager.is_store_syncing("epic"));
+    }
+
+    #[tokio::test]
+    async fn test_set_and_query_api_key() {
+        let (manager, _db) = make_test_manager();
+        let _ = manager.delete_session("steam");
+
+        // Save session from OpenID login (token starts with steam_session:)
+        let session = StoreAccountSession {
+            store_id: "steam".to_string(),
+            user_id: "76561198000000000".to_string(),
+            username: "Gamer".to_string(),
+            avatar_url: None,
+            access_token: "steam_session:76561198000000000".to_string(),
+            refresh_token: None,
+            expires_at: None,
+        };
+        manager.save_session("steam", &session).unwrap();
+
+        let accounts = manager.get_store_accounts().await.unwrap();
+        let steam_acc = accounts.iter().find(|a| a.store_id == "steam").unwrap();
+        assert!(steam_acc.is_connected);
+        assert_eq!(steam_acc.has_api_key, Some(false));
+
+        // Now set real Steam Web API Key
+        let api_key = "1234567890ABCDEF1234567890ABCDEF";
+        manager.set_api_key("steam", api_key).unwrap();
+
+        let accounts_after = manager.get_store_accounts().await.unwrap();
+        let steam_after = accounts_after.iter().find(|a| a.store_id == "steam").unwrap();
+        assert!(steam_after.is_connected);
+        assert_eq!(steam_after.has_api_key, Some(true));
+
+        let loaded = manager.load_session("steam").unwrap().unwrap();
+        assert_eq!(loaded.access_token, api_key);
+        assert_eq!(loaded.user_id, "76561198000000000");
+
+        let _ = manager.delete_session("steam");
     }
 }
 

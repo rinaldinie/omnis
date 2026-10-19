@@ -139,6 +139,15 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
         [],
     );
 
+    // Fix pre-existing Steam cover image paths that were stored with wide banner header.jpg
+    let _ = conn.execute(
+        "UPDATE games SET
+            background_image_path = COALESCE(background_image_path, cover_image_path),
+            cover_image_path = REPLACE(cover_image_path, '/header.jpg', '/library_600x900_2x.jpg')
+         WHERE library_id = 'steam' AND cover_image_path LIKE '%/header.jpg';",
+        [],
+    );
+
     Ok(())
 }
 

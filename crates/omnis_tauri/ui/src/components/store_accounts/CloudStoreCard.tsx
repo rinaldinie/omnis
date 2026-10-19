@@ -1,5 +1,5 @@
-import React from "react";
-import { RefreshCw, LogIn, LogOut, Loader2, Clock, CheckCircle2, AlertCircle } from "lucide-react";
+import React, { useState } from "react";
+import { RefreshCw, LogIn, LogOut, Loader2, Clock, CheckCircle2, AlertCircle, Key } from "lucide-react";
 import { StoreAccount, StoreSyncProgress, formatLastSync } from "./types";
 
 interface CloudStoreCardProps {
@@ -16,6 +16,7 @@ interface CloudStoreCardProps {
   onConnect: (storeId: string) => void;
   onDisconnect: (storeId: string) => void;
   onSync: (storeId: string) => void;
+  onSaveApiKey?: (storeId: string, apiKey: string) => Promise<void>;
 }
 
 export const CloudStoreCard: React.FC<CloudStoreCardProps> = ({
@@ -32,8 +33,13 @@ export const CloudStoreCard: React.FC<CloudStoreCardProps> = ({
   onConnect,
   onDisconnect,
   onSync,
+  onSaveApiKey,
 }) => {
-  const isSyncing = syncProgress?.status === "syncing";
+  const [showKeyInput, setShowKeyInput] = useState<boolean>(false);
+  const [apiKey, setApiKey] = useState<string>("");
+  const [isSavingKey, setIsSavingKey] = useState<boolean>(false);
+
+  const isSyncing = account.is_syncing || syncProgress?.status === "syncing";
   const isLightAccent =
     accentColor.toLowerCase() === "#ffffff" ||
     accentColor.toLowerCase() === "#fff" ||
@@ -100,7 +106,8 @@ export const CloudStoreCard: React.FC<CloudStoreCardProps> = ({
         {/* Body */}
         <div className="py-3 space-y-2">
           {account.is_connected ? (
-            <div className="flex items-center gap-3">
+            <>
+              <div className="flex items-center gap-3">
               {account.avatar_url ? (
                 <img
                   src={account.avatar_url}
@@ -130,6 +137,99 @@ export const CloudStoreCard: React.FC<CloudStoreCardProps> = ({
                 </div>
               </div>
             </div>
+
+            {/* Steam Web API Key Section (Requirement D5) */}
+            {account.store_id === "steam" && (
+              <div className="pt-2 border-t border-white/10 space-y-2">
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="flex items-center gap-1.5 text-slate-300 font-medium">
+                    <Key className="w-3.5 h-3.5 text-sky-400" />
+                    Steam Web API Key:
+                  </span>
+                  {account.has_api_key ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                      <CheckCircle2 className="w-3 h-3" /> Configurato
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[10px] text-amber-400 font-bold bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30">
+                      <AlertCircle className="w-3 h-3" /> Richiesto per Cloud
+                    </span>
+                  )}
+                </div>
+
+                {!showKeyInput && (
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] text-slate-400 leading-tight">
+                      {account.has_api_key
+                        ? "API Key attiva nel vault cifrato (AES-256-GCM)."
+                        : "Necessaria per scaricare tutti i giochi non installati."}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setShowKeyInput(true)}
+                      className="text-[10px] font-bold text-sky-400 hover:text-sky-300 underline underline-offset-2 shrink-0 ml-2"
+                    >
+                      {account.has_api_key ? "Modifica" : "Inserisci Chiave"}
+                    </button>
+                  </div>
+                )}
+
+                {showKeyInput && (
+                  <div className="space-y-1.5 p-2 rounded-xl bg-black/40 border border-white/15 text-[11px]">
+                    <div className="flex gap-1.5">
+                      <input
+                        type="password"
+                        value={apiKey}
+                        onChange={(e) => setApiKey(e.target.value)}
+                        placeholder="Incolla chiave 32 caratteri"
+                        className="flex-1 min-w-0 bg-black/60 border border-white/20 rounded-lg px-2 py-1 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-400 font-mono"
+                      />
+                      <button
+                        type="button"
+                        disabled={!apiKey.trim() || isSavingKey}
+                        onClick={async () => {
+                          if (onSaveApiKey && apiKey.trim()) {
+                            setIsSavingKey(true);
+                            try {
+                              await onSaveApiKey("steam", apiKey.trim());
+                              setShowKeyInput(false);
+                              setApiKey("");
+                            } finally {
+                              setIsSavingKey(false);
+                            }
+                          }
+                        }}
+                        className="px-3 py-1 bg-sky-500 hover:bg-sky-400 disabled:opacity-50 text-slate-950 font-bold rounded-lg text-xs transition-colors shrink-0 flex items-center gap-1"
+                      >
+                        {isSavingKey ? <Loader2 className="w-3 h-3 animate-spin" /> : "Salva"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowKeyInput(false);
+                          setApiKey("");
+                        }}
+                        className="px-2 py-1 bg-white/10 hover:bg-white/15 text-slate-300 rounded-lg text-xs transition-colors shrink-0"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <div className="text-[10px] text-slate-400 flex items-center justify-between">
+                      <span>Richiedi la tua chiave gratuita:</span>
+                      <a
+                        href="https://steamcommunity.com/dev/apikey"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-sky-400 hover:underline inline-flex items-center gap-0.5"
+                      >
+                        steamcommunity.com/dev/apikey ↗
+                      </a>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            </>
           ) : (
             <p className="text-xs text-slate-300 leading-relaxed">
               Autenticati per sincronizzare la libreria cloud e i giochi non installati.

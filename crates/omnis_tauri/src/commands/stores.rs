@@ -34,11 +34,39 @@ pub async fn sync_store_library(
     app_handle: tauri::AppHandle,
     state: State<'_, AppState>,
 ) -> Result<usize, String> {
-    if let Some(id) = store_id {
-        state.store_account_manager.sync_store(&app_handle, &id).await
-    } else {
-        state.store_account_manager.sync_all_connected(&app_handle).await
-    }
+    let manager = state.store_account_manager.clone();
+    let app = app_handle.clone();
+    let sid = store_id.clone();
+
+    // Spawn in background Tokio runtime task so closing modals never interrupts sync
+    tauri::async_runtime::spawn(async move {
+        if let Some(ref id) = sid {
+            if let Err(e) = manager.sync_store(&app, id).await {
+                tracing::warn!("Background sync error for store {}: {}", id, e);
+            }
+        } else {
+            if let Err(e) = manager.sync_all_connected(&app).await {
+                tracing::warn!("Background sync error for all stores: {}", e);
+            }
+        }
+    });
+
+    Ok(0)
+}
+
+#[tauri::command]
+pub async fn save_store_api_key(
+    store_id: String,
+    api_key: String,
+    app_handle: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    state.store_account_manager.set_api_key(&store_id, &api_key)?;
+    let _ = app_handle.emit(
+        "store-account-connected",
+        serde_json::json!({ "store_id": store_id }),
+    );
+    Ok(())
 }
 
 #[tauri::command]

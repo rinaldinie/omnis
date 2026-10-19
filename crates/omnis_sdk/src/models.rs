@@ -279,6 +279,10 @@ pub struct StoreAccountDto {
     pub username: Option<String>,
     pub avatar_url: Option<String>,
     pub last_sync: Option<chrono::DateTime<chrono::Utc>>,
+    #[serde(default)]
+    pub has_api_key: Option<bool>,
+    #[serde(default)]
+    pub is_syncing: bool,
 }
 
 /// Progress event emitted during cloud store synchronization

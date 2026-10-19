@@ -731,6 +731,48 @@ export default function PluginManagerModal({
                 </div>
               </div>
 
+              {/* Preserve Existing Artwork Switch */}
+              <div
+                className="p-4 rounded-xl border flex items-center justify-between transition-colors"
+                style={{
+                  backgroundColor: "var(--bg-card)",
+                  borderColor: "var(--border-color)",
+                }}
+              >
+                <div className="space-y-0.5 max-w-[80%]">
+                  <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                    <span>Preserva locandine e sfondi già esistenti (Consigliato)</span>
+                  </div>
+                  <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>
+                    Quando attivo, l'arricchimento massivo scarica descrizioni, generi e voti senza sovrascrivere o corrompere le immagini già scaricate da Steam o presenti su disco.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setPipelineConfig({
+                      ...pipelineConfig,
+                      preserve_existing_artwork:
+                        pipelineConfig.preserve_existing_artwork !== false ? false : true,
+                    })
+                  }
+                  className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors ${
+                    pipelineConfig.preserve_existing_artwork !== false
+                      ? "bg-emerald-500"
+                      : "bg-slate-700"
+                  }`}
+                >
+                  <div
+                    className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
+                      pipelineConfig.preserve_existing_artwork !== false
+                        ? "translate-x-5"
+                        : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              </div>
+
               <div className="flex justify-end pt-3">
                 <button
                   onClick={handleSavePipelineConfig}
@@ -794,6 +836,28 @@ export default function PluginManagerModal({
                       {gamesWithScoreCount}
                     </p>
                   </div>
+                </div>
+
+                <div className="flex items-center gap-2 p-3 rounded-xl bg-black/30 border border-white/5 text-[11px]">
+                  <ShieldCheck
+                    className={`w-4 h-4 shrink-0 ${
+                      pipelineConfig.preserve_existing_artwork !== false
+                        ? "text-emerald-400"
+                        : "text-amber-400"
+                    }`}
+                  />
+                  <span style={{ color: "var(--text-muted)" }}>
+                    {pipelineConfig.preserve_existing_artwork !== false ? (
+                      <>
+                        <strong className="text-emerald-400 font-bold">Protezione attiva:</strong>{" "}
+                        Le copertine e gli sfondi già scaricati da Steam o configurati localmente non verranno sovrascritti.
+                      </>
+                    ) : (
+                      <>
+                        <strong className="text-amber-400 font-bold">Attenzione:</strong> Le copertine e gli sfondi esistenti verranno sostituiti dai provider impostati nella pipeline.
+                      </>
+                    )}
+                  </span>
                 </div>
 
                 {pipelineProgress && (

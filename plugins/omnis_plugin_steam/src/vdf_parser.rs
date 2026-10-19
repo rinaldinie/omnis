@@ -70,6 +70,22 @@ pub fn detect_steam_installation() -> Option<PathBuf> {
                 }
             }
         }
+
+        // Check Windows mounts if running under WSL
+        for drive in ['c', 'd', 'e', 'f'] {
+            for sub in [
+                "Program Files (x86)/Steam",
+                "Program Files/Steam",
+                "Steam",
+                "Games/Steam",
+                "SteamLibrary",
+            ] {
+                let p = PathBuf::from(format!("/mnt/{}/{}", drive, sub));
+                if p.exists() && p.join("steamapps").exists() {
+                    return Some(p);
+                }
+            }
+        }
     }
 
     None
