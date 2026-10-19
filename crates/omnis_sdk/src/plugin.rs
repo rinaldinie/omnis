@@ -77,6 +77,49 @@ pub trait LibraryPlugin: Send + Sync {
     async fn scan(&self) -> Result<Vec<DiscoveredGame>, PluginError>;
 }
 
+/// Authenticated session for a cloud game store (GOG, Xbox, Steam, etc.)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StoreAccountSession {
+    pub store_id: String,
+    pub user_id: String,
+    pub username: String,
+    pub avatar_url: Option<String>,
+    pub access_token: String,
+    pub refresh_token: Option<String>,
+    pub expires_at: Option<i64>, // Unix timestamp in seconds
+}
+
+impl StoreAccountSession {
+    pub fn is_expired(&self) -> bool {
+        if let Some(exp) = self.expires_at {
+            let now = chrono::Utc::now().timestamp();
+            // Buffer di 60 secondi
+            now >= (exp - 60)
+        } else {
+            false
+        }
+    }
+}
+
+/// Extension of LibraryPlugin for cloud-connected stores requiring OAuth authentication and API syncing
+#[async_trait]
+pub trait CloudStorePlugin: LibraryPlugin {
+    /// Initial OAuth authorization URL where user should be directed
+    fn login_url(&self) -> String;
+
+    /// Determines if a redirected URL is the OAuth callback completion endpoint
+    fn is_redirect_url(&self, url: &str) -> bool;
+
+    /// Exchange redirected URL (code or token fragment) for an authenticated session
+    async fn exchange_code(&self, redirect_url: &str) -> Result<StoreAccountSession, PluginError>;
+
+    /// Proactively refresh an expired session using its refresh token
+    async fn refresh_session(&self, refresh_token: &str) -> Result<StoreAccountSession, PluginError>;
+
+    /// Query remote store API and fetch the full catalog of owned games for this account
+    async fn sync_games(&self, session: &StoreAccountSession) -> Result<Vec<DiscoveredGame>, PluginError>;
+}
+
 /// Dedicated Metadata Provider trait for multi-source enrichment (Steam, SteamGridDB, OpenCritic, IGDB, etc.)
 #[async_trait]
 pub trait MetadataProvider: Send + Sync {
@@ -224,4 +267,47 @@ impl Default for PluginManifest {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_store_account_session_expiration() {
+        let session_no_exp = StoreAccountSession {
+            store_id: "gog".to_string(),
+            user_id: "123".to_string(),
+            username: "Gamer".to_string(),
+            avatar_url: None,
+            access_token: "token123".to_string(),
+            refresh_token: Some("refresh123".to_string()),
+            expires_at: None,
+        };
+        assert!(!session_no_exp.is_expired());
+
+        let now = chrono::Utc::now().timestamp();
+
+        // Expired in the past
+        let session_past = StoreAccountSession {
+            expires_at: Some(now - 100),
+            ..session_no_exp.clone()
+        };
+        assert!(session_past.is_expired());
+
+        // Expiring within 60 second buffer (e.g. 30 seconds from now)
+        let session_buffer = StoreAccountSession {
+            expires_at: Some(now + 30),
+            ..session_no_exp.clone()
+        };
+        assert!(session_buffer.is_expired());
+
+        // Valid far in future (e.g. 1 hour from now)
+        let session_future = StoreAccountSession {
+            expires_at: Some(now + 3600),
+            ..session_no_exp
+        };
+        assert!(!session_future.is_expired());
+    }
+}
+
 

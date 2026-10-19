@@ -1,3 +1,4 @@
+pub mod store_manager;
 use base64::prelude::*;
 use omnis_core::{
     Database, EventBus, GameLauncher, LibraryCounts, MarketplaceCatalog, MarketplaceManager,
@@ -11,7 +12,7 @@ use std::collections::HashMap;
 use std::env;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use tauri::{State, Window};
+use tauri::{Emitter, State, Window};
 use tracing::info;
 use uuid::Uuid;
 
@@ -114,6 +115,7 @@ pub struct AppState {
     pub plugins_dir: PathBuf,
     pub themes_dir: PathBuf,
     pub image_cache: Arc<ImageCache>,
+    pub store_account_manager: Arc<store_manager::StoreAccountManager>,
 }
 
 fn game_to_dto(g: Game, _cache: &ImageCache) -> GameDto {
@@ -163,7 +165,10 @@ async fn get_counts(state: State<'_, AppState>) -> Result<LibraryCounts, String>
 }
 
 #[tauri::command]
-async fn sync_library(state: State<'_, AppState>) -> Result<usize, String> {
+async fn sync_library(
+    app_handle: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<usize, String> {
     state
         .host
         .dispatch_event(
@@ -188,9 +193,53 @@ async fn sync_library(state: State<'_, AppState>) -> Result<usize, String> {
         }
     }
 
+    // Sync connected cloud store accounts (GOG, Xbox, etc.)
+    let _ = state.store_account_manager.sync_all_connected(&app_handle).await;
+
     tokio::time::sleep(tokio::time::Duration::from_millis(300)).await;
     state.db.count_games().map_err(|e| e.to_string())
 }
+
+#[tauri::command]
+async fn start_store_login(
+    store_id: String,
+    app_handle: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    state.store_account_manager.start_login(&app_handle, &store_id)
+}
+
+#[tauri::command]
+async fn get_store_accounts(
+    state: State<'_, AppState>,
+) -> Result<Vec<omnis_sdk::models::StoreAccountDto>, String> {
+    state.store_account_manager.get_store_accounts().await
+}
+
+#[tauri::command]
+async fn disconnect_store_account(
+    store_id: String,
+    app_handle: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    state.store_account_manager.delete_session(&store_id)?;
+    let _ = app_handle.emit("store-account-disconnected", serde_json::json!({ "store_id": store_id }));
+    Ok(())
+}
+
+#[tauri::command]
+async fn sync_store_library(
+    store_id: Option<String>,
+    app_handle: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<usize, String> {
+    if let Some(id) = store_id {
+        state.store_account_manager.sync_store(&app_handle, &id).await
+    } else {
+        state.store_account_manager.sync_all_connected(&app_handle).await
+    }
+}
+
 
 #[derive(Debug, Deserialize)]
 pub struct AddCustomGamePayload {
@@ -534,6 +583,8 @@ async fn launch_game(game_id: String, state: State<'_, AppState>) -> Result<u64,
         let install_uri = match game.library_id.as_str() {
             "steam" => format!("steam://install/{}", game.external_id),
             "epic" => format!("com.epicgames.launcher://apps/{}?action=install", game.external_id),
+            "gog" => format!("goggalaxy://openGameView/{}", game.external_id),
+            "xbox" => format!("ms-windows-store://pdp/?ProductId={}", game.external_id),
             _ => format!("steam://install/{}", game.external_id),
         };
 
@@ -558,6 +609,8 @@ async fn launch_game(game_id: String, state: State<'_, AppState>) -> Result<u64,
         let play_uri = match game.library_id.as_str() {
             "steam" => format!("steam://rungameid/{}", game.external_id),
             "epic" => format!("com.epicgames.launcher://apps/{}?action=launch&silent=true", game.external_id),
+            "gog" => format!("goggalaxy://openGameView/{}", game.external_id),
+            "xbox" => format!("ms-windows-store://pdp/?ProductId={}", game.external_id),
             _ => format!("steam://rungameid/{}", game.external_id),
         };
 
@@ -929,6 +982,10 @@ fn main() {
         downloader.set_plugins_dir(plugins_dir.clone()).await;
         marketplace.set_plugins_dir(plugins_dir.clone()).await;
     });
+    let store_account_manager = Arc::new(store_manager::StoreAccountManager::new(db.clone()));
+    store_account_manager.register_plugin(Arc::new(omnis_plugin_gog::GogCloudPlugin::new()));
+    store_account_manager.register_plugin(Arc::new(omnis_plugin_xbox::XboxCloudPlugin::new()));
+
     let host = Arc::new(host);
     let image_cache = Arc::new(ImageCache::new());
 
@@ -943,6 +1000,7 @@ fn main() {
         plugins_dir,
         themes_dir,
         image_cache,
+        store_account_manager,
     };
 
 
@@ -984,6 +1042,10 @@ fn main() {
             pick_directory,
             find_executables_in_folder,
             pick_image_file,
+            start_store_login,
+            get_store_accounts,
+            disconnect_store_account,
+            sync_store_library,
         ])
         .run(tauri::generate_context!())
         .expect("Errore durante l'esecuzione dell'applicazione Tauri");

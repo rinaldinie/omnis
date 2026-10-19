@@ -270,3 +270,25 @@ pub struct GameMetadataPatch {
     pub tags: Vec<String>,
 }
 
+/// Store account summary DTO exposed to the UI/frontend
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StoreAccountDto {
+    pub store_id: String,
+    pub name: String,
+    pub is_connected: bool,
+    pub username: Option<String>,
+    pub avatar_url: Option<String>,
+    pub last_sync: Option<chrono::DateTime<chrono::Utc>>,
+}
+
+/// Progress event emitted during cloud store synchronization
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StoreSyncProgressPayload {
+    pub store_id: String,
+    pub current: usize,
+    pub total: usize,
+    pub status: String, // "syncing" | "completed" | "error"
+    pub message: Option<String>,
+}
+
+

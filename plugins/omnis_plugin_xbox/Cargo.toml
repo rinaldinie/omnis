@@ -1,0 +1,18 @@
+[package]
+name = "omnis_plugin_xbox"
+version = "0.1.0"
+edition = "2021"
+license.workspace = true
+description = "Xbox Live & PC Game Pass cloud store integration plugin for Omnis Game Library"
+
+[dependencies]
+omnis_sdk = { path = "../../crates/omnis_sdk" }
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+reqwest.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+chrono.workspace = true
+url = "2.4"
+urlencoding = "2.1"
