@@ -252,12 +252,44 @@ impl StoreAccountManager {
 
         let is_exchanging = Arc::new(AtomicBool::new(false));
 
-        let builder = WebviewWindowBuilder::new(app_handle, &label, window_url)
+        let mut builder = WebviewWindowBuilder::new(app_handle, &label, window_url)
             .title(format!("Accesso {}", plugin.name()))
             .inner_size(850.0, 700.0)
             .resizable(true)
-            .center()
-            .on_navigation(move |url| {
+            .center();
+
+        if store_id == "epic" {
+            let epic_script = r#"
+                (function() {
+                    function extractAndForwardEpicCode() {
+                        try {
+                            const bodyText = document.body ? document.body.innerText : '';
+                            if (bodyText && (bodyText.includes('authorizationCode') || bodyText.includes('exchangeCode'))) {
+                                const parsed = JSON.parse(bodyText);
+                                const code = parsed.authorizationCode || parsed.exchangeCode;
+                                if (code) {
+                                    window.location.href = 'https://localhost/launcher/authorized?code=' + encodeURIComponent(code);
+                                } else if (parsed.redirectUrl && parsed.redirectUrl.includes('code=')) {
+                                    window.location.href = parsed.redirectUrl;
+                                }
+                            }
+                        } catch (e) {}
+                    }
+
+                    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+                        extractAndForwardEpicCode();
+                    } else {
+                        window.addEventListener('DOMContentLoaded', extractAndForwardEpicCode);
+                        window.addEventListener('load', extractAndForwardEpicCode);
+                    }
+                    const timer = setInterval(extractAndForwardEpicCode, 300);
+                    setTimeout(() => clearInterval(timer), 30000);
+                })();
+            "#;
+            builder = builder.initialization_script(epic_script);
+        }
+
+        let builder = builder.on_navigation(move |url| {
                 if plugin_for_nav.is_redirect_url(url.as_str()) {
                     if is_exchanging.swap(true, Ordering::SeqCst) {
                         return false;

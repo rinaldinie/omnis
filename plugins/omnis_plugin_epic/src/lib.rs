@@ -164,8 +164,8 @@ impl CloudStorePlugin for EpicLibraryPlugin {
     }
 
     fn is_redirect_url(&self, url: &str) -> bool {
-        url.contains("epicgames.com/id/api/redirect")
-            && (url.contains("code=") || url.contains("exchangeCode="))
+        (url.contains("epicgames.com/id/api/redirect") || url.contains("localhost/launcher/authorized"))
+            && (url.contains("code=") || url.contains("authorizationCode=") || url.contains("exchangeCode="))
     }
 
     async fn exchange_code(&self, redirect_url: &str) -> Result<StoreAccountSession, PluginError> {
@@ -428,6 +428,8 @@ mod tests {
         assert!(plugin.is_redirect_url("https://www.epicgames.com/id/api/redirect?exchangeCode=MOCK_EXCHANGE"));
         assert!(plugin.is_redirect_url("https://www.epicgames.com/id/api/redirect#code=MOCK_CODE"));
         assert!(plugin.is_redirect_url("https://www.epicgames.com/id/api/redirect#exchangeCode=MOCK_CODE"));
+        assert!(plugin.is_redirect_url("https://localhost/launcher/authorized?code=MOCK_CODE"));
+        assert!(plugin.is_redirect_url("https://www.epicgames.com/id/api/redirect?authorizationCode=MOCK_CODE"));
         assert!(!plugin.is_redirect_url("https://www.epicgames.com/id/api/redirect"));
         assert!(!plugin.is_redirect_url("https://store.epicgames.com/browse"));
     }

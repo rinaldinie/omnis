@@ -91,7 +91,7 @@ impl LibraryPlugin for SteamPlugin {
 #[async_trait]
 impl CloudStorePlugin for SteamPlugin {
     fn login_url(&self) -> String {
-        client::STEAM_COMMUNITY_LOGIN_URL.to_string()
+        client::STEAM_OPENID_LOGIN_URL.to_string()
     }
 
     fn is_redirect_url(&self, url: &str) -> bool {
@@ -99,7 +99,26 @@ impl CloudStorePlugin for SteamPlugin {
     }
 
     async fn exchange_code(&self, redirect_url: &str) -> Result<StoreAccountSession, PluginError> {
-        client::extract_session_from_redirect(redirect_url)
+        let mut session = client::extract_session_from_redirect(redirect_url)?;
+        if let Ok(profile) = client::fetch_player_summary(
+            &self.client,
+            &session.user_id,
+            self.config.api_key.as_deref(),
+        )
+        .await
+        {
+            if let Some(name) = profile.name {
+                if !name.trim().is_empty() {
+                    session.username = name;
+                }
+            }
+            if let Some(avatar) = profile.avatar {
+                if !avatar.trim().is_empty() {
+                    session.avatar_url = Some(avatar);
+                }
+            }
+        }
+        Ok(session)
     }
 
     async fn refresh_session(&self, refresh_token: &str) -> Result<StoreAccountSession, PluginError> {
@@ -109,7 +128,7 @@ impl CloudStorePlugin for SteamPlugin {
             refresh_token
         };
 
-        Ok(StoreAccountSession {
+        let mut session = StoreAccountSession {
             store_id: "steam".to_string(),
             user_id: user_id.to_string(),
             username: user_id.to_string(),
@@ -117,7 +136,28 @@ impl CloudStorePlugin for SteamPlugin {
             access_token: format!("steam_session:{}", user_id),
             refresh_token: Some(refresh_token.to_string()),
             expires_at: None,
-        })
+        };
+
+        if let Ok(profile) = client::fetch_player_summary(
+            &self.client,
+            user_id,
+            self.config.api_key.as_deref(),
+        )
+        .await
+        {
+            if let Some(name) = profile.name {
+                if !name.trim().is_empty() {
+                    session.username = name;
+                }
+            }
+            if let Some(avatar) = profile.avatar {
+                if !avatar.trim().is_empty() {
+                    session.avatar_url = Some(avatar);
+                }
+            }
+        }
+
+        Ok(session)
     }
 
     async fn sync_games(&self, session: &StoreAccountSession) -> Result<Vec<DiscoveredGame>, PluginError> {
@@ -258,9 +298,33 @@ mod tests {
         assert!(!is_steam_redirect(
             "https://steamcommunity.com/login/home/?goto=%2Fmy%2Fgames%3Fxml%3D1"
         ));
+        assert!(!is_steam_redirect(
+            "https://steamcommunity.com/my/games?xml=1"
+        ));
+        assert!(!is_steam_redirect(
+            "https://steamcommunity.com/my/profile"
+        ));
         assert!(!is_steam_redirect("https://store.steampowered.com/app/440"));
         assert!(!is_steam_redirect("https://google.com"));
         assert!(!is_steam_redirect("https://example.com/games?xml=1"));
+
+        // OpenID callback positive test
+        assert!(is_steam_redirect(
+            "https://omnis.app/auth/steam?openid.ns=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0&openid.mode=id_res&openid.claimed_id=https%3A%2F%2Fsteamcommunity.com%2Fopenid%2Fid%2F76561198000000000"
+        ));
+    }
+
+    #[test]
+    fn test_extract_session_from_openid() {
+        let url = "https://omnis.app/auth/steam?openid.ns=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0&openid.mode=id_res&openid.claimed_id=https%3A%2F%2Fsteamcommunity.com%2Fopenid%2Fid%2F76561198000000000&openid.identity=https%3A%2F%2Fsteamcommunity.com%2Fopenid%2Fid%2F76561198000000000";
+        let session = extract_session_from_redirect(url).expect("Should extract OpenID session");
+        assert_eq!(session.store_id, "steam");
+        assert_eq!(session.user_id, "76561198000000000");
+        assert_eq!(session.access_token, "steam_session:76561198000000000");
+        assert_eq!(
+            session.refresh_token,
+            Some("steam_session:76561198000000000".to_string())
+        );
     }
 
     #[test]
@@ -271,7 +335,10 @@ mod tests {
         assert_eq!(session.user_id, "76561198000000000");
         assert_eq!(session.username, "76561198000000000");
         assert_eq!(session.access_token, "steam_session:76561198000000000");
-        assert_eq!(session.refresh_token, None);
+        assert_eq!(
+            session.refresh_token,
+            Some("steam_session:76561198000000000".to_string())
+        );
         assert_eq!(session.avatar_url, None);
     }
 
@@ -425,7 +492,7 @@ mod tests {
         assert_eq!(ReactivePlugin::name(&plugin), "Steam Integration");
 
         // CloudStorePlugin tests
-        assert_eq!(plugin.login_url(), STEAM_COMMUNITY_LOGIN_URL);
+        assert_eq!(plugin.login_url(), STEAM_OPENID_LOGIN_URL);
         assert!(plugin.is_redirect_url("https://steamcommunity.com/profiles/76561198000000000/games?xml=1"));
         assert!(!plugin.is_redirect_url("https://google.com"));
 

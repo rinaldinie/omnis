@@ -8,7 +8,11 @@ use omnis_sdk::{
 };
 use serde::{Deserialize, Serialize};
 
-/// Steam Community Login URL directing user to authenticating their games list
+/// Steam OpenID 2.0 Login URL (Valve official OpenID provider)
+pub const STEAM_OPENID_LOGIN_URL: &str =
+    "https://steamcommunity.com/openid/login?openid.ns=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0&openid.mode=checkid_setup&openid.return_to=https%3A%2F%2Fomnis.app%2Fauth%2Fsteam&openid.realm=https%3A%2F%2Fomnis.app&openid.identity=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0%2Fidentifier_select&openid.claimed_id=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0%2Fidentifier_select";
+
+/// Steam Community Login URL (legacy fallback)
 pub const STEAM_COMMUNITY_LOGIN_URL: &str =
     "https://steamcommunity.com/login/home/?goto=%2Fmy%2Fgames%3Fxml%3D1";
 
@@ -18,6 +22,13 @@ pub const STEAM_API_OWNED_GAMES_URL: &str =
 
 /// Steam Community base URL
 pub const STEAM_COMMUNITY_URL: &str = "https://steamcommunity.com";
+
+/// Profile summary containing persona name and avatar
+#[derive(Debug, Clone, Default)]
+pub struct SteamProfileSummary {
+    pub name: Option<String>,
+    pub avatar: Option<String>,
+}
 
 /// Deserialized response wrapper for IPlayerService/GetOwnedGames/v0001
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -72,33 +83,87 @@ pub struct SteamPlayerItem {
 
 /// Checks if a redirected URL indicates completion of Steam web authentication.
 ///
-/// Matches URLs containing `/games?xml=1`, `/games`, or pointing to user profile endpoints
-/// `steamcommunity.com/id/` or `steamcommunity.com/profiles/`, excluding login endpoints.
+/// Matches OpenID callbacks or URLs pointing to user profile endpoints
+/// `steamcommunity.com/id/` or `steamcommunity.com/profiles/`, while strictly excluding
+/// intermediate `/my/` aliases and login endpoints.
 pub fn is_steam_redirect(url: &str) -> bool {
     let lower = url.to_lowercase();
     if lower.contains("/login") {
         return false;
     }
-    let is_community = lower.contains("steamcommunity.com");
+    // Never intercept intermediate /my/ paths: let Steam redirect to /profiles/ or /id/
+    if lower.contains("steamcommunity.com/my/") || lower.ends_with("/my") {
+        return false;
+    }
+
+    // 1. OpenID callback
+    if lower.contains("omnis.app/auth/steam")
+        || lower.contains("openid.claimed_id")
+        || lower.contains("/openid/id/")
+        || lower.contains("openid%2fid")
+    {
+        return true;
+    }
+
+    // 2. Profile or vanity URLs
     let has_profile = lower.contains("steamcommunity.com/id/")
         || lower.contains("steamcommunity.com/profiles/");
-    let has_games = lower.contains("/games?xml=1")
-        || lower.ends_with("/games")
-        || lower.contains("/games?")
-        || lower.contains("/games/");
 
-    (is_community && (has_profile || has_games)) || has_profile
+    has_profile
 }
 
 /// Extracts a `StoreAccountSession` from a Steam redirection URL.
 ///
-/// Looks for a 17-digit numeric SteamID64 from `/profiles/{id}` or a vanity URL from `/id/{vanity}`.
+/// Looks for OpenID claimed_id, a 17-digit numeric SteamID64 from `/profiles/{id}`, or a vanity URL from `/id/{vanity}`.
 pub fn extract_session_from_redirect(url: &str) -> Result<StoreAccountSession, PluginError> {
-    // Check for profiles/{steamid} (typically 17 digits)
+    let lower = url.to_lowercase();
+
+    // 1. Check OpenID claimed_id pattern: ...openid/id/<steamid> or ...openid%2fid%2f<steamid>
+    if let Some(pos) = lower.find("openid/id/") {
+        let remainder = &url[pos + "openid/id/".len()..];
+        let id_str = remainder
+            .split(['/', '?', '#', '&', '%'])
+            .next()
+            .unwrap_or_default()
+            .trim();
+        if !id_str.is_empty() && id_str.chars().all(|c| c.is_ascii_digit()) {
+            return Ok(StoreAccountSession {
+                store_id: "steam".to_string(),
+                user_id: id_str.to_string(),
+                username: id_str.to_string(),
+                avatar_url: None,
+                access_token: format!("steam_session:{}", id_str),
+                refresh_token: Some(format!("steam_session:{}", id_str)),
+                expires_at: None,
+            });
+        }
+    }
+
+    if let Some(pos) = lower.find("openid%2fid%2f") {
+        let remainder = &url[pos + "openid%2fid%2f".len()..];
+        let id_str = remainder
+            .split(['/', '?', '#', '&', '%'])
+            .next()
+            .unwrap_or_default()
+            .trim();
+        if !id_str.is_empty() && id_str.chars().all(|c| c.is_ascii_digit()) {
+            return Ok(StoreAccountSession {
+                store_id: "steam".to_string(),
+                user_id: id_str.to_string(),
+                username: id_str.to_string(),
+                avatar_url: None,
+                access_token: format!("steam_session:{}", id_str),
+                refresh_token: Some(format!("steam_session:{}", id_str)),
+                expires_at: None,
+            });
+        }
+    }
+
+    // 2. Check for profiles/{steamid} (typically 17 digits)
     if let Some(pos) = url.find("/profiles/") {
         let remainder = &url[pos + "/profiles/".len()..];
         let id_str = remainder
-            .split(['/', '?', '#'])
+            .split(['/', '?', '#', '&'])
             .next()
             .unwrap_or_default()
             .trim();
@@ -110,17 +175,17 @@ pub fn extract_session_from_redirect(url: &str) -> Result<StoreAccountSession, P
                 username: id_str.to_string(),
                 avatar_url: None,
                 access_token: format!("steam_session:{}", id_str),
-                refresh_token: None,
+                refresh_token: Some(format!("steam_session:{}", id_str)),
                 expires_at: None,
             });
         }
     }
 
-    // Check for id/{vanity}
+    // 3. Check for id/{vanity}
     if let Some(pos) = url.find("/id/") {
         let remainder = &url[pos + "/id/".len()..];
         let vanity_str = remainder
-            .split(['/', '?', '#'])
+            .split(['/', '?', '#', '&'])
             .next()
             .unwrap_or_default()
             .trim();
@@ -132,7 +197,7 @@ pub fn extract_session_from_redirect(url: &str) -> Result<StoreAccountSession, P
                 username: vanity_str.to_string(),
                 avatar_url: None,
                 access_token: format!("steam_session:{}", vanity_str),
-                refresh_token: None,
+                refresh_token: Some(format!("steam_session:{}", vanity_str)),
                 expires_at: None,
             });
         }
@@ -303,4 +368,70 @@ pub async fn fetch_user_games_web_api(
             )))
         }
     }
+}
+
+/// Fetch user persona name and avatar from public Steam profile XML
+pub async fn fetch_player_summary_xml(
+    client: &reqwest::Client,
+    steam_id: &str,
+) -> Result<SteamProfileSummary, PluginError> {
+    let url = if steam_id.chars().all(|c| c.is_ascii_digit()) && steam_id.len() == 17 {
+        format!("{}/profiles/{}/?xml=1", STEAM_COMMUNITY_URL, steam_id)
+    } else {
+        format!("{}/id/{}/?xml=1", STEAM_COMMUNITY_URL, steam_id)
+    };
+
+    let resp = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| PluginError::Other(format!("Failed to fetch Steam profile: {}", e)))?;
+
+    if !resp.status().is_success() {
+        return Ok(SteamProfileSummary::default());
+    }
+
+    let text = resp
+        .text()
+        .await
+        .map_err(|e| PluginError::Other(format!("Failed to read Steam profile XML: {}", e)))?;
+
+    let name = extract_xml_tag(&text, "steamID");
+    let avatar = extract_xml_tag(&text, "avatarFull")
+        .or_else(|| extract_xml_tag(&text, "avatarMedium"))
+        .or_else(|| extract_xml_tag(&text, "avatarIcon"));
+
+    Ok(SteamProfileSummary { name, avatar })
+}
+
+/// Fetch player summary using Web API if key is available, falling back to public XML
+pub async fn fetch_player_summary(
+    client: &reqwest::Client,
+    steam_id: &str,
+    api_key: Option<&str>,
+) -> Result<SteamProfileSummary, PluginError> {
+    if let Some(key) = api_key {
+        let trimmed_key = key.trim();
+        if !trimmed_key.is_empty() && steam_id.chars().all(|c| c.is_ascii_digit()) {
+            let url = format!(
+                "https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key={}&steamids={}",
+                urlencoding::encode(trimmed_key),
+                urlencoding::encode(steam_id.trim())
+            );
+            if let Ok(resp) = client.get(&url).send().await {
+                if resp.status().is_success() {
+                    if let Ok(data) = resp.json::<SteamPlayerSummaryResponse>().await {
+                        if let Some(player) = data.response.players.into_iter().next() {
+                            return Ok(SteamProfileSummary {
+                                name: Some(player.personaname),
+                                avatar: player.avatarfull.or(player.avatar),
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fetch_player_summary_xml(client, steam_id).await
 }
