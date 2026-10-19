@@ -291,4 +291,15 @@ pub struct StoreSyncProgressPayload {
     pub message: Option<String>,
 }
 
+/// Historical game play session record
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GameSessionRecord {
+    pub id: Uuid,
+    pub game_id: Uuid,
+    pub started_at: DateTime<Utc>,
+    pub ended_at: DateTime<Utc>,
+    pub duration_seconds: u64,
+}
+
+
 

@@ -362,3 +362,64 @@ fn test_library_counts_aggregation() {
     assert_eq!(counts.xbox, 1);
     assert_eq!(counts.recent, 2); // 2 games with playtime_seconds > 0
 }
+
+#[test]
+fn test_game_sessions_persistence_and_query() {
+    let db = Database::open_in_memory().expect("Failed to open DB");
+    db.migrate().expect("Failed to run migrations");
+
+    let game_id = Uuid::new_v4();
+    let game = db
+        .insert_custom_game(
+            game_id,
+            "Session Test Game",
+            "session test game",
+            None,
+            vec![],
+            None,
+        )
+        .expect("Failed to insert game");
+    assert_eq!(game.playtime_seconds, 0);
+    assert_eq!(game.play_count, 0);
+
+    let now = Utc::now();
+    let s1_start = now - chrono::Duration::hours(2);
+    let s1_end = s1_start + chrono::Duration::minutes(30);
+    let s1_duration = 1800; // 30 minutes
+
+    let s2_start = now - chrono::Duration::minutes(15);
+    let s2_end = now;
+    let s2_duration = 900; // 15 minutes
+
+    let session1 = db
+        .record_play_session(game_id, s1_duration, s1_start, s1_end)
+        .expect("Failed to record session 1");
+    assert_eq!(session1.game_id, game_id);
+    assert_eq!(session1.duration_seconds, s1_duration);
+
+    let session2 = db
+        .record_play_session(game_id, s2_duration, s2_start, s2_end)
+        .expect("Failed to record session 2");
+    assert_eq!(session2.game_id, game_id);
+    assert_eq!(session2.duration_seconds, s2_duration);
+
+    let sessions = db
+        .get_game_sessions(game_id)
+        .expect("Failed to retrieve game sessions");
+    assert_eq!(sessions.len(), 2);
+    // Ordered by started_at DESC: session2 was started more recently than session1
+    assert_eq!(sessions[0].id, session2.id);
+    assert_eq!(sessions[1].id, session1.id);
+    assert!(sessions[0].started_at >= sessions[1].started_at);
+
+    let updated_game = db
+        .get_game_by_id(game_id)
+        .expect("Failed to query game")
+        .expect("Game not found");
+    assert_eq!(
+        updated_game.playtime_seconds,
+        s1_duration + s2_duration
+    );
+    assert_eq!(updated_game.play_count, 2);
+}
+

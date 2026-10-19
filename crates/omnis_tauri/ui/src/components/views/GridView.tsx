@@ -1,6 +1,6 @@
 import React from "react";
-import { Gamepad2, ChevronRight, ChevronDown, Play, Download, Info, Pencil } from "lucide-react";
-import { GameDto, GroupBy, ViewMode } from "../../types";
+import { Gamepad2, ChevronRight, ChevronDown, Play, Download, Info, Pencil, Square } from "lucide-react";
+import { ActiveGameSession, GameDto, GroupBy, ViewMode } from "../../types";
 import { StoreBadge } from "../StoreBadge";
 
 interface GridViewProps {
@@ -17,6 +17,10 @@ interface GridViewProps {
   handleLaunch: (gameId: string) => void;
   setGameToEdit: (game: any) => void;
   setShowEditorModal: (show: boolean) => void;
+  activeGame?: ActiveGameSession | null;
+  elapsedSeconds?: number;
+  formatDuration?: (seconds: number) => string;
+  handleKillRunningGame?: () => void;
 }
 
 export default function GridView({
@@ -33,6 +37,10 @@ export default function GridView({
   handleLaunch,
   setGameToEdit,
   setShowEditorModal,
+  activeGame,
+  elapsedSeconds,
+  formatDuration,
+  handleKillRunningGame,
 }: GridViewProps) {
   return (
     <div className="flex-1 overflow-y-auto p-6 space-y-6">
@@ -93,7 +101,10 @@ export default function GridView({
                     gap: "1.25rem",
                   }}
                 >
-                  {groupGames.map((game) => (
+                  {groupGames.map((game) => {
+                    const isRunning = activeGame?.game_id === game.id;
+
+                    return (
                     <div
                       key={game.id}
                       onClick={() => {
@@ -106,10 +117,16 @@ export default function GridView({
                       }`}
                       style={{
                         backgroundColor: "var(--bg-card)",
-                        borderColor:
-                          selectedGame?.id === game.id ? "var(--accent-primary)" : "var(--border-color)",
-                        boxShadow:
-                          selectedGame?.id === game.id ? `0 0 20px var(--accent-glow)` : undefined,
+                        borderColor: isRunning
+                          ? "#10b981"
+                          : selectedGame?.id === game.id
+                          ? "var(--accent-primary)"
+                          : "var(--border-color)",
+                        boxShadow: isRunning
+                          ? `0 0 25px rgba(16, 185, 129, 0.4)`
+                          : selectedGame?.id === game.id
+                          ? `0 0 20px var(--accent-glow)`
+                          : undefined,
                       }}
                     >
                       <div className="aspect-[2/3] w-full relative overflow-hidden bg-black/40">
@@ -140,8 +157,14 @@ export default function GridView({
                         {/* Top Left: Store Badge & Status */}
                         <div className="absolute top-2 left-2 flex items-center gap-1.5 z-10 pointer-events-none">
                           <StoreBadge library={game.library} />
-                          {game.is_installed && (
-                            <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-md shadow-emerald-400/50" />
+                          {isRunning ? (
+                            <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/60 text-emerald-300 font-bold animate-pulse text-[10px] shadow-lg shadow-emerald-950/60 backdrop-blur-md">
+                              <span>● IN ESECUZIONE ({formatDuration ? formatDuration(elapsedSeconds || 0) : `${elapsedSeconds || 0}s`})</span>
+                            </div>
+                          ) : (
+                            game.is_installed && (
+                              <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-md shadow-emerald-400/50" />
+                            )
                           )}
                         </div>
 
@@ -153,8 +176,31 @@ export default function GridView({
                         )}
 
                         {/* Transparent Minimalist Hover Action Dock */}
-                        <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-3 p-2 transition-all duration-300 backdrop-blur-[1.5px]">
-                          {game.is_installed ? (
+                        <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2.5 p-2 transition-all duration-300 backdrop-blur-[1.5px]">
+                          {isRunning ? (
+                            <>
+                              <button
+                                disabled
+                                className="w-9 h-9 rounded-full bg-emerald-500/40 text-emerald-300 border border-emerald-400/60 backdrop-blur-md shadow-xl flex items-center justify-center cursor-default animate-pulse"
+                                title="Gioco attualmente in esecuzione"
+                              >
+                                <span className="w-2.5 h-2.5 rounded-full bg-emerald-300 animate-ping" />
+                              </button>
+
+                              {handleKillRunningGame && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleKillRunningGame();
+                                  }}
+                                  className="w-9 h-9 rounded-full bg-rose-600/90 hover:bg-rose-600 text-white border border-rose-400 backdrop-blur-md shadow-xl shadow-rose-950/50 flex items-center justify-center transition-all hover:scale-110 active:opacity-80"
+                                  title="Termina Gioco (Forzato)"
+                                >
+                                  <Square className="w-3.5 h-3.5 fill-white" />
+                                </button>
+                              )}
+                            </>
+                          ) : game.is_installed ? (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -223,7 +269,8 @@ export default function GridView({
                         </div>
                       </div>
                     </div>
-                  ))}
+                  );
+                })}
                 </div>
               )}
             </div>

@@ -6,6 +6,8 @@ import {
   ChevronRight,
   ChevronDown,
   Gamepad2,
+  X,
+  Square,
 } from "lucide-react";
 import GameEditorModal from "./components/GameEditorModal";
 import MetadataResolutionModal from "./components/MetadataResolutionModal";
@@ -24,6 +26,7 @@ import {
 } from "./components/StoreBadge";
 import {
   GameDto,
+  ActiveGameSession,
   ViewMode,
   GroupBy,
   LibraryCounts,
@@ -49,6 +52,23 @@ import ThemeModal from "./components/modals/ThemeModal";
 import PluginManagerModal from "./components/modals/PluginManagerModal";
 import CustomGameModal from "./components/modals/CustomGameModal";
 import GlobalContextMenu from "./components/GlobalContextMenu";
+
+export interface SessionToastInfo {
+  title: string;
+  durationSeconds: number;
+  gameId: string;
+}
+
+export function formatDuration(seconds: number): string {
+  const s = Math.max(0, Math.floor(seconds));
+  const hrs = Math.floor(s / 3600);
+  const mins = Math.floor((s % 3600) / 60);
+  const secs = s % 60;
+  if (hrs > 0) {
+    return `${hrs}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  }
+  return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+}
 
 export { SteamIcon, EpicIcon, GogIcon, XboxIcon, StoreIcon, StoreBadge };
 export { formatImageUrl, normalizeGame };
@@ -79,6 +99,38 @@ export default function App() {
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
   const [statusMessage, setStatusMessage] = useState<string>("Pronto (Motore Tauri 2.0 / Big Picture)");
+  const [isGameRunning, setIsGameRunning] = useState<boolean>(false);
+  const [activeGame, setActiveGame] = useState<ActiveGameSession | null>(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
+  const [sessionToast, setSessionToast] = useState<SessionToastInfo | null>(null);
+  const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const gamesRef = useRef<GameDto[]>([]);
+  gamesRef.current = games;
+  const activeGameRef = useRef<ActiveGameSession | null>(null);
+  activeGameRef.current = activeGame;
+
+  // Live timer for active game session
+  useEffect(() => {
+    if (!activeGame) {
+      setElapsedSeconds(0);
+      return;
+    }
+    const calcElapsed = () => {
+      const started = new Date(activeGame.started_at).getTime();
+      const now = Date.now();
+      const diff = Math.max(0, Math.floor((now - started) / 1000));
+      setElapsedSeconds(diff);
+    };
+    calcElapsed();
+    const interval = setInterval(calcElapsed, 1000);
+    return () => clearInterval(interval);
+  }, [activeGame]);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    };
+  }, []);
 
   // I18N
   const { t, currentLocaleInfo } = useTranslation();
@@ -408,21 +460,39 @@ export default function App() {
     }
   };
 
-  // TAURI STORE LISTENERS
+  // TAURI STORE & GAME LIFECYCLE LISTENERS
   useEffect(() => {
     refreshLibrary();
     loadThemes();
     loadProvidersAndConfig();
 
+    // Check if a game is already running on mount
+    (async () => {
+      try {
+        const running = await invokeTauri<ActiveGameSession | null>("get_running_game");
+        if (running) {
+          setIsGameRunning(true);
+          setActiveGame(running);
+          soundEffects.setMuted(true);
+        }
+      } catch (err) {
+        console.warn("Failed checking running game on mount:", err);
+      }
+    })();
+
+    let isMounted = true;
     let unlistenSync: (() => void) | null = null;
     let unlistenLib: (() => void) | null = null;
+    let unlistenGameStarted: (() => void) | null = null;
+    let unlistenGameStopped: (() => void) | null = null;
 
     (async () => {
       try {
         if (typeof window !== "undefined" && (window as any).__TAURI_INTERNALS__) {
           const { listen } = await import("@tauri-apps/api/event");
+          if (!isMounted) return;
 
-          unlistenSync = await listen<{
+          const hSync = await listen<{
             store_id: string;
             current: number;
             total: number;
@@ -453,10 +523,61 @@ export default function App() {
               setStatusMessage(p.message || `Errore sincronizzazione per ${storeName}`);
             }
           });
+          if (!isMounted) { hSync(); } else { unlistenSync = hSync; }
 
-          unlistenLib = await listen("library-updated", () => {
+          const hLib = await listen("library-updated", () => {
             loadGames();
           });
+          if (!isMounted) { hLib(); } else { unlistenLib = hLib; }
+
+          const hStarted = await listen<{
+            game_id: string;
+            title: string;
+            started_at: string;
+          }>("game-started", (event) => {
+            setIsGameRunning(true);
+            setActiveGame({
+              game_id: event.payload.game_id,
+              title: event.payload.title,
+              started_at: event.payload.started_at,
+            });
+            soundEffects.setMuted(true);
+            setStatusMessage(`Gioco '${event.payload.title}' in esecuzione`);
+          });
+          if (!isMounted) { hStarted(); } else { unlistenGameStarted = hStarted; }
+
+          const hStopped = await listen<{
+            game_id: string;
+            duration_seconds: number;
+          }>("game-stopped", (event) => {
+            setIsGameRunning(false);
+            setActiveGame(null);
+            soundEffects.setMuted(false);
+
+            const stoppedGameId = event.payload.game_id;
+            const durationSec = event.payload.duration_seconds;
+
+            const found = gamesRef.current.find((g) => g.id === stoppedGameId);
+            const stoppedTitle = found?.title || activeGameRef.current?.title || "Gioco";
+            const mins = Math.max(1, Math.round(durationSec / 60));
+
+            setStatusMessage(`Sessione terminata: ${stoppedTitle} (+${mins} minuti)`);
+
+            if (toastTimeoutRef.current) {
+              clearTimeout(toastTimeoutRef.current);
+            }
+            setSessionToast({
+              title: stoppedTitle,
+              durationSeconds: durationSec,
+              gameId: stoppedGameId,
+            });
+            toastTimeoutRef.current = setTimeout(() => {
+              setSessionToast(null);
+            }, 6000);
+
+            loadGames();
+          });
+          if (!isMounted) { hStopped(); } else { unlistenGameStopped = hStopped; }
         }
       } catch (e) {
         console.warn("Failed to register store sync listener in App:", e);
@@ -464,8 +585,11 @@ export default function App() {
     })();
 
     return () => {
+      isMounted = false;
       if (unlistenSync) unlistenSync();
       if (unlistenLib) unlistenLib();
+      if (unlistenGameStarted) unlistenGameStarted();
+      if (unlistenGameStopped) unlistenGameStopped();
     };
   }, []);
 
@@ -521,6 +645,21 @@ export default function App() {
     }
   };
 
+  const handleKillRunningGame = async () => {
+    try {
+      setStatusMessage("Terminazione forzata del processo di gioco in corso...");
+      const killed = await invokeTauri<boolean>("kill_running_game");
+      if (killed) {
+        soundEffects.playSelect();
+        setStatusMessage("Processo di gioco terminato con successo.");
+      } else {
+        setStatusMessage("Nessun processo di gioco attivo da terminare.");
+      }
+    } catch (err: any) {
+      setStatusMessage(`Errore durante la terminazione: ${err}`);
+    }
+  };
+
   const handleOpenFolder = (folderType: string) => {
     invokeTauri("open_folder", { folderType });
   };
@@ -569,6 +708,13 @@ export default function App() {
           setShowFullscreenDetails={setShowFullscreenDetails}
           carouselRef={carouselRef}
           t={t}
+          isGameRunning={isGameRunning}
+          activeGame={activeGame}
+          elapsedSeconds={elapsedSeconds}
+          formatDuration={formatDuration}
+          handleKillRunningGame={handleKillRunningGame}
+          sessionToast={sessionToast}
+          onDismissToast={() => setSessionToast(null)}
         />
       ) : (
         /* DESKTOP LAUNCHER MODE */
@@ -604,6 +750,10 @@ export default function App() {
             handleClose={handleClose}
             handleStartDragging={handleStartDragging}
             t={t}
+            activeGame={activeGame}
+            elapsedSeconds={elapsedSeconds}
+            formatDuration={formatDuration}
+            handleKillRunningGame={handleKillRunningGame}
           />
 
           {/* MAIN BODY */}
@@ -631,6 +781,7 @@ export default function App() {
                   theme={currentTheme}
                   blurLevel="ambient"
                   className="opacity-40"
+                  isPaused={isGameRunning}
                 />
               )}
               {/* CONTEXTUAL TOOLBAR (GROUPBY, ZOOM SLIDER, COUNTER) */}
@@ -731,6 +882,10 @@ export default function App() {
                   handleLaunch={handleLaunch}
                   setGameToEdit={setGameToEdit}
                   setShowEditorModal={setShowEditorModal}
+                  activeGame={activeGame}
+                  elapsedSeconds={elapsedSeconds}
+                  formatDuration={formatDuration}
+                  handleKillRunningGame={handleKillRunningGame}
                 />
               )}
 
@@ -756,6 +911,11 @@ export default function App() {
                     setGameToResolve={setGameToResolve}
                     setShowResolutionModal={setShowResolutionModal}
                     t={t}
+                    isGameRunning={isGameRunning}
+                    activeGame={activeGame}
+                    elapsedSeconds={elapsedSeconds}
+                    formatDuration={formatDuration}
+                    handleKillRunningGame={handleKillRunningGame}
                   />
                 ) : (
                   <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
@@ -879,13 +1039,39 @@ export default function App() {
             }}
           >
             <div className="flex items-center gap-3 truncate">
-              <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-sm" />
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    activeGame
+                      ? "bg-emerald-400 animate-pulse shadow-emerald-400/50 shadow-sm"
+                      : "bg-emerald-400 shadow-sm"
+                  }`}
+                />
                 <span className="font-bold text-white">
                   {gamepadConnected ? gamepadName : "Tauri 2.0"}
                 </span>
               </div>
-              <span className="truncate">{statusMessage}</span>
+
+              {activeGame ? (
+                <div className="flex items-center gap-2 truncate">
+                  <span className="text-emerald-300 font-bold flex items-center gap-1.5 truncate">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping shrink-0" />
+                    <span className="truncate">
+                      🎮 Gioco in esecuzione: <strong className="text-white">{activeGame.title}</strong> ({formatDuration(elapsedSeconds)})
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleKillRunningGame}
+                    className="px-2 py-0.5 rounded text-[10px] font-black bg-rose-600 hover:bg-rose-500 text-white transition-colors shrink-0 shadow-sm cursor-pointer"
+                    title="Termina forzatamente il gioco in esecuzione"
+                  >
+                    Termina
+                  </button>
+                </div>
+              ) : (
+                <span className="truncate">{statusMessage}</span>
+              )}
             </div>
 
             <div className="flex items-center gap-4 shrink-0">
@@ -1031,6 +1217,31 @@ export default function App() {
         initialTab={settingsInitialTab}
         onSyncComplete={refreshLibrary}
       />
+
+      {/* DESKTOP SESSION END TOAST */}
+      {!isBigPicture && sessionToast && (
+        <div className="fixed bottom-10 right-6 z-50 flex items-center gap-3.5 p-4 rounded-2xl bg-slate-900/95 border border-emerald-500/50 text-white shadow-2xl shadow-emerald-950/50 backdrop-blur-xl animate-in slide-in-from-bottom-5 duration-300 max-w-md">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center shrink-0">
+            <Gamepad2 className="w-5 h-5 text-emerald-400" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400">
+              Sessione di Gioco Terminata
+            </span>
+            <h4 className="text-xs font-bold text-white truncate">{sessionToast.title}</h4>
+            <p className="text-[11px] text-slate-300 font-medium">
+              Tempo giocato: +{Math.max(1, Math.round(sessionToast.durationSeconds / 60))} minuti ({formatDuration(sessionToast.durationSeconds)})
+            </p>
+          </div>
+          <button
+            onClick={() => setSessionToast(null)}
+            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+            title="Chiudi notifica"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

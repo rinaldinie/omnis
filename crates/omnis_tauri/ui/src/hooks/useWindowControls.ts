@@ -11,11 +11,15 @@ export function useWindowControls() {
   };
 
   const handleMinimize = () => callTauri("window_minimize");
+  const handleUnminimize = () => callTauri("window_unminimize");
+  const handleSetFocus = () => callTauri("window_set_focus");
   const handleToggleMaximize = () => callTauri("window_toggle_maximize");
   const handleClose = () => callTauri("window_close");
 
   return {
     handleMinimize,
+    handleUnminimize,
+    handleSetFocus,
     handleToggleMaximize,
     handleClose,
   };

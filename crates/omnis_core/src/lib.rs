@@ -6,7 +6,7 @@ pub mod launcher;
 pub mod marketplace;
 pub mod metadata;
 
-pub use db::{Database, LibraryCounts};
+pub use db::{Database, DatabaseError, LibraryCounts};
 pub use dynamic_loader::{DynamicNativeMetadataProvider, DynamicPluginHandle, DynamicPluginLoader};
 pub use event_bus::EventBus;
 pub use host::PluginHost;

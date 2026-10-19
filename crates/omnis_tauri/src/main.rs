@@ -1,7 +1,9 @@
+pub mod active_game;
 pub mod commands;
 pub mod store_manager;
 pub mod types;
 
+pub use active_game::*;
 pub use commands::*;
 pub use types::*;
 
@@ -58,6 +60,7 @@ fn main() {
 
     let host = Arc::new(host);
     let image_cache = Arc::new(ImageCache::new());
+    let active_game_manager = Arc::new(active_game::ActiveGameManager::new());
 
     let state = AppState {
         db,
@@ -72,6 +75,7 @@ fn main() {
         image_cache,
         store_account_manager,
         trailer_cache: Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
+        active_game_manager,
     };
 
     tauri::Builder::default()
@@ -94,9 +98,13 @@ fn main() {
             install_marketplace_plugin,
             uninstall_marketplace_plugin,
             launch_game,
+            get_running_game,
+            kill_running_game,
             open_folder,
             window_start_dragging,
             window_minimize,
+            window_unminimize,
+            window_set_focus,
             window_toggle_maximize,
             window_toggle_fullscreen,
             window_set_fullscreen,

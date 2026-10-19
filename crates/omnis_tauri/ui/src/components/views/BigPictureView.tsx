@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
   Gamepad2,
   Search,
@@ -15,8 +15,9 @@ import {
   RefreshCw,
   CheckCircle2,
   Tv,
+  Square,
 } from "lucide-react";
-import { GameDto, LibraryCounts, ThemeConfig } from "../../types";
+import { ActiveGameSession, GameDto, LibraryCounts, ThemeConfig } from "../../types";
 import { StoreBadge, StoreIcon } from "../StoreBadge";
 import soundEffects from "../../utils/soundEffects";
 import { VideoBackdrop } from "../common/VideoBackdrop";
@@ -52,6 +53,17 @@ interface BigPictureViewProps {
   setShowFullscreenDetails: React.Dispatch<React.SetStateAction<boolean>>;
   carouselRef: React.RefObject<HTMLDivElement>;
   t: (key: string, params?: Record<string, any>) => string;
+  isGameRunning?: boolean;
+  activeGame?: ActiveGameSession | null;
+  elapsedSeconds?: number;
+  formatDuration?: (seconds: number) => string;
+  handleKillRunningGame?: () => void;
+  sessionToast?: {
+    title: string;
+    durationSeconds: number;
+    gameId: string;
+  } | null;
+  onDismissToast?: () => void;
 }
 
 export default function BigPictureView({
@@ -85,7 +97,31 @@ export default function BigPictureView({
   setShowFullscreenDetails,
   carouselRef,
   t,
+  isGameRunning = false,
+  activeGame,
+  elapsedSeconds,
+  formatDuration,
+  handleKillRunningGame,
+  sessionToast,
+  onDismissToast,
 }: BigPictureViewProps) {
+  const isFocusedGameRunning = activeGame?.game_id === focusedGame?.id;
+
+  // Shortcut key listener: "k" or "Delete" terminates running focused game
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        (e.key.toLowerCase() === "k" || e.key === "Delete") &&
+        activeGame?.game_id === focusedGame?.id &&
+        handleKillRunningGame
+      ) {
+        e.preventDefault();
+        handleKillRunningGame();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [activeGame, focusedGame, handleKillRunningGame]);
   return (
     <div
       className="relative flex flex-col h-screen w-screen overflow-hidden transition-colors duration-500"
@@ -96,6 +132,7 @@ export default function BigPictureView({
         game={focusedGame}
         theme={currentTheme}
         blurLevel={currentTheme.enable_video_backdrop ? "subtle" : "ambient"}
+        isPaused={isGameRunning}
       />
 
       {/* 10-FOOT TOP BAR */}
@@ -126,6 +163,29 @@ export default function BigPictureView({
             </span>
           </div>
         </div>
+
+        {/* Live Running Game Indicator in 10-Foot Top Bar */}
+        {activeGame && (
+          <div className="flex items-center gap-3 px-5 py-2.5 rounded-full bg-emerald-500/20 border-2 border-emerald-500/60 text-emerald-300 font-extrabold text-sm shadow-xl shadow-emerald-950/60 animate-pulse backdrop-blur-md">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+            <span>
+              ● In Esecuzione: <strong className="text-white">{activeGame.title}</strong> ({formatDuration ? formatDuration(elapsedSeconds || 0) : `${elapsedSeconds || 0}s`})
+            </span>
+            {handleKillRunningGame && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleKillRunningGame();
+                }}
+                className="ml-2 px-3 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 active:bg-rose-700 text-white text-xs font-black uppercase tracking-wider transition-all shadow-md cursor-pointer"
+                title="Termina Gioco (Forzato)"
+              >
+                Termina
+              </button>
+            )}
+          </div>
+        )}
 
         <div className="flex items-center gap-4">
           {/* Gamepad Connection Badge */}
@@ -352,29 +412,56 @@ export default function BigPictureView({
 
           {/* ACTION BUTTONS WITH CONTROLLER HINTS */}
           <div className="flex items-center gap-4 pt-2">
-            <button
-              onClick={() => focusedGame && handleLaunch(focusedGame.id)}
-              className="flex items-center gap-3 px-8 py-4 rounded-2xl text-base font-black text-white transition-all hover:brightness-110 active:opacity-90 shadow-2xl"
-              style={{
-                backgroundColor: "var(--accent-primary)",
-                boxShadow: `0 0 30px var(--accent-glow)`,
-              }}
-            >
-              {focusedGame?.is_installed ? (
-                <>
-                  <Play className="w-5 h-5 fill-white" />
-                  <span>{t("big_picture.play_action")}</span>
-                </>
-              ) : (
-                <>
-                  <Download className="w-5 h-5 text-white" />
-                  <span>{t("game_details.install_now")}</span>
-                </>
-              )}
-              <span className="w-6 h-6 rounded-full bg-black/30 flex items-center justify-center text-[11px] font-black border border-white/20">
-                A
-              </span>
-            </button>
+            {isFocusedGameRunning ? (
+              <>
+                <button
+                  disabled
+                  className="flex items-center gap-3 px-8 py-4 rounded-2xl text-base font-black text-emerald-200 bg-emerald-600/30 border border-emerald-500/50 shadow-2xl cursor-default"
+                >
+                  <span className="w-3 h-3 rounded-full bg-emerald-400 animate-ping" />
+                  <span>In Esecuzione... ({formatDuration ? formatDuration(elapsedSeconds || 0) : `${elapsedSeconds || 0}s`})</span>
+                </button>
+
+                {handleKillRunningGame && (
+                  <button
+                    type="button"
+                    onClick={handleKillRunningGame}
+                    className="flex items-center gap-3 px-8 py-4 rounded-2xl text-base font-black text-white bg-rose-600 hover:bg-rose-500 active:bg-rose-700 border border-rose-400/50 shadow-2xl shadow-rose-950/50 transition-all hover:scale-105 active:opacity-90 cursor-pointer"
+                    title="Termina Gioco (Forzato - Tasto K)"
+                  >
+                    <Square className="w-5 h-5 fill-white" />
+                    <span>Termina Gioco</span>
+                    <span className="w-6 h-6 rounded-full bg-black/40 flex items-center justify-center text-[10px] font-black border border-white/20">
+                      K
+                    </span>
+                  </button>
+                )}
+              </>
+            ) : (
+              <button
+                onClick={() => focusedGame && handleLaunch(focusedGame.id)}
+                className="flex items-center gap-3 px-8 py-4 rounded-2xl text-base font-black text-white transition-all hover:brightness-110 active:opacity-90 shadow-2xl"
+                style={{
+                  backgroundColor: "var(--accent-primary)",
+                  boxShadow: `0 0 30px var(--accent-glow)`,
+                }}
+              >
+                {focusedGame?.is_installed ? (
+                  <>
+                    <Play className="w-5 h-5 fill-white" />
+                    <span>{t("big_picture.play_action")}</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-5 h-5 text-white" />
+                    <span>{t("game_details.install_now")}</span>
+                  </>
+                )}
+                <span className="w-6 h-6 rounded-full bg-black/30 flex items-center justify-center text-[11px] font-black border border-white/20">
+                  A
+                </span>
+              </button>
+            )}
 
             <button
               onClick={() => {
@@ -496,12 +583,21 @@ export default function BigPictureView({
         }}
       >
         <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2">
-            <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-black shadow">
-              A
-            </span>
-            <span>Avvia Gioco</span>
-          </div>
+          {isFocusedGameRunning ? (
+            <div className="flex items-center gap-2">
+              <span className="w-5 h-5 rounded-full bg-rose-600 text-white flex items-center justify-center text-[10px] font-black shadow">
+                K
+              </span>
+              <span className="text-rose-400 font-bold">Termina Gioco</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-black shadow">
+                A
+              </span>
+              <span>Avvia Gioco</span>
+            </div>
+          )}
 
           <div className="flex items-center gap-2">
             <span className="w-5 h-5 rounded-full bg-rose-600 text-white flex items-center justify-center text-[10px] font-black shadow">
@@ -693,22 +789,77 @@ export default function BigPictureView({
               >
                 Chiudi (B)
               </button>
-              <button
-                onClick={() => {
-                  handleLaunch(focusedGame.id);
-                  setShowFullscreenDetails(false);
-                }}
-                className="flex items-center gap-2 px-8 py-3 rounded-xl text-white text-xs font-black shadow-lg"
-                style={{
-                  backgroundColor: "var(--accent-primary)",
-                  boxShadow: `0 0 20px var(--accent-glow)`,
-                }}
-              >
-                <Play className="w-4 h-4 fill-white" />
-                <span>AVVIA GIOCO (A)</span>
-              </button>
+              {isFocusedGameRunning ? (
+                <>
+                  <button
+                    disabled
+                    className="flex items-center gap-2 px-6 py-3 rounded-xl text-emerald-300 text-xs font-black bg-emerald-600/30 border border-emerald-500/50 cursor-default"
+                  >
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                    <span>In Esecuzione... ({formatDuration ? formatDuration(elapsedSeconds || 0) : `${elapsedSeconds || 0}s`})</span>
+                  </button>
+                  {handleKillRunningGame && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleKillRunningGame();
+                        setShowFullscreenDetails(false);
+                      }}
+                      className="flex items-center gap-2 px-6 py-3 rounded-xl text-white text-xs font-black bg-rose-600 hover:bg-rose-500 border border-rose-400/50 shadow-lg cursor-pointer"
+                    >
+                      <Square className="w-4 h-4 fill-white" />
+                      <span>Termina Gioco (K)</span>
+                    </button>
+                  )}
+                </>
+              ) : (
+                <button
+                  onClick={() => {
+                    handleLaunch(focusedGame.id);
+                    setShowFullscreenDetails(false);
+                  }}
+                  className="flex items-center gap-2 px-8 py-3 rounded-xl text-white text-xs font-black shadow-lg"
+                  style={{
+                    backgroundColor: "var(--accent-primary)",
+                    boxShadow: `0 0 20px var(--accent-glow)`,
+                  }}
+                >
+                  <Play className="w-4 h-4 fill-white" />
+                  <span>AVVIA GIOCO (A)</span>
+                </button>
+              )}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* CONSOLE-STYLE FULLSCREEN TOAST NOTIFICATION */}
+      {sessionToast && (
+        <div className="absolute top-24 left-1/2 transform -translate-x-1/2 z-50 flex items-center gap-5 px-8 py-5 rounded-3xl bg-slate-900/95 border-2 border-emerald-400 text-white shadow-2xl shadow-emerald-500/40 backdrop-blur-2xl animate-in slide-in-from-top-10 duration-500 max-w-2xl">
+          <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-400/50 flex items-center justify-center shrink-0">
+            <Gamepad2 className="w-8 h-8 text-emerald-400" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              <span className="text-xs font-black uppercase tracking-widest text-emerald-300">
+                SESSIONE DI GIOCO TERMINATA
+              </span>
+            </div>
+            <h3 className="text-xl font-black text-white truncate mt-0.5">{sessionToast.title}</h3>
+            <p className="text-sm text-slate-300 font-semibold mt-0.5">
+              Tempo giocato: +{Math.max(1, Math.round(sessionToast.durationSeconds / 60))} minuti ({formatDuration ? formatDuration(sessionToast.durationSeconds) : `${sessionToast.durationSeconds}s`})
+            </p>
+          </div>
+          {onDismissToast && (
+            <button
+              onClick={onDismissToast}
+              className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm border border-white/20 hover:bg-white/10 active:opacity-80 transition-all text-slate-300 hover:text-white"
+              title="Chiudi"
+            >
+              ✕
+            </button>
+          )}
         </div>
       )}
     </div>

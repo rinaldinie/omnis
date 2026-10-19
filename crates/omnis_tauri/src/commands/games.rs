@@ -4,7 +4,7 @@ use omnis_plugin_epic::EpicLibraryPlugin;
 use omnis_sdk::{Game, LaunchConfiguration, LibraryPlugin, PluginEvent, ProcessTrackingMode};
 use serde::Deserialize;
 use std::path::PathBuf;
-use tauri::State;
+use tauri::{Manager, State};
 use uuid::Uuid;
 
 #[derive(Debug, Deserialize)]
@@ -129,7 +129,39 @@ pub async fn update_game_metadata(
 }
 
 #[tauri::command]
-pub async fn launch_game(game_id: String, state: State<'_, AppState>) -> Result<u64, String> {
+pub async fn get_running_game(
+    state: State<'_, AppState>,
+) -> Result<Option<crate::active_game::ActiveGameSession>, String> {
+    Ok(state.active_game_manager.get_running().await)
+}
+
+#[tauri::command]
+pub async fn kill_running_game(
+    app_handle: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<bool, String> {
+    let killed = state.active_game_manager.kill_running().await?;
+    if killed {
+        if let Some(window) = app_handle.get_webview_window("main") {
+            let _ = window.unminimize();
+            let _ = window.show();
+            let _ = window.set_focus();
+        }
+        return Ok(true);
+    }
+    Ok(false)
+}
+
+#[tauri::command]
+pub async fn launch_game(
+    game_id: String,
+    app_handle: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<u64, String> {
+    if state.active_game_manager.get_running().await.is_some() {
+        return Err("Un altro gioco è già in esecuzione".to_string());
+    }
+
     let id = Uuid::parse_str(&game_id).map_err(|e| e.to_string())?;
     let game = state
         .db
@@ -138,7 +170,11 @@ pub async fn launch_game(game_id: String, state: State<'_, AppState>) -> Result<
         .ok_or_else(|| "Gioco non trovato".to_string())?;
 
     let is_installed = game.is_installed;
-    let config = if !is_installed {
+    let install_dir = game.install_dir.clone();
+    let title = game.title.clone();
+    let started_at = chrono::Utc::now();
+
+    if !is_installed {
         // Native store installation launch protocol
         let install_uri = match game.library_id.as_str() {
             "steam" => format!("steam://install/{}", game.external_id),
@@ -148,21 +184,18 @@ pub async fn launch_game(game_id: String, state: State<'_, AppState>) -> Result<
             _ => format!("steam://install/{}", game.external_id),
         };
 
-        LaunchConfiguration {
-            executable: if cfg!(windows) {
-                "cmd.exe".to_string()
-            } else {
-                "xdg-open".to_string()
-            },
-            arguments: if cfg!(windows) {
-                vec!["/c".to_string(), "start".to_string(), install_uri]
-            } else {
-                vec![install_uri]
-            },
-            working_dir: None,
-            tracking_mode: ProcessTrackingMode::KernelJobObject,
+        let mut cmd = tokio::process::Command::new(if cfg!(windows) { "cmd.exe" } else { "xdg-open" });
+        if cfg!(windows) {
+            cmd.args(["/c", "start", &install_uri]);
+        } else {
+            cmd.arg(&install_uri);
         }
-    } else if let Some(play_action) = game.play_actions.into_iter().next() {
+
+        let _ = cmd.spawn().map_err(|e| e.to_string())?;
+        return Ok(0);
+    }
+
+    let config = if let Some(play_action) = game.play_actions.into_iter().next() {
         play_action
     } else {
         // Default launch protocol for installed store games
@@ -190,12 +223,86 @@ pub async fn launch_game(game_id: String, state: State<'_, AppState>) -> Result<
         }
     };
 
-    let session_duration = GameLauncher::launch_and_track(id, config, |_| {})
-        .await
-        .map_err(|e| e.to_string())?;
+    // Imposta subito la sessione attiva
+    state
+        .active_game_manager
+        .set_running(crate::active_game::ActiveGameSession {
+            game_id: id.to_string(),
+            title: title.clone(),
+            pid: None,
+            started_at,
+        })
+        .await;
 
-    if is_installed {
-        let _ = state.db.record_play_session(id, session_duration);
+    // Minimizza la finestra principale all'avvio del gioco
+    if let Some(window) = app_handle.get_webview_window("main") {
+        let _ = window.minimize();
     }
-    Ok(session_duration)
+
+    // Emette l'evento Tauri "game-started"
+    use tauri::Emitter;
+    let _ = app_handle.emit(
+        "game-started",
+        serde_json::json!({
+            "game_id": id.to_string(),
+            "title": title.clone(),
+            "started_at": started_at.to_rfc3339(),
+        }),
+    );
+
+    // Spawna il monitoraggio asincrono in background
+    let active_mgr = state.active_game_manager.clone();
+    let db = state.db.clone();
+    let app_handle_clone = app_handle.clone();
+    let game_id_str = id.to_string();
+
+    tokio::spawn(async move {
+        let active_mgr_for_pid = active_mgr.clone();
+        let track_res = GameLauncher::launch_and_track(
+            id,
+            config,
+            install_dir,
+            move |pid| {
+                let mgr = active_mgr_for_pid.clone();
+                tokio::spawn(async move {
+                    mgr.update_pid(pid).await;
+                });
+            },
+        )
+        .await;
+
+        let ended_at = chrono::Utc::now();
+        let duration = match track_res {
+            Ok(d) if d > 0 => d,
+            Ok(_) => (ended_at - started_at).num_seconds().max(0) as u64,
+            Err(err) => {
+                tracing::warn!("Errore durante il tracking del processo {}: {}", game_id_str, err);
+                (ended_at - started_at).num_seconds().max(0) as u64
+            }
+        };
+
+        if is_installed {
+            let _ = db.record_play_session(id, duration, started_at, ended_at);
+        }
+
+        active_mgr.clear_running().await;
+
+        // Ripristina la finestra principale al termine del gioco
+        if let Some(window) = app_handle_clone.get_webview_window("main") {
+            let _ = window.unminimize();
+            let _ = window.show();
+            let _ = window.set_focus();
+        }
+
+        let _ = app_handle_clone.emit(
+            "game-stopped",
+            serde_json::json!({
+                "game_id": game_id_str,
+                "duration_seconds": duration,
+            }),
+        );
+        let _ = app_handle_clone.emit("library-updated", ());
+    });
+
+    Ok(0)
 }
