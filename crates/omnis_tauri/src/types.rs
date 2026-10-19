@@ -116,6 +116,7 @@ pub struct AppState {
     pub image_cache: Arc<ImageCache>,
     pub store_account_manager: Arc<crate::store_manager::StoreAccountManager>,
     pub trailer_cache: Arc<tokio::sync::RwLock<HashMap<String, String>>>,
+    pub active_game_manager: Arc<crate::active_game::ActiveGameManager>,
 }
 
 pub fn game_to_dto(g: Game, _cache: &ImageCache) -> GameDto {

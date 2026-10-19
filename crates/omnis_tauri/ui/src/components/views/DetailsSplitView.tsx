@@ -12,8 +12,9 @@ import {
   BookOpen,
   SlidersHorizontal,
   ExternalLink,
+  Square,
 } from "lucide-react";
-import { GameDto, ThemeConfig, ViewMode } from "../../types";
+import { ActiveGameSession, GameDto, ThemeConfig, ViewMode } from "../../types";
 import { StoreBadge } from "../StoreBadge";
 import { VideoBackdrop } from "../common/VideoBackdrop";
 
@@ -36,6 +37,11 @@ interface DetailsSplitViewProps {
   setGameToResolve: (game: any) => void;
   setShowResolutionModal: (show: boolean) => void;
   t: (key: string, params?: Record<string, any>) => string;
+  isGameRunning?: boolean;
+  activeGame?: ActiveGameSession | null;
+  elapsedSeconds?: number;
+  formatDuration?: (seconds: number) => string;
+  handleKillRunningGame?: () => void;
 }
 
 export default function DetailsSplitView({
@@ -57,7 +63,13 @@ export default function DetailsSplitView({
   setGameToResolve,
   setShowResolutionModal,
   t,
+  isGameRunning = false,
+  activeGame,
+  elapsedSeconds,
+  formatDuration,
+  handleKillRunningGame,
 }: DetailsSplitViewProps) {
+  const isSelectedGameRunning = activeGame?.game_id === selectedGame.id;
   return (
     <div className="flex-1 flex overflow-hidden">
       {/* Left Column: Titles Quick List (300px collapsible master panel) */}
@@ -185,12 +197,17 @@ export default function DetailsSplitView({
                     </span>
                     <div className="flex items-center gap-2 mt-0.5">
                       <StoreBadge library={game.library} className="py-0 px-1 text-[9px]" />
-                      {game.is_installed && (
+                      {activeGame?.game_id === game.id ? (
+                        <span className="flex items-center gap-1 text-[9px] font-bold text-emerald-300 animate-pulse">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                          In Esecuzione
+                        </span>
+                      ) : game.is_installed ? (
                         <span className="flex items-center gap-1 text-[9px] font-bold text-emerald-400">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                           Installato
                         </span>
-                      )}
+                      ) : null}
                       <span
                         className="text-[10px] font-mono ml-auto"
                         style={{ color: "var(--text-muted)" }}
@@ -248,6 +265,7 @@ export default function DetailsSplitView({
               game={selectedGame}
               theme={currentTheme}
               blurLevel={currentTheme.enable_video_backdrop ? "none" : "subtle"}
+              isPaused={isGameRunning}
             />
           ) : (
             <>
@@ -303,6 +321,12 @@ export default function DetailsSplitView({
             <div className="space-y-3.5 flex-1 min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <StoreBadge library={selectedGame.library} showName={true} className="py-1 px-3 text-xs" />
+                {isSelectedGameRunning && (
+                  <span className="px-3 py-1 rounded-full text-xs font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/60 shadow-lg shadow-emerald-950/50 animate-pulse flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                    ● IN ESECUZIONE ({formatDuration ? formatDuration(elapsedSeconds || 0) : `${elapsedSeconds || 0}s`})
+                  </span>
+                )}
                 {selectedGame.is_installed ? (
                   <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-sm flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
@@ -338,25 +362,49 @@ export default function DetailsSplitView({
 
               {/* Action Buttons Bar */}
               <div className="flex flex-wrap items-center gap-3 pt-2">
-                <button
-                  onClick={() => handleLaunch(selectedGame.id)}
-                  className="flex items-center gap-2.5 px-6 py-3 rounded-xl font-black text-xs text-white shadow-xl transition-all hover:brightness-110 active:opacity-90"
-                  style={{
-                    backgroundColor: "var(--accent-primary)",
-                    boxShadow: `0 0 25px var(--accent-glow)`,
-                  }}
-                >
-                  {selectedGame.is_installed ? (
-                    <Play className="w-4 h-4 fill-white" />
-                  ) : (
-                    <Download className="w-4 h-4 text-white" />
-                  )}
-                  <span>
-                    {selectedGame.is_installed
-                      ? t("game_details.play_now")
-                      : t("game_details.install_now")}
-                  </span>
-                </button>
+                {isSelectedGameRunning ? (
+                  <>
+                    <button
+                      disabled
+                      className="flex items-center gap-2.5 px-6 py-3 rounded-xl font-black text-xs text-emerald-200 bg-emerald-600/30 border border-emerald-500/50 shadow-xl cursor-default"
+                    >
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                      <span>In Esecuzione... ({formatDuration ? formatDuration(elapsedSeconds || 0) : `${elapsedSeconds || 0}s`})</span>
+                    </button>
+
+                    {handleKillRunningGame && (
+                      <button
+                        type="button"
+                        onClick={handleKillRunningGame}
+                        className="flex items-center gap-2 px-5 py-3 rounded-xl font-black text-xs text-white bg-rose-600 hover:bg-rose-500 active:bg-rose-700 border border-rose-400/50 shadow-xl shadow-rose-950/40 transition-all hover:scale-105 active:opacity-90 cursor-pointer"
+                        title="Termina forzatamente il processo del gioco"
+                      >
+                        <Square className="w-3.5 h-3.5 fill-white" />
+                        <span>Termina Gioco</span>
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <button
+                    onClick={() => handleLaunch(selectedGame.id)}
+                    className="flex items-center gap-2.5 px-6 py-3 rounded-xl font-black text-xs text-white shadow-xl transition-all hover:brightness-110 active:opacity-90"
+                    style={{
+                      backgroundColor: "var(--accent-primary)",
+                      boxShadow: `0 0 25px var(--accent-glow)`,
+                    }}
+                  >
+                    {selectedGame.is_installed ? (
+                      <Play className="w-4 h-4 fill-white" />
+                    ) : (
+                      <Download className="w-4 h-4 text-white" />
+                    )}
+                    <span>
+                      {selectedGame.is_installed
+                        ? t("game_details.play_now")
+                        : t("game_details.install_now")}
+                    </span>
+                  </button>
+                )}
 
                 <button
                   onClick={() => handleEnrichSingleGame(selectedGame.id)}

@@ -62,6 +62,19 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
             category_id TEXT NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
             PRIMARY KEY(game_id, category_id)
         );
+
+        CREATE TABLE IF NOT EXISTS game_sessions (
+            id TEXT PRIMARY KEY,
+            game_id TEXT NOT NULL,
+            started_at TEXT NOT NULL,
+            ended_at TEXT NOT NULL,
+            duration_seconds INTEGER NOT NULL,
+            FOREIGN KEY (game_id) REFERENCES games (id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_game_sessions_game_id ON game_sessions (game_id);
+        CREATE INDEX IF NOT EXISTS idx_game_sessions_started_at ON game_sessions (started_at);
+        CREATE INDEX IF NOT EXISTS idx_game_sessions_game_id_started_at ON game_sessions (game_id, started_at DESC);
         ",
     )?;
 

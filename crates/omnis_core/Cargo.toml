@@ -19,6 +19,7 @@ chrono.workspace = true
 reqwest.workspace = true
 libloading = "0.8"
 zip = { version = "2.2", default-features = false, features = ["deflate"] }
+sysinfo = "0.30"
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.58", features = [
@@ -28,6 +29,9 @@ windows = { version = "0.58", features = [
     "Win32_Security",
     "Win32_System_IO",
 ] }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
 
 [dev-dependencies]
 omnis_plugin_epic = { path = "../../plugins/omnis_plugin_epic" }

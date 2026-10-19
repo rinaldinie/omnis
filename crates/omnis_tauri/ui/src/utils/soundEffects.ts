@@ -5,6 +5,7 @@
 export class SoundSystem {
   private ctx: AudioContext | null = null;
   public enabled: boolean = true;
+  private isMuted: boolean = false;
 
   constructor() {
     try {
@@ -43,6 +44,14 @@ export class SoundSystem {
   }
 
   /**
+   * Temporarily mutes or unmutes sound effects without altering persisted user preferences
+   * (e.g. during active game execution)
+   */
+  public setMuted(val: boolean) {
+    this.isMuted = val;
+  }
+
+  /**
    * Ensures AudioContext exists and resumes it if suspended by browser autoplay policy
    */
   private ensureContext() {
@@ -64,7 +73,7 @@ export class SoundSystem {
    * Used for D-pad / carousel movement and focus change.
    */
   public playNav() {
-    if (!this.enabled) return;
+    if (!this.enabled || this.isMuted) return;
     try {
       this.ensureContext();
       if (!this.ctx) return;
@@ -95,7 +104,7 @@ export class SoundSystem {
    * Used for item selection, card opening, keyboard keypress.
    */
   public playSelect() {
-    if (!this.enabled) return;
+    if (!this.enabled || this.isMuted) return;
     try {
       this.ensureContext();
       if (!this.ctx) return;
@@ -126,7 +135,7 @@ export class SoundSystem {
    * Used for game launch.
    */
   public playLaunch() {
-    if (!this.enabled) return;
+    if (!this.enabled || this.isMuted) return;
     try {
       this.ensureContext();
       if (!this.ctx) return;

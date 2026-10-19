@@ -25,6 +25,17 @@ pub fn window_minimize(window: Window) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn window_unminimize(window: Window) -> Result<(), String> {
+    let _ = window.show();
+    window.unminimize().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn window_set_focus(window: Window) -> Result<(), String> {
+    window.set_focus().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 pub fn window_toggle_maximize(window: Window) -> Result<(), String> {
     if window.is_maximized().map_err(|e| e.to_string())? {
         window.unmaximize().map_err(|e| e.to_string())

@@ -9,6 +9,7 @@ interface VideoBackdropProps {
   className?: string;
   blurLevel?: "none" | "subtle" | "ambient";
   forceEnable?: boolean;
+  isPaused?: boolean;
 }
 
 export const VideoBackdrop: React.FC<VideoBackdropProps> = ({
@@ -17,11 +18,13 @@ export const VideoBackdrop: React.FC<VideoBackdropProps> = ({
   className = "",
   blurLevel = "ambient",
   forceEnable = false,
+  isPaused = false,
 }) => {
   const [videoSrc, setVideoSrc] = useState<string | null>(null);
   const [isVideoPlaying, setIsVideoPlaying] = useState<boolean>(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const hlsRef = useRef<Hls | null>(null);
+  const prevGameIdRef = useRef<string | undefined>(game?.id);
 
   const isEnabled = forceEnable || !!theme.enable_video_backdrop;
   const targetOpacity = theme.video_backdrop_opacity ?? 0.55;
@@ -29,15 +32,25 @@ export const VideoBackdrop: React.FC<VideoBackdropProps> = ({
 
   // 1. Resolve Game Trailer URL with Debounce
   useEffect(() => {
-    setIsVideoPlaying(false);
-    setVideoSrc(null);
+    const gameChanged = prevGameIdRef.current !== game?.id;
+    prevGameIdRef.current = game?.id;
 
-    if (hlsRef.current) {
-      hlsRef.current.destroy();
-      hlsRef.current = null;
+    if (gameChanged) {
+      setIsVideoPlaying(false);
+      setVideoSrc(null);
+
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
     }
 
-    if (!isEnabled || !game) {
+    if (!isEnabled || !game || isPaused) {
+      return;
+    }
+
+    // If video is already loaded for this game, no need to re-fetch
+    if (videoSrc && !gameChanged) {
       return;
     }
 
@@ -47,7 +60,7 @@ export const VideoBackdrop: React.FC<VideoBackdropProps> = ({
     const timer = setTimeout(async () => {
       try {
         const trailerUrl = await fetchGameTrailerUrl(game);
-        if (isMounted && trailerUrl) {
+        if (isMounted && trailerUrl && !isPaused) {
           setVideoSrc(trailerUrl);
         }
       } catch (err) {
@@ -59,7 +72,7 @@ export const VideoBackdrop: React.FC<VideoBackdropProps> = ({
       isMounted = false;
       clearTimeout(timer);
     };
-  }, [game?.id, game?.external_id, isEnabled, delayMs]);
+  }, [game?.id, game?.external_id, isEnabled, delayMs, isPaused]);
 
   // 2. Attach Video Source (HLS Stream or MP4/WebM)
   useEffect(() => {
@@ -86,10 +99,12 @@ export const VideoBackdrop: React.FC<VideoBackdropProps> = ({
       hls.attachMedia(videoEl);
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        videoEl.play().catch((err) => {
-          // Autoplay was blocked or aborted, wait for interaction
-          console.debug("[VideoBackdrop] Autoplay blocked:", err);
-        });
+        if (!isPaused) {
+          videoEl.play().catch((err) => {
+            // Autoplay was blocked or aborted, wait for interaction
+            console.debug("[VideoBackdrop] Autoplay blocked:", err);
+          });
+        }
       });
 
       hls.on(Hls.Events.ERROR, (_event, data) => {
@@ -105,10 +120,14 @@ export const VideoBackdrop: React.FC<VideoBackdropProps> = ({
       hlsRef.current = hls;
     } else if (isHlsUrl && videoEl.canPlayType("application/vnd.apple.mpegurl")) {
       videoEl.src = videoSrc;
-      videoEl.play().catch(() => {});
+      if (!isPaused) {
+        videoEl.play().catch(() => {});
+      }
     } else {
       videoEl.src = videoSrc;
-      videoEl.play().catch(() => {});
+      if (!isPaused) {
+        videoEl.play().catch(() => {});
+      }
     }
 
     return () => {
@@ -118,6 +137,30 @@ export const VideoBackdrop: React.FC<VideoBackdropProps> = ({
       }
     };
   }, [videoSrc]);
+
+  // 3. Pause / Resume orchestration when isPaused changes
+  useEffect(() => {
+    const videoEl = videoRef.current;
+    if (isPaused) {
+      if (videoEl && !videoEl.paused) {
+        videoEl.pause();
+      }
+      setIsVideoPlaying(false);
+      if (hlsRef.current) {
+        hlsRef.current.stopLoad();
+      }
+    } else {
+      if (videoEl && videoSrc && isEnabled) {
+        if (hlsRef.current) {
+          hlsRef.current.startLoad();
+        }
+        videoEl
+          .play()
+          .then(() => setIsVideoPlaying(true))
+          .catch(() => {});
+      }
+    }
+  }, [isPaused, videoSrc, isEnabled]);
 
   const blurClass =
     blurLevel === "none"
@@ -155,7 +198,7 @@ export const VideoBackdrop: React.FC<VideoBackdropProps> = ({
         <video
           ref={videoRef}
           key={videoSrc}
-          autoPlay
+          autoPlay={!isPaused}
           loop
           muted
           playsInline
@@ -167,7 +210,7 @@ export const VideoBackdrop: React.FC<VideoBackdropProps> = ({
           }}
           className={`video-backdrop absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${blurClass}`}
           style={{
-            opacity: isVideoPlaying ? targetOpacity : 0,
+            opacity: !isPaused && isVideoPlaying ? targetOpacity : 0,
           }}
         />
       )}

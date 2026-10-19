@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use omnis_sdk::{
-    CustomLink, DiscoveredGame, Game, GameMetadataPatch, GameUpdateDto, LaunchConfiguration,
+    CustomLink, DiscoveredGame, Game, GameMetadataPatch, GameSessionRecord, GameUpdateDto,
+    LaunchConfiguration,
 };
 use rusqlite::{params, Connection, Result};
 use serde::{Deserialize, Serialize};
@@ -9,6 +10,8 @@ use std::sync::Mutex;
 use uuid::Uuid;
 
 pub mod migrations;
+
+pub type DatabaseError = rusqlite::Error;
 
 pub struct Database {
     conn: Mutex<Connection>,
@@ -661,23 +664,107 @@ impl Database {
         self.ingest_discovered_batch(&samples)
     }
 
-    /// Record a completed play session with duration
-    pub fn record_play_session(&self, game_id: Uuid, session_seconds: u64) -> Result<()> {
-        let conn = self.conn.lock().unwrap();
-        let now = Utc::now().to_rfc3339();
+    /// Record a completed play session with duration and start/end timestamps
+    pub fn record_play_session(
+        &self,
+        game_id: Uuid,
+        duration_seconds: u64,
+        started_at: chrono::DateTime<chrono::Utc>,
+        ended_at: chrono::DateTime<chrono::Utc>,
+    ) -> Result<GameSessionRecord, DatabaseError> {
+        let mut conn = self.conn.lock().unwrap();
+        let tx = conn.transaction()?;
 
-        conn.execute(
+        let session_id = Uuid::new_v4();
+        let started_at_str = started_at.to_rfc3339();
+        let ended_at_str = ended_at.to_rfc3339();
+
+        tx.execute(
+            "
+            INSERT INTO game_sessions (id, game_id, started_at, ended_at, duration_seconds)
+            VALUES (?1, ?2, ?3, ?4, ?5)
+            ",
+            params![
+                session_id.to_string(),
+                game_id.to_string(),
+                started_at_str,
+                ended_at_str,
+                duration_seconds as i64,
+            ],
+        )?;
+
+        tx.execute(
             "
             UPDATE games SET
-                playtime_seconds = playtime_seconds + ?2,
+                playtime_seconds = playtime_seconds + ?1,
                 play_count = play_count + 1,
-                last_activity = ?3,
+                last_activity = ?2,
                 modified_timestamp = ?3
-            WHERE id = ?1
+            WHERE id = ?4
             ",
-            params![game_id.to_string(), session_seconds as i64, now],
+            params![
+                duration_seconds as i64,
+                ended_at_str,
+                ended_at_str,
+                game_id.to_string(),
+            ],
         )?;
-        Ok(())
+
+        tx.commit()?;
+
+        Ok(GameSessionRecord {
+            id: session_id,
+            game_id,
+            started_at,
+            ended_at,
+            duration_seconds,
+        })
+    }
+
+    /// Retrieve all recorded play sessions for a given game ordered by started_at DESC
+    pub fn get_game_sessions(
+        &self,
+        game_id: Uuid,
+    ) -> Result<Vec<GameSessionRecord>, DatabaseError> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "
+            SELECT id, game_id, started_at, ended_at, duration_seconds
+            FROM game_sessions
+            WHERE game_id = ?1
+            ORDER BY started_at DESC
+            ",
+        )?;
+
+        let rows = stmt.query_map(params![game_id.to_string()], |row| {
+            let id_str: String = row.get(0)?;
+            let id = Uuid::parse_str(&id_str).unwrap_or_else(|_| Uuid::new_v4());
+            let game_id_str: String = row.get(1)?;
+            let g_id = Uuid::parse_str(&game_id_str).unwrap_or(game_id);
+            let started_str: String = row.get(2)?;
+            let started_at = DateTime::parse_from_rfc3339(&started_str)
+                .map(|dt| dt.with_timezone(&Utc))
+                .unwrap_or_else(|_| Utc::now());
+            let ended_str: String = row.get(3)?;
+            let ended_at = DateTime::parse_from_rfc3339(&ended_str)
+                .map(|dt| dt.with_timezone(&Utc))
+                .unwrap_or_else(|_| Utc::now());
+            let duration_seconds: i64 = row.get(4)?;
+
+            Ok(GameSessionRecord {
+                id,
+                game_id: g_id,
+                started_at,
+                ended_at,
+                duration_seconds: duration_seconds.max(0) as u64,
+            })
+        })?;
+
+        let mut sessions = Vec::new();
+        for r in rows {
+            sessions.push(r?);
+        }
+        Ok(sessions)
     }
 
     /// Get total game count

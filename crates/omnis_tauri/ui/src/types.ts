@@ -49,6 +49,13 @@ export interface LibraryCounts {
   indie: number;
 }
 
+export interface ActiveGameSession {
+  game_id: string;
+  title: string;
+  pid?: number | null;
+  started_at: string;
+}
+
 export interface ThemeConfig {
   id: string;
   name: string;

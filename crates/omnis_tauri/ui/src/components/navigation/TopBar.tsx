@@ -21,7 +21,7 @@ import {
   Minus,
   Square,
 } from "lucide-react";
-import { GameDto, ProviderInfo, ThemeConfig, ViewMode } from "../../types";
+import { ActiveGameSession, GameDto, ProviderInfo, ThemeConfig, ViewMode } from "../../types";
 import soundEffects from "../../utils/soundEffects";
 
 interface TopBarProps {
@@ -54,6 +54,10 @@ interface TopBarProps {
   handleClose: () => void;
   handleStartDragging: (e: React.MouseEvent) => void;
   t: (key: string, params?: Record<string, any>) => string;
+  activeGame?: ActiveGameSession | null;
+  elapsedSeconds?: number;
+  formatDuration?: (seconds: number) => string;
+  handleKillRunningGame?: () => void;
 }
 
 export default function TopBar({
@@ -86,6 +90,10 @@ export default function TopBar({
   handleClose,
   handleStartDragging,
   t,
+  activeGame,
+  elapsedSeconds,
+  formatDuration,
+  handleKillRunningGame,
 }: TopBarProps) {
   return (
     <header
@@ -203,6 +211,26 @@ export default function TopBar({
           )}
         </div>
       </div>
+
+      {/* Active Running Game Pill in Desktop TopBar */}
+      {activeGame && (
+        <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/60 text-emerald-300 text-xs font-bold animate-pulse backdrop-blur-md shrink-0">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping shrink-0" />
+          <span className="truncate max-w-[200px]" title={activeGame.title}>
+            ● In Esecuzione: {activeGame.title} ({formatDuration ? formatDuration(elapsedSeconds || 0) : `${elapsedSeconds || 0}s`})
+          </span>
+          {handleKillRunningGame && (
+            <button
+              type="button"
+              onClick={handleKillRunningGame}
+              className="px-2 py-0.5 rounded text-[10px] font-black bg-rose-600 hover:bg-rose-500 text-white transition-colors cursor-pointer shrink-0"
+              title="Termina Gioco"
+            >
+              Termina
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Right: Actions Bar */}
       <div className="flex items-center gap-1.5 shrink min-w-0">
