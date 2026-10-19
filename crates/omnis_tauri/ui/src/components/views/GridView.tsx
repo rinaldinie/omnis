@@ -158,8 +158,20 @@ export default function GridView({
                         <div className="absolute top-2 left-2 flex items-center gap-1.5 z-10 pointer-events-none">
                           <StoreBadge library={game.library} />
                           {isRunning ? (
-                            <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/60 text-emerald-300 font-bold animate-pulse text-[10px] shadow-lg shadow-emerald-950/60 backdrop-blur-md">
-                              <span>● IN ESECUZIONE ({formatDuration ? formatDuration(elapsedSeconds || 0) : `${elapsedSeconds || 0}s`})</span>
+                            <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-bold shadow-lg backdrop-blur-md ${
+                              activeGame?.state === "launching"
+                                ? "bg-amber-500/20 border-amber-500/60 text-amber-300 animate-pulse shadow-amber-950/60"
+                                : activeGame?.state === "stopping"
+                                ? "bg-rose-500/20 border-rose-500/60 text-rose-300 shadow-rose-950/60"
+                                : "bg-emerald-500/20 border-emerald-500/60 text-emerald-300 animate-pulse shadow-emerald-950/60"
+                            }`}>
+                              <span>
+                                {activeGame?.state === "launching"
+                                  ? "⏳ IN AVVIO..."
+                                  : activeGame?.state === "stopping"
+                                  ? "🛑 IN CHIUSURA..."
+                                  : `● IN ESECUZIONE (${formatDuration ? formatDuration(elapsedSeconds || 0) : `${elapsedSeconds || 0}s`})`}
+                              </span>
                             </div>
                           ) : (
                             game.is_installed && (

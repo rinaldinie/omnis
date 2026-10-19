@@ -63,7 +63,7 @@ fn main() {
     let active_game_manager = Arc::new(active_game::ActiveGameManager::new());
 
     let state = AppState {
-        db,
+        db: db.clone(),
         host,
         downloader,
         marketplace,
@@ -75,8 +75,15 @@ fn main() {
         image_cache,
         store_account_manager,
         trailer_cache: Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
-        active_game_manager,
+        active_game_manager: active_game_manager.clone(),
     };
+
+    // Check if an installed game is already running and re-attach session on startup (Requirement B2)
+    let active_mgr_startup = active_game_manager.clone();
+    let db_startup = db.clone();
+    tokio::spawn(async move {
+        active_mgr_startup.check_and_reattach(&db_startup).await;
+    });
 
     tauri::Builder::default()
         .manage(state)

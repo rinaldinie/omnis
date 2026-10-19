@@ -49,11 +49,17 @@ export interface LibraryCounts {
   indie: number;
 }
 
+export type SessionState = "launching" | "running" | "stopping";
+
 export interface ActiveGameSession {
+  session_id: string;
   game_id: string;
   title: string;
   pid?: number | null;
+  state: SessionState;
   started_at: string;
+  process_detected_at?: string | null;
+  elapsed_seconds?: number;
 }
 
 export interface ThemeConfig {

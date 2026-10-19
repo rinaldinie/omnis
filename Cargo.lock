@@ -3062,6 +3062,7 @@ dependencies = [
  "rfd",
  "serde",
  "serde_json",
+ "sysinfo",
  "tauri",
  "tauri-build",
  "tokio",

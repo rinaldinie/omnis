@@ -52,6 +52,26 @@ export class SoundSystem {
   }
 
   /**
+   * Fully suspends AudioContext to release hardware audio pipelines during game execution (Requirement C4)
+   */
+  public suspendAudio() {
+    this.isMuted = true;
+    if (this.ctx && this.ctx.state !== "suspended") {
+      this.ctx.suspend().catch(() => {});
+    }
+  }
+
+  /**
+   * Resumes AudioContext after game termination (Requirement C4)
+   */
+  public resumeAudio() {
+    this.isMuted = false;
+    if (this.ctx && this.ctx.state === "suspended") {
+      this.ctx.resume().catch(() => {});
+    }
+  }
+
+  /**
    * Ensures AudioContext exists and resumes it if suspended by browser autoplay policy
    */
   private ensureContext() {

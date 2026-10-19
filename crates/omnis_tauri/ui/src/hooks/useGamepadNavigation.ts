@@ -1,4 +1,4 @@
-import { useState, useEffect, RefObject } from "react";
+import { useState, useEffect, useRef, RefObject } from "react";
 import soundEffects from "../utils/soundEffects";
 import { GameDto } from "../types";
 
@@ -13,6 +13,7 @@ interface UseGamepadNavigationProps {
   handleLaunch: (gameId: string) => void;
   cycleFilter: (direction: number, onCycle?: (nextFilter: string) => void) => void;
   carouselRef: RefObject<HTMLDivElement>;
+  isSuspended?: boolean;
 }
 
 export function useGamepadNavigation({
@@ -26,14 +27,20 @@ export function useGamepadNavigation({
   handleLaunch,
   cycleFilter,
   carouselRef,
+  isSuspended = false,
 }: UseGamepadNavigationProps) {
   const [gamepadConnected, setGamepadConnected] = useState<boolean>(false);
   const [gamepadName, setGamepadName] = useState<string>("Nessun Controller");
   const [focusedIndex, setFocusedIndex] = useState<number>(0);
   const [showFullscreenDetails, setShowFullscreenDetails] = useState<boolean>(false);
+  const awaitingNeutralStateRef = useRef<boolean>(false);
 
-  // Gamepad Polling Loop
+  // Gamepad Polling Loop with Suspension & Ghost Input Shield (Requirements C3 & C4)
   useEffect(() => {
+    if (isSuspended) {
+      awaitingNeutralStateRef.current = true;
+      return;
+    }
     let animId: number;
     let lastButtonTime = 0;
 
@@ -51,6 +58,22 @@ export function useGamepadNavigation({
         if (!gamepadConnected) {
           setGamepadConnected(true);
           setGamepadName(activeGamepad.id.split("(")[0].trim() || "Controller Connesso");
+        }
+
+        // C3: Ghost Input Shield upon window restore
+        // Ignore ALL gamepad inputs until every button is released at least once
+        if (awaitingNeutralStateRef.current) {
+          const anyButtonPressed = activeGamepad.buttons.some(
+            (btn) => btn && (btn.pressed || btn.value > 0.15)
+          );
+          if (anyButtonPressed) {
+            animId = requestAnimationFrame(pollGamepad);
+            return;
+          } else {
+            // All buttons released! Deactivate shield and reset timing
+            awaitingNeutralStateRef.current = false;
+            lastButtonTime = Date.now();
+          }
         }
 
         // When virtual keyboard is open, delegate gamepad controls exclusively to it
@@ -158,13 +181,14 @@ export function useGamepadNavigation({
     handleLaunch,
     cycleFilter,
     setShowVirtualKeyboard,
+    isSuspended,
   ]);
 
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Delegate key events if Virtual Keyboard modal is open
-      if (showVirtualKeyboard) return;
+      // Delegate key events if Virtual Keyboard modal is open or during active game suspension
+      if (showVirtualKeyboard || isSuspended) return;
 
       if (e.key === "F11") {
         e.preventDefault();
@@ -224,6 +248,7 @@ export function useGamepadNavigation({
     handleLaunch,
     setShowThemeModal,
     setShowVirtualKeyboard,
+    isSuspended,
   ]);
 
   // Auto-scroll focused card into view in carousel

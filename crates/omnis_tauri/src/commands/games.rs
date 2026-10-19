@@ -223,29 +223,42 @@ pub async fn launch_game(
         }
     };
 
-    // Imposta subito la sessione attiva
+    let session_id = Uuid::new_v4();
+    let session_id_str = session_id.to_string();
+
+    // Imposta subito la sessione attiva nello stato Launching (Requirement A6, B3)
     state
         .active_game_manager
-        .set_running(crate::active_game::ActiveGameSession {
-            game_id: id.to_string(),
-            title: title.clone(),
-            pid: None,
-            started_at,
-        })
+        .set_launching(session_id, id.to_string(), title.clone())
         .await;
 
-    // Minimizza la finestra principale all'avvio del gioco
+    // Registra inizio sessione a DB (Requirement B1)
+    if is_installed {
+        let _ = state.db.start_play_session(session_id, id, started_at);
+    }
+
+    // Salva lo stato della finestra e configurazione display prima del lancio (Requirement C2)
+    let mut was_fullscreen = false;
+    let mut prev_size = None;
+    let mut prev_pos = None;
     if let Some(window) = app_handle.get_webview_window("main") {
+        was_fullscreen = window.is_fullscreen().unwrap_or(false);
+        prev_size = window.outer_size().ok();
+        prev_pos = window.outer_position().ok();
+        // Concede autorizzazione foreground in anticipo (Requirement C1)
+        omnis_core::launcher::allow_set_foreground_window();
         let _ = window.minimize();
     }
 
-    // Emette l'evento Tauri "game-started"
+    // Emette l'evento Tauri "game-started" con session_id e stato launching (Requirement B3)
     use tauri::Emitter;
     let _ = app_handle.emit(
         "game-started",
         serde_json::json!({
+            "session_id": session_id_str,
             "game_id": id.to_string(),
             "title": title.clone(),
+            "state": "launching",
             "started_at": started_at.to_rfc3339(),
         }),
     );
@@ -257,21 +270,59 @@ pub async fn launch_game(
     let game_id_str = id.to_string();
 
     tokio::spawn(async move {
+        // Task di persistenza incrementale ogni ~60s (Requirement B1)
+        let is_running = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
+        let is_running_cp = is_running.clone();
+        let db_cp = db.clone();
+        let active_mgr_cp = active_mgr.clone();
+        let sid_cp = session_id_str.clone();
+
+        tokio::spawn(async move {
+            while is_running_cp.load(std::sync::atomic::Ordering::SeqCst) {
+                tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+                if !is_running_cp.load(std::sync::atomic::Ordering::SeqCst) {
+                    break;
+                }
+                let now = chrono::Utc::now();
+                if is_installed {
+                    let _ = db_cp.checkpoint_play_session(session_id, id, 60, now);
+                }
+                active_mgr_cp.add_elapsed(&sid_cp, 60).await;
+            }
+        });
+
         let active_mgr_for_pid = active_mgr.clone();
+        let app_for_pid = app_handle_clone.clone();
+        let sid_for_pid = session_id_str.clone();
+        let gid_for_pid = id.to_string();
+
         let track_res = GameLauncher::launch_and_track(
             id,
             config,
             install_dir,
             move |pid| {
                 let mgr = active_mgr_for_pid.clone();
+                let app = app_for_pid.clone();
                 tokio::spawn(async move {
-                    mgr.update_pid(pid).await;
+                    mgr.set_running(&sid_for_pid, pid).await;
+                    let _ = app.emit(
+                        "game-status-changed",
+                        serde_json::json!({
+                            "session_id": sid_for_pid,
+                            "game_id": gid_for_pid,
+                            "state": "running",
+                            "pid": pid,
+                        }),
+                    );
                 });
             },
         )
         .await;
 
+        is_running.store(false, std::sync::atomic::Ordering::SeqCst);
         let ended_at = chrono::Utc::now();
+        active_mgr.set_stopping(&session_id_str).await;
+
         let duration = match track_res {
             Ok(d) if d > 0 => d,
             Ok(_) => (ended_at - started_at).num_seconds().max(0) as u64,
@@ -282,21 +333,42 @@ pub async fn launch_game(
         };
 
         if is_installed {
-            let _ = db.record_play_session(id, duration, started_at, ended_at);
+            let _ = db.finish_play_session(session_id, id, duration, started_at, ended_at);
         }
 
         active_mgr.clear_running().await;
 
-        // Ripristina la finestra principale al termine del gioco
+        // Ripristina la finestra principale al termine del gioco (Requirement C1 & C2)
+        // Breve ritardo per attendere che Windows completi il ripristino della modalità video / risoluzione (C2)
+        tokio::time::sleep(std::time::Duration::from_millis(350)).await;
+
         if let Some(window) = app_handle_clone.get_webview_window("main") {
+            // Concede autorizzazione foreground per bypassare i blocchi di Windows (C1)
+            omnis_core::launcher::allow_set_foreground_window();
+
+            // Sequenza di ripristino robusta: unminimize -> show -> set_focus
             let _ = window.unminimize();
             let _ = window.show();
             let _ = window.set_focus();
+
+            // Gestione risoluzione e multi-monitor: se era fullscreen riapplica con breve ritardo (C2)
+            if was_fullscreen {
+                tokio::time::sleep(std::time::Duration::from_millis(150)).await;
+                let _ = window.set_fullscreen(true);
+            } else {
+                if let Some(pos) = prev_pos {
+                    let _ = window.set_position(tauri::Position::Physical(pos));
+                }
+                if let Some(sz) = prev_size {
+                    let _ = window.set_size(tauri::Size::Physical(sz));
+                }
+            }
         }
 
         let _ = app_handle_clone.emit(
             "game-stopped",
             serde_json::json!({
+                "session_id": session_id_str,
                 "game_id": game_id_str,
                 "duration_seconds": duration,
             }),

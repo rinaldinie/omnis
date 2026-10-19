@@ -29,6 +29,7 @@ keyring = "2.1"
 url = "2.4"
 base64 = "0.22"
 rfd = "0.15"
+sysinfo = "0.30"
 
 [build-dependencies]
 tauri-build = { version = "2.1", features = [] }
