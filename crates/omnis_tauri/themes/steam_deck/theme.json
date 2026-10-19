@@ -1,0 +1,20 @@
+{
+  "id": "steam_deck",
+  "name": "Steam Deck OLED",
+  "description": "Pure pitch black OLED theme with Steam Deck cyan-blue highlights",
+  "author": "Valve Inspired",
+  "is_custom": false,
+  "bg_base": "#000000",
+  "bg_surface": "#0b0e14",
+  "bg_card": "#121721",
+  "text_primary": "#ffffff",
+  "text_muted": "#8a9aa8",
+  "accent_primary": "#1a9fff",
+  "accent_glow": "rgba(26, 159, 255, 0.45)",
+  "border_color": "#1e2533",
+  "card_radius": "8px",
+  "font_family": "system-ui, sans-serif",
+  "custom_css": null,
+  "target_mode": "bigpicture",
+  "enable_video_backdrop": false
+}

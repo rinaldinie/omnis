@@ -214,6 +214,19 @@ export default function App() {
     }
     document.body.style.backgroundColor = currentTheme.bg_base;
     document.body.style.color = currentTheme.text_primary;
+
+    // Inject custom CSS stylesheet from theme (style.css / custom_css)
+    let styleTag = document.getElementById("omnis-custom-theme-css") as HTMLStyleElement | null;
+    if (currentTheme.custom_css && currentTheme.custom_css.trim()) {
+      if (!styleTag) {
+        styleTag = document.createElement("style");
+        styleTag.id = "omnis-custom-theme-css";
+        document.head.appendChild(styleTag);
+      }
+      styleTag.textContent = currentTheme.custom_css;
+    } else if (styleTag) {
+      styleTag.textContent = "";
+    }
   }, [currentTheme]);
 
   // LOAD GAMES & THEMES
@@ -715,6 +728,7 @@ export default function App() {
               {viewMode === "details" && (
                 selectedGame ? (
                   <DetailsSplitView
+                    currentTheme={currentTheme}
                     selectedGame={selectedGame}
                     setSelectedGame={setSelectedGame}
                     detailsSidebarOpen={detailsSidebarOpen}

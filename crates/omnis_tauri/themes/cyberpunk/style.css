@@ -1,0 +1,9 @@
+/* Cyberpunk Neon Theme Custom Stylesheet */
+
+.game-card {
+  transition: transform 0.25s ease, box-shadow 0.25s ease !important;
+}
+
+.game-card:hover {
+  box-shadow: 0 10px 25px rgba(99, 102, 241, 0.35) !important;
+}

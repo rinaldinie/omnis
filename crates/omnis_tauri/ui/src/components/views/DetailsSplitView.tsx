@@ -13,10 +13,12 @@ import {
   SlidersHorizontal,
   ExternalLink,
 } from "lucide-react";
-import { GameDto, ViewMode } from "../../types";
+import { GameDto, ThemeConfig, ViewMode } from "../../types";
 import { StoreBadge } from "../StoreBadge";
+import { VideoBackdrop } from "../common/VideoBackdrop";
 
 interface DetailsSplitViewProps {
+  currentTheme?: ThemeConfig;
   selectedGame: GameDto;
   setSelectedGame: (game: GameDto) => void;
   detailsSidebarOpen: boolean;
@@ -37,6 +39,7 @@ interface DetailsSplitViewProps {
 }
 
 export default function DetailsSplitView({
+  currentTheme,
   selectedGame,
   setSelectedGame,
   detailsSidebarOpen,
@@ -238,34 +241,44 @@ export default function DetailsSplitView({
           </div>
         </div>
 
-        {/* Hero Background Full-Width with Ambient Gradient */}
+        {/* Hero Background Full-Width with Ambient Gradient / Video Trailer */}
         <div className="relative h-88 min-h-[340px] w-full overflow-hidden flex items-end p-8">
-          {selectedGame.background_image ? (
-            <img
-              src={selectedGame.background_image}
-              alt="Hero"
-              className="absolute inset-0 w-full h-full object-cover"
-            />
-          ) : selectedGame.cover_image ? (
-            <img
-              src={selectedGame.cover_image}
-              alt="Hero"
-              className="absolute inset-0 w-full h-full object-cover filter blur-md scale-110 opacity-40"
+          {currentTheme ? (
+            <VideoBackdrop
+              game={selectedGame}
+              theme={currentTheme}
+              blurLevel={currentTheme.enable_video_backdrop ? "none" : "subtle"}
             />
           ) : (
-            <div
-              className="absolute inset-0 opacity-40"
-              style={{
-                background: `linear-gradient(135deg, var(--accent-primary), var(--bg-base))`,
-              }}
-            />
+            <>
+              {selectedGame.background_image ? (
+                <img
+                  src={selectedGame.background_image}
+                  alt="Hero"
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+              ) : selectedGame.cover_image ? (
+                <img
+                  src={selectedGame.cover_image}
+                  alt="Hero"
+                  className="absolute inset-0 w-full h-full object-cover filter blur-md scale-110 opacity-40"
+                />
+              ) : (
+                <div
+                  className="absolute inset-0 opacity-40"
+                  style={{
+                    background: `linear-gradient(135deg, var(--accent-primary), var(--bg-base))`,
+                  }}
+                />
+              )}
+              <div
+                className="absolute inset-0"
+                style={{
+                  background: `linear-gradient(to top, var(--bg-base) 0%, rgba(9, 12, 20, 0.6) 60%, transparent 100%)`,
+                }}
+              />
+            </>
           )}
-          <div
-            className="absolute inset-0"
-            style={{
-              background: `linear-gradient(to top, var(--bg-base) 0%, rgba(9, 12, 20, 0.6) 60%, transparent 100%)`,
-            }}
-          />
 
           <div className="relative z-10 flex items-end gap-6 w-full">
             {/* 3D Boxart Cover with Border & Shadow */}

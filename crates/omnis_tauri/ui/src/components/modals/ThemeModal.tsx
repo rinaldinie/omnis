@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Palette, PlusCircle, Folder, Check } from "lucide-react";
+import { Palette, PlusCircle, Folder, Check, Film, Tv, Monitor } from "lucide-react";
 import { ThemeConfig } from "../../types";
 
 interface ThemeModalProps {
@@ -60,6 +60,10 @@ export default function ThemeModal({
       card_radius: newThemeDraft.card_radius || "12px",
       font_family: newThemeDraft.font_family || "system-ui, sans-serif",
       custom_css: newThemeDraft.custom_css || null,
+      target_mode: newThemeDraft.target_mode || "all",
+      enable_video_backdrop: !!newThemeDraft.enable_video_backdrop,
+      video_backdrop_opacity: newThemeDraft.video_backdrop_opacity ?? 0.55,
+      video_delay_ms: newThemeDraft.video_delay_ms ?? 1000,
     };
     await onSaveCustomTheme(fullTheme);
     setThemeModalTab("list");
@@ -133,6 +137,10 @@ export default function ThemeModal({
                 border_color: currentTheme.border_color,
                 card_radius: currentTheme.card_radius,
                 font_family: currentTheme.font_family,
+                target_mode: currentTheme.target_mode || "all",
+                enable_video_backdrop: currentTheme.enable_video_backdrop || false,
+                video_backdrop_opacity: currentTheme.video_backdrop_opacity ?? 0.55,
+                video_delay_ms: currentTheme.video_delay_ms ?? 1000,
               });
             }}
             className="flex-1 py-2 rounded-lg text-xs font-bold transition-all text-center flex items-center justify-center gap-1.5"
@@ -183,21 +191,44 @@ export default function ThemeModal({
                     }}
                   >
                     <div>
-                      <div className="flex justify-between items-center">
-                        <span className="font-extrabold text-sm text-white">{t.name}</span>
-                        {isCurrent ? (
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="min-w-0">
+                          <span className="font-extrabold text-sm text-white block truncate">{t.name}</span>
+                          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                            {t.enable_video_backdrop && (
+                              <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                <Film className="w-2.5 h-2.5" />
+                                TRAILER
+                              </span>
+                            )}
+                            {t.target_mode === "bigpicture" && (
+                              <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-black bg-sky-500/20 text-sky-300 border border-sky-500/30">
+                                <Tv className="w-2.5 h-2.5" />
+                                BIG PICTURE
+                              </span>
+                            )}
+                            {t.target_mode === "desktop" && (
+                              <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-black bg-slate-500/20 text-slate-300 border border-slate-500/30">
+                                <Monitor className="w-2.5 h-2.5" />
+                                DESKTOP
+                              </span>
+                            )}
+                            {t.is_custom && (
+                              <span className="px-1.5 py-0.5 rounded text-[8px] font-black bg-indigo-500/20 text-indigo-300">
+                                CUSTOM
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        {isCurrent && (
                           <span
-                            className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black text-white"
+                            className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black text-white shrink-0"
                             style={{ backgroundColor: t.accent_primary }}
                           >
                             <Check className="w-3 h-3" />
                             ATTIVO
                           </span>
-                        ) : t.is_custom ? (
-                          <span className="px-1.5 py-0.5 rounded text-[8px] font-black bg-indigo-500/20 text-indigo-300">
-                            CUSTOM
-                          </span>
-                        ) : null}
+                        )}
                       </div>
                       <p
                         className="text-[11px] mt-1.5 line-clamp-2 leading-relaxed"
@@ -393,6 +424,35 @@ export default function ThemeModal({
                     {newThemeDraft.accent_primary}
                   </span>
                 </div>
+              </div>
+
+              {/* Opzioni Avanzate & Video Trailer */}
+              <div
+                className="p-3 rounded-xl border flex items-center justify-between col-span-2"
+                style={{
+                  backgroundColor: "var(--bg-surface)",
+                  borderColor: "var(--border-color)",
+                }}
+              >
+                <div className="flex items-center gap-2.5">
+                  <Film className="w-4 h-4 text-amber-400 shrink-0" />
+                  <div>
+                    <label className="text-xs font-bold text-white block">
+                      Abilita Video Trailer di Sfondo
+                    </label>
+                    <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>
+                      Riproduce i trailer dinamici dei giochi in loop e muti durante la selezione
+                    </p>
+                  </div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={!!newThemeDraft.enable_video_backdrop}
+                  onChange={(e) =>
+                    setNewThemeDraft({ ...newThemeDraft, enable_video_backdrop: e.target.checked })
+                  }
+                  className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                />
               </div>
             </div>
 

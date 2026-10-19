@@ -1,0 +1,20 @@
+{
+  "id": "nordic_frost",
+  "name": "Nordic Polar Frost",
+  "description": "Subtle cold arctic palette with frost blues and clean muted contrast",
+  "author": "Nord Theme",
+  "is_custom": false,
+  "bg_base": "#242933",
+  "bg_surface": "#2e3440",
+  "bg_card": "#3b4252",
+  "text_primary": "#eceff4",
+  "text_muted": "#d8dee9",
+  "accent_primary": "#88c0d0",
+  "accent_glow": "rgba(136, 192, 208, 0.45)",
+  "border_color": "#4c566a",
+  "card_radius": "10px",
+  "font_family": "system-ui, sans-serif",
+  "custom_css": null,
+  "target_mode": "all",
+  "enable_video_backdrop": false
+}
