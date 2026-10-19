@@ -166,10 +166,24 @@ export default function BigPictureView({
 
         {/* Live Running Game Indicator in 10-Foot Top Bar */}
         {activeGame && (
-          <div className="flex items-center gap-3 px-5 py-2.5 rounded-full bg-emerald-500/20 border-2 border-emerald-500/60 text-emerald-300 font-extrabold text-sm shadow-xl shadow-emerald-950/60 animate-pulse backdrop-blur-md">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+          <div className={`flex items-center gap-3 px-5 py-2.5 rounded-full border-2 text-sm font-extrabold shadow-xl backdrop-blur-md ${
+            activeGame.state === "launching"
+              ? "bg-amber-500/20 border-amber-500/60 text-amber-300 animate-pulse shadow-amber-950/60"
+              : activeGame.state === "stopping"
+              ? "bg-rose-500/20 border-rose-500/60 text-rose-300 shadow-rose-950/60"
+              : "bg-emerald-500/20 border-emerald-500/60 text-emerald-300 animate-pulse shadow-emerald-950/60"
+          }`}>
+            <span className={`w-2.5 h-2.5 rounded-full ${
+              activeGame.state === "launching" ? "bg-amber-400" : activeGame.state === "stopping" ? "bg-rose-400" : "bg-emerald-400 animate-ping"
+            }`} />
             <span>
-              ● In Esecuzione: <strong className="text-white">{activeGame.title}</strong> ({formatDuration ? formatDuration(elapsedSeconds || 0) : `${elapsedSeconds || 0}s`})
+              {activeGame.state === "launching" ? (
+                <>⏳ In Avvio: <strong className="text-white">{activeGame.title}</strong>...</>
+              ) : activeGame.state === "stopping" ? (
+                <>🛑 Chiusura in corso: <strong className="text-white">{activeGame.title}</strong>...</>
+              ) : (
+                <>● In Esecuzione: <strong className="text-white">{activeGame.title}</strong> ({formatDuration ? formatDuration(elapsedSeconds || 0) : `${elapsedSeconds || 0}s`})</>
+              )}
             </span>
             {handleKillRunningGame && (
               <button
@@ -179,7 +193,7 @@ export default function BigPictureView({
                   handleKillRunningGame();
                 }}
                 className="ml-2 px-3 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 active:bg-rose-700 text-white text-xs font-black uppercase tracking-wider transition-all shadow-md cursor-pointer"
-                title="Termina Gioco (Forzato)"
+                title="Termina Gioco"
               >
                 Termina
               </button>

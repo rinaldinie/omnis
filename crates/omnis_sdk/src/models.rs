@@ -291,6 +291,15 @@ pub struct StoreSyncProgressPayload {
     pub message: Option<String>,
 }
 
+/// State of an active game session
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum SessionState {
+    Launching,
+    Running,
+    Stopping,
+}
+
 /// Historical game play session record
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GameSessionRecord {
@@ -300,6 +309,7 @@ pub struct GameSessionRecord {
     pub ended_at: DateTime<Utc>,
     pub duration_seconds: u64,
 }
+
 
 
 

@@ -322,9 +322,21 @@ export default function DetailsSplitView({
               <div className="flex flex-wrap items-center gap-2">
                 <StoreBadge library={selectedGame.library} showName={true} className="py-1 px-3 text-xs" />
                 {isSelectedGameRunning && (
-                  <span className="px-3 py-1 rounded-full text-xs font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/60 shadow-lg shadow-emerald-950/50 animate-pulse flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                    ● IN ESECUZIONE ({formatDuration ? formatDuration(elapsedSeconds || 0) : `${elapsedSeconds || 0}s`})
+                  <span className={`px-3 py-1 rounded-full text-xs font-black border shadow-lg flex items-center gap-1.5 ${
+                    activeGame?.state === "launching"
+                      ? "bg-amber-500/20 text-amber-300 border-amber-500/60 shadow-amber-950/50 animate-pulse"
+                      : activeGame?.state === "stopping"
+                      ? "bg-rose-500/20 text-rose-300 border-rose-500/60 shadow-rose-950/50"
+                      : "bg-emerald-500/20 text-emerald-300 border-emerald-500/60 shadow-emerald-950/50 animate-pulse"
+                  }`}>
+                    <span className={`w-2 h-2 rounded-full ${
+                      activeGame?.state === "launching" ? "bg-amber-400" : activeGame?.state === "stopping" ? "bg-rose-400" : "bg-emerald-400 animate-ping"
+                    }`} />
+                    {activeGame?.state === "launching"
+                      ? "⏳ IN AVVIO..."
+                      : activeGame?.state === "stopping"
+                      ? "🛑 IN CHIUSURA..."
+                      : `● IN ESECUZIONE (${formatDuration ? formatDuration(elapsedSeconds || 0) : `${elapsedSeconds || 0}s`})`}
                   </span>
                 )}
                 {selectedGame.is_installed ? (

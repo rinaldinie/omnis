@@ -8,6 +8,7 @@ import {
   Gamepad2,
   X,
   Square,
+  AlertTriangle,
 } from "lucide-react";
 import GameEditorModal from "./components/GameEditorModal";
 import MetadataResolutionModal from "./components/MetadataResolutionModal";
@@ -103,20 +104,22 @@ export default function App() {
   const [activeGame, setActiveGame] = useState<ActiveGameSession | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
   const [sessionToast, setSessionToast] = useState<SessionToastInfo | null>(null);
+  const [showKillConfirmModal, setShowKillConfirmModal] = useState<boolean>(false);
   const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const gamesRef = useRef<GameDto[]>([]);
   gamesRef.current = games;
   const activeGameRef = useRef<ActiveGameSession | null>(null);
   activeGameRef.current = activeGame;
 
-  // Live timer for active game session
+  // Live timer for active game session (counts from process detection, Requirement A6)
   useEffect(() => {
     if (!activeGame) {
       setElapsedSeconds(0);
       return;
     }
     const calcElapsed = () => {
-      const started = new Date(activeGame.started_at).getTime();
+      const timeRef = activeGame.process_detected_at || activeGame.started_at;
+      const started = new Date(timeRef).getTime();
       const now = Date.now();
       const diff = Math.max(0, Math.floor((now - started) / 1000));
       setElapsedSeconds(diff);
@@ -124,7 +127,7 @@ export default function App() {
     calcElapsed();
     const interval = setInterval(calcElapsed, 1000);
     return () => clearInterval(interval);
-  }, [activeGame]);
+  }, [activeGame?.started_at, activeGame?.process_detected_at]);
 
   useEffect(() => {
     return () => {
@@ -227,6 +230,7 @@ export default function App() {
     handleLaunch: (id) => handleLaunch(id),
     cycleFilter,
     carouselRef,
+    isSuspended: isGameRunning,
   });
 
   const focusedGame = filteredGames[focusedIndex] || filteredGames[0] || selectedGame;
@@ -484,6 +488,7 @@ export default function App() {
     let unlistenSync: (() => void) | null = null;
     let unlistenLib: (() => void) | null = null;
     let unlistenGameStarted: (() => void) | null = null;
+    let unlistenGameStatus: (() => void) | null = null;
     let unlistenGameStopped: (() => void) | null = null;
 
     (async () => {
@@ -531,28 +536,64 @@ export default function App() {
           if (!isMounted) { hLib(); } else { unlistenLib = hLib; }
 
           const hStarted = await listen<{
+            session_id: string;
             game_id: string;
             title: string;
+            state?: string;
             started_at: string;
           }>("game-started", (event) => {
             setIsGameRunning(true);
             setActiveGame({
+              session_id: event.payload.session_id,
               game_id: event.payload.game_id,
               title: event.payload.title,
+              state: (event.payload.state as any) || "launching",
               started_at: event.payload.started_at,
+              process_detected_at: null,
             });
-            soundEffects.setMuted(true);
-            setStatusMessage(`Gioco '${event.payload.title}' in esecuzione`);
+            soundEffects.suspendAudio();
+            setStatusMessage(`Avvio di '${event.payload.title}' in corso...`);
           });
           if (!isMounted) { hStarted(); } else { unlistenGameStarted = hStarted; }
 
+          const hStatus = await listen<{
+            session_id: string;
+            game_id: string;
+            state: string;
+            pid?: number;
+          }>("game-status-changed", (event) => {
+            if (activeGameRef.current && activeGameRef.current.session_id === event.payload.session_id) {
+              const newState = event.payload.state as any;
+              setActiveGame((prev) => prev ? {
+                ...prev,
+                state: newState,
+                pid: event.payload.pid ?? prev.pid,
+                process_detected_at: newState === "running" ? (prev.process_detected_at || new Date().toISOString()) : prev.process_detected_at,
+              } : null);
+              if (newState === "running") {
+                setStatusMessage(`Gioco '${activeGameRef.current.title}' in esecuzione (PID: ${event.payload.pid})`);
+              }
+            }
+          });
+          if (!isMounted) { hStatus(); } else { unlistenGameStatus = hStatus; }
+
           const hStopped = await listen<{
+            session_id?: string;
             game_id: string;
             duration_seconds: number;
           }>("game-stopped", (event) => {
+            // Ignore events from stale sessions (Requirement B3)
+            if (
+              event.payload.session_id &&
+              activeGameRef.current &&
+              activeGameRef.current.session_id !== event.payload.session_id
+            ) {
+              return;
+            }
+
             setIsGameRunning(false);
             setActiveGame(null);
-            soundEffects.setMuted(false);
+            soundEffects.resumeAudio();
 
             const stoppedGameId = event.payload.game_id;
             const durationSec = event.payload.duration_seconds;
@@ -589,6 +630,7 @@ export default function App() {
       if (unlistenSync) unlistenSync();
       if (unlistenLib) unlistenLib();
       if (unlistenGameStarted) unlistenGameStarted();
+      if (unlistenGameStatus) unlistenGameStatus();
       if (unlistenGameStopped) unlistenGameStopped();
     };
   }, []);
@@ -645,9 +687,14 @@ export default function App() {
     }
   };
 
-  const handleKillRunningGame = async () => {
+  const handleKillRunningGame = () => {
+    setShowKillConfirmModal(true);
+  };
+
+  const confirmKillRunningGame = async () => {
+    setShowKillConfirmModal(false);
     try {
-      setStatusMessage("Terminazione forzata del processo di gioco in corso...");
+      setStatusMessage("Terminazione graduale del processo di gioco in corso (WM_CLOSE)...");
       const killed = await invokeTauri<boolean>("kill_running_game");
       if (killed) {
         soundEffects.playSelect();
@@ -1217,6 +1264,45 @@ export default function App() {
         initialTab={settingsInitialTab}
         onSyncComplete={refreshLibrary}
       />
+
+      {/* KILL RUNNING GAME CONFIRMATION MODAL */}
+      {showKillConfirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-slate-900 border border-rose-500/50 rounded-2xl p-6 max-w-md w-full shadow-2xl shadow-rose-950/40 text-left">
+            <div className="flex items-center gap-3 text-rose-400 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-6 h-6 text-rose-400" />
+              </div>
+              <div>
+                <h3 className="font-bold text-lg text-white">Termina Gioco</h3>
+                <p className="text-xs text-rose-300">Richiesta di chiusura del processo</p>
+              </div>
+            </div>
+            <p className="text-sm text-slate-300 mb-6">
+              Sei sicuro di voler chiudere <strong className="text-white">{activeGame?.title || "il gioco attivo"}</strong>?
+              <br /><br />
+              <span className="text-xs text-slate-400">
+                Omnis tenterà prima una chiusura controllata (WM_CLOSE) per consentire il salvataggio dei dati, e terminerà forzatamente il processo solo se non risponde entro pochi secondi.
+              </span>
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowKillConfirmModal(false)}
+                className="px-4 py-2 rounded-xl text-sm font-semibold bg-white/10 hover:bg-white/20 text-slate-200 transition-colors"
+              >
+                Annulla
+              </button>
+              <button
+                onClick={confirmKillRunningGame}
+                className="px-4 py-2 rounded-xl text-sm font-bold bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-600/30 transition-all flex items-center gap-2"
+              >
+                <Square className="w-4 h-4 fill-white" />
+                Conferma e Termina
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* DESKTOP SESSION END TOAST */}
       {!isBigPicture && sessionToast && (

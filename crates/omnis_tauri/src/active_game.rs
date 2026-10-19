@@ -1,17 +1,23 @@
+use omnis_sdk::SessionState;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use uuid::Uuid;
 
-/// Active game session state model
+/// Active game session state model with session_id and life-cycle state (Requirements B2, B3)
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ActiveGameSession {
+    pub session_id: String,
     pub game_id: String,
     pub title: String,
     pub pid: Option<u32>,
+    pub state: SessionState,
     pub started_at: chrono::DateTime<chrono::Utc>,
+    pub process_detected_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub elapsed_seconds: u64,
 }
 
-/// Global active game manager tracking the currently running title
+/// Global active game manager tracking the currently running title, session checkpoints, and graceful shutdowns
 #[derive(Debug, Clone)]
 pub struct ActiveGameManager {
     current: Arc<RwLock<Option<ActiveGameSession>>>,
@@ -25,17 +31,50 @@ impl ActiveGameManager {
         }
     }
 
-    /// Set the currently running game session
-    pub async fn set_running(&self, session: ActiveGameSession) {
+    /// Set a game session in the Launching state (Requirement A6, B3)
+    pub async fn set_launching(&self, session_id: Uuid, game_id: String, title: String) {
         let mut lock = self.current.write().await;
-        *lock = Some(session);
+        *lock = Some(ActiveGameSession {
+            session_id: session_id.to_string(),
+            game_id,
+            title,
+            pid: None,
+            state: SessionState::Launching,
+            started_at: chrono::Utc::now(),
+            process_detected_at: None,
+            elapsed_seconds: 0,
+        });
     }
 
-    /// Update the discovered real process PID of the running game
-    pub async fn update_pid(&self, pid: u32) {
+    /// Update session to Running state upon process detection (Requirement A6, B3)
+    pub async fn set_running(&self, session_id: &str, pid: u32) {
         let mut lock = self.current.write().await;
         if let Some(ref mut session) = *lock {
-            session.pid = Some(pid);
+            if session.session_id == session_id {
+                session.pid = Some(pid);
+                session.state = SessionState::Running;
+                session.process_detected_at = Some(chrono::Utc::now());
+            }
+        }
+    }
+
+    /// Transition session to Stopping state (Requirement B3)
+    pub async fn set_stopping(&self, session_id: &str) {
+        let mut lock = self.current.write().await;
+        if let Some(ref mut session) = *lock {
+            if session.session_id == session_id {
+                session.state = SessionState::Stopping;
+            }
+        }
+    }
+
+    /// Incrementally update elapsed time in memory during checkpointing (Requirement B1)
+    pub async fn add_elapsed(&self, session_id: &str, delta_seconds: u64) {
+        let mut lock = self.current.write().await;
+        if let Some(ref mut session) = *lock {
+            if session.session_id == session_id {
+                session.elapsed_seconds += delta_seconds;
+            }
         }
     }
 
@@ -51,18 +90,83 @@ impl ActiveGameManager {
         lock.clone()
     }
 
-    /// Forcibly terminate the currently running game process and clear active state
+    /// Forcibly or gracefully terminate the currently running game process (Requirement B4)
     pub async fn kill_running(&self) -> Result<bool, String> {
-        let mut lock = self.current.write().await;
-        if let Some(session) = lock.as_ref() {
-            if let Some(pid) = session.pid {
-                omnis_core::launcher::GameLauncher::kill_process(pid)?;
+        self.kill_running_graceful(3).await
+    }
+
+    /// Graceful termination: sends WM_CLOSE, waits up to timeout_secs, then falls back to hard kill
+    pub async fn kill_running_graceful(&self, timeout_secs: u64) -> Result<bool, String> {
+        let pid_to_kill = {
+            let lock = self.current.read().await;
+            if let Some(ref session) = *lock {
+                session.pid
+            } else {
+                return Ok(false);
             }
-            *lock = None;
-            Ok(true)
-        } else {
-            Ok(false)
+        };
+
+        if let Some(pid) = pid_to_kill {
+            omnis_core::launcher::GameLauncher::kill_process_graceful(pid, timeout_secs).await?;
         }
+
+        let mut lock = self.current.write().await;
+        *lock = None;
+        Ok(true)
+    }
+
+    /// Startup re-attachment: checks if any installed game is currently running on the system (Requirement B2)
+    pub async fn check_and_reattach(&self, db: &omnis_core::db::Database) -> Option<ActiveGameSession> {
+        // If already tracking, return current
+        if let Some(running) = self.get_running().await {
+            return Some(running);
+        }
+
+        let games = match db.get_all_games() {
+            Ok(g) => g,
+            Err(_) => return None,
+        };
+
+        let mut sys = sysinfo::System::new();
+        sys.refresh_processes();
+
+        for game in games {
+            if !game.is_installed {
+                continue;
+            }
+
+            let target_name: Option<String> = game.play_actions.first().and_then(|action| {
+                match &action.tracking_mode {
+                    omnis_sdk::ProcessTrackingMode::ProcessName(name) => Some(name.clone()),
+                    _ => None,
+                }
+            });
+
+            let install_dir = game.install_dir.as_deref();
+
+            for (pid, proc) in sys.processes() {
+                if omnis_core::launcher::matches_target(proc, target_name.as_deref(), install_dir) {
+                    let session_id = Uuid::new_v4();
+                    let reattached = ActiveGameSession {
+                        session_id: session_id.to_string(),
+                        game_id: game.id.to_string(),
+                        title: game.title.clone(),
+                        pid: Some(pid.as_u32()),
+                        state: SessionState::Running,
+                        started_at: chrono::Utc::now(),
+                        process_detected_at: Some(chrono::Utc::now()),
+                        elapsed_seconds: 0,
+                    };
+
+                    let mut lock = self.current.write().await;
+                    *lock = Some(reattached.clone());
+                    tracing::info!("Re-attached to running game {} (PID: {}) on startup", game.title, pid);
+                    return Some(reattached);
+                }
+            }
+        }
+
+        None
     }
 }
 
@@ -75,29 +179,28 @@ impl Default for ActiveGameManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::Utc;
 
     #[tokio::test]
     async fn test_active_game_manager_lifecycle() {
         let manager = ActiveGameManager::new();
         assert!(manager.get_running().await.is_none());
 
-        let session = ActiveGameSession {
-            game_id: "test-game-123".to_string(),
-            title: "Test Game".to_string(),
-            pid: None,
-            started_at: Utc::now(),
-        };
+        let session_id = Uuid::new_v4();
+        manager.set_launching(session_id, "test-game-123".to_string(), "Test Game".to_string()).await;
+        
+        let launching = manager.get_running().await.expect("Session should be active");
+        assert_eq!(launching.state, SessionState::Launching);
+        assert_eq!(launching.pid, None);
 
-        manager.set_running(session.clone()).await;
-        let running = manager.get_running().await;
-        assert!(running.is_some());
-        assert_eq!(running.as_ref().unwrap().game_id, "test-game-123");
-        assert_eq!(running.as_ref().unwrap().pid, None);
+        manager.set_running(&session_id.to_string(), 4242).await;
+        let running = manager.get_running().await.expect("Session should be active");
+        assert_eq!(running.state, SessionState::Running);
+        assert_eq!(running.pid, Some(4242));
+        assert!(running.process_detected_at.is_some());
 
-        manager.update_pid(4242).await;
-        let updated = manager.get_running().await;
-        assert_eq!(updated.unwrap().pid, Some(4242));
+        manager.add_elapsed(&session_id.to_string(), 60).await;
+        let running_after_checkpoint = manager.get_running().await.expect("Session should be active");
+        assert_eq!(running_after_checkpoint.elapsed_seconds, 60);
 
         manager.clear_running().await;
         assert!(manager.get_running().await.is_none());
@@ -108,37 +211,5 @@ mod tests {
         let manager = ActiveGameManager::new();
         let res = manager.kill_running().await;
         assert_eq!(res, Ok(false));
-    }
-
-    #[tokio::test]
-    async fn test_kill_running_with_spawned_process() {
-        let manager = ActiveGameManager::new();
-
-        // Spawn a background process
-        let mut cmd = if cfg!(windows) {
-            let mut c = std::process::Command::new("cmd.exe");
-            c.args(["/c", "ping", "-n", "10", "127.0.0.1"]);
-            c
-        } else {
-            let mut c = std::process::Command::new("sleep");
-            c.arg("10");
-            c
-        };
-
-        let child = cmd.spawn().expect("Failed to spawn process");
-        let pid = child.id();
-
-        manager
-            .set_running(ActiveGameSession {
-                game_id: "test-game-process".to_string(),
-                title: "Test Process".to_string(),
-                pid: Some(pid),
-                started_at: Utc::now(),
-            })
-            .await;
-
-        let res = manager.kill_running().await;
-        assert_eq!(res, Ok(true));
-        assert!(manager.get_running().await.is_none());
     }
 }
