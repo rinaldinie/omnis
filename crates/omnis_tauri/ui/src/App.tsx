@@ -43,6 +43,7 @@ import BigPictureView from "./components/views/BigPictureView";
 import DetailsSplitView from "./components/views/DetailsSplitView";
 import GridView from "./components/views/GridView";
 import TopBar from "./components/navigation/TopBar";
+import VideoBackdrop from "./components/common/VideoBackdrop";
 import Sidebar from "./components/navigation/Sidebar";
 import ThemeModal from "./components/modals/ThemeModal";
 import PluginManagerModal from "./components/modals/PluginManagerModal";
@@ -620,9 +621,18 @@ export default function App() {
 
             {/* MAIN CATALOG VIEW */}
             <main
-              className="flex-1 flex flex-col overflow-hidden transition-colors duration-300"
+              className="flex-1 flex flex-col overflow-hidden transition-colors duration-300 relative"
               style={{ backgroundColor: "var(--bg-base)" }}
             >
+              {/* Cinema Lounge Dynamic Video Trailer Backdrop in Desktop Views */}
+              {currentTheme.enable_video_backdrop && viewMode !== "details" && (
+                <VideoBackdrop
+                  game={selectedGame}
+                  theme={currentTheme}
+                  blurLevel="ambient"
+                  className="opacity-40"
+                />
+              )}
               {/* CONTEXTUAL TOOLBAR (GROUPBY, ZOOM SLIDER, COUNTER) */}
               <div
                 className="h-11 min-h-[44px] px-6 border-b flex items-center justify-between select-none shrink-0 z-10"

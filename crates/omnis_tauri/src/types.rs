@@ -10,6 +10,7 @@ use std::sync::Arc;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GameDto {
     pub id: String,
+    pub external_id: String,
     pub title: String,
     pub library: String,
     pub is_installed: bool,
@@ -114,6 +115,7 @@ pub struct AppState {
     pub themes_dir: PathBuf,
     pub image_cache: Arc<ImageCache>,
     pub store_account_manager: Arc<crate::store_manager::StoreAccountManager>,
+    pub trailer_cache: Arc<tokio::sync::RwLock<HashMap<String, String>>>,
 }
 
 pub fn game_to_dto(g: Game, _cache: &ImageCache) -> GameDto {
@@ -129,6 +131,7 @@ pub fn game_to_dto(g: Game, _cache: &ImageCache) -> GameDto {
 
     GameDto {
         id: g.id.to_string(),
+        external_id: g.external_id,
         title: g.title,
         library: g.library_id,
         is_installed: g.is_installed,

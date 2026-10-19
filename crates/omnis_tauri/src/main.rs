@@ -26,10 +26,12 @@ fn main() {
     let backgrounds_dir = cache_dir.join("backgrounds");
     let plugins_dir = app_dir.join("plugins");
     let themes_dir = app_dir.join("themes");
+    let trailers_dir = app_dir.join("trailers");
     let _ = std::fs::create_dir_all(&covers_dir);
     let _ = std::fs::create_dir_all(&backgrounds_dir);
     let _ = std::fs::create_dir_all(&plugins_dir);
     let _ = std::fs::create_dir_all(&themes_dir);
+    let _ = std::fs::create_dir_all(&trailers_dir);
 
     let db_path = app_dir.join("library.db");
     let db = Arc::new(Database::open(&db_path).expect("Impossibile aprire il database SQLite"));
@@ -69,6 +71,7 @@ fn main() {
         themes_dir,
         image_cache,
         store_account_manager,
+        trailer_cache: Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
     };
 
     tauri::Builder::default()
@@ -114,6 +117,7 @@ fn main() {
             disconnect_store_account,
             sync_store_library,
             clear_library,
+            get_game_trailer_url,
         ])
         .run(tauri::generate_context!())
         .expect("Errore durante l'esecuzione dell'applicazione Tauri");
