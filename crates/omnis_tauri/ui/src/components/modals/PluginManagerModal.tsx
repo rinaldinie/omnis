@@ -24,8 +24,9 @@ import {
   Layers,
   ArrowUp,
   ArrowDown,
+  Trash2,
 } from "lucide-react";
-import { ProviderInfo, MetadataPipelineConfig } from "../../types";
+import { ProviderInfo, MetadataPipelineConfig, invokeTauri } from "../../types";
 import { MarketplaceTab } from "../MarketplaceTab";
 import { SteamIcon, EpicIcon, GogIcon, XboxIcon } from "../StoreBadge";
 
@@ -279,6 +280,17 @@ export default function PluginManagerModal({
     });
   };
 
+  const handleUninstall = async (pluginId: string) => {
+    try {
+      await invokeTauri("uninstall_marketplace_plugin", { pluginId });
+      if (onPluginInstalled) {
+        onPluginInstalled();
+      }
+    } catch (err) {
+      console.error("Failed to uninstall plugin:", err);
+    }
+  };
+
   if (!isOpen) return null;
 
   const safeProviders = Array.isArray(providers) ? providers : [];
@@ -306,12 +318,13 @@ export default function PluginManagerModal({
   });
   const libraryList = Array.from(libraryMap.values());
 
-  // Metadata providers (built-ins + external metadata plugins)
+  // Metadata providers (ONLY installed metadata providers returned by backend)
   const metadataList = safeProviders.filter(
     (p) =>
       p &&
       (p.plugin_type === "metadata" ||
-        ["steam", "gog", "steamgriddb", "opencritic", "igdb"].includes(p.id))
+        ["steam", "gog"].includes(p.id) ||
+        (!p.id.endsWith("_library") && p.plugin_type !== "library" && p.plugin_type !== "generic"))
   );
 
   // Generic / community / custom plugins
@@ -319,7 +332,7 @@ export default function PluginManagerModal({
     (p) =>
       p &&
       (p.plugin_type === "generic" ||
-        (!["steam", "gog", "steamgriddb", "opencritic", "igdb"].includes(p.id) &&
+        (!["steam", "gog"].includes(p.id) &&
           p.plugin_type !== "library" &&
           p.plugin_type !== "metadata" &&
           !p.id.endsWith("_library")))
@@ -327,18 +340,13 @@ export default function PluginManagerModal({
 
   const allCombined = [...libraryList, ...metadataList, ...genericList];
 
-  const defaultPriorityOrder = ["steam", "gog", "steamgriddb", "opencritic", "igdb"];
-  const list =
-    safePipelineConfig.provider_priority && safePipelineConfig.provider_priority.length > 0
-      ? safePipelineConfig.provider_priority
-      : defaultPriorityOrder;
-
-  const externalIds = safeProviders
-    .filter((p) => p && (p.plugin_type === "metadata" || (p.supported_fields && p.supported_fields.length > 0)))
-    .map((p) => p.id)
-    .filter((id) => !list.includes(id) && !id.endsWith("_library"));
-
-  const priorityOrder = [...list, ...externalIds];
+  // Pipeline priority order: only include installed and active metadata providers!
+  const installedMetadataIds = metadataList.map((p) => p.id);
+  const savedPriority = (safePipelineConfig.provider_priority || []).filter((id) =>
+    installedMetadataIds.includes(id)
+  );
+  const missingInstalled = installedMetadataIds.filter((id) => !savedPriority.includes(id));
+  const priorityOrder = [...savedPriority, ...missingInstalled];
 
   const movePriority = (index: number, direction: "up" | "down") => {
     const targetIndex = direction === "up" ? index - 1 : index + 1;
@@ -414,6 +422,21 @@ export default function PluginManagerModal({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            {prov.is_builtin === false && (
+              <button
+                type="button"
+                onClick={() => handleUninstall(prov.id)}
+                className="px-3 py-1.5 rounded-xl text-xs font-bold border transition-all text-rose-400 hover:text-white hover:border-rose-500/50 hover:bg-rose-500/10 flex items-center gap-1.5"
+                style={{
+                  backgroundColor: "var(--bg-card)",
+                  borderColor: "var(--border-color)",
+                }}
+                title="Disinstalla plugin e rimuovi da disco"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Disinstalla</span>
+              </button>
+            )}
             <button
               type="button"
               onClick={() => onToggle(prov.id, true)}
@@ -508,10 +531,25 @@ export default function PluginManagerModal({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            {prov.is_builtin === false && (
+              <button
+                type="button"
+                onClick={() => handleUninstall(prov.id)}
+                className="px-3 py-1.5 rounded-xl text-xs font-bold border transition-all text-rose-400 hover:text-white hover:border-rose-500/50 hover:bg-rose-500/10 flex items-center gap-1.5"
+                style={{
+                  backgroundColor: "var(--bg-card)",
+                  borderColor: "var(--border-color)",
+                }}
+                title="Disinstalla plugin e rimuovi da disco"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Disinstalla</span>
+              </button>
+            )}
             <button
               type="button"
               onClick={() => onToggle(prov.id, false)}
-              className="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all border bg-emerald-500/15 text-emerald-400 border-emerald-500/30 hover:bg-rose-500/20 hover:text-rose-300 hover:border-rose-500/40"
+              className="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all border bg-emerald-500/15 text-emerald-400 border-emerald-500/30 hover:bg-amber-500/20 hover:text-amber-300 hover:border-amber-500/40"
             >
               Disattiva
             </button>
@@ -834,7 +872,7 @@ export default function PluginManagerModal({
               }}
             >
               <Puzzle className="w-3.5 h-3.5" />
-              <span>Gestione Plugin ({allCombined.length})</span>
+              <span>Plugin Installati ({allCombined.length})</span>
             </button>
             <button
               onClick={() => setPluginModalTab("pipeline")}
@@ -870,7 +908,7 @@ export default function PluginManagerModal({
               }}
             >
               <Store className="w-3.5 h-3.5" />
-              <span>Community Hub</span>
+              <span>Marketplace (Hub)</span>
             </button>
           </div>
         </div>

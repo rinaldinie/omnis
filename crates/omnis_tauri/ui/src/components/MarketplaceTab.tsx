@@ -29,6 +29,7 @@ export interface MarketplacePluginItem {
   author: string;
   version: string;
   plugin_type: "metadata" | "library" | string;
+  requires_api_key?: boolean;
   icon_url?: string;
   platforms?: Record<string, MarketplacePlatformAsset>;
   is_installed: boolean;
@@ -421,6 +422,16 @@ export const MarketplaceTab: React.FC<MarketplaceTabProps> = ({ onPluginInstalle
                       ) : (
                         <span className="text-[10px] font-medium" style={{ color: "var(--text-muted)" }}>
                           Disponibile
+                        </span>
+                      )}
+
+                      {plugin.requires_api_key ? (
+                        <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                          Richiede API Key
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                          Zero-Config
                         </span>
                       )}
                     </div>

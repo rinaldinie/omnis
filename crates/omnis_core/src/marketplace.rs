@@ -11,6 +11,8 @@ use tokio::sync::RwLock;
 use tracing::{info, warn};
 
 pub const EMBEDDED_SEED_CATALOG: &str = include_str!("marketplace_seed.json");
+pub const DEFAULT_CATALOG_URL: &str =
+    "http://truenas:30142/enrico.rinaldini/omnis-plugins/raw/branch/main/marketplace.json";
 
 /// Platform-specific downloadable asset information
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -32,6 +34,8 @@ pub struct MarketplacePluginItem {
     pub author: String,
     pub version: String,
     pub plugin_type: String, // "metadata" | "library"
+    #[serde(default)]
+    pub requires_api_key: bool,
     #[serde(default)]
     pub icon_url: Option<String>,
     #[serde(default)]
@@ -99,6 +103,7 @@ impl MarketplaceManager {
     pub fn new() -> Self {
         Self {
             client: reqwest::Client::builder()
+                .connect_timeout(std::time::Duration::from_secs(3))
                 .timeout(std::time::Duration::from_secs(10))
                 .build()
                 .unwrap_or_default(),
@@ -111,6 +116,7 @@ impl MarketplaceManager {
     pub fn with_plugins_dir(dir: PathBuf) -> Self {
         Self {
             client: reqwest::Client::builder()
+                .connect_timeout(std::time::Duration::from_secs(3))
                 .timeout(std::time::Duration::from_secs(10))
                 .build()
                 .unwrap_or_default(),
@@ -133,11 +139,25 @@ impl MarketplaceManager {
     pub async fn get_catalog(&self, custom_url: Option<&str>) -> Result<MarketplaceCatalog, String> {
         let mut fetched_catalog: Option<MarketplaceCatalog> = None;
 
-        if let Some(url) = custom_url {
+        let target_url = custom_url.or(Some(DEFAULT_CATALOG_URL));
+        if let Some(url) = target_url {
             if url.starts_with("http://") || url.starts_with("https://") {
                 if let Ok(resp) = self.client.get(url).send().await {
                     if resp.status().is_success() {
                         if let Ok(cat) = resp.json::<MarketplaceCatalog>().await {
+                            fetched_catalog = Some(cat);
+                        }
+                    }
+                }
+            } else {
+                let local_path = if url.starts_with("file://") {
+                    file_url_to_path(url)
+                } else {
+                    PathBuf::from(url)
+                };
+                if local_path.exists() {
+                    if let Ok(content) = std::fs::read_to_string(&local_path) {
+                        if let Ok(cat) = serde_json::from_str::<MarketplaceCatalog>(&content) {
                             fetched_catalog = Some(cat);
                         }
                     }
@@ -213,7 +233,11 @@ impl MarketplaceManager {
         plugin_id: &str,
         downloader: &Arc<crate::metadata::MetadataDownloader>,
     ) -> Result<crate::metadata::ProviderInfo, String> {
-        let catalog = self.get_catalog(None).await?;
+        let cached = { self.catalog_cache.read().await.clone() };
+        let catalog = match cached {
+            Some(c) => c,
+            None => self.get_catalog(None).await?,
+        };
         let item = catalog
             .plugins
             .into_iter()
@@ -247,6 +271,7 @@ impl MarketplaceManager {
 
         let is_remote_http =
             asset.download_url.starts_with("http://") || asset.download_url.starts_with("https://");
+        let is_file_url = asset.download_url.starts_with("file://");
         let mut downloaded_bytes: Option<Vec<u8>> = None;
 
         if is_remote_http {
@@ -258,14 +283,41 @@ impl MarketplaceManager {
                     }
                 }
             }
+        } else if is_file_url {
+            info!("Lettura asset plugin '{}' da URL file: {}", plugin_id, asset.download_url);
+            let local_path = file_url_to_path(&asset.download_url);
+            if local_path.exists() {
+                match std::fs::read(&local_path) {
+                    Ok(bytes) => downloaded_bytes = Some(bytes),
+                    Err(e) => return Err(format!("Lettura file fallita {}: {}", local_path.display(), e)),
+                }
+            } else {
+                return Err(format!("File asset non trovato: {}", local_path.display()));
+            }
         }
 
         if let Some(bytes) = downloaded_bytes {
+            // Verify SHA-256 hash if provided
+            if let Some(ref expected_sha256) = asset.sha256 {
+                use sha2::{Digest, Sha256};
+                let mut hasher = Sha256::new();
+                hasher.update(&bytes);
+                let actual_sha256 = format!("{:x}", hasher.finalize());
+                if !expected_sha256.is_empty() && !actual_sha256.eq_ignore_ascii_case(expected_sha256) {
+                    return Err(format!(
+                        "Verifica integrità SHA-256 fallita per il plugin '{}': atteso '{}', calcolato '{}'",
+                        plugin_id, expected_sha256, actual_sha256
+                    ));
+                }
+                info!("Integrità SHA-256 verificata con successo per '{}'", plugin_id);
+            }
+
             // Check if archive is a ZIP file
             if asset.filename.ends_with(".zip")
                 || (bytes.len() >= 4 && &bytes[0..4] == b"PK\x03\x04")
             {
                 extract_zip(&bytes, &target_dir)?;
+                normalize_extracted_dir(&target_dir);
             } else {
                 let dest = target_dir.join(&asset.filename);
                 std::fs::write(&dest, &bytes).map_err(|e| {
@@ -299,6 +351,7 @@ impl MarketplaceManager {
                     "author": item.author,
                     "description": item.description,
                     "plugin_type": item.plugin_type,
+                    "requires_api_key": item.requires_api_key,
                     "supported_fields": [
                         "critic_score",
                         "community_score",
@@ -388,6 +441,30 @@ impl MarketplaceManager {
     }
 }
 
+/// Resolves a file:// URL or path string to a canonical PathBuf across Windows and Unix
+pub fn file_url_to_path(url_str: &str) -> PathBuf {
+    if let Ok(parsed) = url::Url::parse(url_str) {
+        if let Ok(path) = parsed.to_file_path() {
+            return path;
+        }
+    }
+    let mut raw = url_str.trim_start_matches("file://");
+    while raw.starts_with('/') {
+        if raw.len() >= 3
+            && raw.chars().nth(1).map_or(false, |c| c.is_ascii_alphabetic())
+            && raw.chars().nth(2) == Some(':')
+        {
+            raw = &raw[1..];
+            break;
+        } else if !raw.starts_with("//") {
+            break;
+        } else {
+            raw = &raw[1..];
+        }
+    }
+    PathBuf::from(raw)
+}
+
 /// Unpacks a ZIP byte stream safely into target_dir
 fn extract_zip(bytes: &[u8], target_dir: &Path) -> Result<(), String> {
     use std::io::Cursor;
@@ -423,6 +500,34 @@ fn extract_zip(bytes: &[u8], target_dir: &Path) -> Result<(), String> {
         }
     }
     Ok(())
+}
+
+/// If archive extracted into a single wrapper directory, flattens contents into target_dir
+fn normalize_extracted_dir(target_dir: &Path) {
+    let manifest_path = target_dir.join("manifest.json");
+    if manifest_path.exists() {
+        return;
+    }
+    if let Ok(entries) = std::fs::read_dir(target_dir) {
+        let subdirs: Vec<_> = entries
+            .filter_map(|e| e.ok())
+            .filter(|e| e.path().is_dir())
+            .collect();
+        if subdirs.len() == 1 {
+            let subdir_path = subdirs[0].path();
+            let sub_manifest = subdir_path.join("manifest.json");
+            if sub_manifest.exists() {
+                if let Ok(sub_entries) = std::fs::read_dir(&subdir_path) {
+                    for entry in sub_entries.flatten() {
+                        let src = entry.path();
+                        let dst = target_dir.join(entry.file_name());
+                        let _ = std::fs::rename(&src, &dst);
+                    }
+                }
+                let _ = std::fs::remove_dir(&subdir_path);
+            }
+        }
+    }
 }
 
 /// Finds the compiled sample_dynamic_provider native binary in workspace target dirs
@@ -482,13 +587,15 @@ mod tests {
     fn test_seed_catalog_parsing() {
         let catalog: MarketplaceCatalog =
             serde_json::from_str(EMBEDDED_SEED_CATALOG).expect("Marketplace seed JSON must be valid");
-        assert_eq!(catalog.plugins.len(), 4);
+        assert_eq!(catalog.plugins.len(), 6);
 
         let ids: Vec<&str> = catalog.plugins.iter().map(|p| p.id.as_str()).collect();
-        assert!(ids.contains(&"sample_dynamic"));
+        assert!(ids.contains(&"igdb"));
+        assert!(ids.contains(&"steamgriddb"));
+        assert!(ids.contains(&"opencritic"));
         assert!(ids.contains(&"howlongtobeat"));
         assert!(ids.contains(&"retro_achievements"));
-        assert!(ids.contains(&"gog_galaxy_scanner"));
+        assert!(ids.contains(&"sample_dynamic"));
     }
 
     #[test]
@@ -522,7 +629,7 @@ mod tests {
 
         // 1. Initial catalog fetch
         let catalog = manager.get_catalog(None).await.expect("Catalog should load");
-        assert_eq!(catalog.plugins.len(), 4);
+        assert_eq!(catalog.plugins.len(), 6);
         let hltb = catalog.plugins.iter().find(|p| p.id == "howlongtobeat").unwrap();
         assert!(!hltb.is_installed);
 

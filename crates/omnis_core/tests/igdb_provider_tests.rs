@@ -288,7 +288,20 @@ fn test_3_apicalypse_query_sanitization() {
 /// - Verificare che `search_candidates` gestisca il filtro "igdb" restituendo candidati con `provider_id: "igdb"`
 #[tokio::test]
 async fn test_4_metadata_downloader_igdb_integration() {
+    let temp_dir = std::env::temp_dir().join(format!("omnis_igdb_integ_test_{}", uuid::Uuid::new_v4()));
+    let igdb_dir = temp_dir.join("igdb");
+    std::fs::create_dir_all(&igdb_dir).unwrap();
+    std::fs::write(
+        igdb_dir.join("manifest.json"),
+        r#"{"id":"igdb","name":"IGDB (Internet Game Database)","version":"1.0.0","plugin_type":"metadata"}"#,
+    )
+    .unwrap();
+
     let downloader = MetadataDownloader::new();
+    downloader
+        .load_and_register_dynamic_plugin(&igdb_dir)
+        .await
+        .expect("Failed to register igdb");
 
     // 1. Verifica registrazione del provider "igdb"
     let providers = downloader.get_providers_info().await;
@@ -298,8 +311,7 @@ async fn test_4_metadata_downloader_igdb_integration() {
         .expect("Provider 'igdb' deve essere presente in MetadataDownloader");
 
     assert_eq!(igdb.name, "IGDB (Internet Game Database)");
-    assert!(!igdb.is_enabled, "IGDB deve essere disabilitato di default nella modalità Store-First");
-    assert!(igdb.is_builtin, "IGDB deve essere un provider built-in");
+    assert!(!igdb.is_builtin, "IGDB deve essere un provider esterno/plugin");
     assert!(igdb.requires_api_key, "IGDB richiede credenziali Twitch");
     assert!(
         !igdb.has_configured_key,
@@ -380,6 +392,7 @@ async fn test_4_metadata_downloader_igdb_integration() {
             "Tutti i candidati filtrati per 'igdb' devono avere provider_id == 'igdb'"
         );
     }
+    let _ = std::fs::remove_dir_all(&temp_dir);
 }
 
 /// Test 5: Schema Impostazioni e Diagnostica Connessione
@@ -442,10 +455,20 @@ async fn test_5_settings_schema_and_connection_diagnostics() {
     assert!(res_ws.unwrap_err().contains("non configurati"));
 
     // 4. Diagnostica connessione tramite MetadataDownloader
+    let temp_dir2 = std::env::temp_dir().join(format!("omnis_igdb_diag_test_{}", uuid::Uuid::new_v4()));
+    let igdb_dir2 = temp_dir2.join("igdb");
+    std::fs::create_dir_all(&igdb_dir2).unwrap();
+    std::fs::write(
+        igdb_dir2.join("manifest.json"),
+        r#"{"id":"igdb","name":"IGDB (Internet Game Database)","version":"1.0.0","plugin_type":"metadata"}"#,
+    )
+    .unwrap();
     let downloader = MetadataDownloader::new();
+    downloader.load_and_register_dynamic_plugin(&igdb_dir2).await.unwrap();
     let dl_test = downloader.test_provider_connection("igdb").await;
     assert!(dl_test.is_err());
     assert!(dl_test.unwrap_err().contains("non configurati"));
+    let _ = std::fs::remove_dir_all(&temp_dir2);
 }
 
 /// Test 6: Remediation & Regression Verification

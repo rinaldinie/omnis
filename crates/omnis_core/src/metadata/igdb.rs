@@ -7,6 +7,7 @@ use omnis_sdk::{
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
@@ -232,6 +233,7 @@ fn extract_credentials(settings: &Map<String, Value>) -> Result<(&str, &str), St
 pub struct IgdbMetadataProvider {
     client: reqwest::Client,
     token_cache: Arc<RwLock<Option<TwitchTokenCache>>>,
+    plugin_dir: Option<PathBuf>,
 }
 
 impl IgdbMetadataProvider {
@@ -239,7 +241,17 @@ impl IgdbMetadataProvider {
         Self {
             client,
             token_cache: Arc::new(RwLock::new(None)),
+            plugin_dir: None,
         }
+    }
+
+    pub fn with_plugin_dir(mut self, path: PathBuf) -> Self {
+        self.plugin_dir = Some(path);
+        self
+    }
+
+    pub fn set_plugin_dir(&mut self, path: PathBuf) {
+        self.plugin_dir = Some(path);
     }
 
     /// Retrieve valid OAuth2 bearer token from cache or refresh it from Twitch endpoint
@@ -426,7 +438,11 @@ impl MetadataProvider for IgdbMetadataProvider {
     }
 
     fn is_builtin(&self) -> bool {
-        true
+        false
+    }
+
+    fn plugin_path(&self) -> Option<&Path> {
+        self.plugin_dir.as_deref()
     }
 
     fn supported_fields(&self) -> Vec<MetadataField> {
@@ -748,7 +764,7 @@ mod tests {
         assert_eq!(provider.id(), "igdb");
         assert_eq!(provider.name(), "IGDB (Internet Game Database)");
         assert!(provider.requires_api_key());
-        assert!(provider.is_builtin());
+        assert!(!provider.is_builtin());
         assert_eq!(provider.website(), Some("https://www.igdb.com"));
         assert_eq!(provider.key_help_url(), Some("https://dev.twitch.tv/console/apps"));
 

@@ -1,27 +1,82 @@
 {
   "version": "1.0.0",
-  "updated_at": "2026-10-19T00:00:00Z",
+  "updated_at": "2026-10-20T00:00:00Z",
   "plugins": [
     {
-      "id": "sample_dynamic",
-      "name": "Sample Community Dynamic Provider",
-      "description": "Provider nativo dinamico di esempio per metadati comunitari, compatibile FFI C-ABI.",
-      "author": "Omnis Community",
-      "version": "0.1.0",
+      "id": "igdb",
+      "name": "IGDB (Internet Game Database)",
+      "description": "Database videoludico globale gestito da Twitch. Copertine verticali, trame in italiano, rating critici/utenti, generi e screenshot HD.",
+      "author": "Twitch / IGDB",
+      "version": "1.0.0",
       "plugin_type": "metadata",
-      "icon_url": "https://raw.githubusercontent.com/omnis-game-library/plugins/main/icons/sample_dynamic.png",
+      "requires_api_key": true,
+      "icon_url": "https://www.igdb.com/favicon.ico",
       "platforms": {
         "windows-x86_64": {
-          "download_url": "sample://sample_dynamic_provider.dll",
-          "filename": "sample_dynamic_provider.dll",
+          "download_url": "mock://igdb_windows.zip",
+          "filename": "igdb.json",
           "sha256": null,
-          "size_bytes": 1048576
+          "size_bytes": 1024
         },
         "linux-x86_64": {
-          "download_url": "sample://libsample_dynamic_provider.so",
-          "filename": "libsample_dynamic_provider.so",
+          "download_url": "mock://igdb_linux.tar.gz",
+          "filename": "igdb.json",
           "sha256": null,
-          "size_bytes": 1048576
+          "size_bytes": 1024
+        }
+      },
+      "is_installed": false,
+      "installed_version": null,
+      "has_update": false
+    },
+    {
+      "id": "steamgriddb",
+      "name": "SteamGridDB Community Artwork",
+      "description": "Database curato dalla community con locandine verticali 600x900 HD, sfondi hero panoramici 4K e loghi trasparenti ad altissima risoluzione.",
+      "author": "SteamGridDB",
+      "version": "1.0.0",
+      "plugin_type": "metadata",
+      "requires_api_key": true,
+      "icon_url": "https://www.steamgriddb.com/favicon.ico",
+      "platforms": {
+        "windows-x86_64": {
+          "download_url": "mock://steamgriddb_windows.zip",
+          "filename": "steamgriddb.json",
+          "sha256": null,
+          "size_bytes": 1024
+        },
+        "linux-x86_64": {
+          "download_url": "mock://steamgriddb_linux.tar.gz",
+          "filename": "steamgriddb.json",
+          "sha256": null,
+          "size_bytes": 1024
+        }
+      },
+      "is_installed": false,
+      "installed_version": null,
+      "has_update": false
+    },
+    {
+      "id": "opencritic",
+      "name": "OpenCritic Review Aggregator",
+      "description": "Punteggi aggregati della critica mondiale, percentuale di raccomandazione dei recensori e recensioni della stampa specializzata.",
+      "author": "OpenCritic",
+      "version": "1.0.0",
+      "plugin_type": "metadata",
+      "requires_api_key": true,
+      "icon_url": "https://opencritic.com/favicon.ico",
+      "platforms": {
+        "windows-x86_64": {
+          "download_url": "mock://opencritic_windows.zip",
+          "filename": "opencritic.json",
+          "sha256": null,
+          "size_bytes": 1024
+        },
+        "linux-x86_64": {
+          "download_url": "mock://opencritic_linux.tar.gz",
+          "filename": "opencritic.json",
+          "sha256": null,
+          "size_bytes": 1024
         }
       },
       "is_installed": false,
@@ -31,23 +86,24 @@
     {
       "id": "howlongtobeat",
       "name": "HowLongToBeat Community Extension",
-      "description": "Recupera i tempi stimati di completamento (Main Story, Main+Extra, Completionist) da HowLongToBeat.",
+      "description": "Recupera i tempi stimati di completamento (Main Story, Main+Extra, Completionist) direttamente da HowLongToBeat.com.",
       "author": "HLTB Community",
       "version": "1.1.0",
       "plugin_type": "metadata",
-      "icon_url": "https://howlongtobeat.com/img/hltb_brand.png",
+      "requires_api_key": false,
+      "icon_url": "https://howlongtobeat.com/favicon.ico",
       "platforms": {
         "windows-x86_64": {
           "download_url": "mock://howlongtobeat_windows.zip",
-          "filename": "howlongtobeat.dll",
+          "filename": "howlongtobeat.json",
           "sha256": null,
-          "size_bytes": 524288
+          "size_bytes": 1024
         },
         "linux-x86_64": {
           "download_url": "mock://howlongtobeat_linux.tar.gz",
-          "filename": "howlongtobeat.so",
+          "filename": "howlongtobeat.json",
           "sha256": null,
-          "size_bytes": 524288
+          "size_bytes": 1024
         }
       },
       "is_installed": false,
@@ -61,19 +117,20 @@
       "author": "RA Community",
       "version": "2.0.0",
       "plugin_type": "metadata",
+      "requires_api_key": true,
       "icon_url": "https://retroachievements.org/static/images/ra-icon.png",
       "platforms": {
         "windows-x86_64": {
           "download_url": "mock://retro_achievements_windows.zip",
-          "filename": "retro_achievements.dll",
+          "filename": "retro_achievements.json",
           "sha256": null,
-          "size_bytes": 786432
+          "size_bytes": 1024
         },
         "linux-x86_64": {
           "download_url": "mock://retro_achievements_linux.tar.gz",
-          "filename": "retro_achievements.so",
+          "filename": "retro_achievements.json",
           "sha256": null,
-          "size_bytes": 786432
+          "size_bytes": 1024
         }
       },
       "is_installed": false,
@@ -81,23 +138,24 @@
       "has_update": false
     },
     {
-      "id": "gog_galaxy_scanner",
-      "name": "GOG Galaxy Library Scanner",
-      "description": "Scansiona e sincronizza automaticamente i titoli installati tramite client GOG Galaxy.",
+      "id": "sample_dynamic",
+      "name": "Sample Community Dynamic Provider",
+      "description": "Provider nativo dinamico di esempio per metadati comunitari, compatibile FFI C-ABI ad altissime prestazioni.",
       "author": "Omnis Community",
-      "version": "1.0.5",
-      "plugin_type": "library",
-      "icon_url": "https://images.gog-statics.com/galaxy_icon.png",
+      "version": "0.1.0",
+      "plugin_type": "metadata",
+      "requires_api_key": false,
+      "icon_url": "https://raw.githubusercontent.com/omnis-game-library/plugins/main/icons/sample_dynamic.png",
       "platforms": {
         "windows-x86_64": {
-          "download_url": "mock://gog_galaxy_scanner_windows.zip",
-          "filename": "gog_galaxy_scanner.dll",
+          "download_url": "sample://sample_dynamic_provider.dll",
+          "filename": "sample_dynamic_provider.dll",
           "sha256": null,
           "size_bytes": 1048576
         },
         "linux-x86_64": {
-          "download_url": "mock://gog_galaxy_scanner_linux.tar.gz",
-          "filename": "gog_galaxy_scanner.so",
+          "download_url": "sample://libsample_dynamic_provider.so",
+          "filename": "libsample_dynamic_provider.so",
           "sha256": null,
           "size_bytes": 1048576
         }
