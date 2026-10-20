@@ -106,6 +106,7 @@ fn main() {
             sync_library,
             download_metadata,
             download_all_metadata,
+            cancel_metadata_download,
             enrich_single_game,
             get_metadata_providers,
             refresh_metadata_providers,

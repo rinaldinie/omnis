@@ -316,8 +316,9 @@ export default function App() {
         const normalized = loadedGames.map(normalizeGame);
         setGames(normalized);
         setSelectedGame((prev) => {
-          if (prev && normalized.some((g) => g.id === prev.id)) {
-            return prev;
+          if (prev) {
+            const current = normalized.find((g) => g.id === prev.id);
+            if (current) return current;
           }
           return normalized.length > 0 ? normalized[0] : null;
         });
@@ -487,6 +488,16 @@ export default function App() {
     }
   };
 
+  const handleCancelPipeline = async () => {
+    try {
+      setPipelineProgress("Interruzione dell'arricchimento in corso...");
+      await invokeTauri("cancel_metadata_download");
+      setStatusMessage("Richiesta di interruzione arricchimento inviata.");
+    } catch (err: any) {
+      console.warn("Failed to cancel metadata download:", err);
+    }
+  };
+
   // TAURI STORE & GAME LIFECYCLE LISTENERS
   useEffect(() => {
     refreshLibrary();
@@ -513,6 +524,7 @@ export default function App() {
     let unlistenGameStarted: (() => void) | null = null;
     let unlistenGameStatus: (() => void) | null = null;
     let unlistenGameStopped: (() => void) | null = null;
+    let unlistenMetaProgress: (() => void) | null = null;
 
     (async () => {
       try {
@@ -676,7 +688,16 @@ export default function App() {
 
           loadGames();
         });
-        if (!isMounted) { hStopped(); } else { unlistenGameStopped = hStopped; }
+        const hMetaProgress = await listen<{
+          current: number;
+          total: number;
+          title: string;
+        }>("metadata-progress", (event) => {
+          const { current, total, title } = event.payload;
+          setPipelineProgress(`Arricchimento (${current}/${total}): "${title}"...`);
+          setStatusMessage(`Arricchimento metadati (${current}/${total}): ${title}`);
+        });
+        if (!isMounted) { hMetaProgress(); } else { unlistenMetaProgress = hMetaProgress; }
       } catch (e) {
         console.warn("Failed to register store sync listener in App:", e);
       }
@@ -695,6 +716,7 @@ export default function App() {
       if (unlistenGameStarted) unlistenGameStarted();
       if (unlistenGameStatus) unlistenGameStatus();
       if (unlistenGameStopped) unlistenGameStopped();
+      if (unlistenMetaProgress) unlistenMetaProgress();
     };
   }, []);
 
@@ -1241,6 +1263,7 @@ export default function App() {
         pipelineProgress={pipelineProgress}
         isPipelineEnriching={isPipelineEnriching}
         handleRunMassivePipeline={handleRunMassivePipeline}
+        handleCancelPipeline={handleCancelPipeline}
         onPluginInstalled={() => loadProvidersAndConfig()}
       />
 
@@ -1291,10 +1314,11 @@ export default function App() {
           }}
           game={gameToResolve || selectedGame!}
           onApply={(updated) => {
-            setSelectedGame((prev) => (prev && prev.id === updated.id ? { ...prev, ...updated } : prev));
-            setGames((prev) => prev.map((g) => (g.id === updated.id ? { ...g, ...updated } : g)));
+            const normalized = normalizeGame(updated);
+            setSelectedGame((prev) => (prev && prev.id === normalized.id ? { ...prev, ...normalized } : prev));
+            setGames((prev) => prev.map((g) => (g.id === normalized.id ? { ...g, ...normalized } : g)));
             refreshLibrary();
-            setStatusMessage(`Metadati risolti per '${updated.title}' con successo!`);
+            setStatusMessage(`Metadati risolti per '${normalized.title}' con successo!`);
           }}
         />
       )}

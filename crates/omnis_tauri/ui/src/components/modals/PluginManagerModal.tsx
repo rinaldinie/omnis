@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   Star,
   Scroll,
+  Square,
 } from "lucide-react";
 import { ProviderInfo, MetadataPipelineConfig } from "../../types";
 import { MarketplaceTab } from "../MarketplaceTab";
@@ -48,6 +49,7 @@ interface PluginManagerModalProps {
   pipelineProgress: string | null;
   isPipelineEnriching: boolean;
   handleRunMassivePipeline: () => void;
+  handleCancelPipeline?: () => void;
   onPluginInstalled: () => void;
 }
 
@@ -75,6 +77,7 @@ export default function PluginManagerModal({
   pipelineProgress,
   isPipelineEnriching,
   handleRunMassivePipeline,
+  handleCancelPipeline,
   onPluginInstalled,
 }: PluginManagerModalProps) {
   const [pluginModalTab, setPluginModalTab] = useState<
@@ -873,11 +876,11 @@ export default function PluginManagerModal({
                   </div>
                 )}
 
-                <div className="pt-2">
+                <div className="pt-2 flex items-center gap-3">
                   <button
                     onClick={handleRunMassivePipeline}
                     disabled={isPipelineEnriching}
-                    className="w-full py-3 rounded-xl font-black text-xs text-white shadow-lg transition-all flex items-center justify-center gap-2 hover:brightness-110 active:opacity-90"
+                    className="flex-1 py-3 rounded-xl font-black text-xs text-white shadow-lg transition-all flex items-center justify-center gap-2 hover:brightness-110 active:opacity-90 disabled:opacity-75"
                     style={{
                       backgroundColor: "var(--accent-primary)",
                       boxShadow: `0 0 20px var(--accent-glow)`,
@@ -894,6 +897,18 @@ export default function PluginManagerModal({
                         : "Avvia Arricchimento di Tutta la Libreria"}
                     </span>
                   </button>
+
+                  {isPipelineEnriching && handleCancelPipeline && (
+                    <button
+                      type="button"
+                      onClick={handleCancelPipeline}
+                      className="px-5 py-3 rounded-xl font-black text-xs text-white bg-red-600 hover:bg-red-500 shadow-lg shadow-red-500/25 transition-all flex items-center justify-center gap-2 active:scale-95 animate-pulse"
+                      title="Interrompi l'arricchimento in corso"
+                    >
+                      <Square className="w-3.5 h-3.5 fill-current" />
+                      <span>Ferma</span>
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
