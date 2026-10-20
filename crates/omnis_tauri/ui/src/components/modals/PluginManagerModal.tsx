@@ -281,9 +281,18 @@ export default function PluginManagerModal({
 
   if (!isOpen) return null;
 
+  const safeProviders = Array.isArray(providers) ? providers : [];
+  const safePipelineConfig = pipelineConfig || {
+    cover_source: "steam",
+    background_source: "steam",
+    score_source: "opencritic",
+    details_source: "steam",
+    preserve_existing_artwork: true,
+  };
+
   // Prepare full list of library plugins (built-in + any external library plugin)
-  const externalLibraries = providers.filter(
-    (p) => p.plugin_type === "library" || p.id.endsWith("_library")
+  const externalLibraries = safeProviders.filter(
+    (p) => p && (p.plugin_type === "library" || p.id.endsWith("_library"))
   );
   const libraryMap = new Map<string, ProviderInfo>();
   BUILTIN_LIBRARIES.forEach((item) => {
@@ -298,38 +307,38 @@ export default function PluginManagerModal({
   const libraryList = Array.from(libraryMap.values());
 
   // Metadata providers (built-ins + external metadata plugins)
-  const metadataList = providers.filter(
+  const metadataList = safeProviders.filter(
     (p) =>
-      p.plugin_type === "metadata" ||
-      ["steam", "gog", "steamgriddb", "opencritic", "igdb"].includes(p.id)
+      p &&
+      (p.plugin_type === "metadata" ||
+        ["steam", "gog", "steamgriddb", "opencritic", "igdb"].includes(p.id))
   );
 
   // Generic / community / custom plugins
-  const genericList = providers.filter(
+  const genericList = safeProviders.filter(
     (p) =>
-      p.plugin_type === "generic" ||
-      (!["steam", "gog", "steamgriddb", "opencritic", "igdb"].includes(p.id) &&
-        p.plugin_type !== "library" &&
-        p.plugin_type !== "metadata" &&
-        !p.id.endsWith("_library"))
+      p &&
+      (p.plugin_type === "generic" ||
+        (!["steam", "gog", "steamgriddb", "opencritic", "igdb"].includes(p.id) &&
+          p.plugin_type !== "library" &&
+          p.plugin_type !== "metadata" &&
+          !p.id.endsWith("_library")))
   );
 
   const allCombined = [...libraryList, ...metadataList, ...genericList];
 
   const defaultPriorityOrder = ["steam", "gog", "steamgriddb", "opencritic", "igdb"];
-  const priorityOrder = React.useMemo(() => {
-    const list =
-      pipelineConfig.provider_priority && pipelineConfig.provider_priority.length > 0
-        ? pipelineConfig.provider_priority
-        : defaultPriorityOrder;
+  const list =
+    safePipelineConfig.provider_priority && safePipelineConfig.provider_priority.length > 0
+      ? safePipelineConfig.provider_priority
+      : defaultPriorityOrder;
 
-    const externalIds = providers
-      .filter((p) => p.plugin_type === "metadata" || p.supported_fields.length > 0)
-      .map((p) => p.id)
-      .filter((id) => !list.includes(id) && !id.endsWith("_library"));
+  const externalIds = safeProviders
+    .filter((p) => p && (p.plugin_type === "metadata" || (p.supported_fields && p.supported_fields.length > 0)))
+    .map((p) => p.id)
+    .filter((id) => !list.includes(id) && !id.endsWith("_library"));
 
-    return [...list, ...externalIds];
-  }, [pipelineConfig.provider_priority, providers]);
+  const priorityOrder = [...list, ...externalIds];
 
   const movePriority = (index: number, direction: "up" | "down") => {
     const targetIndex = direction === "up" ? index - 1 : index + 1;
@@ -342,16 +351,16 @@ export default function PluginManagerModal({
 
     const topCover =
       newOrder.find((id) => ["steam", "gog", "steamgriddb", "igdb"].includes(id)) ||
-      pipelineConfig.cover_source;
+      safePipelineConfig.cover_source;
     const topBg =
       newOrder.find((id) => ["steam", "gog", "steamgriddb", "igdb"].includes(id)) ||
-      pipelineConfig.background_source;
+      safePipelineConfig.background_source;
     const topScore =
       newOrder.find((id) => ["opencritic", "steam", "igdb"].includes(id)) ||
-      pipelineConfig.score_source;
+      safePipelineConfig.score_source;
     const topDetails =
       newOrder.find((id) => ["steam", "gog", "igdb"].includes(id)) ||
-      pipelineConfig.details_source;
+      safePipelineConfig.details_source;
 
     setPipelineConfig((prev) => ({
       ...prev,

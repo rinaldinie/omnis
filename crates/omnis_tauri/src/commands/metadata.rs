@@ -105,10 +105,14 @@ pub async fn apply_metadata_candidate(
         .map_err(|e| e.to_string())?
         .ok_or_else(|| "Gioco non trovato".to_string())?;
 
-    let appid_hint = if existing_game.library_id == "steam" {
-        Some(existing_game.external_id.as_str())
-    } else if candidate.provider_id == "steam" && candidate.provider_game_id.chars().all(|c| c.is_ascii_digit()) {
-        Some(candidate.provider_game_id.as_str())
+    let appid_hint = if candidate.provider_id == "steam" {
+        if candidate.provider_game_id.chars().all(|c| c.is_ascii_digit()) {
+            Some(candidate.provider_game_id.as_str())
+        } else if existing_game.library_id == "steam" {
+            Some(existing_game.external_id.as_str())
+        } else {
+            None
+        }
     } else {
         None
     };
@@ -128,13 +132,22 @@ pub async fn apply_metadata_candidate(
                         if url_trim.starts_with("http://") || url_trim.starts_with("https://") {
                             let covers_dir = state.covers_dir.clone();
                             let _ = std::fs::create_dir_all(&covers_dir);
-                            let dest = covers_dir.join(format!("{}.jpg", uuid));
+                            let now_ts = chrono::Utc::now().timestamp_millis();
+                            let dest = covers_dir.join(format!("{}_{}.jpg", uuid, now_ts));
                             match state.downloader.download_image_with_fallbacks(url_trim, appid_hint).await {
                                 Ok(bytes) => {
                                     if let Err(e) = std::fs::write(&dest, bytes) {
                                         tracing::warn!("Impossibile scrivere cover su disco {}: {}", dest.display(), e);
                                         patch.cover_url = Some(url_trim.to_string());
                                     } else {
+                                        // Clean up old cover file if managed by omnis
+                                        if let Some(ref old_cover) = existing_game.cover_image_path {
+                                            let old_path = std::path::Path::new(old_cover);
+                                            if old_path.exists() && old_path.starts_with(&covers_dir) && old_path != &dest {
+                                                let _ = std::fs::remove_file(old_path);
+                                            }
+                                            state.image_cache.invalidate(old_cover);
+                                        }
                                         let dest_str = dest.to_string_lossy().to_string();
                                         state.image_cache.invalidate(&dest_str);
                                         patch.cover_url = Some(dest_str);
@@ -162,13 +175,22 @@ pub async fn apply_metadata_candidate(
                         if url_trim.starts_with("http://") || url_trim.starts_with("https://") {
                             let bgs_dir = state.backgrounds_dir.clone();
                             let _ = std::fs::create_dir_all(&bgs_dir);
-                            let dest = bgs_dir.join(format!("{}.jpg", uuid));
+                            let now_ts = chrono::Utc::now().timestamp_millis();
+                            let dest = bgs_dir.join(format!("{}_{}.jpg", uuid, now_ts));
                             match state.downloader.download_image_with_fallbacks(url_trim, appid_hint).await {
                                 Ok(bytes) => {
                                     if let Err(e) = std::fs::write(&dest, bytes) {
                                         tracing::warn!("Impossibile scrivere background su disco {}: {}", dest.display(), e);
                                         patch.background_url = Some(url_trim.to_string());
                                     } else {
+                                        // Clean up old background file if managed by omnis
+                                        if let Some(ref old_bg) = existing_game.background_image_path {
+                                            let old_path = std::path::Path::new(old_bg);
+                                            if old_path.exists() && old_path.starts_with(&bgs_dir) && old_path != &dest {
+                                                let _ = std::fs::remove_file(old_path);
+                                            }
+                                            state.image_cache.invalidate(old_bg);
+                                        }
                                         let dest_str = dest.to_string_lossy().to_string();
                                         state.image_cache.invalidate(&dest_str);
                                         patch.background_url = Some(dest_str);

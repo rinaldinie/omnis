@@ -58,6 +58,7 @@ export function GameCardCover({
 
   return (
     <img
+      key={imgSrc}
       data-omnis="game-card.cover"
       src={imgSrc}
       alt={title}

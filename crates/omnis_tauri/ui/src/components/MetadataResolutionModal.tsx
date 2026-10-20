@@ -259,13 +259,13 @@ export default function MetadataResolutionModal({
         fields: fieldsToSend,
       });
 
+      if (!updated) {
+        throw new Error("Salvataggio dei metadati non riuscito dal backend.");
+      }
+
       setApplySuccess(true);
       setTimeout(() => {
-        if (updated) {
-          onApply(updated);
-        } else {
-          onApply({ ...game, ...selectedCandidate.raw_patch });
-        }
+        onApply(updated);
         onClose();
       }, 500);
     } catch (err: any) {
