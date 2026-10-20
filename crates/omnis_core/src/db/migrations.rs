@@ -32,6 +32,7 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
             user_notes TEXT,
             custom_links TEXT,
             play_actions TEXT,
+            extra_metadata TEXT,
             added_timestamp TEXT NOT NULL,
             modified_timestamp TEXT NOT NULL
         );
@@ -100,6 +101,7 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
     let _ = conn.execute("ALTER TABLE games ADD COLUMN user_notes TEXT;", []);
     let _ = conn.execute("ALTER TABLE games ADD COLUMN custom_links TEXT;", []);
     let _ = conn.execute("ALTER TABLE games ADD COLUMN play_actions TEXT;", []);
+    let _ = conn.execute("ALTER TABLE games ADD COLUMN extra_metadata TEXT;", []);
     let _ = conn.execute("ALTER TABLE games ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0;", []);
 
     // Ensure performance indexes exist on existing DBs

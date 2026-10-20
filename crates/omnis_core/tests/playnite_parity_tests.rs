@@ -169,6 +169,7 @@ fn test_2_game_update_dto_persistence() {
                 url: "https://discord.gg/cdpred".to_string(),
             },
         ],
+        extra_metadata: None,
     };
 
     let updated_game = db.update_game(&update_dto).expect("Failed to update game");
@@ -453,6 +454,7 @@ async fn test_5_metadata_candidate_dto_and_patch_enrichment() {
         developers: vec!["CD PROJEKT RED".to_string()],
         publishers: vec!["CD PROJEKT".to_string()],
         tags: vec!["Cyberpunk".to_string(), "Sci-Fi".to_string()],
+        extra_metadata: None,
     };
 
     let candidate = MetadataCandidateDto {

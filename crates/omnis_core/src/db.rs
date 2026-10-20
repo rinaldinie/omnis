@@ -243,7 +243,7 @@ const GAME_COLUMNS: &str = "
     background_image_path, icon_image_path,
     genres, developers, publishers, tags,
     series, age_rating, completion_status, user_notes,
-    custom_links, play_actions,
+    custom_links, play_actions, extra_metadata,
     added_timestamp, modified_timestamp
 ";
 
@@ -331,13 +331,15 @@ fn map_row_to_game(row: &rusqlite::Row) -> rusqlite::Result<Game> {
         .and_then(|s| serde_json::from_str(s).ok())
         .unwrap_or_default();
 
-    let added_str: String = row.get(28)?;
+    let extra_metadata: Option<String> = row.get(28)?;
+
+    let added_str: String = row.get(29)?;
     let added_timestamp = DateTime::parse_from_rfc3339(&added_str)
         .ok()
         .map(|dt| dt.with_timezone(&Utc))
         .unwrap_or_else(Utc::now);
 
-    let mod_str: String = row.get(29)?;
+    let mod_str: String = row.get(30)?;
     let modified_timestamp = DateTime::parse_from_rfc3339(&mod_str)
         .ok()
         .map(|dt| dt.with_timezone(&Utc))
@@ -371,6 +373,7 @@ fn map_row_to_game(row: &rusqlite::Row) -> rusqlite::Result<Game> {
         age_rating,
         completion_status,
         user_notes,
+        extra_metadata,
         play_actions,
         custom_links,
         added_timestamp,
@@ -621,7 +624,8 @@ impl Database {
                     icon_image_path = ?19,
                     play_actions = ?20,
                     custom_links = ?21,
-                    modified_timestamp = ?22
+                    extra_metadata = COALESCE(?22, extra_metadata),
+                    modified_timestamp = ?23
                 WHERE id = ?1
                 ",
                 params![
@@ -646,6 +650,7 @@ impl Database {
                     update.icon_image_path,
                     play_actions_json,
                     custom_links_json,
+                    update.extra_metadata,
                     now,
                 ],
             )?;
@@ -690,6 +695,33 @@ impl Database {
             None
         };
 
+        let extra_metadata_merged: Option<String> = if let Some(ref new_extra_str) = patch.extra_metadata {
+            let existing_str: Option<String> = conn
+                .query_row(
+                    "SELECT extra_metadata FROM games WHERE id = ?1",
+                    params![game_id.to_string()],
+                    |r| r.get(0),
+                )
+                .ok()
+                .flatten();
+
+            let mut merged_map: serde_json::Map<String, serde_json::Value> = existing_str
+                .as_deref()
+                .and_then(|s| serde_json::from_str(s).ok())
+                .unwrap_or_default();
+
+            if let Ok(new_map) = serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(new_extra_str) {
+                for (k, v) in new_map {
+                    merged_map.insert(k, v);
+                }
+                Some(serde_json::to_string(&merged_map).unwrap_or_else(|_| new_extra_str.clone()))
+            } else {
+                Some(new_extra_str.clone())
+            }
+        } else {
+            None
+        };
+
         let updated = conn.execute(
             "
             UPDATE games SET
@@ -704,6 +736,7 @@ impl Database {
                 developers = COALESCE(?10, developers),
                 publishers = COALESCE(?11, publishers),
                 tags = COALESCE(?12, tags),
+                extra_metadata = COALESCE(?14, extra_metadata),
                 modified_timestamp = ?13
             WHERE id = ?1
             ",
@@ -721,6 +754,7 @@ impl Database {
                 pubs_joined,
                 tags_joined,
                 now,
+                extra_metadata_merged,
             ],
         )?;
 

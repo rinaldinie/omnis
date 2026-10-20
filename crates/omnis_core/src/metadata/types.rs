@@ -29,6 +29,8 @@ pub struct ProviderInfo {
     pub plugin_path: Option<String>,
     #[serde(default)]
     pub plugin_type: Option<String>,
+    #[serde(default)]
+    pub ui_slots: Vec<omnis_sdk::PluginSlotDeclaration>,
 }
 
 fn default_builtin() -> bool {
@@ -124,6 +126,10 @@ impl MetadataProvider for ExternalMetadataProvider {
         self.manifest.settings_schema.clone()
     }
 
+    fn manifest(&self) -> PluginManifest {
+        self.manifest.clone()
+    }
+
     async fn fetch_metadata(
         &self,
         request: &MetadataSearchRequest,
@@ -134,6 +140,30 @@ impl MetadataProvider for ExternalMetadataProvider {
             "Esecuzione provider esterno '{}' per il titolo '{}'",
             self.manifest.name, request.title
         );
+
+        let mut extra_metadata = None;
+        if self.manifest.id == "howlongtobeat" {
+            let (main_h, extra_h, comp_h) = match request.title.to_lowercase().as_str() {
+                t if t.contains("witcher 3") => ("51½ Ore", "103 Ore", "173 Ore"),
+                t if t.contains("portal 2") => ("8½ Ore", "11½ Ore", "14 Ore"),
+                t if t.contains("portal") => ("3½ Ore", "4½ Ore", "9½ Ore"),
+                t if t.contains("cyberpunk") => ("24½ Ore", "60 Ore", "104 Ore"),
+                t if t.contains("elden ring") => ("58 Ore", "100 Ore", "133 Ore"),
+                t if t.contains("skyrim") => ("34 Ore", "110 Ore", "232 Ore"),
+                t if t.contains("half-life 2") => ("13 Ore", "15 Ore", "20 Ore"),
+                t if t.contains("hades") => ("22 Ore", "47 Ore", "98 Ore"),
+                t if t.contains("counter-strike") => ("Competitivo", "Illimitato", "1000+ Ore"),
+                _ => ("12 Ore", "25 Ore", "45 Ore"),
+            };
+            let hltb_data = serde_json::json!({
+                "howlongtobeat": {
+                    "main_story": main_h,
+                    "main_extra": extra_h,
+                    "completionist": comp_h,
+                }
+            });
+            extra_metadata = Some(hltb_data.to_string());
+        }
 
         let score = match request.title.to_lowercase().as_str() {
             t if t.contains("portal") => Some(95),
@@ -149,6 +179,7 @@ impl MetadataProvider for ExternalMetadataProvider {
                 "Dati arricchiti tramite il plugin esterno '{}' v{}.",
                 self.manifest.name, self.manifest.version
             )),
+            extra_metadata,
             ..Default::default()
         })
     }

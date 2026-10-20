@@ -1,4 +1,15 @@
 import React, { useEffect, useState } from "react";
+import {
+  Clock,
+  Compass,
+  Trophy,
+  ThumbsUp,
+  Star,
+  Award,
+  Zap,
+  Sparkles,
+  CheckCircle,
+} from "lucide-react";
 import { invokeTauri } from "../../types";
 
 export interface WidgetLink {
@@ -17,6 +28,33 @@ interface SlotProps {
   name: string;
   gameId?: string;
   className?: string;
+}
+
+function renderWidgetIcon(iconName?: string) {
+  if (!iconName) return null;
+  const iconProps = { className: "w-3.5 h-3.5 shrink-0 text-[var(--omnis-accent,var(--accent-primary,#6366f1))]" };
+  switch (iconName.toLowerCase()) {
+    case "clock":
+      return <Clock {...iconProps} />;
+    case "compass":
+      return <Compass {...iconProps} />;
+    case "trophy":
+      return <Trophy {...iconProps} />;
+    case "thumbs-up":
+      return <ThumbsUp {...iconProps} />;
+    case "star":
+      return <Star {...iconProps} />;
+    case "award":
+      return <Award {...iconProps} />;
+    case "zap":
+      return <Zap {...iconProps} />;
+    case "sparkles":
+      return <Sparkles {...iconProps} />;
+    case "check":
+      return <CheckCircle {...iconProps} />;
+    default:
+      return null;
+  }
 }
 
 export const Slot: React.FC<SlotProps> = ({ name, gameId, className = "" }) => {
@@ -45,14 +83,28 @@ export const Slot: React.FC<SlotProps> = ({ name, gameId, className = "" }) => {
   if (widgets.length === 0) return null;
 
   return (
-    <div data-omnis-slot={name} className={`omnis-slot-container ${className}`}>
+    <div
+      data-omnis-slot={name}
+      className={`omnis-slot-container flex flex-wrap gap-2.5 items-center ${className}`}
+    >
       {widgets.map((widget, idx) => {
         switch (widget.type) {
           case "stat":
             return (
-              <div key={idx} data-omnis-widget="stat" className="flex items-center gap-1.5 text-xs py-0.5">
-                <span className="text-[var(--text-muted)] text-[10px]">{widget.label}:</span>
-                <strong className="text-white text-[11px] font-semibold">{widget.value}</strong>
+              <div
+                key={idx}
+                data-omnis-widget="stat"
+                className="flex items-center gap-2 px-3 py-2 rounded-xl border bg-white/[0.03] border-white/10 shadow-sm"
+              >
+                {renderWidgetIcon(widget.icon)}
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-medium leading-tight" style={{ color: "var(--text-muted)" }}>
+                    {widget.label}
+                  </span>
+                  <strong className="text-xs font-semibold leading-tight text-white mt-0.5">
+                    {widget.value}
+                  </strong>
+                </div>
               </div>
             );
           case "badge-list":

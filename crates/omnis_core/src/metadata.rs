@@ -316,6 +316,7 @@ impl MetadataDownloader {
                         version: dynamic_provider.version().map(|s| s.to_string()),
                         plugin_path: Some(root_path.to_string_lossy().to_string()),
                         plugin_type: Some(dynamic_provider.manifest().plugin_type),
+                        ui_slots: dynamic_provider.manifest().ui_slots,
                     };
 
                     let mut providers_guard = self.providers.write().await;
@@ -368,6 +369,9 @@ impl MetadataDownloader {
                                 .and_then(|p| p.as_array())
                                 .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
                                 .unwrap_or_default(),
+                            ui_slots: val.get("ui_slots")
+                                .and_then(|u| serde_json::from_value(u.clone()).ok())
+                                .unwrap_or_default(),
                         })
                     } else {
                         None
@@ -404,6 +408,9 @@ impl MetadataDownloader {
                             permissions: val.get("permissions")
                                 .and_then(|p| p.as_array())
                                 .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
+                                .unwrap_or_default(),
+                            ui_slots: val.get("ui_slots")
+                                .and_then(|u| serde_json::from_value(u.clone()).ok())
                                 .unwrap_or_default(),
                         })
                     } else {
@@ -477,6 +484,7 @@ impl MetadataDownloader {
                 version: provider.version().map(|s| s.to_string()),
                 plugin_path: Some(dir.to_string_lossy().to_string()),
                 plugin_type: Some(provider.manifest().plugin_type),
+                ui_slots: provider.manifest().ui_slots,
             };
 
             let mut providers_guard = self.providers.write().await;
@@ -574,6 +582,7 @@ impl MetadataDownloader {
                 version: prov.version().map(|s| s.to_string()),
                 plugin_path: plugin_path_val,
                 plugin_type: Some(prov.manifest().plugin_type),
+                ui_slots: prov.manifest().ui_slots,
             });
         }
 
@@ -753,6 +762,7 @@ impl MetadataDownloader {
                                         developers,
                                         publishers: Vec::new(),
                                         tags: Vec::new(),
+                                        extra_metadata: None,
                                     };
 
                                     candidates.push(MetadataCandidateDto {
@@ -1261,6 +1271,32 @@ impl MetadataDownloader {
             }
         }
 
+        // 3b. Query enabled external/enrichment providers that contribute extra_metadata (e.g. HowLongToBeat)
+        for (prov_id, prov) in &*providers_guard {
+            if prov_id != "steam" && prov_id != "gog" && prov_id != "epic" {
+                if enabled_guard.get(prov_id).copied().unwrap_or(true) {
+                    let settings = settings_guard.get(prov_id).cloned().unwrap_or_default();
+                    if let Ok(p_patch) = prov.fetch_metadata(&request, &settings).await {
+                        if let Some(extra) = p_patch.extra_metadata {
+                            let mut current_merged: serde_json::Map<String, serde_json::Value> = final_patch
+                                .extra_metadata
+                                .as_deref()
+                                .and_then(|s| serde_json::from_str(s).ok())
+                                .unwrap_or_default();
+                            if let Ok(incoming) = serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(&extra) {
+                                for (k, v) in incoming {
+                                    current_merged.insert(k, v);
+                                }
+                                final_patch.extra_metadata = Some(serde_json::to_string(&current_merged).unwrap_or(extra));
+                            } else {
+                                final_patch.extra_metadata = Some(extra);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // 4. Generate aesthetic fallback only if fields are still empty
         let needs_fallback_desc = final_patch.description.is_none() && game.description.as_ref().map(|d| d.trim().is_empty()).unwrap_or(true);
         let needs_fallback_rd = final_patch.release_date.is_none() && game.release_date.as_ref().map(|r| r.trim().is_empty()).unwrap_or(true);
@@ -1594,6 +1630,7 @@ impl MetadataDownloader {
             developers: vec!["Sviluppatore Ufficiale".to_string()],
             publishers: vec![library.to_uppercase()],
             tags: vec!["Preferito".to_string(), "PC".to_string()],
+            extra_metadata: None,
         }
     }
 }

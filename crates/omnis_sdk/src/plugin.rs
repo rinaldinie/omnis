@@ -229,6 +229,7 @@ pub trait MetadataProvider: Send + Sync {
             entry_point: None,
             settings_schema: self.settings_schema(),
             permissions: Vec::new(),
+            ui_slots: Vec::new(),
         }
     }
 }
@@ -260,6 +261,8 @@ pub struct PluginManifest {
     pub settings_schema: Option<PluginSettingsSchema>,
     #[serde(default)]
     pub permissions: Vec<String>,
+    #[serde(default)]
+    pub ui_slots: Vec<crate::widget::PluginSlotDeclaration>,
 }
 
 pub fn default_manifest_version() -> String {
@@ -290,6 +293,7 @@ impl Default for PluginManifest {
             entry_point: None,
             settings_schema: None,
             permissions: Vec::new(),
+            ui_slots: Vec::new(),
         }
     }
 }

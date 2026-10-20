@@ -76,6 +76,7 @@ fn test_seed_and_metadata_patch() {
         developers: vec!["CD PROJEKT RED".to_string()],
         publishers: vec!["CD PROJEKT".to_string()],
         tags: vec![],
+        extra_metadata: None,
     };
 
     let updated = db.apply_metadata_patch(target_game.id, &patch).expect("Failed to apply patch");
@@ -132,6 +133,7 @@ fn test_update_game_extended_metadata_and_json_fields() {
             title: "Official Wiki".to_string(),
             url: "https://cyberpunk.fandom.com".to_string(),
         }],
+        extra_metadata: None,
     };
 
     let updated_game = db.update_game(&update_dto).expect("Failed to update game");
@@ -239,6 +241,7 @@ fn test_search_games() {
         icon_image_path: None,
         play_actions: vec![],
         custom_links: vec![],
+        extra_metadata: None,
     };
     db.update_game(&update_dto).expect("Update failed");
 
@@ -287,6 +290,7 @@ fn test_update_nonexistent_game_returns_error() {
         icon_image_path: None,
         play_actions: vec![],
         custom_links: vec![],
+        extra_metadata: None,
     };
 
     let result = db.update_game(&non_existent);

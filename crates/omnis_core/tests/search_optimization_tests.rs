@@ -102,6 +102,7 @@ fn test_unified_search_fuzzy_and_fts5_trigram() {
         icon_image_path: None,
         play_actions: vec![],
         custom_links: vec![],
+        extra_metadata: None,
     };
     db.update_game(&update_w).expect("Update witcher failed");
 
@@ -127,6 +128,7 @@ fn test_unified_search_fuzzy_and_fts5_trigram() {
         icon_image_path: None,
         play_actions: vec![],
         custom_links: vec![],
+        extra_metadata: None,
     };
     db.update_game(&update_c).expect("Update cyberpunk failed");
 

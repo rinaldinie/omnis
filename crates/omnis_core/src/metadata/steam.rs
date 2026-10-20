@@ -269,6 +269,7 @@ impl MetadataProvider for SteamMetadataProvider {
             developers,
             publishers,
             tags: Vec::new(),
+            extra_metadata: None,
         })
     }
 
