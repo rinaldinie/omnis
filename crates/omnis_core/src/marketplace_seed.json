@@ -136,33 +136,6 @@
       "is_installed": false,
       "installed_version": null,
       "has_update": false
-    },
-    {
-      "id": "sample_dynamic",
-      "name": "Sample Community Dynamic Provider",
-      "description": "Provider nativo dinamico di esempio per metadati comunitari, compatibile FFI C-ABI ad altissime prestazioni.",
-      "author": "Omnis Community",
-      "version": "0.1.0",
-      "plugin_type": "metadata",
-      "requires_api_key": false,
-      "icon_url": "https://raw.githubusercontent.com/omnis-game-library/plugins/main/icons/sample_dynamic.png",
-      "platforms": {
-        "windows-x86_64": {
-          "download_url": "sample://sample_dynamic_provider.dll",
-          "filename": "sample_dynamic_provider.dll",
-          "sha256": null,
-          "size_bytes": 1048576
-        },
-        "linux-x86_64": {
-          "download_url": "sample://libsample_dynamic_provider.so",
-          "filename": "libsample_dynamic_provider.so",
-          "sha256": null,
-          "size_bytes": 1048576
-        }
-      },
-      "is_installed": false,
-      "installed_version": null,
-      "has_update": false
     }
   ]
 }

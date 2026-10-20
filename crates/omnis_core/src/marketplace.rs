@@ -587,7 +587,7 @@ mod tests {
     fn test_seed_catalog_parsing() {
         let catalog: MarketplaceCatalog =
             serde_json::from_str(EMBEDDED_SEED_CATALOG).expect("Marketplace seed JSON must be valid");
-        assert_eq!(catalog.plugins.len(), 6);
+        assert_eq!(catalog.plugins.len(), 5);
 
         let ids: Vec<&str> = catalog.plugins.iter().map(|p| p.id.as_str()).collect();
         assert!(ids.contains(&"igdb"));
@@ -595,7 +595,6 @@ mod tests {
         assert!(ids.contains(&"opencritic"));
         assert!(ids.contains(&"howlongtobeat"));
         assert!(ids.contains(&"retro_achievements"));
-        assert!(ids.contains(&"sample_dynamic"));
     }
 
     #[test]
@@ -629,7 +628,7 @@ mod tests {
 
         // 1. Initial catalog fetch
         let catalog = manager.get_catalog(None).await.expect("Catalog should load");
-        assert_eq!(catalog.plugins.len(), 6);
+        assert_eq!(catalog.plugins.len(), 5);
         let hltb = catalog.plugins.iter().find(|p| p.id == "howlongtobeat").unwrap();
         assert!(!hltb.is_installed);
 
@@ -660,24 +659,24 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_marketplace_install_sample_dynamic() {
+    async fn test_marketplace_install_retro_achievements() {
         let temp_dir =
-            std::env::temp_dir().join(format!("omnis_market_sample_test_{}", uuid::Uuid::new_v4()));
+            std::env::temp_dir().join(format!("omnis_market_ra_test_{}", uuid::Uuid::new_v4()));
         let _ = std::fs::create_dir_all(&temp_dir);
 
         let manager = MarketplaceManager::with_plugins_dir(temp_dir.clone());
         let downloader = Arc::new(crate::metadata::MetadataDownloader::new());
         downloader.set_plugins_dir(temp_dir.clone()).await;
 
-        if let Ok(info) = manager.install_plugin("sample_dynamic", &downloader).await {
-            assert_eq!(info.id, "sample_dynamic");
+        if let Ok(info) = manager.install_plugin("retro_achievements", &downloader).await {
+            assert_eq!(info.id, "retro_achievements");
             assert!(info.is_enabled);
 
             let catalog = manager.get_catalog(None).await.expect("Catalog refresh");
-            let item = catalog.plugins.iter().find(|p| p.id == "sample_dynamic").unwrap();
+            let item = catalog.plugins.iter().find(|p| p.id == "retro_achievements").unwrap();
             assert!(item.is_installed);
 
-            let _ = manager.uninstall_plugin("sample_dynamic", &downloader).await;
+            let _ = manager.uninstall_plugin("retro_achievements", &downloader).await;
         }
 
         let _ = std::fs::remove_dir_all(&temp_dir);
