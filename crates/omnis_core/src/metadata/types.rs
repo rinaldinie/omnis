@@ -170,9 +170,6 @@ fn default_provider_priority() -> Vec<String> {
     vec![
         "steam".to_string(),
         "gog".to_string(),
-        "steamgriddb".to_string(),
-        "opencritic".to_string(),
-        "igdb".to_string(),
     ]
 }
 

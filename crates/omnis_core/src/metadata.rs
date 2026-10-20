@@ -70,22 +70,10 @@ impl MetadataDownloader {
             "gog".to_string(),
             Box::new(GogMetadataProvider::new(client.clone())),
         );
-        providers.insert(
-            "steamgriddb".to_string(),
-            Box::new(SteamGridDbProvider::new(client.clone())),
-        );
-        providers.insert(
-            "opencritic".to_string(),
-            Box::new(OpenCriticProvider::new(client.clone())),
-        );
-        providers.insert("igdb".to_string(), Box::new((*igdb).clone()));
 
         let mut enabled = HashMap::new();
         enabled.insert("steam".to_string(), true);
         enabled.insert("gog".to_string(), true);
-        enabled.insert("steamgriddb".to_string(), false);
-        enabled.insert("opencritic".to_string(), false);
-        enabled.insert("igdb".to_string(), false);
 
         Self {
             client,
@@ -120,6 +108,16 @@ impl MetadataDownloader {
         let mut settings = self.settings_cache.write().await;
         settings.remove(provider_id);
         Ok(())
+    }
+
+    pub async fn register_provider(&self, provider: Box<dyn MetadataProvider>) {
+        let id = provider.id().to_string();
+        let mut providers = self.providers.write().await;
+        let mut enabled = self.enabled_providers.write().await;
+        if !enabled.contains_key(&id) {
+            enabled.insert(id.clone(), true);
+        }
+        providers.insert(id, provider);
     }
 
     /// Scans the plugins folder for subdirectories with native shared libraries or manifest.json and loads them dynamically
@@ -224,8 +222,19 @@ impl MetadataDownloader {
                     enabled_guard.insert(id.clone(), true);
                 }
 
-                // Only register generic ExternalMetadataProvider if not a core or specialized provider
-                if id != "steam" && id != "steamgriddb" && id != "opencritic" && id != "igdb" {
+                if id == "steamgriddb" {
+                    let mut p = SteamGridDbProvider::new(self.client.clone());
+                    p.set_plugin_dir(path.clone());
+                    providers_guard.insert(id, Box::new(p));
+                } else if id == "opencritic" {
+                    let mut p = OpenCriticProvider::new(self.client.clone());
+                    p.set_plugin_dir(path.clone());
+                    providers_guard.insert(id, Box::new(p));
+                } else if id == "igdb" {
+                    let mut p = (*self.igdb_provider).clone();
+                    p.set_plugin_dir(path.clone());
+                    providers_guard.insert(id, Box::new(p));
+                } else if id != "steam" && id != "gog" {
                     let provider = ExternalMetadataProvider::new(manifest, path, self.client.clone());
                     providers_guard.insert(id, Box::new(provider));
                 }
@@ -435,36 +444,43 @@ impl MetadataDownloader {
                     .unwrap_or(false)
             };
 
+            let provider: Box<dyn MetadataProvider> = if id == "steamgriddb" {
+                let mut p = SteamGridDbProvider::new(self.client.clone());
+                p.set_plugin_dir(dir.to_path_buf());
+                Box::new(p)
+            } else if id == "opencritic" {
+                let mut p = OpenCriticProvider::new(self.client.clone());
+                p.set_plugin_dir(dir.to_path_buf());
+                Box::new(p)
+            } else if id == "igdb" {
+                let mut p = (*self.igdb_provider).clone();
+                p.set_plugin_dir(dir.to_path_buf());
+                Box::new(p)
+            } else {
+                Box::new(ExternalMetadataProvider::new(manifest, dir.to_path_buf(), self.client.clone()))
+            };
+
             let info = ProviderInfo {
                 id: id.clone(),
-                name: manifest.name.clone(),
-                description: manifest.description.clone(),
-                author: manifest.author.clone(),
-                website: manifest.website.clone(),
-                key_help_url: manifest.key_help_url.clone(),
-                requires_api_key: manifest.requires_api_key,
-                supported_fields: if manifest.supported_fields.is_empty() {
-                    vec![
-                        MetadataField::CriticScore,
-                        MetadataField::CommunityScore,
-                        MetadataField::Description,
-                    ]
-                } else {
-                    manifest.supported_fields.clone()
-                },
+                name: provider.name().to_string(),
+                description: provider.description().to_string(),
+                author: provider.author().to_string(),
+                website: provider.website().map(|s| s.to_string()),
+                key_help_url: provider.key_help_url().map(|s| s.to_string()),
+                requires_api_key: provider.requires_api_key(),
+                supported_fields: provider.supported_fields(),
                 is_enabled,
-                settings_schema: manifest.settings_schema.clone(),
+                settings_schema: provider.settings_schema(),
                 settings_values: Value::Object(settings_map),
                 has_configured_key: has_key,
                 is_builtin: false,
-                version: Some(manifest.version.clone()),
+                version: provider.version().map(|s| s.to_string()),
                 plugin_path: Some(dir.to_string_lossy().to_string()),
-                plugin_type: Some(manifest.plugin_type.clone()),
+                plugin_type: Some(provider.manifest().plugin_type),
             };
 
-            let provider = ExternalMetadataProvider::new(manifest, dir.to_path_buf(), self.client.clone());
             let mut providers_guard = self.providers.write().await;
-            providers_guard.insert(id, Box::new(provider));
+            providers_guard.insert(id, provider);
 
             return Ok(info);
         }
@@ -1668,7 +1684,21 @@ mod tests {
 
     #[tokio::test]
     async fn test_igdb_provider_registration_and_settings() {
+        let temp_dir = std::env::temp_dir().join(format!("omnis_igdb_test_{}", uuid::Uuid::new_v4()));
+        let igdb_dir = temp_dir.join("igdb");
+        std::fs::create_dir_all(&igdb_dir).unwrap();
+        std::fs::write(
+            igdb_dir.join("manifest.json"),
+            r#"{"id":"igdb","name":"IGDB (Internet Game Database)","version":"1.0.0","plugin_type":"metadata"}"#,
+        )
+        .unwrap();
+
         let downloader = MetadataDownloader::new();
+        downloader
+            .load_and_register_dynamic_plugin(&igdb_dir)
+            .await
+            .expect("Failed to register igdb");
+
         let providers = downloader.get_providers_info().await;
 
         let igdb = providers.iter().find(|p| p.id == "igdb");
@@ -1676,7 +1706,7 @@ mod tests {
 
         let igdb_info = igdb.unwrap();
         assert_eq!(igdb_info.name, "IGDB (Internet Game Database)");
-        assert!(igdb_info.is_builtin);
+        assert!(!igdb_info.is_builtin);
         assert!(igdb_info.requires_api_key);
         assert!(!igdb_info.has_configured_key, "Initially credentials should not be configured");
 
@@ -1689,6 +1719,8 @@ mod tests {
         let updated_providers = downloader.get_providers_info().await;
         let updated_igdb = updated_providers.iter().find(|p| p.id == "igdb").unwrap();
         assert!(updated_igdb.has_configured_key, "has_configured_key should be true when both client_id and client_secret are provided");
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
     }
 
     #[tokio::test]
