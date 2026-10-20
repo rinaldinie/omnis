@@ -123,6 +123,7 @@ export interface ProviderInfo {
   } | null;
   settings_values: Record<string, any>;
   has_configured_key: boolean;
+  plugin_type?: string | null;
 }
 
 export interface MetadataPipelineConfig {
@@ -131,6 +132,7 @@ export interface MetadataPipelineConfig {
   score_source: string;
   details_source: string;
   preserve_existing_artwork?: boolean;
+  provider_priority?: string[];
 }
 
 export function isTauriEnvironment(): boolean {
