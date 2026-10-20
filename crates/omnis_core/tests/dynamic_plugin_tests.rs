@@ -176,7 +176,7 @@ async fn test_marketplace_real_zip_install_and_sha256_validation() {
         .unwrap()
         .join("omnis-plugins");
 
-    let dist_zip = omnis_plugins_dir.join("dist").join("sample_dynamic-v0.1.0.zip");
+    let dist_zip = omnis_plugins_dir.join("dist").join("howlongtobeat-v1.1.0.zip");
     if !dist_zip.exists() {
         eprintln!(
             "Dist zip not found at {}, skipping real zip test.",
@@ -186,7 +186,7 @@ async fn test_marketplace_real_zip_install_and_sha256_validation() {
     }
 
     // Read the zip to calculate real SHA-256
-    let bytes = std::fs::read(&dist_zip).expect("Failed to read sample_dynamic zip");
+    let bytes = std::fs::read(&dist_zip).expect("Failed to read howlongtobeat zip");
     use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
     hasher.update(&bytes);
@@ -211,17 +211,17 @@ async fn test_marketplace_real_zip_install_and_sha256_validation() {
         "updated_at": "2026-10-20T10:00:00Z",
         "plugins": [
             {
-                "id": "sample_dynamic",
-                "name": "Sample Dynamic Community Plugin",
+                "id": "howlongtobeat",
+                "name": "HowLongToBeat Community Extension",
                 "description": "Test plugin",
-                "author": "Omnis Community",
-                "version": "0.1.0",
+                "author": "HLTB Community",
+                "version": "1.1.0",
                 "plugin_type": "metadata",
                 "requires_api_key": false,
                 "platforms": {
                     platform_key: {
                         "download_url": zip_file_url,
-                        "filename": "sample_dynamic-v0.1.0.zip",
+                        "filename": "howlongtobeat-v1.1.0.zip",
                         "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
                         "size_bytes": bytes.len() as u64
                     }
@@ -235,7 +235,7 @@ async fn test_marketplace_real_zip_install_and_sha256_validation() {
 
     let manager_tampered = omnis_core::MarketplaceManager::with_plugins_dir(temp_dir.clone());
     let _ = manager_tampered.get_catalog(Some(tampered_cat_path.to_str().unwrap())).await.unwrap();
-    let install_tampered_res = manager_tampered.install_plugin("sample_dynamic", &downloader).await;
+    let install_tampered_res = manager_tampered.install_plugin("howlongtobeat", &downloader).await;
     assert!(install_tampered_res.is_err(), "Installation with invalid SHA-256 MUST fail!");
     let err_msg = install_tampered_res.err().unwrap();
     assert!(
@@ -250,17 +250,17 @@ async fn test_marketplace_real_zip_install_and_sha256_validation() {
         "updated_at": "2026-10-20T10:00:00Z",
         "plugins": [
             {
-                "id": "sample_dynamic",
-                "name": "Sample Dynamic Community Plugin",
+                "id": "howlongtobeat",
+                "name": "HowLongToBeat Community Extension",
                 "description": "Test plugin",
-                "author": "Omnis Community",
-                "version": "0.1.0",
+                "author": "HLTB Community",
+                "version": "1.1.0",
                 "plugin_type": "metadata",
                 "requires_api_key": false,
                 "platforms": {
                     platform_key: {
                         "download_url": zip_file_url,
-                        "filename": "sample_dynamic-v0.1.0.zip",
+                        "filename": "howlongtobeat-v1.1.0.zip",
                         "sha256": real_sha256,
                         "size_bytes": bytes.len() as u64
                     }
@@ -275,7 +275,7 @@ async fn test_marketplace_real_zip_install_and_sha256_validation() {
     let manager_valid = omnis_core::MarketplaceManager::with_plugins_dir(temp_dir.clone());
     let _ = manager_valid.get_catalog(Some(valid_cat_path.to_str().unwrap())).await.unwrap();
 
-    let install_valid_res = manager_valid.install_plugin("sample_dynamic", &downloader).await;
+    let install_valid_res = manager_valid.install_plugin("howlongtobeat", &downloader).await;
     assert!(
         install_valid_res.is_ok(),
         "Installation with valid SHA-256 and real ZIP must succeed: {:?}",
@@ -283,17 +283,17 @@ async fn test_marketplace_real_zip_install_and_sha256_validation() {
     );
 
     let provider_info = install_valid_res.unwrap();
-    assert_eq!(provider_info.id, "sample_dynamic");
+    assert_eq!(provider_info.id, "howlongtobeat");
     assert!(provider_info.is_enabled);
 
     // Verify extracted files in target_dir
-    let installed_plugin_dir = temp_dir.join("sample_dynamic");
+    let installed_plugin_dir = temp_dir.join("howlongtobeat");
     assert!(
         installed_plugin_dir.join("manifest.json").exists(),
         "manifest.json must be extracted from zip"
     );
 
     // Clean up
-    let _ = manager_valid.uninstall_plugin("sample_dynamic", &downloader).await;
+    let _ = manager_valid.uninstall_plugin("howlongtobeat", &downloader).await;
     let _ = std::fs::remove_dir_all(&temp_dir);
 }
