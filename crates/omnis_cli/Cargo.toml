@@ -6,7 +6,7 @@ license.workspace = true
 description = "CLI driver for Omnis Game Library"
 
 [[bin]]
-name = "omnis"
+name = "omnis-cli"
 path = "src/main.rs"
 
 [dependencies]
