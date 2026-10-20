@@ -298,7 +298,7 @@ async fn test_4_metadata_downloader_igdb_integration() {
         .expect("Provider 'igdb' deve essere presente in MetadataDownloader");
 
     assert_eq!(igdb.name, "IGDB (Internet Game Database)");
-    assert!(igdb.is_enabled, "IGDB deve essere abilitato di default");
+    assert!(!igdb.is_enabled, "IGDB deve essere disabilitato di default nella modalità Store-First");
     assert!(igdb.is_builtin, "IGDB deve essere un provider built-in");
     assert!(igdb.requires_api_key, "IGDB richiede credenziali Twitch");
     assert!(

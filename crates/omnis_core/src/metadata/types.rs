@@ -178,10 +178,10 @@ pub struct MetadataPipelineConfig {
 impl Default for MetadataPipelineConfig {
     fn default() -> Self {
         Self {
-            cover_source: "steamgriddb".to_string(),
-            background_source: "steamgriddb".to_string(),
-            score_source: "opencritic".to_string(),
-            details_source: "steam".to_string(),
+            cover_source: "store_native".to_string(),
+            background_source: "store_native".to_string(),
+            score_source: "store_native".to_string(),
+            details_source: "store_native".to_string(),
             preserve_existing_artwork: true,
         }
     }
