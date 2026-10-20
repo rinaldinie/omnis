@@ -463,9 +463,10 @@ export default function App() {
       setStatusMessage("Arricchimento Diamond con SteamGridDB, OpenCritic e Steam in corso...");
       const updated = await invokeTauri<GameDto>("enrich_single_game", { gameId });
       if (updated) {
-        setSelectedGame(updated);
-        setGames((prev) => prev.map((g) => (g.id === updated.id ? updated : g)));
-        setStatusMessage(`'${updated.title}' arricchito con successo!`);
+        const normalized = normalizeGame(updated);
+        setSelectedGame(normalized);
+        setGames((prev) => prev.map((g) => (g.id === normalized.id ? normalized : g)));
+        setStatusMessage(`'${normalized.title}' arricchito con successo!`);
       }
     } catch (err: any) {
       setStatusMessage(`Errore arricchimento: ${err}`);
@@ -1296,10 +1297,11 @@ export default function App() {
           }}
           game={gameToEdit || selectedGame!}
           onSave={(updated) => {
-            setSelectedGame((prev) => (prev && prev.id === updated.id ? { ...prev, ...updated } : prev));
-            setGames((prev) => prev.map((g) => (g.id === updated.id ? { ...g, ...updated } : g)));
+            const normalized = normalizeGame(updated);
+            setSelectedGame((prev) => (prev && prev.id === normalized.id ? { ...prev, ...normalized } : prev));
+            setGames((prev) => prev.map((g) => (g.id === normalized.id ? { ...g, ...normalized } : g)));
             refreshLibrary();
-            setStatusMessage(`Modifiche a '${updated.title}' salvate con successo!`);
+            setStatusMessage(`Modifiche a '${normalized.title}' salvate con successo!`);
           }}
         />
       )}

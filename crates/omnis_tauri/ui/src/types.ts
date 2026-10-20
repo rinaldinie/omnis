@@ -29,6 +29,7 @@ export interface GameDto {
   completion_status?: string | null;
   user_notes?: string | null;
   custom_links?: Array<{ title: string; url: string }>;
+  extra_metadata?: string | null;
   genres: string[];
   developers: string[];
   publishers?: string[];

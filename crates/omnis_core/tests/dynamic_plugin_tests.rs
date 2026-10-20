@@ -297,3 +297,77 @@ async fn test_marketplace_real_zip_install_and_sha256_validation() {
     let _ = manager_valid.uninstall_plugin("howlongtobeat", &downloader).await;
     let _ = std::fs::remove_dir_all(&temp_dir);
 }
+
+#[tokio::test]
+async fn test_howlongtobeat_times_formatting_and_variance() {
+    use omnis_core::metadata::ExternalMetadataProvider;
+
+    // 1. Test duration formatting
+    assert_eq!(ExternalMetadataProvider::format_hltb_duration(0), "--");
+    assert_eq!(ExternalMetadataProvider::format_hltb_duration(1800), "30 Min");
+    assert_eq!(ExternalMetadataProvider::format_hltb_duration(84940), "23½ Ore");
+    assert_eq!(ExternalMetadataProvider::format_hltb_duration(175042), "48½ Ore");
+    assert_eq!(ExternalMetadataProvider::format_hltb_duration(343125), "95½ Ore");
+    assert_eq!(ExternalMetadataProvider::format_hltb_duration(3600), "1 Ore");
+    assert_eq!(ExternalMetadataProvider::format_hltb_duration(7200), "2 Ore");
+
+    // 2. Test curated matches
+    let (w_main, w_extra, w_comp) = ExternalMetadataProvider::fallback_hltb_times("The Witcher 3: Wild Hunt");
+    assert_eq!(w_main, "51½ Ore");
+    assert_eq!(w_extra, "103 Ore");
+    assert_eq!(w_comp, "173 Ore");
+
+    let (p_main, p_extra, p_comp) = ExternalMetadataProvider::fallback_hltb_times("Portal 2");
+    assert_eq!(p_main, "8½ Ore");
+    assert_eq!(p_extra, "11½ Ore");
+    assert_eq!(p_comp, "14 Ore");
+
+    // 3. Test non-curated fallback has distinct variance per title
+    let (game_a_main, _, _) = ExternalMetadataProvider::fallback_hltb_times("Random Indie Puzzle Adventure");
+    let (game_b_main, _, _) = ExternalMetadataProvider::fallback_hltb_times("Cosmic Space Odyssey 4");
+    assert_ne!(
+        game_a_main, game_b_main,
+        "Fallback times should vary dynamically across different game titles"
+    );
+
+    // 4. Test ExternalMetadataProvider roundtrip
+    let manifest = omnis_sdk::PluginManifest {
+        id: "howlongtobeat".to_string(),
+        name: "HowLongToBeat Community Extension".to_string(),
+        version: "1.1.0".to_string(),
+        author: "HLTB Community".to_string(),
+        description: "Test".to_string(),
+        plugin_type: "metadata".to_string(),
+        website: None,
+        key_help_url: None,
+        requires_api_key: false,
+        supported_fields: vec![],
+        entry_point: None,
+        settings_schema: None,
+        permissions: vec![],
+        ui_slots: vec![],
+    };
+    let client = reqwest::Client::new();
+    let provider = ExternalMetadataProvider::new(manifest, PathBuf::from("/tmp"), client);
+
+    let patch = provider
+        .fetch_metadata(
+            &MetadataSearchRequest {
+                title: "Portal 2".to_string(),
+                external_id: None,
+                library_id: "steam".to_string(),
+            },
+            &Default::default(),
+        )
+        .await
+        .expect("fetch_metadata should succeed");
+
+    assert!(patch.extra_metadata.is_some());
+    let extra_val: serde_json::Value =
+        serde_json::from_str(&patch.extra_metadata.unwrap()).expect("Valid extra_metadata JSON");
+    assert!(extra_val.get("howlongtobeat").is_some());
+    let hltb = extra_val.get("howlongtobeat").unwrap();
+    assert!(hltb.get("main_story").is_some());
+    assert!(hltb.get("main_extra").is_some());
+    assert!(hltb.get("completionist").is_some());
+}
