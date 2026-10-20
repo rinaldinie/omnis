@@ -27,6 +27,8 @@ pub struct ProviderInfo {
     pub is_builtin: bool,
     pub version: Option<String>,
     pub plugin_path: Option<String>,
+    #[serde(default)]
+    pub plugin_type: Option<String>,
 }
 
 fn default_builtin() -> bool {
@@ -164,6 +166,16 @@ fn default_true() -> bool {
     true
 }
 
+fn default_provider_priority() -> Vec<String> {
+    vec![
+        "steam".to_string(),
+        "gog".to_string(),
+        "steamgriddb".to_string(),
+        "opencritic".to_string(),
+        "igdb".to_string(),
+    ]
+}
+
 /// Pipeline configuration determining provider source priority per field
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MetadataPipelineConfig {
@@ -173,6 +185,8 @@ pub struct MetadataPipelineConfig {
     pub details_source: String,
     #[serde(default = "default_true")]
     pub preserve_existing_artwork: bool,
+    #[serde(default = "default_provider_priority")]
+    pub provider_priority: Vec<String>,
 }
 
 impl Default for MetadataPipelineConfig {
@@ -183,6 +197,7 @@ impl Default for MetadataPipelineConfig {
             score_source: "store_native".to_string(),
             details_source: "store_native".to_string(),
             preserve_existing_artwork: true,
+            provider_priority: default_provider_priority(),
         }
     }
 }

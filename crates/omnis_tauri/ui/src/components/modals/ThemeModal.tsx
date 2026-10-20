@@ -70,9 +70,9 @@ export default function ThemeModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-6">
+    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
       <div
-        className="relative max-w-2xl w-full rounded-3xl border p-6 space-y-6 shadow-2xl max-h-[90vh] overflow-y-auto"
+        className="relative max-w-2xl w-full rounded-3xl border shadow-2xl max-h-[85vh] flex flex-col overflow-hidden"
         style={{
           backgroundColor: "var(--bg-surface)",
           borderColor: "var(--border-color)",
@@ -80,7 +80,7 @@ export default function ThemeModal({
       >
         {/* Modal Header */}
         <div
-          className="flex justify-between items-center pb-3 border-b"
+          className="flex justify-between items-center px-6 py-4 border-b shrink-0"
           style={{ borderColor: "var(--border-color)" }}
         >
           <div className="flex items-center gap-3">
@@ -89,7 +89,7 @@ export default function ThemeModal({
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full border flex items-center justify-center font-bold"
+            className="w-8 h-8 rounded-full border flex items-center justify-center font-bold hover:bg-white/10 active:opacity-90"
             style={{
               backgroundColor: "var(--bg-card)",
               borderColor: "var(--border-color)",
@@ -101,61 +101,65 @@ export default function ThemeModal({
         </div>
 
         {/* TAB SELECTOR: TEMI DISPONIBILI vs CREA TEMA */}
-        <div
-          className="flex p-1 rounded-xl border"
-          style={{
-            backgroundColor: "var(--bg-card)",
-            borderColor: "var(--border-color)",
-          }}
-        >
-          <button
-            onClick={() => setThemeModalTab("list")}
-            className="flex-1 py-2 rounded-lg text-xs font-bold transition-all text-center"
+        <div className="px-6 pt-4 pb-2 shrink-0">
+          <div
+            className="flex p-1 rounded-xl border"
             style={{
-              backgroundColor: themeModalTab === "list" ? "var(--accent-primary)" : "transparent",
-              color: themeModalTab === "list" ? "#ffffff" : "var(--text-muted)",
+              backgroundColor: "var(--bg-card)",
+              borderColor: "var(--border-color)",
             }}
           >
-            Temi Disponibili ({themes.length})
-          </button>
-          <button
-            onClick={() => {
-              setThemeModalTab("create");
-              // Initialize draft with currently selected theme colors
-              setNewThemeDraft({
-                id: "custom_" + Date.now(),
-                name: "Tema Personalizzato",
-                description: "Tema creato con colori custom",
-                author: "Utente",
-                bg_base: currentTheme.bg_base,
-                bg_surface: currentTheme.bg_surface,
-                bg_card: currentTheme.bg_card,
-                text_primary: currentTheme.text_primary,
-                text_muted: currentTheme.text_muted,
-                accent_primary: currentTheme.accent_primary,
-                accent_glow: currentTheme.accent_glow,
-                border_color: currentTheme.border_color,
-                card_radius: currentTheme.card_radius,
-                font_family: currentTheme.font_family,
-                target_mode: currentTheme.target_mode || "all",
-                enable_video_backdrop: currentTheme.enable_video_backdrop || false,
-                video_backdrop_opacity: currentTheme.video_backdrop_opacity ?? 0.55,
-                video_delay_ms: currentTheme.video_delay_ms ?? 1000,
-              });
-            }}
-            className="flex-1 py-2 rounded-lg text-xs font-bold transition-all text-center flex items-center justify-center gap-1.5"
-            style={{
-              backgroundColor: themeModalTab === "create" ? "var(--accent-primary)" : "transparent",
-              color: themeModalTab === "create" ? "#ffffff" : "var(--text-muted)",
-            }}
-          >
-            <PlusCircle className="w-3.5 h-3.5" />
-            <span>Crea Nuovo Tema</span>
-          </button>
+            <button
+              onClick={() => setThemeModalTab("list")}
+              className="flex-1 py-2 rounded-lg text-xs font-bold transition-all text-center"
+              style={{
+                backgroundColor: themeModalTab === "list" ? "var(--accent-primary)" : "transparent",
+                color: themeModalTab === "list" ? "#ffffff" : "var(--text-muted)",
+              }}
+            >
+              Temi Disponibili ({themes.length})
+            </button>
+            <button
+              onClick={() => {
+                setThemeModalTab("create");
+                // Initialize draft with currently selected theme colors
+                setNewThemeDraft({
+                  id: "custom_" + Date.now(),
+                  name: "Tema Personalizzato",
+                  description: "Tema creato con colori custom",
+                  author: "Utente",
+                  bg_base: currentTheme.bg_base,
+                  bg_surface: currentTheme.bg_surface,
+                  bg_card: currentTheme.bg_card,
+                  text_primary: currentTheme.text_primary,
+                  text_muted: currentTheme.text_muted,
+                  accent_primary: currentTheme.accent_primary,
+                  accent_glow: currentTheme.accent_glow,
+                  border_color: currentTheme.border_color,
+                  card_radius: currentTheme.card_radius,
+                  font_family: currentTheme.font_family,
+                  target_mode: currentTheme.target_mode || "all",
+                  enable_video_backdrop: currentTheme.enable_video_backdrop || false,
+                  video_backdrop_opacity: currentTheme.video_backdrop_opacity ?? 0.55,
+                  video_delay_ms: currentTheme.video_delay_ms ?? 1000,
+                });
+              }}
+              className="flex-1 py-2 rounded-lg text-xs font-bold transition-all text-center flex items-center justify-center gap-1.5"
+              style={{
+                backgroundColor: themeModalTab === "create" ? "var(--accent-primary)" : "transparent",
+                color: themeModalTab === "create" ? "#ffffff" : "var(--text-muted)",
+              }}
+            >
+              <PlusCircle className="w-3.5 h-3.5" />
+              <span>Crea Nuovo Tema</span>
+            </button>
+          </div>
         </div>
 
-        {/* TAB 1: LISTA TEMI DISPONIBILI */}
-        {themeModalTab === "list" && (
+        {/* SCROLLABLE BODY */}
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-6 custom-scrollbar">
+          {/* TAB 1: LISTA TEMI DISPONIBILI */}
+          {themeModalTab === "list" && (
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <span
@@ -478,6 +482,7 @@ export default function ThemeModal({
             </div>
           </div>
         )}
+        </div>
       </div>
     </div>
   );

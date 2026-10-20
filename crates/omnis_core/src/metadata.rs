@@ -306,6 +306,7 @@ impl MetadataDownloader {
                         is_builtin: dynamic_provider.is_builtin(),
                         version: dynamic_provider.version().map(|s| s.to_string()),
                         plugin_path: Some(root_path.to_string_lossy().to_string()),
+                        plugin_type: Some(dynamic_provider.manifest().plugin_type),
                     };
 
                     let mut providers_guard = self.providers.write().await;
@@ -458,6 +459,7 @@ impl MetadataDownloader {
                 is_builtin: false,
                 version: Some(manifest.version.clone()),
                 plugin_path: Some(dir.to_string_lossy().to_string()),
+                plugin_type: Some(manifest.plugin_type.clone()),
             };
 
             let provider = ExternalMetadataProvider::new(manifest, dir.to_path_buf(), self.client.clone());
@@ -555,6 +557,7 @@ impl MetadataDownloader {
                 is_builtin: prov.is_builtin(),
                 version: prov.version().map(|s| s.to_string()),
                 plugin_path: plugin_path_val,
+                plugin_type: Some(prov.manifest().plugin_type),
             });
         }
 
