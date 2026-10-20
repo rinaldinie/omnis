@@ -153,6 +153,26 @@ export default function MetadataResolutionModal({
     }
   };
 
+  // Compute missing fields so that existing fields are not overwritten by default
+  const computeMissingFields = (): string[] => {
+    if (!game) return [];
+    const missing: string[] = [];
+    if (!game.cover_image || String(game.cover_image).trim() === "") missing.push("cover_image");
+    if (!game.background_image || String(game.background_image).trim() === "") missing.push("background_image");
+    if (!game.description || String(game.description).trim() === "") missing.push("description");
+    if (game.critic_score === null || game.critic_score === undefined) missing.push("critic_score");
+    if (game.community_score === null || game.community_score === undefined) missing.push("community_score");
+    if (!game.genres || game.genres.length === 0) missing.push("genres");
+    if (!game.release_date || String(game.release_date).trim() === "") missing.push("release_date");
+    if (
+      (!game.developers || game.developers.length === 0) &&
+      (!game.publishers || game.publishers.length === 0)
+    ) {
+      missing.push("developers");
+    }
+    return missing;
+  };
+
   // On open, pre-fill search and pre-select ONLY missing fields to protect existing metadata
   useEffect(() => {
     if (!isOpen || !game) return;
@@ -164,23 +184,9 @@ export default function MetadataResolutionModal({
     setApplyError(null);
     setApplySuccess(false);
 
-    // Compute missing fields so that existing fields are not overwritten by default
-    const missingFields: string[] = [];
-    if (!game.cover_image || String(game.cover_image).trim() === "") missingFields.push("cover_image");
-    if (!game.background_image || String(game.background_image).trim() === "") missingFields.push("background_image");
-    if (!game.description || String(game.description).trim() === "") missingFields.push("description");
-    if (game.critic_score === null || game.critic_score === undefined) missingFields.push("critic_score");
-    if (game.community_score === null || game.community_score === undefined) missingFields.push("community_score");
-    if (!game.genres || game.genres.length === 0) missingFields.push("genres");
-    if (!game.release_date || String(game.release_date).trim() === "") missingFields.push("release_date");
-    if (
-      (!game.developers || game.developers.length === 0) &&
-      (!game.publishers || game.publishers.length === 0)
-    ) {
-      missingFields.push("developers");
-    }
-
-    setSelectedFields(missingFields);
+    const missingFields = computeMissingFields();
+    // If no fields are missing, select cover_image by default so user can refresh artwork if desired
+    setSelectedFields(missingFields.length > 0 ? missingFields : ["cover_image"]);
 
     handleSearch(game.title || "", "all");
   }, [isOpen, game]);
@@ -228,6 +234,10 @@ export default function MetadataResolutionModal({
     setSelectedFields(AVAILABLE_FIELDS.map((f) => f.key));
   };
 
+  const selectMissingFields = () => {
+    setSelectedFields(computeMissingFields());
+  };
+
   const deselectAllFields = () => {
     setSelectedFields([]);
   };
@@ -271,6 +281,8 @@ export default function MetadataResolutionModal({
     switch (pId.toLowerCase()) {
       case "steam":
         return { name: "Steam Store", bg: "rgba(23, 53, 77, 0.9)", border: "#66c0f4", text: "#66c0f4" };
+      case "gog":
+        return { name: "GOG Store", bg: "rgba(50, 15, 70, 0.9)", border: "#a855f7", text: "#c084fc" };
       case "steamgriddb":
         return { name: "SteamGridDB HD", bg: "rgba(35, 38, 46, 0.9)", border: "#e5e7eb", text: "#ffffff" };
       case "opencritic":
@@ -368,11 +380,9 @@ export default function MetadataResolutionModal({
               color: "var(--text-primary)",
             }}
           >
-            <option value="all">Tutti i Provider</option>
+            <option value="all">Tutti gli Store (Steam & GOG)</option>
             <option value="steam">Steam Store (Ufficiale)</option>
-            <option value="steamgriddb">SteamGridDB (Artwork HD)</option>
-            <option value="opencritic">OpenCritic (Recensioni)</option>
-            <option value="igdb">IGDB (Twitch / Database Globale)</option>
+            <option value="gog">GOG Store (DRM-Free)</option>
           </select>
 
           <button
@@ -542,6 +552,13 @@ export default function MetadataResolutionModal({
                     className="text-indigo-400 hover:underline font-medium"
                   >
                     Tutti
+                  </button>
+                  <span className="text-slate-600">•</span>
+                  <button
+                    onClick={selectMissingFields}
+                    className="text-amber-400 hover:underline font-medium"
+                  >
+                    Solo Mancanti
                   </button>
                   <span className="text-slate-600">•</span>
                   <button

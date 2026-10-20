@@ -235,20 +235,33 @@ impl MetadataProvider for SteamMetadataProvider {
             }
         }
 
+        let header_img = data
+            .get("header_image")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+
+        let screenshot_bg = data
+            .get("screenshots")
+            .and_then(|v| v.as_array())
+            .and_then(|arr| arr.first())
+            .and_then(|s| s.get("path_full"))
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+
         let primary_cover_url = format!(
-            "https://steamcdn-a.akamaihd.net/steam/apps/{}/library_600x900_2x.jpg",
+            "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/{}/library_600x900_2x.jpg",
             appid
         );
         let hero_bg_url = format!(
-            "https://steamcdn-a.akamaihd.net/steam/apps/{}/library_hero.jpg",
+            "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/{}/library_hero.jpg",
             appid
         );
 
         Ok(GameMetadataPatch {
             description: short_desc,
             release_date,
-            cover_url: Some(primary_cover_url),
-            background_url: Some(hero_bg_url),
+            cover_url: Some(primary_cover_url).or(header_img.clone()),
+            background_url: Some(hero_bg_url).or(screenshot_bg).or(header_img),
             icon_url: None,
             critic_score,
             community_score: critic_score.map(|s| s.saturating_add(2).min(100)),

@@ -12,6 +12,7 @@ use tokio::sync::RwLock;
 use tracing::{debug, info, warn};
 use uuid::Uuid;
 
+pub mod gog;
 pub mod igdb;
 pub mod opencritic;
 pub mod scaffold;
@@ -20,6 +21,7 @@ pub mod steamgriddb;
 pub mod types;
 pub mod utils;
 
+pub use gog::GogMetadataProvider;
 pub use igdb::IgdbMetadataProvider;
 pub use opencritic::OpenCriticProvider;
 pub use steam::SteamMetadataProvider;
@@ -38,6 +40,7 @@ pub struct MetadataDownloader {
     settings_cache: Arc<RwLock<HashMap<String, Map<String, Value>>>>,
     pipeline_config: Arc<RwLock<MetadataPipelineConfig>>,
     igdb_provider: Arc<IgdbMetadataProvider>,
+    gog_provider: Arc<GogMetadataProvider>,
     cancel_requested: Arc<AtomicBool>,
 }
 
@@ -56,11 +59,16 @@ impl MetadataDownloader {
             .unwrap_or_default();
 
         let igdb = Arc::new(IgdbMetadataProvider::new(client.clone()));
+        let gog = Arc::new(GogMetadataProvider::new(client.clone()));
 
         let mut providers: HashMap<String, Box<dyn MetadataProvider>> = HashMap::new();
         providers.insert(
             "steam".to_string(),
             Box::new(SteamMetadataProvider::new(client.clone())),
+        );
+        providers.insert(
+            "gog".to_string(),
+            Box::new(GogMetadataProvider::new(client.clone())),
         );
         providers.insert(
             "steamgriddb".to_string(),
@@ -74,9 +82,10 @@ impl MetadataDownloader {
 
         let mut enabled = HashMap::new();
         enabled.insert("steam".to_string(), true);
-        enabled.insert("steamgriddb".to_string(), true);
-        enabled.insert("opencritic".to_string(), true);
-        enabled.insert("igdb".to_string(), true);
+        enabled.insert("gog".to_string(), true);
+        enabled.insert("steamgriddb".to_string(), false);
+        enabled.insert("opencritic".to_string(), false);
+        enabled.insert("igdb".to_string(), false);
 
         Self {
             client,
@@ -86,6 +95,7 @@ impl MetadataDownloader {
             settings_cache: Arc::new(RwLock::new(HashMap::new())),
             pipeline_config: Arc::new(RwLock::new(MetadataPipelineConfig::default())),
             igdb_provider: igdb,
+            gog_provider: gog,
             cancel_requested: Arc::new(AtomicBool::new(false)),
         }
     }
@@ -621,7 +631,7 @@ impl MetadataDownloader {
         Ok(())
     }
 
-    /// Search for metadata candidates across online providers (Steam, SteamGridDB, OpenCritic, etc.)
+    /// Search for metadata candidates across online providers (Steam, GOG, and enabled external providers)
     pub async fn search_candidates(
         &self,
         title: &str,
@@ -629,9 +639,12 @@ impl MetadataDownloader {
     ) -> Result<Vec<MetadataCandidateDto>, String> {
         let filter = provider_id.unwrap_or("all").to_lowercase();
         let mut candidates = Vec::new();
+        let enabled_guard = self.enabled_providers.read().await;
 
         // 1. Steam Store Search
-        if filter == "all" || filter == "steam" {
+        if (filter == "all" || filter == "steam")
+            && enabled_guard.get("steam").copied().unwrap_or(true)
+        {
             let search_url = reqwest::Url::parse_with_params(
                 "https://store.steampowered.com/api/storesearch/",
                 &[("term", title), ("l", "italian"), ("cc", "IT")],
@@ -640,7 +653,7 @@ impl MetadataDownloader {
                 if let Ok(resp) = self.client.get(url).send().await {
                     if let Ok(json) = resp.json::<Value>().await {
                         if let Some(items) = json.get("items").and_then(|v| v.as_array()) {
-                            for item in items.iter().take(6) {
+                            for item in items.iter().take(5) {
                                 if let Some(appid_num) = item.get("id").and_then(|v| v.as_u64()) {
                                     let appid = appid_num.to_string();
                                     let name = item
@@ -649,11 +662,11 @@ impl MetadataDownloader {
                                         .unwrap_or(title)
                                         .to_string();
                                     let cover_url = format!(
-                                        "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/{}/library_600x900_2x.jpg",
+                                        "https://shared.steamstatic.com/store_item_assets/steam/apps/{}/library_600x900_2x.jpg",
                                         appid
                                     );
                                     let bg_url = format!(
-                                        "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/{}/library_hero.jpg",
+                                        "https://shared.steamstatic.com/store_item_assets/steam/apps/{}/library_hero.jpg",
                                         appid
                                     );
 
@@ -741,8 +754,19 @@ impl MetadataDownloader {
             }
         }
 
-        // 2. SteamGridDB Autocomplete Search
-        if filter == "all" || filter == "steamgriddb" {
+        // 2. GOG Catalog Search (Official DRM-Free)
+        if (filter == "all" || filter == "gog")
+            && enabled_guard.get("gog").copied().unwrap_or(true)
+        {
+            if let Ok(gog_candidates) = self.gog_provider.search_candidates(title, 4).await {
+                candidates.extend(gog_candidates);
+            }
+        }
+
+        // 3. SteamGridDB Autocomplete Search (Only if enabled or explicitly requested)
+        if filter == "steamgriddb"
+            || (filter == "all" && enabled_guard.get("steamgriddb").copied().unwrap_or(false))
+        {
             let settings_guard = self.settings_cache.read().await;
             let sgdb_key = settings_guard
                 .get("steamgriddb")
@@ -852,8 +876,10 @@ impl MetadataDownloader {
             }
         }
 
-        // 3. OpenCritic Search
-        if filter == "all" || filter == "opencritic" {
+        // 4. OpenCritic Search (Only if enabled or explicitly requested)
+        if filter == "opencritic"
+            || (filter == "all" && enabled_guard.get("opencritic").copied().unwrap_or(false))
+        {
             let settings_guard = self.settings_cache.read().await;
             let oc_key = settings_guard
                 .get("opencritic")
@@ -926,8 +952,10 @@ impl MetadataDownloader {
             }
         }
 
-        // 4. IGDB APICalypse v4 Search
-        if filter == "all" || filter == "igdb" {
+        // 5. IGDB APICalypse v4 Search (Only if enabled or explicitly requested)
+        if filter == "igdb"
+            || (filter == "all" && enabled_guard.get("igdb").copied().unwrap_or(false))
+        {
             let igdb_settings = {
                 let settings_guard = self.settings_cache.read().await;
                 settings_guard.get("igdb").cloned().unwrap_or_default()
@@ -937,7 +965,7 @@ impl MetadataDownloader {
             }
         }
 
-        // 5. Guarantee candidates: if no online provider returned results, produce aesthetic fallback candidate
+        // 6. Guarantee candidates: if no online provider returned results, produce aesthetic fallback candidate
         if candidates.is_empty() {
             let fallback = self.generate_fallback_metadata(title, "catalogo");
             candidates.push(MetadataCandidateDto {
@@ -1052,161 +1080,162 @@ impl MetadataDownloader {
             }
         }
 
-        // 1. Fetch Primary Details & Descriptions (Default: Steam)
+        // Store-Native resolution: determine store-native provider from game.library_id
+        let store_native_id = match game.library_id.to_lowercase().as_str() {
+            "steam" => "steam",
+            "gog" => "gog",
+            _ => "steam", // Steam Store search by title is universal PC catalog
+        };
+
+        let effective_details_source = if pipeline.details_source == "store_native" {
+            store_native_id
+        } else {
+            pipeline.details_source.as_str()
+        };
+        let effective_cover_source = if pipeline.cover_source == "store_native" {
+            store_native_id
+        } else {
+            pipeline.cover_source.as_str()
+        };
+        let effective_background_source = if pipeline.background_source == "store_native" {
+            store_native_id
+        } else {
+            pipeline.background_source.as_str()
+        };
+        let effective_score_source = if pipeline.score_source == "store_native" {
+            store_native_id
+        } else {
+            pipeline.score_source.as_str()
+        };
+
+        // 1. Fetch Primary Details & Descriptions (Store-First)
+        let mut details_patch: Option<GameMetadataPatch> = None;
         if enabled_guard
-            .get(&pipeline.details_source)
+            .get(effective_details_source)
             .copied()
             .unwrap_or(true)
         {
-            if let Some(prov) = providers_guard.get(&pipeline.details_source) {
+            if let Some(prov) = providers_guard.get(effective_details_source) {
                 let settings = settings_guard
-                    .get(&pipeline.details_source)
+                    .get(effective_details_source)
                     .cloned()
                     .unwrap_or_default();
                 if let Ok(patch) = prov.fetch_metadata(&request, &settings).await {
-                    if game.description.as_ref().map(|d| d.trim().is_empty()).unwrap_or(true) {
-                        final_patch.description = patch.description;
-                    }
-                    if game.release_date.as_ref().map(|r| r.trim().is_empty()).unwrap_or(true) {
-                        final_patch.release_date = patch.release_date;
-                    }
-                    if game.genres.is_empty() {
-                        final_patch.genres = patch.genres;
-                    }
-                    if game.developers.is_empty() {
-                        final_patch.developers = patch.developers;
-                    }
-                    if game.publishers.is_empty() {
-                        final_patch.publishers = patch.publishers;
-                    }
-                    if game.critic_score.is_none() {
-                        final_patch.critic_score = patch.critic_score;
-                    }
-                    if game.community_score.is_none() {
-                        final_patch.community_score = patch.community_score;
-                    }
+                    details_patch = Some(patch);
+                }
+            }
+        }
 
-                    if should_fetch_cover {
-                        if pipeline.cover_source == pipeline.details_source {
-                            final_patch.cover_url = patch.cover_url;
-                        } else {
-                            details_cover_fallback = patch.cover_url;
-                        }
-                    }
-
-                    if should_fetch_background {
-                        if pipeline.background_source == pipeline.details_source {
-                            final_patch.background_url = patch.background_url;
-                        } else {
-                            details_bg_fallback = patch.background_url;
-                        }
+        // Fallback: If primary store had no match, try the alternative built-in store
+        if details_patch.is_none() {
+            let alt_store = if effective_details_source == "steam" { "gog" } else { "steam" };
+            if enabled_guard.get(alt_store).copied().unwrap_or(true) {
+                if let Some(prov) = providers_guard.get(alt_store) {
+                    let settings = settings_guard.get(alt_store).cloned().unwrap_or_default();
+                    if let Ok(patch) = prov.fetch_metadata(&request, &settings).await {
+                        details_patch = Some(patch);
                     }
                 }
             }
         }
 
-        // 2. Resolve High-Res Artwork (SteamGridDB or IGDB if enabled, fallback to Steam)
-        if should_fetch_cover || should_fetch_background {
-            if (pipeline.cover_source == "steamgriddb" || pipeline.background_source == "steamgriddb")
-                && enabled_guard.get("steamgriddb").copied().unwrap_or(true)
+        if let Some(ref patch) = details_patch {
+            if game.description.as_ref().map(|d| d.trim().is_empty()).unwrap_or(true) {
+                final_patch.description = patch.description.clone();
+            }
+            if game.release_date.as_ref().map(|r| r.trim().is_empty()).unwrap_or(true) {
+                final_patch.release_date = patch.release_date.clone();
+            }
+            if game.genres.is_empty() {
+                final_patch.genres = patch.genres.clone();
+            }
+            if game.developers.is_empty() {
+                final_patch.developers = patch.developers.clone();
+            }
+            if game.publishers.is_empty() {
+                final_patch.publishers = patch.publishers.clone();
+            }
+            if game.critic_score.is_none() {
+                final_patch.critic_score = patch.critic_score;
+            }
+            if game.community_score.is_none() {
+                final_patch.community_score = patch.community_score;
+            }
+
+            if should_fetch_cover {
+                if effective_cover_source == effective_details_source || effective_cover_source == store_native_id {
+                    final_patch.cover_url = patch.cover_url.clone();
+                } else {
+                    details_cover_fallback = patch.cover_url.clone();
+                }
+            }
+
+            if should_fetch_background {
+                if effective_background_source == effective_details_source || effective_background_source == store_native_id {
+                    final_patch.background_url = patch.background_url.clone();
+                } else {
+                    details_bg_fallback = patch.background_url.clone();
+                }
+            }
+        }
+
+        // 2. Resolve High-Res Artwork if dedicated provider configured
+        if should_fetch_cover && final_patch.cover_url.is_none() {
+            if effective_cover_source != effective_details_source
+                && enabled_guard.get(effective_cover_source).copied().unwrap_or(false)
             {
-                if let Some(prov) = providers_guard.get("steamgriddb") {
+                if let Some(prov) = providers_guard.get(effective_cover_source) {
                     let settings = settings_guard
-                        .get("steamgriddb")
+                        .get(effective_cover_source)
                         .cloned()
                         .unwrap_or_default();
-                    if let Ok(sgdb_patch) = prov.fetch_metadata(&request, &settings).await {
-                        if should_fetch_cover
-                            && pipeline.cover_source == "steamgriddb"
-                            && sgdb_patch.cover_url.is_some()
-                        {
-                            final_patch.cover_url = sgdb_patch.cover_url;
-                        }
-                        if should_fetch_background
-                            && pipeline.background_source == "steamgriddb"
-                            && sgdb_patch.background_url.is_some()
-                        {
-                            final_patch.background_url = sgdb_patch.background_url;
+                    if let Ok(cov_patch) = prov.fetch_metadata(&request, &settings).await {
+                        if cov_patch.cover_url.is_some() {
+                            final_patch.cover_url = cov_patch.cover_url;
                         }
                     }
                 }
             }
-
-            if (pipeline.cover_source == "igdb" || pipeline.background_source == "igdb")
-                && enabled_guard.get("igdb").copied().unwrap_or(true)
-            {
-                if let Some(prov) = providers_guard.get("igdb") {
-                    let settings = settings_guard
-                        .get("igdb")
-                        .cloned()
-                        .unwrap_or_default();
-                    if let Ok(igdb_patch) = prov.fetch_metadata(&request, &settings).await {
-                        if should_fetch_cover
-                            && pipeline.cover_source == "igdb"
-                            && igdb_patch.cover_url.is_some()
-                        {
-                            final_patch.cover_url = igdb_patch.cover_url;
-                        }
-                        if should_fetch_background
-                            && pipeline.background_source == "igdb"
-                            && igdb_patch.background_url.is_some()
-                        {
-                            final_patch.background_url = igdb_patch.background_url;
-                        }
-                    }
-                }
-            }
-
-            // Fallback to details provider artwork or existing remote URL if cover/bg was needed and still unresolved
-            if should_fetch_cover && final_patch.cover_url.is_none() {
+            if final_patch.cover_url.is_none() {
                 final_patch.cover_url = details_cover_fallback.or(remote_cover_to_cache.clone());
             }
-            if should_fetch_background && final_patch.background_url.is_none() {
+        }
+
+        if should_fetch_background && final_patch.background_url.is_none() {
+            if effective_background_source != effective_details_source
+                && enabled_guard.get(effective_background_source).copied().unwrap_or(false)
+            {
+                if let Some(prov) = providers_guard.get(effective_background_source) {
+                    let settings = settings_guard
+                        .get(effective_background_source)
+                        .cloned()
+                        .unwrap_or_default();
+                    if let Ok(bg_patch) = prov.fetch_metadata(&request, &settings).await {
+                        if bg_patch.background_url.is_some() {
+                            final_patch.background_url = bg_patch.background_url;
+                        }
+                    }
+                }
+            }
+            if final_patch.background_url.is_none() {
                 final_patch.background_url = details_bg_fallback.or(remote_bg_to_cache.clone());
             }
         }
 
-        // 3. Resolve Critic & Community Scores (Default: OpenCritic if enabled & key present, fallback to external or Steam)
-        if game.critic_score.is_none() {
-            if pipeline.score_source == "opencritic"
-                && enabled_guard.get("opencritic").copied().unwrap_or(true)
+        // 3. Resolve Critic & Community Scores if needed
+        if game.critic_score.is_none() && final_patch.critic_score.is_none() {
+            if effective_score_source != effective_details_source
+                && enabled_guard.get(effective_score_source).copied().unwrap_or(false)
             {
-                if let Some(prov) = providers_guard.get("opencritic") {
+                if let Some(prov) = providers_guard.get(effective_score_source) {
                     let settings = settings_guard
-                        .get("opencritic")
+                        .get(effective_score_source)
                         .cloned()
                         .unwrap_or_default();
-                    if let Ok(oc_patch) = prov.fetch_metadata(&request, &settings).await {
-                        if oc_patch.critic_score.is_some() {
-                            final_patch.critic_score = oc_patch.critic_score;
-                            final_patch.community_score = oc_patch.community_score;
-                        }
-                    }
-                }
-            } else if pipeline.score_source == "steam" && pipeline.details_source != "steam" {
-                if enabled_guard.get("steam").copied().unwrap_or(true) {
-                    if let Some(prov) = providers_guard.get("steam") {
-                        let settings = settings_guard.get("steam").cloned().unwrap_or_default();
-                        if let Ok(st_patch) = prov.fetch_metadata(&request, &settings).await {
-                            if st_patch.critic_score.is_some() {
-                                final_patch.critic_score = st_patch.critic_score;
-                                final_patch.community_score = st_patch.community_score;
-                            }
-                        }
-                    }
-                }
-            } else if pipeline.score_source != "opencritic" && pipeline.score_source != "steam" {
-                if enabled_guard.get(&pipeline.score_source).copied().unwrap_or(true) {
-                    if let Some(prov) = providers_guard.get(&pipeline.score_source) {
-                        let settings = settings_guard
-                            .get(&pipeline.score_source)
-                            .cloned()
-                            .unwrap_or_default();
-                        if let Ok(ext_patch) = prov.fetch_metadata(&request, &settings).await {
-                            if ext_patch.critic_score.is_some() {
-                                final_patch.critic_score = ext_patch.critic_score;
-                                final_patch.community_score = ext_patch.community_score;
-                            }
+                    if let Ok(sc_patch) = prov.fetch_metadata(&request, &settings).await {
+                        if sc_patch.critic_score.is_some() {
+                            final_patch.critic_score = sc_patch.critic_score;
+                            final_patch.community_score = sc_patch.community_score;
                         }
                     }
                 }
