@@ -8,6 +8,15 @@ use omnis_sdk::{
 use serde_json::{Map, Value};
 use std::path::{Path, PathBuf};
 
+fn normalize_gog_url(s: &str) -> String {
+    let trimmed = s.trim();
+    if trimmed.starts_with("//") {
+        format!("https:{}", trimmed)
+    } else {
+        trimmed.to_string()
+    }
+}
+
 pub struct GogMetadataProvider {
     client: reqwest::Client,
     plugin_dir: Option<PathBuf>,
@@ -71,12 +80,14 @@ impl GogMetadataProvider {
                 let cover_vert = prod
                     .get("coverVertical")
                     .and_then(|v| v.as_str())
-                    .map(|s| s.to_string());
+                    .or_else(|| prod.get("image").and_then(|v| v.as_str()))
+                    .map(normalize_gog_url);
 
                 let cover_horiz = prod
                     .get("coverHorizontal")
                     .and_then(|v| v.as_str())
-                    .map(|s| s.to_string());
+                    .or_else(|| prod.get("galaxyBackgroundImage").and_then(|v| v.as_str()))
+                    .map(normalize_gog_url);
 
                 let release_date = prod
                     .get("releaseDate")
@@ -282,8 +293,16 @@ impl MetadataProvider for GogMetadataProvider {
             .and_then(|arr| arr.first())
             .ok_or_else(|| format!("Nessun gioco trovato su GOG per '{}'", request.title))?;
 
-        let cover_vert = first.get("coverVertical").and_then(|v| v.as_str()).map(|s| s.to_string());
-        let cover_horiz = first.get("coverHorizontal").and_then(|v| v.as_str()).map(|s| s.to_string());
+        let cover_vert = first
+            .get("coverVertical")
+            .and_then(|v| v.as_str())
+            .or_else(|| first.get("image").and_then(|v| v.as_str()))
+            .map(normalize_gog_url);
+        let cover_horiz = first
+            .get("coverHorizontal")
+            .and_then(|v| v.as_str())
+            .or_else(|| first.get("galaxyBackgroundImage").and_then(|v| v.as_str()))
+            .map(normalize_gog_url);
 
         let mut genres = Vec::new();
         if let Some(g_arr) = first.get("genres").and_then(|v| v.as_array()) {
