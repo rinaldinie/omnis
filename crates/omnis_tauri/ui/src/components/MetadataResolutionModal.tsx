@@ -16,6 +16,7 @@ import {
   Layers,
 } from "lucide-react";
 import { useTranslation } from "../i18n";
+import { GameDto, invokeTauri } from "../types";
 
 export interface MetadataCandidateDto {
   provider_id: string;
@@ -105,19 +106,6 @@ const AVAILABLE_FIELDS: FieldOption[] = [
   },
 ];
 
-async function callTauri<T>(cmd: string, args?: Record<string, unknown>): Promise<T | null> {
-  try {
-    if (typeof window !== "undefined" && (window as any).__TAURI_INTERNALS__) {
-      const { invoke } = await import("@tauri-apps/api/core");
-      return await invoke<T>(cmd, args);
-    }
-  } catch (err) {
-    console.warn(`Tauri command '${cmd}' failed:`, err);
-    throw err;
-  }
-  return null;
-}
-
 export default function MetadataResolutionModal({
   isOpen,
   onClose,
@@ -130,15 +118,7 @@ export default function MetadataResolutionModal({
   const [candidates, setCandidates] = useState<MetadataCandidateDto[]>([]);
   const [selectedCandidate, setSelectedCandidate] = useState<MetadataCandidateDto | null>(null);
 
-  const [selectedFields, setSelectedFields] = useState<string[]>([
-    "cover_image",
-    "background_image",
-    "description",
-    "critic_score",
-    "community_score",
-    "genres",
-    "release_date",
-  ]);
+  const [selectedFields, setSelectedFields] = useState<string[]>([]);
 
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [isApplying, setIsApplying] = useState<boolean>(false);
@@ -146,7 +126,34 @@ export default function MetadataResolutionModal({
   const [applyError, setApplyError] = useState<string | null>(null);
   const [applySuccess, setApplySuccess] = useState<boolean>(false);
 
-  // On open, pre-fill search with current title and trigger initial search
+  const isFieldPresent = (key: string): boolean => {
+    if (!game) return false;
+    switch (key) {
+      case "cover_image":
+        return Boolean(game.cover_image && String(game.cover_image).trim() !== "");
+      case "background_image":
+        return Boolean(game.background_image && String(game.background_image).trim() !== "");
+      case "description":
+        return Boolean(game.description && String(game.description).trim() !== "");
+      case "critic_score":
+        return game.critic_score !== null && game.critic_score !== undefined;
+      case "community_score":
+        return game.community_score !== null && game.community_score !== undefined;
+      case "genres":
+        return Boolean(game.genres && game.genres.length > 0);
+      case "release_date":
+        return Boolean(game.release_date && String(game.release_date).trim() !== "");
+      case "developers":
+        return Boolean(
+          (game.developers && game.developers.length > 0) ||
+          (game.publishers && game.publishers.length > 0)
+        );
+      default:
+        return false;
+    }
+  };
+
+  // On open, pre-fill search and pre-select ONLY missing fields to protect existing metadata
   useEffect(() => {
     if (!isOpen || !game) return;
 
@@ -156,6 +163,24 @@ export default function MetadataResolutionModal({
     setSearchError(null);
     setApplyError(null);
     setApplySuccess(false);
+
+    // Compute missing fields so that existing fields are not overwritten by default
+    const missingFields: string[] = [];
+    if (!game.cover_image || String(game.cover_image).trim() === "") missingFields.push("cover_image");
+    if (!game.background_image || String(game.background_image).trim() === "") missingFields.push("background_image");
+    if (!game.description || String(game.description).trim() === "") missingFields.push("description");
+    if (game.critic_score === null || game.critic_score === undefined) missingFields.push("critic_score");
+    if (game.community_score === null || game.community_score === undefined) missingFields.push("community_score");
+    if (!game.genres || game.genres.length === 0) missingFields.push("genres");
+    if (!game.release_date || String(game.release_date).trim() === "") missingFields.push("release_date");
+    if (
+      (!game.developers || game.developers.length === 0) &&
+      (!game.publishers || game.publishers.length === 0)
+    ) {
+      missingFields.push("developers");
+    }
+
+    setSelectedFields(missingFields);
 
     handleSearch(game.title || "", "all");
   }, [isOpen, game]);
@@ -171,7 +196,7 @@ export default function MetadataResolutionModal({
     setSelectedCandidate(null);
 
     try {
-      const result = await callTauri<MetadataCandidateDto[]>("search_metadata_candidates", {
+      const result = await invokeTauri<MetadataCandidateDto[]>("search_metadata_candidates", {
         title: term,
         providerId: prov === "all" ? null : prov,
       });
@@ -218,7 +243,7 @@ export default function MetadataResolutionModal({
         ? [...selectedFields, "publishers"]
         : selectedFields;
 
-      const updated = await callTauri<any>("apply_metadata_candidate", {
+      const updated = await invokeTauri<GameDto>("apply_metadata_candidate", {
         gameId: game.id,
         candidate: selectedCandidate,
         fields: fieldsToSend,
@@ -226,7 +251,11 @@ export default function MetadataResolutionModal({
 
       setApplySuccess(true);
       setTimeout(() => {
-        onApply(updated || { ...game, ...selectedCandidate.raw_patch });
+        if (updated) {
+          onApply(updated);
+        } else {
+          onApply({ ...game, ...selectedCandidate.raw_patch });
+        }
         onClose();
       }, 500);
     } catch (err: any) {
@@ -527,6 +556,7 @@ export default function MetadataResolutionModal({
               <div className="space-y-2">
                 {AVAILABLE_FIELDS.map((field) => {
                   const isChecked = selectedFields.includes(field.key);
+                  const alreadyPresent = isFieldPresent(field.key);
                   return (
                     <div
                       key={field.key}
@@ -537,11 +567,22 @@ export default function MetadataResolutionModal({
                           : "border-slate-800 bg-slate-900/40 text-slate-400 hover:border-slate-700"
                       }`}
                     >
-                      <div className="flex items-center gap-2.5">
+                      <div className="flex items-center gap-2.5 min-w-0">
                         <div className="shrink-0">{field.icon}</div>
-                        <div>
-                          <p className="text-xs font-medium">{field.label}</p>
-                          <p className="text-[10px] text-slate-400">{field.description}</p>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-xs font-medium truncate">{field.label}</p>
+                            {alreadyPresent ? (
+                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shrink-0 font-medium">
+                                Già presente
+                              </span>
+                            ) : (
+                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300/80 border border-amber-500/20 shrink-0">
+                                Mancante
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-slate-400 truncate">{field.description}</p>
                         </div>
                       </div>
 

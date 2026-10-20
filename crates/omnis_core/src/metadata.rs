@@ -6,9 +6,10 @@ use omnis_sdk::{
 use serde_json::{Map, Value};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 use uuid::Uuid;
 
 pub mod igdb;
@@ -37,6 +38,7 @@ pub struct MetadataDownloader {
     settings_cache: Arc<RwLock<HashMap<String, Map<String, Value>>>>,
     pipeline_config: Arc<RwLock<MetadataPipelineConfig>>,
     igdb_provider: Arc<IgdbMetadataProvider>,
+    cancel_requested: Arc<AtomicBool>,
 }
 
 impl Default for MetadataDownloader {
@@ -84,6 +86,7 @@ impl MetadataDownloader {
             settings_cache: Arc::new(RwLock::new(HashMap::new())),
             pipeline_config: Arc::new(RwLock::new(MetadataPipelineConfig::default())),
             igdb_provider: igdb,
+            cancel_requested: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -984,24 +987,70 @@ impl MetadataDownloader {
         let enabled_guard = self.enabled_providers.read().await;
         let providers_guard = self.providers.read().await;
 
-        let has_existing_cover = game
+        let has_existing_local_cover = game
             .cover_image_path
             .as_ref()
-            .map(|p| !p.trim().is_empty())
-            .unwrap_or(false);
-        let has_existing_background = game
-            .background_image_path
-            .as_ref()
-            .map(|p| !p.trim().is_empty())
+            .map(|p| {
+                let p_trim = p.trim();
+                !p_trim.is_empty()
+                    && !p_trim.starts_with("http://")
+                    && !p_trim.starts_with("https://")
+            })
             .unwrap_or(false);
 
-        let should_fetch_cover = !pipeline.preserve_existing_artwork || !has_existing_cover;
-        let should_fetch_background =
-            !pipeline.preserve_existing_artwork || !has_existing_background;
+        let has_existing_local_bg = game
+            .background_image_path
+            .as_ref()
+            .map(|p| {
+                let p_trim = p.trim();
+                !p_trim.is_empty()
+                    && !p_trim.starts_with("http://")
+                    && !p_trim.starts_with("https://")
+            })
+            .unwrap_or(false);
+
+        let remote_cover_to_cache = game.cover_image_path.as_ref().and_then(|p| {
+            let p_trim = p.trim();
+            if p_trim.starts_with("http://") || p_trim.starts_with("https://") {
+                Some(p_trim.to_string())
+            } else {
+                None
+            }
+        });
+
+        let remote_bg_to_cache = game.background_image_path.as_ref().and_then(|p| {
+            let p_trim = p.trim();
+            if p_trim.starts_with("http://") || p_trim.starts_with("https://") {
+                Some(p_trim.to_string())
+            } else {
+                None
+            }
+        });
+
+        let should_fetch_cover = if pipeline.preserve_existing_artwork {
+            !has_existing_local_cover && remote_cover_to_cache.is_none()
+        } else {
+            true
+        };
+
+        let should_fetch_background = if pipeline.preserve_existing_artwork {
+            !has_existing_local_bg && remote_bg_to_cache.is_none()
+        } else {
+            true
+        };
 
         let mut final_patch = GameMetadataPatch::default();
         let mut details_cover_fallback = None;
         let mut details_bg_fallback = None;
+
+        if pipeline.preserve_existing_artwork {
+            if !has_existing_local_cover && remote_cover_to_cache.is_some() {
+                final_patch.cover_url = remote_cover_to_cache.clone();
+            }
+            if !has_existing_local_bg && remote_bg_to_cache.is_some() {
+                final_patch.background_url = remote_bg_to_cache.clone();
+            }
+        }
 
         // 1. Fetch Primary Details & Descriptions (Default: Steam)
         if enabled_guard
@@ -1015,13 +1064,27 @@ impl MetadataDownloader {
                     .cloned()
                     .unwrap_or_default();
                 if let Ok(patch) = prov.fetch_metadata(&request, &settings).await {
-                    final_patch.description = patch.description;
-                    final_patch.release_date = patch.release_date;
-                    final_patch.genres = patch.genres;
-                    final_patch.developers = patch.developers;
-                    final_patch.publishers = patch.publishers;
-                    final_patch.critic_score = patch.critic_score;
-                    final_patch.community_score = patch.community_score;
+                    if game.description.as_ref().map(|d| d.trim().is_empty()).unwrap_or(true) {
+                        final_patch.description = patch.description;
+                    }
+                    if game.release_date.as_ref().map(|r| r.trim().is_empty()).unwrap_or(true) {
+                        final_patch.release_date = patch.release_date;
+                    }
+                    if game.genres.is_empty() {
+                        final_patch.genres = patch.genres;
+                    }
+                    if game.developers.is_empty() {
+                        final_patch.developers = patch.developers;
+                    }
+                    if game.publishers.is_empty() {
+                        final_patch.publishers = patch.publishers;
+                    }
+                    if game.critic_score.is_none() {
+                        final_patch.critic_score = patch.critic_score;
+                    }
+                    if game.community_score.is_none() {
+                        final_patch.community_score = patch.community_score;
+                    }
 
                     if should_fetch_cover {
                         if pipeline.cover_source == pipeline.details_source {
@@ -1094,113 +1157,147 @@ impl MetadataDownloader {
                 }
             }
 
-            // Fallback to details provider artwork if cover/bg was needed and still unresolved
+            // Fallback to details provider artwork or existing remote URL if cover/bg was needed and still unresolved
             if should_fetch_cover && final_patch.cover_url.is_none() {
-                final_patch.cover_url = details_cover_fallback;
+                final_patch.cover_url = details_cover_fallback.or(remote_cover_to_cache.clone());
             }
             if should_fetch_background && final_patch.background_url.is_none() {
-                final_patch.background_url = details_bg_fallback;
+                final_patch.background_url = details_bg_fallback.or(remote_bg_to_cache.clone());
             }
         }
 
         // 3. Resolve Critic & Community Scores (Default: OpenCritic if enabled & key present, fallback to external or Steam)
-        if pipeline.score_source == "opencritic"
-            && enabled_guard.get("opencritic").copied().unwrap_or(true)
-        {
-            if let Some(prov) = providers_guard.get("opencritic") {
-                let settings = settings_guard
-                    .get("opencritic")
-                    .cloned()
-                    .unwrap_or_default();
-                if let Ok(oc_patch) = prov.fetch_metadata(&request, &settings).await {
-                    if oc_patch.critic_score.is_some() {
-                        final_patch.critic_score = oc_patch.critic_score;
-                        final_patch.community_score = oc_patch.community_score;
-                    }
-                }
-            }
-        } else if pipeline.score_source == "steam" && pipeline.details_source != "steam" {
-            if enabled_guard.get("steam").copied().unwrap_or(true) {
-                if let Some(prov) = providers_guard.get("steam") {
-                    let settings = settings_guard.get("steam").cloned().unwrap_or_default();
-                    if let Ok(st_patch) = prov.fetch_metadata(&request, &settings).await {
-                        if st_patch.critic_score.is_some() {
-                            final_patch.critic_score = st_patch.critic_score;
-                            final_patch.community_score = st_patch.community_score;
+        if game.critic_score.is_none() {
+            if pipeline.score_source == "opencritic"
+                && enabled_guard.get("opencritic").copied().unwrap_or(true)
+            {
+                if let Some(prov) = providers_guard.get("opencritic") {
+                    let settings = settings_guard
+                        .get("opencritic")
+                        .cloned()
+                        .unwrap_or_default();
+                    if let Ok(oc_patch) = prov.fetch_metadata(&request, &settings).await {
+                        if oc_patch.critic_score.is_some() {
+                            final_patch.critic_score = oc_patch.critic_score;
+                            final_patch.community_score = oc_patch.community_score;
                         }
                     }
                 }
-            }
-        } else if pipeline.score_source != "opencritic" && pipeline.score_source != "steam" {
-            if enabled_guard.get(&pipeline.score_source).copied().unwrap_or(true) {
-                if let Some(prov) = providers_guard.get(&pipeline.score_source) {
-                    let settings = settings_guard
-                        .get(&pipeline.score_source)
-                        .cloned()
-                        .unwrap_or_default();
-                    if let Ok(ext_patch) = prov.fetch_metadata(&request, &settings).await {
-                        if ext_patch.critic_score.is_some() {
-                            final_patch.critic_score = ext_patch.critic_score;
-                            final_patch.community_score = ext_patch.community_score;
+            } else if pipeline.score_source == "steam" && pipeline.details_source != "steam" {
+                if enabled_guard.get("steam").copied().unwrap_or(true) {
+                    if let Some(prov) = providers_guard.get("steam") {
+                        let settings = settings_guard.get("steam").cloned().unwrap_or_default();
+                        if let Ok(st_patch) = prov.fetch_metadata(&request, &settings).await {
+                            if st_patch.critic_score.is_some() {
+                                final_patch.critic_score = st_patch.critic_score;
+                                final_patch.community_score = st_patch.community_score;
+                            }
+                        }
+                    }
+                }
+            } else if pipeline.score_source != "opencritic" && pipeline.score_source != "steam" {
+                if enabled_guard.get(&pipeline.score_source).copied().unwrap_or(true) {
+                    if let Some(prov) = providers_guard.get(&pipeline.score_source) {
+                        let settings = settings_guard
+                            .get(&pipeline.score_source)
+                            .cloned()
+                            .unwrap_or_default();
+                        if let Ok(ext_patch) = prov.fetch_metadata(&request, &settings).await {
+                            if ext_patch.critic_score.is_some() {
+                                final_patch.critic_score = ext_patch.critic_score;
+                                final_patch.community_score = ext_patch.community_score;
+                            }
                         }
                     }
                 }
             }
         }
 
-        // 4. Generate aesthetic fallback if description or genres are still empty
-        if final_patch.description.is_none() {
+        // 4. Generate aesthetic fallback only if fields are still empty
+        let needs_fallback_desc = final_patch.description.is_none() && game.description.as_ref().map(|d| d.trim().is_empty()).unwrap_or(true);
+        let needs_fallback_rd = final_patch.release_date.is_none() && game.release_date.as_ref().map(|r| r.trim().is_empty()).unwrap_or(true);
+        let needs_fallback_genres = final_patch.genres.is_empty() && game.genres.is_empty();
+        let needs_fallback_devs = final_patch.developers.is_empty() && game.developers.is_empty();
+        let needs_fallback_pubs = final_patch.publishers.is_empty() && game.publishers.is_empty();
+        let needs_fallback_scores = final_patch.critic_score.is_none() && game.critic_score.is_none();
+
+        if needs_fallback_desc || needs_fallback_genres || needs_fallback_rd || needs_fallback_devs || needs_fallback_pubs || needs_fallback_scores {
             let fallback = self.generate_fallback_metadata(&game.title, &game.library_id);
-            if final_patch.description.is_none() {
+            if needs_fallback_desc {
                 final_patch.description = fallback.description;
             }
-            if final_patch.release_date.is_none() {
+            if needs_fallback_rd {
                 final_patch.release_date = fallback.release_date;
             }
-            if final_patch.genres.is_empty() {
+            if needs_fallback_genres {
                 final_patch.genres = fallback.genres;
             }
-            if final_patch.developers.is_empty() {
+            if needs_fallback_devs {
                 final_patch.developers = fallback.developers;
             }
-            if final_patch.publishers.is_empty() {
+            if needs_fallback_pubs {
                 final_patch.publishers = fallback.publishers;
             }
-            if final_patch.critic_score.is_none() {
+            if needs_fallback_scores {
                 final_patch.critic_score = fallback.critic_score;
                 final_patch.community_score = fallback.community_score;
             }
         }
 
         // 5. Download binary image payloads to local cache
-        let covers_dir = cache_dir.join("covers");
-        let bgs_dir = cache_dir.join("backgrounds");
+        let (covers_dir, bgs_dir) = if cache_dir.ends_with("covers") {
+            (
+                cache_dir.to_path_buf(),
+                cache_dir
+                    .parent()
+                    .map(|p| p.join("backgrounds"))
+                    .unwrap_or_else(|| cache_dir.join("backgrounds")),
+            )
+        } else {
+            (cache_dir.join("covers"), cache_dir.join("backgrounds"))
+        };
         let _ = std::fs::create_dir_all(&covers_dir);
         let _ = std::fs::create_dir_all(&bgs_dir);
 
         let cover_dest = covers_dir.join(format!("{}.jpg", game_id));
         let bg_dest = bgs_dir.join(format!("{}.jpg", game_id));
 
+        // Self-healing migration for previously double-nested cache/covers/covers and cache/covers/backgrounds
+        let double_nested_cover = covers_dir.join("covers").join(format!("{}.jpg", game_id));
+        if double_nested_cover.exists() && !cover_dest.exists() {
+            let _ = std::fs::rename(&double_nested_cover, &cover_dest);
+        }
+        let double_nested_bg = bgs_dir.join("backgrounds").join(format!("{}.jpg", game_id));
+        if double_nested_bg.exists() && !bg_dest.exists() {
+            let _ = std::fs::rename(&double_nested_bg, &bg_dest);
+        }
+
+        let appid_hint = if game.library_id == "steam" {
+            Some(game.external_id.as_str())
+        } else {
+            None
+        };
+
         if let Some(ref curl) = final_patch.cover_url.clone() {
             let curl_trim = curl.trim();
             if curl_trim.is_empty() {
                 final_patch.cover_url = None;
             } else if curl_trim.starts_with("http://") || curl_trim.starts_with("https://") {
-                match self.download_image_bytes(curl_trim).await {
+                match self.download_image_with_fallbacks(curl_trim, appid_hint).await {
                     Ok(bytes) => {
                         if std::fs::write(&cover_dest, bytes).is_ok() {
                             final_patch.cover_url = Some(cover_dest.to_string_lossy().to_string());
                         } else {
                             warn!("Failed to write downloaded cover image to {:?}", cover_dest);
-                            final_patch.cover_url = None;
+                            final_patch.cover_url = Some(curl_trim.to_string());
                         }
                     }
                     Err(e) => {
                         warn!("Failed to download cover image from {}: {}", curl_trim, e);
-                        final_patch.cover_url = None;
+                        final_patch.cover_url = Some(curl_trim.to_string());
                     }
                 }
-            } else if !std::path::Path::new(curl_trim).exists() {
+            } else if !std::path::Path::new(curl_trim).exists() && !curl_trim.contains('\\') {
                 warn!("Local cover path does not exist: {}", curl_trim);
                 final_patch.cover_url = None;
             }
@@ -1211,24 +1308,32 @@ impl MetadataDownloader {
             if burl_trim.is_empty() {
                 final_patch.background_url = None;
             } else if burl_trim.starts_with("http://") || burl_trim.starts_with("https://") {
-                match self.download_image_bytes(burl_trim).await {
+                match self.download_image_with_fallbacks(burl_trim, appid_hint).await {
                     Ok(bytes) => {
                         if std::fs::write(&bg_dest, bytes).is_ok() {
                             final_patch.background_url = Some(bg_dest.to_string_lossy().to_string());
                         } else {
                             warn!("Failed to write downloaded background image to {:?}", bg_dest);
-                            final_patch.background_url = None;
+                            final_patch.background_url = Some(burl_trim.to_string());
                         }
                     }
                     Err(e) => {
                         warn!("Failed to download background image from {}: {}", burl_trim, e);
-                        final_patch.background_url = None;
+                        final_patch.background_url = Some(burl_trim.to_string());
                     }
                 }
-            } else if !std::path::Path::new(burl_trim).exists() {
+            } else if !std::path::Path::new(burl_trim).exists() && !burl_trim.contains('\\') {
                 warn!("Local background path does not exist: {}", burl_trim);
                 final_patch.background_url = None;
             }
+        }
+
+        // If local file exists and final_patch artwork was None, point to local cached file
+        if final_patch.cover_url.is_none() && cover_dest.exists() {
+            final_patch.cover_url = Some(cover_dest.to_string_lossy().to_string());
+        }
+        if final_patch.background_url.is_none() && bg_dest.exists() {
+            final_patch.background_url = Some(bg_dest.to_string_lossy().to_string());
         }
 
         if let Err(e) = db.apply_metadata_patch(game_id, &final_patch) {
@@ -1249,6 +1354,7 @@ impl MetadataDownloader {
     where
         F: Fn(usize, usize, &str) + Send + Sync + 'static,
     {
+        self.cancel_requested.store(false, Ordering::SeqCst);
         let all_games = db.get_all_games().map_err(|e| e.to_string())?;
         let total = all_games.len();
         if total == 0 {
@@ -1257,6 +1363,13 @@ impl MetadataDownloader {
 
         let mut enriched_count = 0;
         for (i, game) in all_games.into_iter().enumerate() {
+            if self.cancel_requested.load(Ordering::SeqCst) {
+                info!(
+                    "Arricchimento massivo interrotto dall'utente dopo {} giochi (totale: {})",
+                    enriched_count, total
+                );
+                break;
+            }
             progress_cb(i + 1, total, &game.title);
             match self.download_for_game(&db, game.id, cache_dir).await {
                 Ok(_) => {
@@ -1270,6 +1383,16 @@ impl MetadataDownloader {
         }
 
         Ok(enriched_count)
+    }
+
+    /// Request cancellation of any ongoing batch metadata download
+    pub fn cancel_download(&self) {
+        self.cancel_requested.store(true, Ordering::SeqCst);
+    }
+
+    /// Check if cancellation was requested
+    pub fn is_cancel_requested(&self) -> bool {
+        self.cancel_requested.load(Ordering::SeqCst)
     }
 
     pub async fn download_image_bytes(&self, url: &str) -> Result<Vec<u8>, String> {
@@ -1290,6 +1413,100 @@ impl MetadataDownloader {
             .map_err(|e| format!("Failed to read image bytes: {}", e))?;
 
         Ok(bytes.to_vec())
+    }
+
+    /// Download image with intelligent fallback resolution for Steam CDN and alternative formats
+    pub async fn download_image_with_fallbacks(
+        &self,
+        url: &str,
+        appid_hint: Option<&str>,
+    ) -> Result<Vec<u8>, String> {
+        let trimmed_url = url.trim();
+
+        // 1. Attempt original URL
+        match self.download_image_bytes(trimmed_url).await {
+            Ok(bytes) => return Ok(bytes),
+            Err(err) => {
+                debug!(
+                    "Primary image download failed for {}: {}. Attempting fallbacks...",
+                    trimmed_url, err
+                );
+            }
+        }
+
+        // 2. Determine if this is a Steam image or if we have an appid hint
+        let appid = appid_hint.map(|s| s.to_string()).or_else(|| {
+            if trimmed_url.contains("/steam/apps/") || trimmed_url.contains("/apps/") {
+                trimmed_url
+                    .split("/apps/")
+                    .nth(1)
+                    .and_then(|sub| sub.split('/').next())
+                    .map(|id| id.to_string())
+            } else {
+                None
+            }
+        });
+
+        if let Some(ref aid) = appid {
+            if aid.chars().all(|c| c.is_ascii_digit()) {
+                let mut fallback_urls = Vec::new();
+                if trimmed_url.contains("library_600x900_2x.jpg") {
+                    fallback_urls.push(format!(
+                        "https://steamcdn-a.akamaihd.net/steam/apps/{}/library_600x900.jpg",
+                        aid
+                    ));
+                    fallback_urls.push(format!(
+                        "https://cdn.cloudflare.steamstatic.com/steam/apps/{}/library_600x900_2x.jpg",
+                        aid
+                    ));
+                    fallback_urls.push(format!(
+                        "https://cdn.cloudflare.steamstatic.com/steam/apps/{}/header.jpg",
+                        aid
+                    ));
+                    fallback_urls.push(format!(
+                        "https://cdn.cloudflare.steamstatic.com/steam/apps/{}/capsule_616x353.jpg",
+                        aid
+                    ));
+                } else if trimmed_url.contains("library_hero.jpg") {
+                    fallback_urls.push(format!(
+                        "https://cdn.cloudflare.steamstatic.com/steam/apps/{}/library_hero.jpg",
+                        aid
+                    ));
+                    fallback_urls.push(format!(
+                        "https://cdn.cloudflare.steamstatic.com/steam/apps/{}/page_bg_generated_v6b.jpg",
+                        aid
+                    ));
+                    fallback_urls.push(format!(
+                        "https://cdn.cloudflare.steamstatic.com/steam/apps/{}/header.jpg",
+                        aid
+                    ));
+                } else {
+                    fallback_urls.push(format!(
+                        "https://steamcdn-a.akamaihd.net/steam/apps/{}/library_600x900_2x.jpg",
+                        aid
+                    ));
+                    fallback_urls.push(format!(
+                        "https://cdn.cloudflare.steamstatic.com/steam/apps/{}/library_600x900_2x.jpg",
+                        aid
+                    ));
+                    fallback_urls.push(format!(
+                        "https://cdn.cloudflare.steamstatic.com/steam/apps/{}/header.jpg",
+                        aid
+                    ));
+                }
+
+                for fb in fallback_urls {
+                    if fb != trimmed_url {
+                        if let Ok(bytes) = self.download_image_bytes(&fb).await {
+                            debug!("Fallback image download succeeded from {}", fb);
+                            return Ok(bytes);
+                        }
+                    }
+                }
+            }
+        }
+
+        Err(format!("Failed to download image from {} and all fallbacks", trimmed_url))
     }
 
     pub fn generate_fallback_metadata(&self, title: &str, library: &str) -> GameMetadataPatch {
@@ -1501,6 +1718,73 @@ mod tests {
         assert_eq!(reloaded.background_image_path.as_deref(), Some("C:\\existing_steam_bg.jpg"), "Existing background must be preserved");
 
         let _ = std::fs::remove_dir_all(&temp_cache);
+    }
+
+    #[tokio::test]
+    async fn test_download_for_all_cancellation() {
+        let db = Arc::new(Database::open_in_memory().expect("Failed to open DB"));
+        db.seed_sample_games().expect("Failed to seed");
+
+        let temp_cache = std::env::temp_dir().join(format!("omnis_test_cancel_{}", uuid::Uuid::new_v4()));
+        let _ = std::fs::create_dir_all(&temp_cache);
+
+        let downloader = Arc::new(MetadataDownloader::new());
+        let downloader_clone = downloader.clone();
+
+        tokio::spawn(async move {
+            tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+            downloader_clone.cancel_download();
+        });
+
+        let total_enriched = downloader.download_for_all(db, &temp_cache, |_cur, _tot, _title| {}).await;
+        assert!(total_enriched.is_ok());
+        assert!(total_enriched.unwrap() < 4);
+
+        let _ = std::fs::remove_dir_all(&temp_cache);
+    }
+
+    #[tokio::test]
+    async fn test_remote_cover_caching_and_path_nesting() {
+        let db = Database::open_in_memory().expect("Failed to open DB");
+        db.seed_sample_games().expect("Failed to seed");
+        let games = db.get_all_games().expect("Failed to get games");
+        let portal = games.iter().find(|g| g.title.contains("Portal")).expect("Portal not found");
+
+        let remote_url = "https://cdn.cloudflare.steamstatic.com/steam/apps/400/header.jpg".to_string();
+        let manual_patch = GameMetadataPatch {
+            cover_url: Some(remote_url.clone()),
+            ..Default::default()
+        };
+        db.apply_metadata_patch(portal.id, &manual_patch).expect("Failed to apply remote URL patch");
+
+        let saved = db.get_game_by_id(portal.id).unwrap().unwrap();
+        assert_eq!(saved.cover_image_path.as_deref(), Some(remote_url.as_str()));
+
+        let temp_cache = std::env::temp_dir().join(format!("omnis_test_nesting_{}", uuid::Uuid::new_v4()));
+        let _ = std::fs::create_dir_all(&temp_cache);
+
+        let downloader = MetadataDownloader::new();
+        // Even with preserve_existing_artwork = true, remote URLs should be downloaded and cached locally!
+        let patch_result = downloader.download_for_game(&db, portal.id, &temp_cache).await;
+        assert!(patch_result.is_ok(), "Download failed: {:?}", patch_result.err());
+
+        let reloaded = db.get_game_by_id(portal.id).unwrap().unwrap();
+        let cover_path = reloaded.cover_image_path.expect("Game must have a cover image path");
+        assert!(!cover_path.starts_with("http"), "Cover image path must be converted to local path: {}", cover_path);
+        assert!(!cover_path.contains("covers/covers") && !cover_path.contains("covers\\covers"), "Path must NOT be double-nested: {}", cover_path);
+        assert!(std::path::Path::new(&cover_path).exists(), "Downloaded local cover file must exist on disk: {}", cover_path);
+
+        let _ = std::fs::remove_dir_all(&temp_cache);
+    }
+
+    #[tokio::test]
+    async fn test_steam_fallback_resolution() {
+        let downloader = MetadataDownloader::new();
+        // Test fallback for a non-existent 2x image that should fall back to header.jpg or capsule
+        let invalid_steam_2x = "https://steamcdn-a.akamaihd.net/steam/apps/400/library_600x900_2x.jpg";
+        let res = downloader.download_image_with_fallbacks(invalid_steam_2x, Some("400")).await;
+        assert!(res.is_ok(), "Fallback download for Steam app 400 must succeed: {:?}", res.err());
+        assert!(!res.unwrap().is_empty());
     }
 }
 
