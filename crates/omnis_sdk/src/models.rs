@@ -146,6 +146,8 @@ pub struct Game {
     pub completion_status: Option<String>,
     pub user_notes: Option<String>,
     #[serde(default)]
+    pub extra_metadata: Option<String>,
+    #[serde(default)]
     pub play_actions: Vec<LaunchConfiguration>,
     #[serde(default)]
     pub custom_links: Vec<CustomLink>,
@@ -185,6 +187,7 @@ impl Game {
             age_rating: None,
             completion_status: None,
             user_notes: None,
+            extra_metadata: None,
             play_actions: Vec::new(),
             custom_links: Vec::new(),
             added_timestamp: now,
@@ -213,6 +216,8 @@ pub struct GameUpdateDto {
     pub age_rating: Option<String>,
     pub completion_status: Option<String>,
     pub user_notes: Option<String>,
+    #[serde(default)]
+    pub extra_metadata: Option<String>,
     #[serde(default)]
     pub genres: Vec<String>,
     #[serde(default)]
@@ -268,6 +273,8 @@ pub struct GameMetadataPatch {
     pub developers: Vec<String>,
     pub publishers: Vec<String>,
     pub tags: Vec<String>,
+    #[serde(default)]
+    pub extra_metadata: Option<String>,
 }
 
 /// Store account summary DTO exposed to the UI/frontend

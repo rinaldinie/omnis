@@ -48,6 +48,30 @@ pub enum SlotWidget {
     },
 }
 
+/// Declarative template for a slot widget defined in a plugin manifest
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct SlotWidgetTemplate {
+    #[serde(rename = "type")]
+    pub widget_type: String, // "stat", "badge-list", "progress", "link-list", "text"
+    #[serde(default)]
+    pub label: Option<String>,
+    #[serde(default)]
+    pub value_key: Option<String>,
+    #[serde(default)]
+    pub icon: Option<String>,
+    #[serde(default)]
+    pub max_key: Option<String>,
+    #[serde(default)]
+    pub content: Option<String>,
+}
+
+/// Slot mapping declared by a plugin
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PluginSlotDeclaration {
+    pub slot: String,
+    pub widgets: Vec<SlotWidgetTemplate>,
+}
+
 impl SlotWidget {
     /// Validate widget data against safety and size boundaries before sending to UI
     pub fn validate(&self) -> Result<(), String> {
