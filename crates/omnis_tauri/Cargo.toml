@@ -6,7 +6,7 @@ license.workspace = true
 description = "Tauri UI for Omnis Game Library"
 
 [[bin]]
-name = "omnis_tauri"
+name = "omnis"
 path = "src/main.rs"
 
 [dependencies]
