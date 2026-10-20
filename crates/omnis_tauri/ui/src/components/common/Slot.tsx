@@ -62,7 +62,7 @@ export const Slot: React.FC<SlotProps> = ({ name, gameId, className = "" }) => {
 
   useEffect(() => {
     let isMounted = true;
-    (async () => {
+    const fetchWidgets = async () => {
       try {
         const res = await invokeTauri<SlotWidget[]>("get_slot_widgets", {
           slotName: name,
@@ -74,9 +74,32 @@ export const Slot: React.FC<SlotProps> = ({ name, gameId, className = "" }) => {
       } catch (err) {
         console.debug(`Slot "${name}" widgets fetch error:`, err);
       }
+    };
+
+    fetchWidgets();
+
+    let unlistenGame: (() => void) | undefined;
+    let unlistenLib: (() => void) | undefined;
+    (async () => {
+      try {
+        const { listen } = await import("@tauri-apps/api/event");
+        const u1 = await listen("game-updated", () => {
+          if (isMounted) fetchWidgets();
+        });
+        const u2 = await listen("library-updated", () => {
+          if (isMounted) fetchWidgets();
+        });
+        unlistenGame = u1;
+        unlistenLib = u2;
+      } catch {
+        // Ignored when not running inside Tauri
+      }
     })();
+
     return () => {
       isMounted = false;
+      if (unlistenGame) unlistenGame();
+      if (unlistenLib) unlistenLib();
     };
   }, [name, gameId]);
 

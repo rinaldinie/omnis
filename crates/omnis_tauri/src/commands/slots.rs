@@ -126,11 +126,6 @@ pub async fn get_slot_widgets(
     // 2. Fallbacks for system slots if no dynamic plugin widgets were resolved
     if widgets.is_empty() {
         match slot_name.as_str() {
-            "game-card.badges" => {
-                widgets.push(SlotWidget::BadgeList {
-                    badges: vec!["Verificato".to_string(), "Cloud Save".to_string()],
-                });
-            }
             "details.hero" => {
                 widgets.push(SlotWidget::Progress {
                     label: "Obiettivi Sbloccati".to_string(),

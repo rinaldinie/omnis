@@ -13,8 +13,9 @@ import {
   SlidersHorizontal,
   ExternalLink,
   Square,
+  Clock,
 } from "lucide-react";
-import { ActiveGameSession, GameDto, ThemeConfig, ViewMode } from "../../types";
+import { ActiveGameSession, GameDto, ThemeConfig, ViewMode, formatImageUrl } from "../../types";
 import { StoreBadge } from "../StoreBadge";
 import { VideoBackdrop } from "../common/VideoBackdrop";
 import { Slot } from "../common/Slot";
@@ -294,14 +295,14 @@ export default function DetailsSplitView({
               {selectedGame.background_image ? (
                 <img
                   key={selectedGame.background_image}
-                  src={selectedGame.background_image}
+                  src={formatImageUrl(selectedGame.background_image)}
                   alt="Hero"
                   className="absolute inset-0 w-full h-full object-cover"
                 />
               ) : selectedGame.cover_image ? (
                 <img
                   key={selectedGame.cover_image}
-                  src={selectedGame.cover_image}
+                  src={formatImageUrl(selectedGame.cover_image)}
                   alt="Hero"
                   className="absolute inset-0 w-full h-full object-cover filter blur-md scale-110 opacity-40"
                 />
@@ -443,7 +444,7 @@ export default function DetailsSplitView({
                     backgroundColor: "var(--bg-card)",
                     borderColor: "var(--border-color)",
                   }}
-                  title="Arricchisci con Diamond Pipeline (SteamGridDB + OpenCritic + Steam)"
+                  title="Scarica informazioni aggiuntive (tempi di gioco HowLongToBeat, voti della critica, copertine HD)"
                 >
                   <Sparkles
                     className={`w-3.5 h-3.5 ${
@@ -496,6 +497,36 @@ export default function DetailsSplitView({
 
         {/* Information Cards & Metadata Tabs */}
         <div className="p-8 space-y-6">
+          {/* HowLongToBeat call-to-action if not yet downloaded */}
+          {!(selectedGame.extra_metadata && selectedGame.extra_metadata.includes("howlongtobeat")) && (
+            <div
+              className="flex items-center justify-between p-3.5 px-4 rounded-xl border border-dashed text-xs transition-colors"
+              style={{
+                backgroundColor: "rgba(255, 255, 255, 0.02)",
+                borderColor: "rgba(255, 255, 255, 0.15)",
+              }}
+            >
+              <div className="flex items-center gap-2.5">
+                <Clock className="w-4 h-4 text-amber-400 shrink-0" />
+                <div>
+                  <span className="font-semibold text-white">Tempi di gioco stimati (HowLongToBeat)</span>
+                  <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+                    Informazioni aggiuntive non ancora scaricate per questo titolo
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => handleEnrichSingleGame(selectedGame.id)}
+                disabled={isEnrichingSingle}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white transition-all hover:brightness-125 active:opacity-90 shadow-sm shrink-0"
+                style={{ backgroundColor: "var(--accent-primary)" }}
+              >
+                <Sparkles className={`w-3.5 h-3.5 ${isEnrichingSingle ? "animate-spin" : ""}`} />
+                <span>{isEnrichingSingle ? "Scaricamento..." : "Scarica Ora"}</span>
+              </button>
+            </div>
+          )}
+
           {/* Slot: Details Info */}
           <Slot name="details.info" gameId={selectedGame.id} />
           {/* Card 1: Synopsis & Description */}

@@ -62,8 +62,8 @@ export const en: TranslationSchema = {
   game_details: {
     play_now: 'PLAY NOW',
     install_now: 'INSTALL NOW',
-    enrich_pipeline: 'Enrich with Pipeline',
-    enriching: 'Enriching...',
+    enrich_pipeline: 'Download Additional Info',
+    enriching: 'Downloading...',
     edit_manual: 'Edit Information (Manual)',
     identify_metadata: 'Identify Metadata',
     quick_actions: 'Quick Actions',

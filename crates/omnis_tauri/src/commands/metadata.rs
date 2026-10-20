@@ -55,6 +55,7 @@ pub async fn download_metadata(game_id: String, state: State<'_, AppState>) -> R
 #[tauri::command]
 pub async fn enrich_single_game(
     game_id: String,
+    app_handle: tauri::AppHandle,
     state: State<'_, AppState>,
 ) -> Result<GameDto, String> {
     let id = Uuid::parse_str(&game_id).map_err(|e| e.to_string())?;
@@ -75,6 +76,9 @@ pub async fn enrich_single_game(
     if let Some(ref p) = game.background_image_path {
         state.image_cache.invalidate(p);
     }
+
+    let _ = app_handle.emit("game-updated", &game_id);
+    let _ = app_handle.emit("library-updated", ());
 
     Ok(game_to_dto(game, &state.image_cache))
 }

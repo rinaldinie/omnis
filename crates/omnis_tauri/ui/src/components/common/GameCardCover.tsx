@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { formatImageUrl } from "../../types";
 
 export interface GameCardCoverProps {
   coverImage?: string | null;
@@ -15,14 +16,16 @@ export function GameCardCover({
   imgClassName = "w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 [transform:translateZ(0)] [backface-visibility:hidden]",
   placeholderClassName = "w-full h-full flex flex-col items-center justify-center p-3 text-center bg-gradient-to-b from-slate-800/80 via-slate-900/90 to-slate-950/95 select-none [transform:translateZ(0)] [backface-visibility:hidden]",
 }: GameCardCoverProps) {
-  const [imgSrc, setImgSrc] = useState<string | null>(coverImage || null);
+  const formattedCover = formatImageUrl(coverImage) || null;
+  const [imgSrc, setImgSrc] = useState<string | null>(formattedCover);
   const [isFallback, setIsFallback] = useState(false);
-  const [hasError, setHasError] = useState(!coverImage);
+  const [hasError, setHasError] = useState(!formattedCover);
 
   useEffect(() => {
-    setImgSrc(coverImage || null);
+    const formatted = formatImageUrl(coverImage) || null;
+    setImgSrc(formatted);
     setIsFallback(false);
-    setHasError(!coverImage);
+    setHasError(!formatted);
   }, [coverImage]);
 
   const handleError = () => {
