@@ -269,6 +269,30 @@ impl MetadataProvider for SteamMetadataProvider {
             appid
         );
 
+        let achievements_total = data
+            .get("achievements")
+            .and_then(|v| v.get("total"))
+            .and_then(|v| v.as_u64());
+
+        let mut extra_map = serde_json::Map::new();
+        if let Some(total) = achievements_total {
+            if total > 0 {
+                extra_map.insert(
+                    "achievements".to_string(),
+                    serde_json::json!({
+                        "total": total,
+                        "unlocked": 0,
+                    }),
+                );
+            }
+        }
+
+        let extra_metadata = if !extra_map.is_empty() {
+            Some(serde_json::Value::Object(extra_map).to_string())
+        } else {
+            None
+        };
+
         Ok(GameMetadataPatch {
             description: short_desc,
             release_date,
@@ -282,7 +306,7 @@ impl MetadataProvider for SteamMetadataProvider {
             publishers,
             tags: Vec::new(),
             features,
-            extra_metadata: None,
+            extra_metadata,
         })
     }
 

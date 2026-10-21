@@ -81,6 +81,7 @@ interface DetailsSplitViewProps {
   handleKillRunningGame?: () => void;
   activeFilter?: string;
   setActiveFilter?: (filter: string) => void;
+  isFilterActive?: (filterId: string) => boolean;
 }
 
 export default function DetailsSplitView({
@@ -110,6 +111,7 @@ export default function DetailsSplitView({
   handleKillRunningGame,
   activeFilter,
   setActiveFilter,
+  isFilterActive,
 }: DetailsSplitViewProps) {
   const isSelectedGameRunning = activeGame?.game_id === selectedGame.id;
 
@@ -122,17 +124,22 @@ export default function DetailsSplitView({
     else if (gLower === "strategia" || gLower === "strategy") target = "strategy";
     else if (gLower === "indie") target = "indie";
 
-    if (activeFilter === target) {
-      setActiveFilter("all");
-    } else {
-      setActiveFilter(target);
-    }
+    setActiveFilter(target);
   };
 
   const isGenreActive = (genre: string) => {
-    if (!activeFilter) return false;
     const gLower = genre.toLowerCase().trim();
-    if (activeFilter === `genre:${genre.trim()}`) return true;
+    let target = `genre:${genre.trim()}`;
+    if (gLower === "azione" || gLower === "action") target = "action";
+    else if (gLower === "gdr" || gLower === "rpg") target = "rpg";
+    else if (gLower === "strategia" || gLower === "strategy") target = "strategy";
+    else if (gLower === "indie") target = "indie";
+
+    if (isFilterActive) {
+      return isFilterActive(target) || isFilterActive(genre.trim());
+    }
+    if (!activeFilter) return false;
+    if (activeFilter === target) return true;
     if (activeFilter === "action" && (gLower === "azione" || gLower === "action")) return true;
     if (activeFilter === "rpg" && (gLower === "gdr" || gLower === "rpg")) return true;
     if (activeFilter === "strategy" && (gLower === "strategia" || gLower === "strategy")) return true;
@@ -205,11 +212,7 @@ export default function DetailsSplitView({
   const handleFilterByCompletion = (status?: string | null) => {
     if (!setActiveFilter) return;
     const target = `completion:${status || "NotPlayed"}`;
-    if (activeFilter === target) {
-      setActiveFilter("all");
-    } else {
-      setActiveFilter(target);
-    }
+    setActiveFilter(target);
   };
   return (
     <div className="flex-1 flex overflow-hidden">
@@ -268,16 +271,16 @@ export default function DetailsSplitView({
           )}
         </div>
 
-        {/* Active filter badge if activeFilter is not "all" */}
-        {detailsSidebarOpen && activeFilter && activeFilter !== "all" && (
+        {/* Active filter badge if any filter is active */}
+        {detailsSidebarOpen && (isFilterActive ? !isFilterActive("all") : activeFilter && activeFilter !== "all") && (
           <div className="px-3 py-1.5 border-b border-indigo-500/20 bg-indigo-500/10 flex items-center justify-between text-[11px] text-indigo-300">
             <span className="truncate font-medium">
-              Filtro: {activeFilter.startsWith("genre:") ? activeFilter.slice(6) : activeFilter}
+              Filtro: {activeFilter ? (activeFilter.startsWith("genre:") ? activeFilter.slice(6) : activeFilter.startsWith("completion:") ? activeFilter.slice(11) : activeFilter) : "Attivo"}
             </span>
             <button
               onClick={() => setActiveFilter && setActiveFilter("all")}
               className="p-0.5 hover:text-white transition-colors cursor-pointer"
-              title="Rimuovi filtro"
+              title="Azzera filtri"
             >
               <X className="w-3 h-3" />
             </button>
@@ -471,7 +474,9 @@ export default function DetailsSplitView({
                 {/* Completion Status Badge */}
                 {(() => {
                   const statusInfo = getCompletionStatusInfo(selectedGame.completion_status);
-                  const isFiltered = activeFilter === `completion:${selectedGame.completion_status || "NotPlayed"}`;
+                  const isFiltered = isFilterActive
+                    ? isFilterActive(`completion:${selectedGame.completion_status || "NotPlayed"}`)
+                    : activeFilter === `completion:${selectedGame.completion_status || "NotPlayed"}`;
                   return (
                     <button
                       type="button"
@@ -757,7 +762,9 @@ export default function DetailsSplitView({
                 <div className="pt-0.5">
                   {(() => {
                     const statusInfo = getCompletionStatusInfo(selectedGame.completion_status);
-                    const isFiltered = activeFilter === `completion:${selectedGame.completion_status || "NotPlayed"}`;
+                    const isFiltered = isFilterActive
+                      ? isFilterActive(`completion:${selectedGame.completion_status || "NotPlayed"}`)
+                      : activeFilter === `completion:${selectedGame.completion_status || "NotPlayed"}`;
                     return (
                       <button
                         type="button"
