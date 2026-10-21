@@ -483,7 +483,7 @@ export default function ListViewTable({
                     {game.is_installed ? (
                       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                        <span>Installato</span>
+                        <span>{t("groups.installed")}</span>
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium bg-slate-800/30 text-slate-400 border border-slate-700/40">
@@ -572,7 +572,7 @@ export default function ListViewTable({
                           backgroundColor: "var(--bg-surface)",
                           borderColor: "var(--border-color)",
                         }}
-                        title="Apri scheda dettagli completa"
+                        title={t("context_menu.view_details")}
                       >
                         <Info className="w-3 h-3" />
                       </button>
@@ -588,7 +588,7 @@ export default function ListViewTable({
                           backgroundColor: "var(--bg-surface)",
                           borderColor: "var(--border-color)",
                         }}
-                        title="Modifica metadati (GameEditorModal)"
+                        title={t("game_details.edit_manual")}
                       >
                         <Sliders className="w-3 h-3 text-indigo-400" />
                       </button>

@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { listen } from "@tauri-apps/api/event";
 import { GameDto, invokeTauri } from "../../types";
+import { useTranslation } from "../../i18n";
 
 export type BatchTargetMode = "all" | "missing_hltb" | "missing_artwork" | "filtered";
 
@@ -38,6 +39,7 @@ export default function BatchEnrichModal({
   filteredGames,
   onComplete,
 }: BatchEnrichModalProps) {
+  const { t } = useTranslation();
   const [targetMode, setTargetMode] = useState<BatchTargetMode>("missing_hltb");
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [progress, setProgress] = useState<{ current: number; total: number; title: string } | null>(null);
@@ -143,9 +145,9 @@ export default function BatchEnrichModal({
               <Sparkles className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-white tracking-tight">Arricchimento Massivo Libreria</h2>
+              <h2 className="text-base font-bold text-white tracking-tight">{t("topbar.enrich_button")}</h2>
               <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                Scarica informazioni aggiuntive (HowLongToBeat, copertine e dettagli) in blocco
+                {t("topbar.enrich_tooltip")}
               </p>
             </div>
           </div>

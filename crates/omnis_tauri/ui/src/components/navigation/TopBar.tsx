@@ -239,16 +239,16 @@ export default function TopBar({
         <div className="hidden 2xl:flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/60 text-emerald-300 text-xs font-bold animate-pulse backdrop-blur-md shrink-0">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping shrink-0" />
           <span className="truncate max-w-[180px]" title={activeGame.title}>
-            ● In Esecuzione: {activeGame.title} ({formatDuration ? formatDuration(elapsedSeconds || 0) : `${elapsedSeconds || 0}s`})
+            ● {t("status.running")}: {activeGame.title} ({formatDuration ? formatDuration(elapsedSeconds || 0) : `${elapsedSeconds || 0}s`})
           </span>
           {handleKillRunningGame && (
             <button
               type="button"
               onClick={handleKillRunningGame}
               className="px-2 py-0.5 rounded text-[10px] font-black bg-rose-600 hover:bg-rose-500 text-white transition-colors cursor-pointer shrink-0"
-              title="Termina Gioco"
+              title={t("status.kill_game_title")}
             >
-              Termina
+              {t("status.kill_game")}
             </button>
           )}
         </div>
@@ -265,7 +265,7 @@ export default function TopBar({
             backgroundColor: "var(--accent-primary)",
             boxShadow: `0 0 15px var(--accent-glow)`,
           }}
-          title="Avvia Modalità Fullscreen Big Picture (F11)"
+          title={t("topbar.big_picture")}
         >
           <Tv className="w-3.5 h-3.5" />
           <span className="hidden 2xl:inline">{t("topbar.big_picture")}</span>
@@ -282,7 +282,7 @@ export default function TopBar({
             borderColor: "var(--border-color)",
             color: "var(--text-primary)",
           }}
-          title="Sincronizza Librerie Esterne (Steam / Epic Games)"
+          title={t("topbar.sync")}
         >
           <RefreshCw className={`w-4 h-4 ${isSyncing ? "animate-spin text-white" : ""}`} />
         </button>
@@ -298,10 +298,10 @@ export default function TopBar({
             borderColor: "var(--border-color)",
             color: "var(--text-primary)",
           }}
-          title="Arricchimento Massivo Libreria (HowLongToBeat, Copertine, Dettagli)"
+          title={t("topbar.enrich_tooltip")}
         >
           <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-          <span className="hidden 2xl:inline">Arricchisci</span>
+          <span className="hidden 2xl:inline">{t("topbar.enrich_button")}</span>
         </button>
 
         {/* Add Game */}
@@ -314,7 +314,7 @@ export default function TopBar({
             borderColor: "var(--border-color)",
             color: "var(--text-primary)",
           }}
-          title="Aggiungi Gioco o Eseguibile Personalizzato (.exe)"
+          title={t("topbar.add_game_title")}
         >
           <PlusCircle className="w-3.5 h-3.5 text-emerald-400" />
           <span className="hidden 2xl:inline">{t("topbar.add_game")}</span>
@@ -351,7 +351,7 @@ export default function TopBar({
             borderColor: "var(--border-color)",
             color: soundEnabled ? "var(--text-primary)" : "var(--text-muted)",
           }}
-          title={soundEnabled ? "Audio ON (Click per silenziare)" : "Audio OFF (Click per attivare)"}
+          title={soundEnabled ? t("topbar.audio_on") : t("topbar.audio_off")}
         >
           {soundEnabled ? (
             <Volume2 className="w-3.5 h-3.5 text-emerald-400" />
@@ -373,7 +373,7 @@ export default function TopBar({
             borderColor: "var(--border-color)",
             color: "var(--text-primary)",
           }}
-          title="Gestione e Personalizzazione Temi"
+          title={t("topbar.themes_title")}
         >
           <Palette className="w-3.5 h-3.5" style={{ color: "var(--accent-primary)" }} />
           <span className="hidden 2xl:inline">{t("topbar.themes")}</span>
@@ -392,7 +392,7 @@ export default function TopBar({
             borderColor: "var(--border-color)",
             color: "var(--text-primary)",
           }}
-          title="Centro Plugin & Fonti Metadati (SteamGridDB, OpenCritic, Steam)"
+          title={t("topbar.plugins_title")}
         >
           <Puzzle className="w-3.5 h-3.5 text-indigo-400" />
           <span className="hidden 2xl:inline">{t("topbar.plugins")}</span>
@@ -415,7 +415,7 @@ export default function TopBar({
               borderColor: "var(--border-color)",
               color: "var(--text-primary)",
             }}
-            title={`Modifica manualmente le informazioni di '${selectedGame.title}'`}
+            title={t("topbar.edit_game_title", { title: selectedGame.title })}
           >
             <Pencil className="w-3.5 h-3.5 text-indigo-400" />
             <span className="hidden 2xl:inline">{t("topbar.edit_info")}</span>
@@ -435,7 +435,7 @@ export default function TopBar({
             onClick={() => setUiZoom((z) => Math.max(0.7, z - 0.1))}
             className="p-1 hover:text-white"
             style={{ color: "var(--text-muted)" }}
-            title="Riduci Zoom"
+            title={t("topbar.zoom_out")}
           >
             <ZoomOut className="w-3.5 h-3.5" />
           </button>
@@ -450,7 +450,7 @@ export default function TopBar({
             onClick={() => setUiZoom((z) => Math.min(1.5, z + 0.1))}
             className="p-1 hover:text-white"
             style={{ color: "var(--text-muted)" }}
-            title="Aumenta Zoom"
+            title={t("topbar.zoom_in")}
           >
             <ZoomIn className="w-3.5 h-3.5" />
           </button>
@@ -523,7 +523,7 @@ export default function TopBar({
                   ) : (
                     <VolumeX className="w-4 h-4 text-slate-400" />
                   )}
-                  <span>Audio UI</span>
+                  <span>{t("topbar.audio_ui")}</span>
                 </div>
                 <span className="text-[10px] uppercase font-bold text-slate-400">
                   {soundEnabled ? "ON" : "OFF"}
@@ -541,18 +541,18 @@ export default function TopBar({
                   className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-200 hover:text-white hover:bg-white/10 transition-colors"
                 >
                   <Pencil className="w-4 h-4 text-indigo-400" />
-                  <span className="truncate">Modifica "{selectedGame.title}"</span>
+                  <span className="truncate">{t("topbar.edit_info")} ("{selectedGame.title}")</span>
                 </button>
               )}
 
               <div className="border-t border-white/10 my-1 pt-1.5 px-3 flex items-center justify-between">
-                <span className="text-xs text-slate-400 font-medium">Zoom UI</span>
+                <span className="text-xs text-slate-400 font-medium">{t("topbar.zoom_ui")}</span>
                 <div className="flex items-center gap-1.5">
                   <button
                     type="button"
                     onClick={() => setUiZoom((z) => Math.max(0.7, z - 0.1))}
                     className="p-1 rounded hover:bg-white/10 text-slate-300 hover:text-white"
-                    title="Riduci zoom"
+                    title={t("topbar.zoom_out")}
                   >
                     <ZoomOut className="w-3.5 h-3.5" />
                   </button>
@@ -563,7 +563,7 @@ export default function TopBar({
                     type="button"
                     onClick={() => setUiZoom((z) => Math.min(1.5, z + 0.1))}
                     className="p-1 rounded hover:bg-white/10 text-slate-300 hover:text-white"
-                    title="Aumenta zoom"
+                    title={t("topbar.zoom_in")}
                   >
                     <ZoomIn className="w-3.5 h-3.5" />
                   </button>
@@ -603,7 +603,7 @@ export default function TopBar({
             type="button"
             onClick={handleClose}
             className="w-8 h-8 rounded-lg hover:bg-rose-600 hover:text-white active:bg-rose-700 flex items-center justify-center transition-all cursor-pointer text-slate-400"
-            title="Chiudi applicazione"
+            title={t("topbar.close_app")}
             data-no-drag="true"
           >
             <X className="w-3.5 h-3.5" />

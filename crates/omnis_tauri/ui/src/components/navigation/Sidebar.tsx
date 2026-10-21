@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { LibraryCounts } from "../../types";
 import { SteamIcon, EpicIcon, GogIcon, XboxIcon } from "../StoreBadge";
+import { useTranslation } from "../../i18n";
 
 interface SidebarProps {
   counts: LibraryCounts;
@@ -34,13 +35,14 @@ export default function Sidebar({
   handleOpenFolder,
   onOpenStoreAccounts,
 }: SidebarProps) {
+  const { t } = useTranslation();
   const installedRatio = counts.total > 0 ? (counts.installed / counts.total) * 100 : 0;
 
   const catalogItems = [
-    { id: "all", label: "Tutti i Giochi", count: counts.total, icon: Gamepad2 },
-    { id: "installed", label: "Installati", count: counts.installed, icon: CheckCircle2 },
-    { id: "recent", label: "Recenti", count: counts.recent, icon: Clock },
-    { id: "favorites", label: "Preferiti", count: counts.favorites, icon: Star },
+    { id: "all", label: t("sidebar.all_games"), count: counts.total, icon: Gamepad2 },
+    { id: "installed", label: t("sidebar.installed"), count: counts.installed, icon: CheckCircle2 },
+    { id: "recent", label: t("sidebar.recent"), count: counts.recent, icon: Clock },
+    { id: "favorites", label: t("sidebar.favorites"), count: counts.favorites, icon: Star },
   ];
 
   const storeItems = [
@@ -51,10 +53,10 @@ export default function Sidebar({
   ];
 
   const genreItems = [
-    { id: "action", label: "Azione", count: counts.action, icon: Swords },
-    { id: "rpg", label: "GDR", count: counts.rpg, icon: Scroll },
-    { id: "strategy", label: "Strategia", count: counts.strategy, icon: Dices },
-    { id: "indie", label: "Indie", count: counts.indie, icon: Sparkles },
+    { id: "action", label: t("sidebar.genre_action"), count: counts.action, icon: Swords },
+    { id: "rpg", label: t("sidebar.genre_rpg"), count: counts.rpg, icon: Scroll },
+    { id: "strategy", label: t("sidebar.genre_strategy"), count: counts.strategy, icon: Dices },
+    { id: "indie", label: t("sidebar.genre_indie"), count: counts.indie, icon: Sparkles },
   ];
 
   return (
@@ -73,7 +75,7 @@ export default function Sidebar({
             className="text-[9px] font-bold tracking-wider uppercase px-2 pt-1 pb-0.5"
             style={{ color: "var(--text-muted)" }}
           >
-            Libreria
+            {t("sidebar.library")}
           </span>
           {catalogItems.map((item) => {
             const Icon = item.icon;
@@ -118,17 +120,17 @@ export default function Sidebar({
               className="text-[9px] font-bold tracking-wider uppercase"
               style={{ color: "var(--text-muted)" }}
             >
-              Negozi
+              {t("sidebar.stores")}
             </span>
             {onOpenStoreAccounts && (
               <button
                 type="button"
                 onClick={onOpenStoreAccounts}
                 className="px-1 py-0.2 rounded text-[9px] font-semibold text-sky-400 hover:text-white hover:bg-sky-500/20 transition-all flex items-center gap-1 border border-sky-500/30"
-                title="Gestione e Sincronizzazione Account Store Cloud (OAuth)"
+                title={t("sidebar.connect_account_title")}
               >
                 <Cloud className="w-2.5 h-2.5" />
-                <span>Collega</span>
+                <span>{t("sidebar.connect_account")}</span>
               </button>
             )}
           </div>
@@ -171,7 +173,7 @@ export default function Sidebar({
             className="text-[9px] font-bold tracking-wider uppercase px-2 pt-1 pb-0.5"
             style={{ color: "var(--text-muted)" }}
           >
-            Generi
+            {t("sidebar.genres")}
           </span>
           {genreItems.map((genre) => {
             const Icon = genre.icon;
@@ -220,7 +222,7 @@ export default function Sidebar({
             className="flex justify-between text-[9px] font-semibold"
             style={{ color: "var(--text-muted)" }}
           >
-            <span>Installati</span>
+            <span>{t("sidebar.installed")}</span>
             <span>
               {counts.installed}/{counts.total} ({Math.round(installedRatio)}%)
             </span>
@@ -243,7 +245,7 @@ export default function Sidebar({
             type="button"
             onClick={() => handleOpenFolder("db")}
             className="p-1 rounded text-[9px] font-medium flex flex-col items-center gap-0.5 border border-white/5 hover:border-white/20 bg-white/[0.03] hover:bg-white/10 text-slate-400 hover:text-white transition-all"
-            title="Cartella Database"
+            title={t("sidebar.folder_db")}
           >
             <Folder className="w-3 h-3" />
             <span>DB</span>
@@ -252,7 +254,7 @@ export default function Sidebar({
             type="button"
             onClick={() => handleOpenFolder("covers")}
             className="p-1 rounded text-[9px] font-medium flex flex-col items-center gap-0.5 border border-white/5 hover:border-white/20 bg-white/[0.03] hover:bg-white/10 text-slate-400 hover:text-white transition-all"
-            title="Cartella Locandine"
+            title={t("sidebar.folder_covers")}
           >
             <Folder className="w-3 h-3" />
             <span>Cover</span>
@@ -261,7 +263,7 @@ export default function Sidebar({
             type="button"
             onClick={() => handleOpenFolder("themes")}
             className="p-1 rounded text-[9px] font-medium flex flex-col items-center gap-0.5 border border-white/5 hover:border-white/20 bg-white/[0.03] hover:bg-white/10 text-slate-400 hover:text-white transition-all"
-            title="Cartella Temi"
+            title={t("sidebar.folder_themes")}
           >
             <Palette className="w-3 h-3" />
             <span>Temi</span>
@@ -270,7 +272,7 @@ export default function Sidebar({
             type="button"
             onClick={() => handleOpenFolder("plugins")}
             className="p-1 rounded text-[9px] font-medium flex flex-col items-center gap-0.5 border border-white/5 hover:border-white/20 bg-white/[0.03] hover:bg-white/10 text-slate-400 hover:text-white transition-all"
-            title="Cartella Plugin"
+            title={t("sidebar.folder_plugins")}
           >
             <Folder className="w-3 h-3" />
             <span>Plug</span>

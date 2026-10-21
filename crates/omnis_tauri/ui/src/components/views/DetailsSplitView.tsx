@@ -132,7 +132,7 @@ export default function DetailsSplitView({
                 />
                 <input
                   type="text"
-                  placeholder="Filtra titoli..."
+                  placeholder={t("game_details.filter_titles_placeholder")}
                   value={detailsSearchQuery}
                   onChange={(e) => setDetailsSearchQuery(e.target.value)}
                   className="w-full h-7 pl-8 pr-7 rounded-lg text-xs focus:outline-none border border-white/[0.08] bg-white/[0.03] text-slate-100 placeholder:text-slate-500 transition-colors focus:border-indigo-500/50"
@@ -149,7 +149,7 @@ export default function DetailsSplitView({
               <button
                 onClick={() => setDetailsSidebarOpen(false)}
                 className="p-1.5 rounded-lg border border-white/[0.08] bg-white/[0.03] text-slate-400 hover:text-white hover:bg-white/[0.08] transition-colors"
-                title="Collassa elenco laterale"
+                title={t("game_details.collapse_sidebar")}
               >
                 <ChevronLeft className="w-3.5 h-3.5" />
               </button>
@@ -158,7 +158,7 @@ export default function DetailsSplitView({
             <button
               onClick={() => setDetailsSidebarOpen(true)}
               className="w-full py-1.5 flex items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.03] text-slate-400 hover:text-white hover:bg-white/[0.08] transition-colors"
-              title="Espandi elenco laterale"
+              title={t("game_details.expand_sidebar")}
             >
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
@@ -206,12 +206,12 @@ export default function DetailsSplitView({
                       {activeGame?.game_id === game.id ? (
                         <span className="flex items-center gap-1 text-[9px] font-bold text-emerald-300 animate-pulse">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                          In Esecuzione
+                          {t("status.running")}
                         </span>
                       ) : game.is_installed ? (
                         <span className="flex items-center gap-1 text-[9px] font-bold text-emerald-400">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                          Installato
+                          {t("groups.installed")}
                         </span>
                       ) : null}
                       <span
@@ -250,7 +250,7 @@ export default function DetailsSplitView({
             className="flex items-center gap-2 text-xs font-semibold"
             style={{ color: "var(--text-muted)" }}
           >
-            <span>Libreria</span>
+            <span>{t("game_details.breadcrumb_library")}</span>
             <span>/</span>
             <StoreBadge library={selectedGame.library} showName={true} />
             <span>/</span>
@@ -328,20 +328,20 @@ export default function DetailsSplitView({
                       activeGame?.state === "launching" ? "bg-amber-400" : activeGame?.state === "stopping" ? "bg-rose-400" : "bg-emerald-400 animate-ping"
                     }`} />
                     {activeGame?.state === "launching"
-                      ? "⏳ IN AVVIO..."
+                      ? `⏳ ${t("status.launching")}`
                       : activeGame?.state === "stopping"
-                      ? "🛑 IN CHIUSURA..."
-                      : `● IN ESECUZIONE (${formatDuration ? formatDuration(elapsedSeconds || 0) : `${elapsedSeconds || 0}s`})`}
+                      ? `🛑 ${t("status.stopping")}`
+                      : `● ${t("status.running")} (${formatDuration ? formatDuration(elapsedSeconds || 0) : `${elapsedSeconds || 0}s`})`}
                   </span>
                 )}
                 {selectedGame.is_installed ? (
                   <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-sm flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                    INSTALLATO
+                    {t("status.installed")}
                   </span>
                 ) : (
                   <span className="px-2.5 py-0.5 rounded text-[10px] font-medium bg-slate-800/60 text-slate-400 border border-slate-700/60">
-                    DISPONIBILE
+                    {t("status.available")}
                   </span>
                 )}
                 {selectedGame.critic_score && (
@@ -358,7 +358,7 @@ export default function DetailsSplitView({
                       color: "var(--text-primary)",
                     }}
                   >
-                    Serie: {selectedGame.series}
+                    {t("game_details.series")}: {selectedGame.series}
                   </span>
                 )}
               </div>
@@ -376,7 +376,7 @@ export default function DetailsSplitView({
                       className="flex items-center gap-2.5 px-6 py-3 rounded-xl font-black text-xs text-emerald-200 bg-emerald-600/30 border border-emerald-500/50 shadow-xl cursor-default"
                     >
                       <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                      <span>In Esecuzione... ({formatDuration ? formatDuration(elapsedSeconds || 0) : `${elapsedSeconds || 0}s`})</span>
+                      <span>{t("status.running")}... ({formatDuration ? formatDuration(elapsedSeconds || 0) : `${elapsedSeconds || 0}s`})</span>
                     </button>
 
                     {handleKillRunningGame && (
@@ -384,10 +384,10 @@ export default function DetailsSplitView({
                         type="button"
                         onClick={handleKillRunningGame}
                         className="flex items-center gap-2 px-5 py-3 rounded-xl font-black text-xs text-white bg-rose-600 hover:bg-rose-500 active:bg-rose-700 border border-rose-400/50 shadow-xl shadow-rose-950/40 transition-all hover:scale-105 active:opacity-90 cursor-pointer"
-                        title="Termina forzatamente il processo del gioco"
+                        title={t("status.kill_game_title")}
                       >
                         <Square className="w-3.5 h-3.5 fill-white" />
-                        <span>Termina Gioco</span>
+                        <span>{t("status.kill_game")}</span>
                       </button>
                     )}
                   </>
@@ -417,7 +417,7 @@ export default function DetailsSplitView({
                   onClick={() => handleEnrichSingleGame(selectedGame.id)}
                   disabled={isEnrichingSingle}
                   className="flex items-center gap-2 px-4 py-3 rounded-xl border border-white/[0.08] bg-white/[0.04] text-xs font-bold text-white transition-all backdrop-blur-md hover:bg-white/[0.08] hover:border-slate-400 active:opacity-90"
-                  title="Scarica informazioni aggiuntive (tempi di gioco HowLongToBeat, voti della critica, copertine HD)"
+                  title={t("topbar.enrich_tooltip")}
                 >
                   <Sparkles
                     className={`w-3.5 h-3.5 ${
@@ -435,7 +435,7 @@ export default function DetailsSplitView({
                     setShowEditorModal(true);
                   }}
                   className="flex items-center gap-2 px-4 py-3 rounded-xl border border-white/[0.08] bg-white/[0.04] text-xs font-bold text-white transition-all backdrop-blur-md hover:bg-white/[0.08] hover:border-indigo-400 active:opacity-90"
-                  title="Modifica manualmente tutti i metadati, immagini, percorsi e azioni di avvio"
+                  title={t("game_details.edit_manual")}
                 >
                   <Pencil className="w-4 h-4 text-indigo-400" />
                   <span>{t("game_details.edit_manual")}</span>
@@ -447,7 +447,7 @@ export default function DetailsSplitView({
                     setShowResolutionModal(true);
                   }}
                   className="flex items-center gap-2 px-4 py-3 rounded-xl border border-white/[0.08] bg-white/[0.04] text-xs font-bold text-white transition-all backdrop-blur-md hover:bg-white/[0.08] hover:border-slate-400 active:opacity-90"
-                  title="Cerca e risolvi metadati da Steam, SteamGridDB o OpenCritic"
+                  title={t("game_details.identify_metadata")}
                 >
                   <Search className="w-3.5 h-3.5 text-sky-400" />
                   <span>{t("game_details.identify_metadata")}</span>
@@ -468,9 +468,9 @@ export default function DetailsSplitView({
               <div className="flex items-center gap-2.5">
                 <Clock className="w-4 h-4 text-amber-400 shrink-0" />
                 <div>
-                  <span className="font-semibold text-white">Tempi di gioco stimati (HowLongToBeat)</span>
+                  <span className="font-semibold text-white">{t("game_details.hltb_title")}</span>
                   <p className="text-[11px] text-slate-400">
-                    Dati non ancora scaricati per questo titolo
+                    {t("game_details.hltb_not_downloaded")}
                   </p>
                 </div>
               </div>
@@ -481,7 +481,7 @@ export default function DetailsSplitView({
                 style={{ backgroundColor: "var(--accent-primary)" }}
               >
                 <Sparkles className={`w-3.5 h-3.5 ${isEnrichingSingle ? "animate-spin" : ""}`} />
-                <span>{isEnrichingSingle ? "Scaricamento..." : "Scarica da Fonte"}</span>
+                <span>{isEnrichingSingle ? t("game_details.downloading") : t("game_details.download_source")}</span>
               </button>
             </div>
           ) : (
@@ -489,16 +489,16 @@ export default function DetailsSplitView({
               <div className="flex items-center justify-between px-1 text-xs">
                 <div className="flex items-center gap-2">
                   <Clock className="w-3.5 h-3.5 text-amber-400" />
-                  <span className="font-semibold text-slate-300 text-xs">Tempi HowLongToBeat</span>
+                  <span className="font-semibold text-slate-300 text-xs">{t("game_details.hltb_title")}</span>
                 </div>
                 <button
                   onClick={() => (handleRefreshHltb ? handleRefreshHltb(selectedGame.id) : handleEnrichSingleGame(selectedGame.id))}
                   disabled={isEnrichingSingle}
-                  title="Aggiorna i dati direttamente dalla fonte HowLongToBeat"
+                  title={t("game_details.refresh_hltb_title")}
                   className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium text-slate-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] transition-colors disabled:opacity-50"
                 >
                   <RefreshCw className={`w-3 h-3 ${isEnrichingSingle ? "animate-spin text-amber-400" : ""}`} />
-                  <span>{isEnrichingSingle ? "Aggiornamento..." : "Aggiorna da Fonte"}</span>
+                  <span>{isEnrichingSingle ? t("game_details.refreshing") : t("game_details.refresh_source")}</span>
                 </button>
               </div>
               <Slot name="details.info" gameId={selectedGame.id} />
@@ -607,8 +607,7 @@ export default function DetailsSplitView({
               </button>
             </div>
             <p className="text-xs leading-relaxed whitespace-pre-wrap text-slate-300">
-              {selectedGame.user_notes ||
-                "Nessuna nota personale per questo gioco. Clicca su Modifica Scheda per aggiungere appunti, strategie o guide."}
+              {selectedGame.user_notes || t("game_details.no_player_notes")}
             </p>
           </div>
 

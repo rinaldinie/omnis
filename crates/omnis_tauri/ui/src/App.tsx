@@ -1101,9 +1101,9 @@ export default function App() {
                       className="w-12 h-12 mb-3 opacity-30"
                       style={{ color: "var(--text-muted)" }}
                     />
-                    <h3 className="text-base font-bold text-white mb-1">Nessun gioco selezionato</h3>
+                    <h3 className="text-base font-bold text-white mb-1">{t("views.no_game_selected")}</h3>
                     <p className="text-xs text-slate-400 max-w-sm">
-                      Seleziona un gioco dalla lista o passa alla vista a griglia per visualizzare la tua libreria.
+                      {t("views.select_game_hint")}
                     </p>
                   </div>
                 )
@@ -1118,9 +1118,9 @@ export default function App() {
                         className="w-12 h-12 mb-3 opacity-30"
                         style={{ color: "var(--text-muted)" }}
                       />
-                      <span className="text-sm font-bold text-white">Nessun gioco trovato</span>
+                      <span className="text-sm font-bold text-white">{t("views.no_games_found")}</span>
                       <span className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-                        Prova a modificare i filtri o la query di ricerca.
+                        {t("views.no_games_found_hint")}
                       </span>
                     </div>
                   ) : groupBy === "none" ? (
@@ -1176,7 +1176,7 @@ export default function App() {
                               className="text-[10px] font-medium"
                               style={{ color: "var(--text-muted)" }}
                             >
-                              {isCollapsed ? "Espandi" : "Comprimi"}
+                              {isCollapsed ? t("views.expand") : t("views.collapse")}
                             </span>
                           </button>
                           {!isCollapsed && (
