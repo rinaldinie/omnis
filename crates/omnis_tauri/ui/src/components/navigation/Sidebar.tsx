@@ -20,6 +20,7 @@ interface SidebarProps {
   counts: LibraryCounts;
   activeFilter: string;
   setActiveFilter: (filter: string) => void;
+  isFilterActive?: (filterId: string) => boolean;
   gamepadConnected?: boolean;
   gamepadName?: string;
   handleOpenFolder: (folderType: string) => void;
@@ -30,6 +31,7 @@ export default function Sidebar({
   counts,
   activeFilter,
   setActiveFilter,
+  isFilterActive,
   gamepadConnected: _gamepadConnected,
   gamepadName: _gamepadName,
   handleOpenFolder,
@@ -37,6 +39,8 @@ export default function Sidebar({
 }: SidebarProps) {
   const { t } = useTranslation();
   const installedRatio = counts.total > 0 ? (counts.installed / counts.total) * 100 : 0;
+
+  const checkActive = (id: string) => (isFilterActive ? isFilterActive(id) : activeFilter === id);
 
   const catalogItems = [
     { id: "all", label: t("sidebar.all_games"), count: counts.total, icon: Gamepad2 },
@@ -79,7 +83,7 @@ export default function Sidebar({
           </span>
           {catalogItems.map((item) => {
             const Icon = item.icon;
-            const isActive = activeFilter === item.id;
+            const isActive = checkActive(item.id);
             return (
               <button
                 key={item.id}
@@ -136,7 +140,7 @@ export default function Sidebar({
           </div>
           {storeItems.map((store) => {
             const Icon = store.icon;
-            const isActive = activeFilter === store.id;
+            const isActive = checkActive(store.id);
             return (
               <button
                 key={store.id}
@@ -177,7 +181,7 @@ export default function Sidebar({
           </span>
           {genreItems.map((genre) => {
             const Icon = genre.icon;
-            const isActive = activeFilter === genre.id;
+            const isActive = checkActive(genre.id);
             return (
               <button
                 key={genre.id}

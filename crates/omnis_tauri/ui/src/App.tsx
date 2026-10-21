@@ -12,6 +12,7 @@ import {
   AlertTriangle,
   RefreshCw,
   CheckCircle2,
+  Check,
 } from "lucide-react";
 import { listen } from "@tauri-apps/api/event";
 import GameEditorModal from "./components/GameEditorModal";
@@ -193,6 +194,19 @@ export default function App() {
   const {
     activeFilter,
     setActiveFilter,
+    selectedStores,
+    selectedStatuses,
+    selectedFlags,
+    selectedGenres,
+    activeChips,
+    totalActiveFilters,
+    toggleStore,
+    toggleStatus,
+    toggleFlag,
+    toggleGenre,
+    clearAllFilters,
+    removeFilterChip,
+    isFilterActive,
     groupBy,
     setGroupBy,
     searchQuery,
@@ -959,6 +973,7 @@ export default function App() {
               counts={counts}
               activeFilter={activeFilter}
               setActiveFilter={setActiveFilter}
+              isFilterActive={isFilterActive}
               gamepadConnected={gamepadConnected}
               gamepadName={gamepadName}
               handleOpenFolder={handleOpenFolder}
@@ -982,16 +997,16 @@ export default function App() {
               )}
               {/* CONTEXTUAL TOOLBAR (GROUPBY, ZOOM SLIDER, COUNTER) */}
               <div
-                className="h-11 min-h-[44px] px-6 border-b flex items-center justify-between select-none shrink-0 z-10"
+                className="h-11 min-h-[44px] px-6 border-b flex items-center justify-between select-none shrink-0 relative z-30"
                 style={{
                   backgroundColor: "var(--bg-surface)",
                   borderColor: "var(--border-color)",
                 }}
               >
                 {/* Left: Smart Filter Pills & Filter Dropdown */}
-                <div className="flex items-center gap-2.5 overflow-x-auto no-scrollbar py-1">
+                <div className="flex items-center gap-2.5 min-w-0">
                   {/* Quick Filter Pills */}
-                  <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 shrink min-w-0">
                     {[
                       { id: "all", label: t("common.all") || "Tutti" },
                       { id: "installed", label: t("sidebar.installed") || "Installati" },
@@ -999,11 +1014,18 @@ export default function App() {
                       { id: "completion:Completed", label: "Completati" },
                       { id: "favorites", label: t("sidebar.favorites") || "Preferiti" },
                     ].map((f) => {
-                      const isActive = activeFilter === f.id;
+                      const isActive = isFilterActive(f.id);
                       return (
                         <button
                           key={f.id}
-                          onClick={() => setActiveFilter(f.id)}
+                          type="button"
+                          onClick={() => {
+                            if (f.id === "all") {
+                              clearAllFilters();
+                            } else {
+                              setActiveFilter(f.id);
+                            }
+                          }}
                           className={`h-7 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 select-none ${
                             isActive
                               ? "bg-indigo-600 text-white shadow-xs shadow-indigo-500/25 border border-indigo-500"
@@ -1019,9 +1041,10 @@ export default function App() {
                   {/* Filter Dropdown Popover */}
                   <div className="relative shrink-0" ref={filterMenuRef}>
                     <button
+                      type="button"
                       onClick={() => setShowFilterMenu((v) => !v)}
                       className={`h-7 px-2.5 rounded-lg text-xs font-semibold border flex items-center gap-1.5 transition-all cursor-pointer select-none ${
-                        activeFilter !== "all" && !["installed", "recent", "favorites"].includes(activeFilter)
+                        totalActiveFilters > 0
                           ? "bg-indigo-600/30 border-indigo-500 text-indigo-200"
                           : "bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white border-white/[0.08]"
                       }`}
@@ -1029,12 +1052,17 @@ export default function App() {
                     >
                       <Filter className="w-3 h-3 text-indigo-400" />
                       <span>{t("common.filter")}</span>
+                      {totalActiveFilters > 0 && (
+                        <span className="w-4 h-4 rounded-full bg-indigo-500 text-white text-[10px] font-bold flex items-center justify-center">
+                          {totalActiveFilters}
+                        </span>
+                      )}
                       <ChevronDown className="w-3 h-3 text-slate-400" />
                     </button>
 
                     {showFilterMenu && (
                       <div
-                        className="absolute left-0 top-full mt-1.5 w-64 rounded-xl border p-3 shadow-2xl z-50 space-y-3"
+                        className="absolute left-0 top-full mt-1.5 w-64 rounded-xl border p-3 shadow-2xl z-50 space-y-3 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150"
                         style={{
                           backgroundColor: "var(--bg-surface)",
                           borderColor: "var(--border-color)",
@@ -1051,22 +1079,24 @@ export default function App() {
                               { id: "gog", label: "GOG" },
                               { id: "epic", label: "Epic Games" },
                               { id: "xbox", label: "Xbox" },
-                            ].map((store) => (
-                              <button
-                                key={store.id}
-                                onClick={() => {
-                                  setActiveFilter(activeFilter === store.id ? "all" : store.id);
-                                  setShowFilterMenu(false);
-                                }}
-                                className={`px-2 py-1 rounded-md text-left font-medium transition-colors ${
-                                  activeFilter === store.id
-                                    ? "bg-indigo-600 text-white"
-                                    : "bg-white/[0.03] hover:bg-white/[0.08] text-slate-300"
-                                }`}
-                              >
-                                {store.label}
-                              </button>
-                            ))}
+                            ].map((store) => {
+                              const isSelected = selectedStores.includes(store.id);
+                              return (
+                                <button
+                                  key={store.id}
+                                  type="button"
+                                  onClick={() => toggleStore(store.id)}
+                                  className={`px-2 py-1.5 rounded-md text-left font-medium transition-colors flex items-center justify-between cursor-pointer ${
+                                    isSelected
+                                      ? "bg-indigo-600 text-white font-semibold shadow-xs"
+                                      : "bg-white/[0.03] hover:bg-white/[0.08] text-slate-300 hover:text-white"
+                                  }`}
+                                >
+                                  <span>{store.label}</span>
+                                  {isSelected && <Check className="w-3.5 h-3.5 text-white shrink-0 ml-1" />}
+                                </button>
+                              );
+                            })}
                           </div>
                         </div>
 
@@ -1077,42 +1107,44 @@ export default function App() {
                           </span>
                           <div className="grid grid-cols-2 gap-1 text-xs">
                             {[
-                              { id: "completion:Playing", label: "In corso" },
-                              { id: "completion:Completed", label: "Completati 100%" },
-                              { id: "completion:Beaten", label: "Finiti" },
-                              { id: "completion:PlanToPlay", label: "Da iniziare" },
-                              { id: "completion:Backlog", label: "Backlog" },
-                              { id: "completion:Abandoned", label: "Abbandonati" },
-                            ].map((st) => (
-                              <button
-                                key={st.id}
-                                onClick={() => {
-                                  setActiveFilter(activeFilter === st.id ? "all" : st.id);
-                                  setShowFilterMenu(false);
-                                }}
-                                className={`px-2 py-1 rounded-md text-left font-medium transition-colors truncate ${
-                                  activeFilter === st.id
-                                    ? "bg-indigo-600 text-white"
-                                    : "bg-white/[0.03] hover:bg-white/[0.08] text-slate-300"
-                                }`}
-                              >
-                                {st.label}
-                              </button>
-                            ))}
+                              { id: "Playing", label: "In corso" },
+                              { id: "Completed", label: "Completati 100%" },
+                              { id: "Beaten", label: "Finiti" },
+                              { id: "PlanToPlay", label: "Da iniziare" },
+                              { id: "Backlog", label: "Backlog" },
+                              { id: "Abandoned", label: "Abbandonati" },
+                            ].map((st) => {
+                              const isSelected = selectedStatuses.some((s) => s.toLowerCase() === st.id.toLowerCase());
+                              return (
+                                <button
+                                  key={st.id}
+                                  type="button"
+                                  onClick={() => toggleStatus(st.id)}
+                                  className={`px-2 py-1.5 rounded-md text-left font-medium transition-colors flex items-center justify-between truncate cursor-pointer ${
+                                    isSelected
+                                      ? "bg-indigo-600 text-white font-semibold shadow-xs"
+                                      : "bg-white/[0.03] hover:bg-white/[0.08] text-slate-300 hover:text-white"
+                                  }`}
+                                >
+                                  <span className="truncate">{st.label}</span>
+                                  {isSelected && <Check className="w-3.5 h-3.5 text-white shrink-0 ml-1" />}
+                                </button>
+                              );
+                            })}
                           </div>
                         </div>
 
                         {/* Reset Filter Button */}
-                        {activeFilter !== "all" && (
+                        {totalActiveFilters > 0 && (
                           <div className="pt-2 border-t border-white/[0.06]">
                             <button
+                              type="button"
                               onClick={() => {
-                                setActiveFilter("all");
-                                setShowFilterMenu(false);
+                                clearAllFilters();
                               }}
                               className="w-full py-1.5 rounded-lg text-xs font-bold text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition-colors cursor-pointer"
                             >
-                              Azzera tutti i filtri
+                              Azzera tutti i filtri ({totalActiveFilters})
                             </button>
                           </div>
                         )}
@@ -1120,24 +1152,33 @@ export default function App() {
                     )}
                   </div>
 
-                  {/* Active custom filter chip (e.g. genre or completion status) */}
-                  {activeFilter !== "all" && !["installed", "recent", "favorites"].includes(activeFilter) && (
-                    <div className="h-7 px-2.5 rounded-lg bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-xs font-semibold flex items-center gap-1.5 shrink-0">
-                      <span>
-                        {activeFilter.startsWith("genre:")
-                          ? `Genere: ${activeFilter.slice(6)}`
-                          : activeFilter.startsWith("completion:")
-                          ? `Stato: ${activeFilter.slice(11)}`
-                          : activeFilter.toUpperCase()}
-                      </span>
+                  {/* Active filter chips (cumulative) */}
+                  {activeChips.map((chip) => (
+                    <div
+                      key={chip.id}
+                      className="h-7 px-2.5 rounded-lg bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-xs font-semibold flex items-center gap-1.5 shrink-0 animate-in fade-in zoom-in-95 duration-100"
+                    >
+                      <span>{chip.label}</span>
                       <button
-                        onClick={() => setActiveFilter("all")}
+                        type="button"
+                        onClick={() => removeFilterChip(chip.id)}
                         className="hover:text-white transition-colors p-0.5 rounded cursor-pointer"
-                        title="Rimuovi filtro"
+                        title={`Rimuovi filtro: ${chip.label}`}
                       >
                         <X className="w-3 h-3" />
                       </button>
                     </div>
+                  ))}
+
+                  {totalActiveFilters > 1 && (
+                    <button
+                      type="button"
+                      onClick={clearAllFilters}
+                      className="text-[11px] font-semibold text-rose-300 hover:text-rose-200 underline transition-colors cursor-pointer shrink-0"
+                      title="Rimuovi tutti i filtri attivi"
+                    >
+                      Azzera tutti
+                    </button>
                   )}
 
                   <div className="h-4 w-[1px] shrink-0" style={{ backgroundColor: "var(--border-color)" }} />
@@ -1241,6 +1282,7 @@ export default function App() {
                     handleKillRunningGame={handleKillRunningGame}
                     activeFilter={activeFilter}
                     setActiveFilter={setActiveFilter}
+                    isFilterActive={isFilterActive}
                   />
                 ) : (
                   <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">

@@ -119,33 +119,75 @@ pub async fn get_slot_widgets(
                         }
                     }
                 }
-            }
-        }
-    }
 
-    // 2. Fallbacks for system slots if no dynamic plugin widgets were resolved
-    if widgets.is_empty() {
-        match slot_name.as_str() {
-            "details.hero" => {
-                widgets.push(SlotWidget::Progress {
-                    label: "Obiettivi Sbloccati".to_string(),
-                    value: 34,
-                    max: 50,
-                });
-                widgets.push(SlotWidget::Stat {
-                    label: "Valutazione Community".to_string(),
-                    value: "Molto positiva (92%)".to_string(),
-                    icon: Some("thumbs-up".to_string()),
-                });
+                // 2. Native resolution from game attributes if no custom plugin slot declaration matched
+                if widgets.is_empty() {
+                    match slot_name.as_str() {
+                        "details.hero" => {
+                            // Real achievement statistics if available
+                            if let Some(ref json) = extra_json {
+                                let total = resolve_json_key(json, "achievements.total")
+                                    .and_then(|v| v.as_u64())
+                                    .unwrap_or(0);
+                                let unlocked = resolve_json_key(json, "achievements.unlocked")
+                                    .and_then(|v| v.as_u64())
+                                    .unwrap_or(0);
+                                if total > 0 {
+                                    if unlocked > 0 {
+                                        widgets.push(SlotWidget::Progress {
+                                            label: "Obiettivi Sbloccati".to_string(),
+                                            value: unlocked,
+                                            max: total,
+                                        });
+                                    } else {
+                                        widgets.push(SlotWidget::Stat {
+                                            label: "Obiettivi Steam".to_string(),
+                                            value: format!("{} disponibili", total),
+                                            icon: Some("award".to_string()),
+                                        });
+                                    }
+                                }
+                            }
+
+                            // Real community evaluation score if present on the game
+                            if let Some(score) = game.community_score {
+                                let score_label = if score >= 85 {
+                                    format!("Molto positiva ({}%)", score)
+                                } else if score >= 70 {
+                                    format!("Positiva ({}%)", score)
+                                } else if score >= 50 {
+                                    format!("Nella media ({}%)", score)
+                                } else {
+                                    format!("Mista ({}%)", score)
+                                };
+                                widgets.push(SlotWidget::Stat {
+                                    label: "Valutazione Community".to_string(),
+                                    value: score_label,
+                                    icon: Some("thumbs-up".to_string()),
+                                });
+                            }
+                        }
+                        "bigpicture.hero" => {
+                            if let Some(ref json) = extra_json {
+                                let total = resolve_json_key(json, "achievements.total")
+                                    .and_then(|v| v.as_u64())
+                                    .unwrap_or(0);
+                                let unlocked = resolve_json_key(json, "achievements.unlocked")
+                                    .and_then(|v| v.as_u64())
+                                    .unwrap_or(0);
+                                if total > 0 && unlocked > 0 {
+                                    widgets.push(SlotWidget::Progress {
+                                        label: "Obiettivi Sbloccati".to_string(),
+                                        value: unlocked,
+                                        max: total,
+                                    });
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                }
             }
-            "bigpicture.hero" => {
-                widgets.push(SlotWidget::Progress {
-                    label: "Completamento Campagna".to_string(),
-                    value: 68,
-                    max: 100,
-                });
-            }
-            _ => {}
         }
     }
 
@@ -246,6 +288,56 @@ mod tests {
         assert_eq!(manifest.ui_slots[0].widgets[0].widget_type, "stat");
         assert_eq!(manifest.ui_slots[0].widgets[0].value_key.as_deref(), Some("howlongtobeat.main_story"));
         assert_eq!(manifest.ui_slots[0].widgets[0].icon.as_deref(), Some("clock"));
+    }
+
+    #[test]
+    fn test_achievements_json_extraction_real_values() {
+        let steam_extra = json!({
+            "achievements": {
+                "total": 51,
+                "unlocked": 12
+            }
+        });
+
+        let total = resolve_json_key(&steam_extra, "achievements.total")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0);
+        let unlocked = resolve_json_key(&steam_extra, "achievements.unlocked")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0);
+
+        assert_eq!(total, 51);
+        assert_eq!(unlocked, 12);
+
+        let progress = SlotWidget::Progress {
+            label: "Obiettivi Sbloccati".to_string(),
+            value: unlocked,
+            max: total,
+        };
+        assert!(progress.validate().is_ok());
+
+        // Zero unlocked test
+        let steam_extra_zero = json!({
+            "achievements": {
+                "total": 30,
+                "unlocked": 0
+            }
+        });
+        let total_zero = resolve_json_key(&steam_extra_zero, "achievements.total")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0);
+        let unlocked_zero = resolve_json_key(&steam_extra_zero, "achievements.unlocked")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0);
+        assert_eq!(total_zero, 30);
+        assert_eq!(unlocked_zero, 0);
+
+        let stat = SlotWidget::Stat {
+            label: "Obiettivi Steam".to_string(),
+            value: format!("{} disponibili", total_zero),
+            icon: Some("award".to_string()),
+        };
+        assert!(stat.validate().is_ok());
     }
 }
 
