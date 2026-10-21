@@ -16,6 +16,7 @@ import {
   Pencil,
   RefreshCw,
   Download,
+  Sparkles,
   ZoomOut,
   ZoomIn,
   Minus,
@@ -58,6 +59,7 @@ interface TopBarProps {
   elapsedSeconds?: number;
   formatDuration?: (seconds: number) => string;
   handleKillRunningGame?: () => void;
+  setShowBatchEnrichModal?: (open: boolean) => void;
 }
 
 export default function TopBar({
@@ -94,6 +96,7 @@ export default function TopBar({
   elapsedSeconds,
   formatDuration,
   handleKillRunningGame,
+  setShowBatchEnrichModal,
 }: TopBarProps) {
   return (
     <header
@@ -379,17 +382,18 @@ export default function TopBar({
 
         <button
           type="button"
-          onClick={handleDownloadAll}
+          onClick={() => (setShowBatchEnrichModal ? setShowBatchEnrichModal(true) : handleDownloadAll())}
           disabled={isDownloading}
-          className="p-1.5 rounded-lg border transition-all shrink-0"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-bold transition-all hover:bg-white/10 active:opacity-90 shadow-sm shrink-0"
           style={{
             backgroundColor: "var(--bg-card)",
             borderColor: "var(--border-color)",
             color: "var(--text-primary)",
           }}
-          title="Scarica Metadati e Cover HD"
+          title="Arricchimento Massivo Libreria (HowLongToBeat, Copertine, Dettagli)"
         >
-          <Download className={`w-4 h-4 ${isDownloading ? "animate-bounce text-white" : ""}`} />
+          <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+          <span className="hidden xl:inline">Arricchisci</span>
         </button>
 
         {/* Optional UI Zoom Controls */}

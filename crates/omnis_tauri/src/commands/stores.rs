@@ -1,4 +1,5 @@
 use crate::types::AppState;
+use omnis_sdk::models::StoreSyncProgressPayload;
 use tauri::{Emitter, State};
 
 #[tauri::command]
@@ -43,10 +44,30 @@ pub async fn sync_store_library(
         if let Some(ref id) = sid {
             if let Err(e) = manager.sync_store(&app, id).await {
                 tracing::warn!("Background sync error for store {}: {}", id, e);
+                let _ = app.emit(
+                    "store-sync-progress",
+                    StoreSyncProgressPayload {
+                        store_id: id.clone(),
+                        current: 0,
+                        total: 0,
+                        status: "error".to_string(),
+                        message: Some(format!("Errore di sincronizzazione: {}", e)),
+                    },
+                );
             }
         } else {
             if let Err(e) = manager.sync_all_connected(&app).await {
                 tracing::warn!("Background sync error for all stores: {}", e);
+                let _ = app.emit(
+                    "store-sync-progress",
+                    StoreSyncProgressPayload {
+                        store_id: "all".to_string(),
+                        current: 0,
+                        total: 0,
+                        status: "error".to_string(),
+                        message: Some(format!("Errore di sincronizzazione account: {}", e)),
+                    },
+                );
             }
         }
     });

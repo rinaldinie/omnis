@@ -1438,32 +1438,49 @@ impl MetadataDownloader {
     where
         F: Fn(usize, usize, &str) + Send + Sync + 'static,
     {
-        self.cancel_requested.store(false, Ordering::SeqCst);
         let all_games = db.get_all_games().map_err(|e| e.to_string())?;
-        let total = all_games.len();
+        let game_ids = all_games.into_iter().map(|g| g.id).collect();
+        self.download_for_games(db, game_ids, cache_dir, progress_cb).await
+    }
+
+    /// Batch enrich a specific list of games by UUID, invoking progress callback on each completion
+    pub async fn download_for_games<F>(
+        self: Arc<Self>,
+        db: Arc<Database>,
+        game_ids: Vec<Uuid>,
+        cache_dir: &Path,
+        progress_cb: F,
+    ) -> Result<usize, String>
+    where
+        F: Fn(usize, usize, &str) + Send + Sync + 'static,
+    {
+        self.cancel_requested.store(false, Ordering::SeqCst);
+        let total = game_ids.len();
         if total == 0 {
             return Ok(0);
         }
 
         let mut enriched_count = 0;
-        for (i, game) in all_games.into_iter().enumerate() {
+        for (i, id) in game_ids.into_iter().enumerate() {
             if self.cancel_requested.load(Ordering::SeqCst) {
                 info!(
-                    "Arricchimento massivo interrotto dall'utente dopo {} giochi (totale: {})",
+                    "Arricchimento per selezione interrotto dall'utente dopo {} giochi (totale: {})",
                     enriched_count, total
                 );
                 break;
             }
-            progress_cb(i + 1, total, &game.title);
-            match self.download_for_game(&db, game.id, cache_dir).await {
-                Ok(_) => {
-                    enriched_count += 1;
+            if let Ok(Some(game)) = db.get_game_by_id(id) {
+                progress_cb(i + 1, total, &game.title);
+                match self.download_for_game(&db, game.id, cache_dir).await {
+                    Ok(_) => {
+                        enriched_count += 1;
+                    }
+                    Err(err) => {
+                        warn!("Failed metadata for '{}': {}", game.title, err);
+                    }
                 }
-                Err(err) => {
-                    warn!("Failed metadata for '{}': {}", game.title, err);
-                }
+                tokio::time::sleep(tokio::time::Duration::from_millis(150)).await;
             }
-            tokio::time::sleep(tokio::time::Duration::from_millis(150)).await;
         }
 
         Ok(enriched_count)
@@ -1840,6 +1857,30 @@ mod tests {
         let total_enriched = downloader.download_for_all(db, &temp_cache, |_cur, _tot, _title| {}).await;
         assert!(total_enriched.is_ok());
         assert!(total_enriched.unwrap() < 4);
+
+        let _ = std::fs::remove_dir_all(&temp_cache);
+    }
+
+    #[tokio::test]
+    async fn test_download_for_games_batch() {
+        let db = Arc::new(Database::open_in_memory().expect("Failed to open DB"));
+        db.seed_sample_games().expect("Failed to seed");
+        let all_games = db.get_all_games().expect("Failed to get games");
+        assert!(all_games.len() >= 2);
+
+        let target_ids: Vec<uuid::Uuid> = all_games.iter().take(2).map(|g| g.id).collect();
+
+        let temp_cache = std::env::temp_dir().join(format!("omnis_test_batch_{}", uuid::Uuid::new_v4()));
+        let _ = std::fs::create_dir_all(&temp_cache);
+
+        let downloader = Arc::new(MetadataDownloader::new());
+        let total_enriched = downloader
+            .download_for_games(db, target_ids, &temp_cache, |_cur, _tot, _title| {})
+            .await;
+
+        assert!(total_enriched.is_ok());
+        let count = total_enriched.unwrap();
+        assert_eq!(count, 2);
 
         let _ = std::fs::remove_dir_all(&temp_cache);
     }

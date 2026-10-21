@@ -14,6 +14,7 @@ import {
   ExternalLink,
   Square,
   Clock,
+  RefreshCw,
 } from "lucide-react";
 import { ActiveGameSession, GameDto, ThemeConfig, ViewMode, formatImageUrl } from "../../types";
 import { StoreBadge } from "../StoreBadge";
@@ -497,8 +498,8 @@ export default function DetailsSplitView({
 
         {/* Information Cards & Metadata Tabs */}
         <div className="p-8 space-y-6">
-          {/* HowLongToBeat call-to-action if not yet downloaded */}
-          {!(selectedGame.extra_metadata && selectedGame.extra_metadata.includes("howlongtobeat")) && (
+          {/* HowLongToBeat call-to-action or refresh bar */}
+          {!(selectedGame.extra_metadata && selectedGame.extra_metadata.includes("howlongtobeat")) ? (
             <div
               className="flex items-center justify-between p-3.5 px-4 rounded-xl border border-dashed text-xs transition-colors"
               style={{
@@ -524,6 +525,35 @@ export default function DetailsSplitView({
                 <Sparkles className={`w-3.5 h-3.5 ${isEnrichingSingle ? "animate-spin" : ""}`} />
                 <span>{isEnrichingSingle ? "Scaricamento..." : "Scarica Ora"}</span>
               </button>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between px-1 -mb-3 text-xs">
+              <div className="flex items-center gap-2">
+                <Clock className="w-3.5 h-3.5 text-amber-400" />
+                <span className="font-semibold text-white/90">Tempi HowLongToBeat</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleEnrichSingleGame(selectedGame.id)}
+                  disabled={isEnrichingSingle}
+                  title="Ricarica i dati da HowLongToBeat se non sono corretti"
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium text-white/80 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-colors disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3 h-3 ${isEnrichingSingle ? "animate-spin text-amber-400" : ""}`} />
+                  <span>{isEnrichingSingle ? "Aggiornamento..." : "Ricarica Dati"}</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setGameToEdit(selectedGame);
+                    setShowEditorModal(true);
+                  }}
+                  title="Modifica manualmente le ore di completamento"
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium text-white/60 hover:text-white/90 hover:bg-white/5 transition-colors"
+                >
+                  <Pencil className="w-3 h-3" />
+                  <span>Modifica</span>
+                </button>
+              </div>
             </div>
           )}
 

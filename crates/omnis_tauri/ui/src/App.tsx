@@ -55,6 +55,7 @@ import Sidebar from "./components/navigation/Sidebar";
 import ThemeModal from "./components/modals/ThemeModal";
 import PluginManagerModal from "./components/modals/PluginManagerModal";
 import CustomGameModal from "./components/modals/CustomGameModal";
+import BatchEnrichModal from "./components/modals/BatchEnrichModal";
 import GlobalContextMenu from "./components/GlobalContextMenu";
 
 export interface SessionToastInfo {
@@ -364,6 +365,7 @@ export default function App() {
 
   // PLUGIN MANAGEMENT STATES
   const [showPluginModal, setShowPluginModal] = useState<boolean>(false);
+  const [showBatchEnrichModal, setShowBatchEnrichModal] = useState<boolean>(false);
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
   const [pipelineConfig, setPipelineConfig] = useState<MetadataPipelineConfig>({
     cover_source: "steamgriddb",
@@ -447,8 +449,9 @@ export default function App() {
       }
     } catch (err: any) {
       setStatusMessage(`Errore scansione plugin: ${err}`);
+    } finally {
+      setIsRefreshingPlugins(false);
     }
-    setIsRefreshingPlugins(false);
   };
 
   const handleSavePipelineConfig = async () => {
@@ -553,6 +556,11 @@ export default function App() {
           if (p.status === "syncing") {
             setIsSyncing(true);
             if (syncBannerTimeoutRef.current) clearTimeout(syncBannerTimeoutRef.current);
+            // Safety timeout: auto-dismiss and reset isSyncing if a background sync hangs for > 45s
+            syncBannerTimeoutRef.current = setTimeout(() => {
+              setIsSyncing(false);
+              setSyncBanner(null);
+            }, 45000);
             setSyncBanner({
               storeId: p.store_id,
               storeName,
@@ -740,25 +748,37 @@ export default function App() {
   };
 
   const handleSync = async () => {
-    setIsSyncing(true);
-    setStatusMessage("Sincronizzazione cataloghi store collegati avviata in background...");
     try {
-      await invokeTauri("sync_store_library");
-    } catch {
-      await invokeTauri("sync_library");
+      setIsSyncing(true);
+      setStatusMessage("Scansione e sincronizzazione librerie in corso (Steam, Epic, Store collegati)...");
+      const count = await invokeTauri<number>("sync_library");
       await refreshLibrary();
+      setStatusMessage(
+        count !== null && count !== undefined
+          ? `Scansione completata! ${count} giochi nel catalogo.`
+          : "Scansione libreria completata con successo!"
+      );
+    } catch (err: any) {
+      console.warn("Sync error:", err);
+      setStatusMessage(`Errore durante la scansione: ${err}`);
+    } finally {
       setIsSyncing(false);
-      setStatusMessage("Sincronizzazione completata! Catalogo aggiornato.");
     }
   };
 
   const handleDownloadAll = async () => {
     setIsDownloading(true);
     setStatusMessage("Download metadati e locandine HD in corso da Steam Store...");
-    await invokeTauri("download_all_metadata");
-    await refreshLibrary();
-    setIsDownloading(false);
-    setStatusMessage("Metadati e locandine aggiornati!");
+    try {
+      await invokeTauri("download_all_metadata");
+      await refreshLibrary();
+      setStatusMessage("Metadati e locandine aggiornati!");
+    } catch (err: any) {
+      console.warn("Download metadata error:", err);
+      setStatusMessage(`Errore durante il download dei metadati: ${err}`);
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   const handleLaunch = async (gameId: string) => {
@@ -880,6 +900,7 @@ export default function App() {
             isSyncing={isSyncing}
             handleDownloadAll={handleDownloadAll}
             isDownloading={isDownloading}
+            setShowBatchEnrichModal={setShowBatchEnrichModal}
             uiZoom={uiZoom}
             setUiZoom={setUiZoom}
             handleMinimize={handleMinimize}
@@ -1325,6 +1346,20 @@ export default function App() {
         />
       )}
 
+      {/* BATCH ENRICH MODAL */}
+      {showBatchEnrichModal && (
+        <BatchEnrichModal
+          isOpen={showBatchEnrichModal}
+          onClose={() => setShowBatchEnrichModal(false)}
+          allGames={games}
+          filteredGames={filteredGames}
+          onComplete={async () => {
+            await refreshLibrary();
+            setStatusMessage("Arricchimento massivo completato e libreria aggiornata!");
+          }}
+        />
+      )}
+
       {/* BIG PICTURE VIRTUAL KEYBOARD */}
       <VirtualKeyboard
         isOpen={showVirtualKeyboard}
@@ -1463,7 +1498,11 @@ export default function App() {
             </p>
           </div>
           <button
-            onClick={() => setSyncBanner(null)}
+            onClick={() => {
+              if (syncBannerTimeoutRef.current) clearTimeout(syncBannerTimeoutRef.current);
+              setSyncBanner(null);
+              setIsSyncing(false);
+            }}
             className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
             title="Chiudi notifica"
           >
