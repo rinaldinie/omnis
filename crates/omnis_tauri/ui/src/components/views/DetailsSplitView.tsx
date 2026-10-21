@@ -112,18 +112,16 @@ export default function DetailsSplitView({
     <div className="flex-1 flex overflow-hidden">
       {/* Left Column: Titles Quick List (300px collapsible master panel) */}
       <div
-        className={`border-r flex flex-col transition-all duration-300 select-none ${
+        className={`border-r border-white/[0.06] flex flex-col transition-all duration-300 select-none ${
           detailsSidebarOpen ? "w-80 min-w-[300px] max-w-[320px]" : "w-11 min-w-[44px] max-w-[44px]"
         }`}
         style={{
           backgroundColor: "var(--bg-surface)",
-          borderColor: "var(--border-color)",
         }}
       >
         {/* Master list header with search & collapse button */}
         <div
-          className="p-2.5 border-b flex items-center justify-between gap-2"
-          style={{ borderColor: "var(--border-color)" }}
+          className="p-2.5 border-b border-white/[0.06] flex items-center justify-between gap-2"
         >
           {detailsSidebarOpen ? (
             <>
@@ -137,12 +135,7 @@ export default function DetailsSplitView({
                   placeholder="Filtra titoli..."
                   value={detailsSearchQuery}
                   onChange={(e) => setDetailsSearchQuery(e.target.value)}
-                  className="w-full h-7 pl-8 pr-7 rounded-lg text-xs focus:outline-none border"
-                  style={{
-                    backgroundColor: "var(--bg-card)",
-                    borderColor: "var(--border-color)",
-                    color: "var(--text-primary)",
-                  }}
+                  className="w-full h-7 pl-8 pr-7 rounded-lg text-xs focus:outline-none border border-white/[0.08] bg-white/[0.03] text-slate-100 placeholder:text-slate-500 transition-colors focus:border-indigo-500/50"
                 />
                 {detailsSearchQuery && (
                   <button
@@ -155,12 +148,7 @@ export default function DetailsSplitView({
               </div>
               <button
                 onClick={() => setDetailsSidebarOpen(false)}
-                className="p-1.5 rounded-lg border hover:text-white transition-colors"
-                style={{
-                  backgroundColor: "var(--bg-card)",
-                  borderColor: "var(--border-color)",
-                  color: "var(--text-muted)",
-                }}
+                className="p-1.5 rounded-lg border border-white/[0.08] bg-white/[0.03] text-slate-400 hover:text-white hover:bg-white/[0.08] transition-colors"
                 title="Collassa elenco laterale"
               >
                 <ChevronLeft className="w-3.5 h-3.5" />
@@ -169,12 +157,7 @@ export default function DetailsSplitView({
           ) : (
             <button
               onClick={() => setDetailsSidebarOpen(true)}
-              className="w-full py-1.5 flex items-center justify-center rounded-lg border hover:text-white transition-colors"
-              style={{
-                backgroundColor: "var(--bg-card)",
-                borderColor: "var(--border-color)",
-                color: "var(--text-muted)",
-              }}
+              className="w-full py-1.5 flex items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.03] text-slate-400 hover:text-white hover:bg-white/[0.08] transition-colors"
               title="Espandi elenco laterale"
             >
               <ChevronRight className="w-3.5 h-3.5" />
@@ -184,7 +167,7 @@ export default function DetailsSplitView({
 
         {/* Master list of games */}
         {detailsSidebarOpen && (
-          <div className="flex-1 overflow-y-auto divide-y" style={{ borderColor: "var(--border-color)" }}>
+          <div className="flex-1 overflow-y-auto divide-y divide-white/[0.04] custom-scrollbar">
             {detailsFilteredGames.map((game) => {
               const isSelected = selectedGame.id === game.id;
               const thumb = game.icon_image || game.cover_image;
@@ -195,18 +178,15 @@ export default function DetailsSplitView({
                   onClick={() => setSelectedGame(game)}
                   onContextMenu={(e) => handleOpenContextMenu(e, game)}
                   className={`p-2.5 flex items-center gap-3 cursor-pointer transition-all ${
-                    isSelected ? "border-l-4" : "hover:bg-white/[0.04]"
+                    isSelected
+                      ? "bg-white/[0.06] text-white border-l-2 border-indigo-400 shadow-xs"
+                      : "hover:bg-white/[0.025] text-slate-300 border-l-2 border-transparent"
                   }`}
-                  style={{
-                    backgroundColor: isSelected ? "var(--bg-card)" : "transparent",
-                    borderLeftColor: isSelected ? "var(--accent-primary)" : "transparent",
-                  }}
                 >
                   <div
-                    className="w-9 h-9 rounded-lg overflow-hidden flex items-center justify-center border shrink-0 shadow-sm"
+                    className="w-9 h-9 rounded-lg overflow-hidden flex items-center justify-center border border-white/[0.08] shrink-0 shadow-xs"
                     style={{
                       backgroundColor: "var(--bg-surface)",
-                      borderColor: "var(--border-color)",
                     }}
                   >
                     <ListThumbCover thumb={thumb} title={game.title} />
