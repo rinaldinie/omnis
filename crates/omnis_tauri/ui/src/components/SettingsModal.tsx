@@ -118,7 +118,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               }}
             >
               <Sliders className="w-4 h-4" />
-              <span>Generale</span>
+              <span>{t('settings_modal.tab_general')}</span>
             </button>
             <button
               type="button"
@@ -136,7 +136,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               }}
             >
               <Cloud className="w-4 h-4" />
-              <span>Account Store Cloud</span>
+              <span>{t('settings_modal.tab_accounts')}</span>
             </button>
           </div>
         </div>

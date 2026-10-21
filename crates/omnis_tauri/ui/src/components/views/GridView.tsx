@@ -4,6 +4,7 @@ import { ActiveGameSession, GameDto, GroupBy, ViewMode } from "../../types";
 import { StoreBadge } from "../StoreBadge";
 import { Slot } from "../common/Slot";
 import { GameCardCover } from "../common/GameCardCover";
+import { useTranslation } from "../../i18n";
 
 interface GridViewProps {
   filteredGames: GameDto[];
@@ -53,6 +54,7 @@ const GameCardItem = React.memo(
     onKill,
     onEdit,
   }: GameCardItemProps) {
+    const { t } = useTranslation();
     return (
       <article
         data-omnis="game-card"
@@ -98,10 +100,10 @@ const GameCardItem = React.memo(
               >
                 <span>
                   {activeGameState === "launching"
-                    ? "⏳ IN AVVIO..."
+                    ? `⏳ ${t("status.launching")}`
                     : activeGameState === "stopping"
-                    ? "🛑 IN CHIUSURA..."
-                    : `● IN ESECUZIONE (${formatDuration ? formatDuration(elapsedSeconds || 0) : `${elapsedSeconds || 0}s`})`}
+                    ? `🛑 ${t("status.stopping")}`
+                    : `● ${t("status.running")} (${formatDuration ? formatDuration(elapsedSeconds || 0) : `${elapsedSeconds || 0}s`})`}
                 </span>
               </div>
             ) : (
@@ -125,7 +127,7 @@ const GameCardItem = React.memo(
                 <button
                   disabled
                   className="w-9 h-9 rounded-full bg-emerald-500/40 text-emerald-300 border border-emerald-400/60 shadow-xl flex items-center justify-center cursor-default animate-pulse"
-                  title="Gioco attualmente in esecuzione"
+                  title={t("status.running")}
                 >
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-300 animate-ping" />
                 </button>
@@ -137,7 +139,7 @@ const GameCardItem = React.memo(
                       onKill();
                     }}
                     className="w-9 h-9 rounded-full bg-rose-600/90 hover:bg-rose-600 text-white border border-rose-400 shadow-xl shadow-rose-950/50 flex items-center justify-center transition-all hover:scale-110 active:opacity-80"
-                    title="Termina Gioco (Forzato)"
+                    title={t("status.kill_game_title")}
                   >
                     <Square className="w-3.5 h-3.5 fill-white" />
                   </button>
@@ -150,7 +152,7 @@ const GameCardItem = React.memo(
                   onLaunch();
                 }}
                 className="w-9 h-9 rounded-full bg-emerald-500/40 hover:bg-emerald-500/70 text-white border border-emerald-400/50 shadow-xl flex items-center justify-center transition-all hover:brightness-125 active:opacity-80"
-                title="Avvia Gioco"
+                title={t("common.play")}
               >
                 <Play className="w-4 h-4 fill-white" />
               </button>
@@ -161,7 +163,7 @@ const GameCardItem = React.memo(
                   onLaunch();
                 }}
                 className="w-9 h-9 rounded-full bg-indigo-500/40 hover:bg-indigo-500/70 text-white border border-indigo-400/50 shadow-xl flex items-center justify-center transition-all hover:brightness-125 active:opacity-80"
-                title="Installa Gioco (Client Nativo)"
+                title={t("common.install")}
               >
                 <Download className="w-4 h-4 text-white" />
               </button>
@@ -173,7 +175,7 @@ const GameCardItem = React.memo(
                 onSelect();
               }}
               className="w-9 h-9 rounded-full bg-white/20 hover:bg-white/40 text-white border border-white/30 shadow-xl flex items-center justify-center transition-all hover:brightness-125 active:opacity-80"
-              title="Mostra Dettagli"
+              title={t("common.details")}
             >
               <Info className="w-4 h-4" />
             </button>
@@ -184,7 +186,7 @@ const GameCardItem = React.memo(
                 onEdit();
               }}
               className="w-9 h-9 rounded-full bg-indigo-500/25 hover:bg-indigo-500/50 text-indigo-200 hover:text-white border border-indigo-400/40 shadow-xl flex items-center justify-center transition-all hover:brightness-125 active:opacity-80"
-              title="Modifica Informazioni (Manuale)"
+              title={t("game_details.edit_manual")}
             >
               <Pencil className="w-4 h-4" />
             </button>
@@ -243,14 +245,15 @@ export default function GridView({
   formatDuration,
   handleKillRunningGame,
 }: GridViewProps) {
+  const { t } = useTranslation();
   return (
     <div className="flex-1 overflow-y-auto p-6 space-y-6">
       {filteredGames.length === 0 ? (
         <div className="h-64 flex flex-col items-center justify-center text-center p-8">
           <Gamepad2 className="w-12 h-12 mb-3 opacity-30" style={{ color: "var(--text-muted)" }} />
-          <span className="text-sm font-bold text-white">Nessun gioco trovato</span>
+          <span className="text-sm font-bold text-white">{t("views.no_games_found")}</span>
           <span className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-            Prova a modificare i filtri o la query di ricerca.
+            {t("views.no_games_found_hint")}
           </span>
         </div>
       ) : (
@@ -289,7 +292,7 @@ export default function GridView({
                     </span>
                   </div>
                   <span className="text-[10px] font-medium" style={{ color: "var(--text-muted)" }}>
-                    {isCollapsed ? "Espandi" : "Comprimi"}
+                    {isCollapsed ? t("views.expand") : t("views.collapse")}
                   </span>
                 </button>
               )}

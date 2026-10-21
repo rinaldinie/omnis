@@ -1,6 +1,7 @@
 import React from "react";
 import { Play, Download, Pencil, Search, Info } from "lucide-react";
 import { GameDto } from "../types";
+import { useTranslation } from "../i18n";
 
 interface GlobalContextMenuProps {
   contextMenu: {
@@ -23,6 +24,7 @@ export default function GlobalContextMenu({
   onResolve,
   onShowDetails,
 }: GlobalContextMenuProps) {
+  const { t } = useTranslation();
   if (!contextMenu) return null;
 
   return (
@@ -53,7 +55,7 @@ export default function GlobalContextMenu({
           </span>
           <span className="text-[10px] font-medium" style={{ color: "var(--text-muted)" }}>
             {contextMenu.game.library.toUpperCase()} •{" "}
-            {contextMenu.game.is_installed ? "Installato" : "Disponibile"}
+            {contextMenu.game.is_installed ? t("groups.installed") : t("groups.available")}
           </span>
         </div>
 
@@ -66,7 +68,7 @@ export default function GlobalContextMenu({
             className="w-full flex items-center gap-2.5 px-3.5 py-2 text-left font-bold text-emerald-400 hover:bg-emerald-500/10 transition-colors"
           >
             <Play className="w-3.5 h-3.5 fill-emerald-400" />
-            <span>Avvia Gioco</span>
+            <span>{t("context_menu.launch")}</span>
           </button>
         ) : (
           <button
@@ -77,7 +79,7 @@ export default function GlobalContextMenu({
             className="w-full flex items-center gap-2.5 px-3.5 py-2 text-left font-bold text-indigo-400 hover:bg-indigo-500/10 transition-colors"
           >
             <Download className="w-3.5 h-3.5 text-indigo-400" />
-            <span>Installa Gioco (Client Nativo)...</span>
+            <span>{t("context_menu.install_native")}</span>
           </button>
         )}
 
@@ -89,7 +91,7 @@ export default function GlobalContextMenu({
           className="w-full flex items-center gap-2.5 px-3.5 py-2 text-left font-bold text-indigo-300 hover:bg-indigo-500/10 transition-colors"
         >
           <Pencil className="w-3.5 h-3.5 text-indigo-400" />
-          <span>Modifica Informazioni (Manuale)...</span>
+          <span>{t("context_menu.edit_manual")}</span>
         </button>
 
         <button
@@ -100,7 +102,7 @@ export default function GlobalContextMenu({
           className="w-full flex items-center gap-2.5 px-3.5 py-2 text-left font-bold text-sky-300 hover:bg-sky-500/10 transition-colors"
         >
           <Search className="w-3.5 h-3.5 text-sky-400" />
-          <span>Identifica Metadati (Automatico)...</span>
+          <span>{t("context_menu.identify_metadata")}</span>
         </button>
 
         <button
@@ -111,7 +113,7 @@ export default function GlobalContextMenu({
           className="w-full flex items-center gap-2.5 px-3.5 py-2 text-left font-medium text-white/90 hover:bg-white/5 transition-colors"
         >
           <Info className="w-3.5 h-3.5 text-slate-400" />
-          <span>Vedi Dettagli Completi</span>
+          <span>{t("context_menu.view_details")}</span>
         </button>
       </div>
     </>

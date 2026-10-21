@@ -231,11 +231,11 @@ export default function BigPictureView({
             }`} />
             <span>
               {activeGame.state === "launching" ? (
-                <>⏳ In Avvio: <strong className="text-white">{activeGame.title}</strong>...</>
+                <>⏳ {t("status.launching")} <strong className="text-white">{activeGame.title}</strong>...</>
               ) : activeGame.state === "stopping" ? (
-                <>🛑 Chiusura in corso: <strong className="text-white">{activeGame.title}</strong>...</>
+                <>🛑 {t("status.stopping")} <strong className="text-white">{activeGame.title}</strong>...</>
               ) : (
-                <>● In Esecuzione: <strong className="text-white">{activeGame.title}</strong> ({formatDuration ? formatDuration(elapsedSeconds || 0) : `${elapsedSeconds || 0}s`})</>
+                <>● {t("status.running")}: <strong className="text-white">{activeGame.title}</strong> ({formatDuration ? formatDuration(elapsedSeconds || 0) : `${elapsedSeconds || 0}s`})</>
               )}
             </span>
             {handleKillRunningGame && (
@@ -246,9 +246,9 @@ export default function BigPictureView({
                   handleKillRunningGame();
                 }}
                 className="ml-2 px-3 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 active:bg-rose-700 text-white text-xs font-black uppercase tracking-wider transition-all shadow-md cursor-pointer"
-                title="Termina Gioco"
+                title={t("status.kill_game_title")}
               >
-                Termina
+                {t("status.kill_game")}
               </button>
             )}
           </div>
@@ -399,10 +399,10 @@ export default function BigPictureView({
         </span>
         <div className="flex items-center gap-2 overflow-x-auto py-1">
           {[
-            { id: "all", label: "Tutti i Giochi", count: counts.total },
-            { id: "installed", label: "Installati", count: counts.installed },
-            { id: "recent", label: "Giocati di Recente", count: counts.recent },
-            { id: "favorites", label: "Preferiti (90+)", count: counts.favorites },
+            { id: "all", label: t("sidebar.all_games"), count: counts.total },
+            { id: "installed", label: t("sidebar.installed"), count: counts.installed },
+            { id: "recent", label: t("sidebar.recent"), count: counts.recent },
+            { id: "favorites", label: t("sidebar.favorites"), count: counts.favorites },
             { id: "steam", label: "Steam", count: counts.steam },
             { id: "epic", label: "Epic Games", count: counts.epic },
             { id: "gog", label: "GOG Galaxy", count: counts.gog },

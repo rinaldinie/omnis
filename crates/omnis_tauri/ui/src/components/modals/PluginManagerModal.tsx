@@ -29,6 +29,7 @@ import {
 import { ProviderInfo, MetadataPipelineConfig, invokeTauri } from "../../types";
 import { MarketplaceTab } from "../MarketplaceTab";
 import { SteamIcon, EpicIcon, GogIcon, XboxIcon } from "../StoreBadge";
+import { useTranslation } from "../../i18n";
 
 interface PluginManagerModalProps {
   isOpen: boolean;
@@ -242,6 +243,7 @@ export default function PluginManagerModal({
   handleCancelPipeline,
   onPluginInstalled,
 }: PluginManagerModalProps) {
+  const { t } = useTranslation();
   const [pluginModalTab, setPluginModalTab] = useState<
     "providers" | "pipeline" | "enrich" | "marketplace"
   >("providers");
@@ -799,10 +801,10 @@ export default function PluginManagerModal({
             </div>
             <div>
               <h3 className="text-lg font-black text-white flex items-center gap-2">
-                <span>Centro Plugin & Fonti Metadati</span>
+                <span>{t("plugins_modal.title")}</span>
               </h3>
               <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                Gestisci librerie, fonti di arricchimento ed estensioni esterne della community
+                {t("plugins_modal.subtitle")}
               </p>
             </div>
           </div>
@@ -824,7 +826,7 @@ export default function PluginManagerModal({
                   isRefreshingPlugins ? "animate-spin text-cyan-400" : ""
                 }`}
               />
-              <span className="hidden sm:inline">Ricarica Plugin</span>
+              <span className="hidden sm:inline">{t("plugins_modal.refresh_plugins")}</span>
             </button>
             <button
               onClick={() => handleOpenFolder("plugins")}
@@ -837,7 +839,7 @@ export default function PluginManagerModal({
               title="Apri Cartella Plugins in Esplora Risorse"
             >
               <Folder className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Cartella Plugins</span>
+              <span className="hidden sm:inline">{t("plugins_modal.plugins_folder")}</span>
             </button>
             <button
               onClick={onClose}

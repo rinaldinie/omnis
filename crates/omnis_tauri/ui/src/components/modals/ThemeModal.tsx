@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Palette, PlusCircle, Folder, Check, Film, Tv, Monitor } from "lucide-react";
 import { ThemeConfig } from "../../types";
+import { useTranslation } from "../../i18n";
 
 interface ThemeModalProps {
   isOpen: boolean;
@@ -21,6 +22,7 @@ export default function ThemeModal({
   onSaveCustomTheme,
   onOpenThemesFolder,
 }: ThemeModalProps) {
+  const { t } = useTranslation();
   const [themeModalTab, setThemeModalTab] = useState<"list" | "create">("list");
   const [newThemeDraft, setNewThemeDraft] = useState<Partial<ThemeConfig>>({
     id: "mio_tema_custom",
@@ -85,7 +87,7 @@ export default function ThemeModal({
         >
           <div className="flex items-center gap-3">
             <Palette className="w-5 h-5" style={{ color: "var(--accent-primary)" }} />
-            <h3 className="text-lg font-black text-white">Gestione Temi & Personalizzazione</h3>
+            <h3 className="text-lg font-black text-white">{t("topbar.themes_title")}</h3>
           </div>
           <button
             onClick={onClose}

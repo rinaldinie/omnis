@@ -39,22 +39,61 @@ export interface TranslationSchema {
     enabled: string;
     disabled: string;
   };
+  sidebar: {
+    library: string;
+    all_games: string;
+    installed: string;
+    recent: string;
+    favorites: string;
+    stores: string;
+    connect_account: string;
+    connect_account_title: string;
+    genres: string;
+    genre_action: string;
+    genre_rpg: string;
+    genre_strategy: string;
+    genre_indie: string;
+    folder_db: string;
+    folder_covers: string;
+    folder_themes: string;
+    folder_plugins: string;
+  };
+  status: {
+    running: string;
+    launching: string;
+    stopping: string;
+    installed: string;
+    available: string;
+    kill_game: string;
+    kill_game_title: string;
+  };
   topbar: {
     big_picture: string;
     audio_on: string;
     audio_off: string;
+    audio_ui: string;
     themes: string;
+    themes_title: string;
     plugins: string;
+    plugins_title: string;
     language: string;
     add_game: string;
+    add_game_title: string;
     edit_info: string;
+    edit_game_title: string;
     search_placeholder: string;
     sync: string;
     syncing: string;
+    enrich_button: string;
+    enrich_tooltip: string;
     filter_by: string;
     all_games: string;
     filtered_count: string;
     options: string;
+    zoom_ui: string;
+    zoom_in: string;
+    zoom_out: string;
+    close_app: string;
   };
   views: {
     grid: string;
@@ -62,6 +101,12 @@ export interface TranslationSchema {
     list: string;
     zoom: string;
     group_by: string;
+    expand: string;
+    collapse: string;
+    no_game_selected: string;
+    select_game_hint: string;
+    no_games_found: string;
+    no_games_found_hint: string;
   };
   groups: {
     none: string;
@@ -101,6 +146,25 @@ export interface TranslationSchema {
     critic_score: string;
     community_score: string;
     install_dir: string;
+    hltb_title: string;
+    hltb_not_downloaded: string;
+    download_source: string;
+    downloading: string;
+    refresh_source: string;
+    refreshing: string;
+    refresh_hltb_title: string;
+    no_player_notes: string;
+    collapse_sidebar: string;
+    expand_sidebar: string;
+    filter_titles_placeholder: string;
+    breadcrumb_library: string;
+  };
+  context_menu: {
+    launch: string;
+    install_native: string;
+    edit_manual: string;
+    identify_metadata: string;
+    view_details: string;
   };
   table: {
     cover: string;
@@ -144,6 +208,8 @@ export interface TranslationSchema {
     theme_section: string;
     active_theme: string;
     version_info: string;
+    tab_general: string;
+    tab_accounts: string;
   };
   plugins_modal: {
     title: string;
