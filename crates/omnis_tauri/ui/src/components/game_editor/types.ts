@@ -36,9 +36,6 @@ export interface GameEditorFormData {
   icon_image_path: string;
   play_actions: LaunchConfiguration[];
   custom_links: CustomLink[];
-  hltb_main?: string;
-  hltb_extra?: string;
-  hltb_completionist?: string;
 }
 
 export const COMPLETION_STATUSES = [

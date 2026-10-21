@@ -478,6 +478,25 @@ export default function App() {
     }
   };
 
+  const handleRefreshHltb = async (gameId: string) => {
+    try {
+      setIsEnrichingSingle(true);
+      setStatusMessage("Aggiornamento dati HowLongToBeat dalla fonte...");
+      const updated = await invokeTauri<GameDto>("refresh_game_howlongtobeat", { gameId });
+      if (updated) {
+        const normalized = normalizeGame(updated);
+        setSelectedGame(normalized);
+        setGames((prev) => prev.map((g) => (g.id === normalized.id ? normalized : g)));
+        setStatusMessage(`Dati HowLongToBeat per '${normalized.title}' aggiornati dalla fonte!`);
+      }
+    } catch (err: any) {
+      console.warn("Direct HLTB refresh error, falling back to full enrichment:", err);
+      await handleEnrichSingleGame(gameId);
+    } finally {
+      setIsEnrichingSingle(false);
+    }
+  };
+
   const handleRunMassivePipeline = async () => {
     try {
       setIsPipelineEnriching(true);
@@ -1063,6 +1082,7 @@ export default function App() {
                     handleOpenContextMenu={handleOpenContextMenu}
                     handleLaunch={handleLaunch}
                     handleEnrichSingleGame={handleEnrichSingleGame}
+                    handleRefreshHltb={handleRefreshHltb}
                     isEnrichingSingle={isEnrichingSingle}
                     setGameToEdit={setGameToEdit}
                     setShowEditorModal={setShowEditorModal}

@@ -113,6 +113,50 @@ pub async fn enrich_single_game(
 }
 
 #[tauri::command]
+pub async fn refresh_game_howlongtobeat(
+    game_id: String,
+    app_handle: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<GameDto, String> {
+    let id = Uuid::parse_str(&game_id).map_err(|e| e.to_string())?;
+    let game = state
+        .db
+        .get_game_by_id(id)
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "Gioco non trovato".to_string())?;
+
+    let (main_h, extra_h, comp_h) = state.downloader.fetch_hltb_times(&game.title).await;
+    let hltb_data = serde_json::json!({
+        "howlongtobeat": {
+            "main_story": main_h,
+            "main_extra": extra_h,
+            "completionist": comp_h,
+        }
+    });
+
+    let patch = omnis_sdk::GameMetadataPatch {
+        extra_metadata: Some(hltb_data.to_string()),
+        ..Default::default()
+    };
+
+    state
+        .db
+        .apply_metadata_patch(id, &patch)
+        .map_err(|e| e.to_string())?;
+
+    let updated_game = state
+        .db
+        .get_game_by_id(id)
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "Gioco non trovato".to_string())?;
+
+    let _ = app_handle.emit("game-updated", &game_id);
+    let _ = app_handle.emit("library-updated", ());
+
+    Ok(game_to_dto(updated_game, &state.image_cache))
+}
+
+#[tauri::command]
 pub async fn search_metadata_candidates(
     title: String,
     provider_id: Option<String>,

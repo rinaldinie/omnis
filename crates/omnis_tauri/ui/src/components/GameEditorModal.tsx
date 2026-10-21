@@ -124,9 +124,6 @@ export default function GameEditorModal({
         icon_image_path: g.icon_image_path || "",
         play_actions: Array.isArray(g.play_actions) ? g.play_actions : [],
         custom_links: Array.isArray(g.custom_links) ? g.custom_links : [],
-        hltb_main: hltb.main_story || "",
-        hltb_extra: hltb.main_extra || "",
-        hltb_completionist: hltb.completionist || "",
       });
     };
 
@@ -160,27 +157,7 @@ export default function GameEditorModal({
           .map((s) => s.trim())
           .filter((s) => s.length > 0);
 
-      let existingExtra: any = {};
-      try {
-        if (game.extra_metadata) {
-          existingExtra = typeof game.extra_metadata === "string" ? JSON.parse(game.extra_metadata) : game.extra_metadata;
-        }
-      } catch {}
-
-      const hasHltbData = formData.hltb_main?.trim() || formData.hltb_extra?.trim() || formData.hltb_completionist?.trim();
-      const updatedExtra = {
-        ...existingExtra,
-        ...(hasHltbData
-          ? {
-              howlongtobeat: {
-                main_story: formData.hltb_main?.trim() || "--",
-                main_extra: formData.hltb_extra?.trim() || "--",
-                completionist: formData.hltb_completionist?.trim() || "--",
-              },
-            }
-          : {}),
-      };
-      const extraMetadataStr = Object.keys(updatedExtra).length > 0 ? JSON.stringify(updatedExtra) : null;
+      const extraMetadataStr = game.extra_metadata || null;
 
       const gameUpdate = {
         id: game.id,

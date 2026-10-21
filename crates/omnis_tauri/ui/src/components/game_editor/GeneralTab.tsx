@@ -1,5 +1,5 @@
 import React from "react";
-import { Calendar, Star, Clock } from "lucide-react";
+import { Calendar, Star } from "lucide-react";
 import { GameEditorFormData, COMPLETION_STATUSES } from "./types";
 
 interface GeneralTabProps {
@@ -277,78 +277,6 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({ formData, onChange }) =>
             }}
             placeholder="Preferiti, Da Finire, Capolavoro, RayTracing"
           />
-        </div>
-      </div>
-
-      {/* SEZIONE: HOWLONGTOBEAT ESTIMATED PLAYTIMES */}
-      <div
-        className="p-4 rounded-xl border space-y-3"
-        style={{
-          backgroundColor: "rgba(255, 255, 255, 0.02)",
-          borderColor: "var(--border-color)",
-        }}
-      >
-        <div className="flex items-center gap-2">
-          <Clock className="w-4 h-4 text-amber-400" />
-          <span className="text-xs font-semibold text-white">
-            Tempi di Gioco Stimati (HowLongToBeat)
-          </span>
-        </div>
-        <p className="text-[11px] text-slate-400">
-          Modifica manualmente le ore stimate di completamento mostrate nella scheda dettagli del gioco.
-        </p>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div>
-            <label className="block text-[11px] font-medium mb-1 text-slate-300">
-              Storia Principale
-            </label>
-            <input
-              type="text"
-              value={formData.hltb_main || ""}
-              onChange={(e) => onChange({ hltb_main: e.target.value })}
-              className="w-full px-3 py-2 rounded-xl border text-xs font-normal text-slate-100 placeholder:text-slate-500 outline-none"
-              style={{
-                backgroundColor: "var(--bg-card)",
-                borderColor: "var(--border-color)",
-                color: "var(--text-primary)",
-              }}
-              placeholder="es. 24 Ore o 24½ Ore"
-            />
-          </div>
-          <div>
-            <label className="block text-[11px] font-medium mb-1 text-slate-300">
-              Storia + Extra
-            </label>
-            <input
-              type="text"
-              value={formData.hltb_extra || ""}
-              onChange={(e) => onChange({ hltb_extra: e.target.value })}
-              className="w-full px-3 py-2 rounded-xl border text-xs font-normal text-slate-100 placeholder:text-slate-500 outline-none"
-              style={{
-                backgroundColor: "var(--bg-card)",
-                borderColor: "var(--border-color)",
-                color: "var(--text-primary)",
-              }}
-              placeholder="es. 48 Ore"
-            />
-          </div>
-          <div>
-            <label className="block text-[11px] font-medium mb-1 text-slate-300">
-              Completamento 100%
-            </label>
-            <input
-              type="text"
-              value={formData.hltb_completionist || ""}
-              onChange={(e) => onChange({ hltb_completionist: e.target.value })}
-              className="w-full px-3 py-2 rounded-xl border text-xs font-normal text-slate-100 placeholder:text-slate-500 outline-none"
-              style={{
-                backgroundColor: "var(--bg-card)",
-                borderColor: "var(--border-color)",
-                color: "var(--text-primary)",
-              }}
-              placeholder="es. 95 Ore"
-            />
-          </div>
         </div>
       </div>
     </div>

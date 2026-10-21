@@ -117,7 +117,7 @@ export const Slot: React.FC<SlotProps> = ({ name, gameId, className = "" }) => {
               <div
                 key={idx}
                 data-omnis-widget="stat"
-                className="flex items-center gap-2 px-3 py-2 rounded-xl border bg-white/[0.03] border-white/10 shadow-sm"
+                className="flex items-center gap-2 px-3 py-2 rounded-xl border bg-white/[0.02] border-white/[0.06] shadow-xs"
               >
                 {renderWidgetIcon(widget.icon)}
                 <div className="flex flex-col">
