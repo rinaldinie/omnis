@@ -29,6 +29,7 @@ export interface GameEditorFormData {
   developersText: string;
   publishersText: string;
   tagsText: string;
+  featuresText: string;
   description: string;
   user_notes: string;
   cover_image_path: string;

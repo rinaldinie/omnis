@@ -92,6 +92,8 @@ pub struct PlayniteGameDto {
     pub Hidden: Option<bool>,
     #[serde(alias = "tags", default)]
     pub Tags: Option<Vec<String>>,
+    #[serde(alias = "features", default)]
+    pub Features: Option<Vec<String>>,
     #[serde(alias = "categories", default)]
     pub Categories: Option<Vec<String>>,
     #[serde(alias = "completion", default)]
@@ -382,6 +384,7 @@ impl Database {
 
                 let sorting_title = item.Name.to_lowercase();
                 let tags_str = item.Tags.as_ref().map(|t| t.join(", "));
+                let features_str = item.Features.as_ref().map(|f| f.join(", "));
 
                 if !options.dry_run {
                     conn.execute(
@@ -389,9 +392,9 @@ impl Database {
                             id, library_id, external_id, title, sorting_title,
                             install_dir, is_installed, playtime_seconds, play_count,
                             last_activity, cover_image_path, background_image_path,
-                            tags, completion_status, is_favorite,
+                            tags, features, completion_status, is_favorite,
                             added_timestamp, modified_timestamp
-                        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?16);",
+                        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?17);",
                         params![
                             new_id,
                             library_id,
@@ -406,6 +409,7 @@ impl Database {
                             cover_to_save,
                             bg_to_save,
                             tags_str,
+                            features_str,
                             item.Completion.as_deref().unwrap_or("NotPlayed"),
                             is_fav,
                             now,

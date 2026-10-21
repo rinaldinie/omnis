@@ -1094,6 +1094,8 @@ export default function App() {
                     elapsedSeconds={elapsedSeconds}
                     formatDuration={formatDuration}
                     handleKillRunningGame={handleKillRunningGame}
+                    activeFilter={activeFilter}
+                    setActiveFilter={setActiveFilter}
                   />
                 ) : (
                   <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">

@@ -141,6 +141,8 @@ pub struct Game {
     pub publishers: Vec<String>,
     pub tags: Vec<String>,
     pub categories: Vec<String>,
+    #[serde(default)]
+    pub features: Vec<String>,
     pub series: Option<String>,
     pub age_rating: Option<String>,
     pub completion_status: Option<String>,
@@ -183,6 +185,7 @@ impl Game {
             publishers: Vec::new(),
             tags: Vec::new(),
             categories: Vec::new(),
+            features: Vec::new(),
             series: None,
             age_rating: None,
             completion_status: None,
@@ -226,6 +229,8 @@ pub struct GameUpdateDto {
     pub publishers: Vec<String>,
     #[serde(default)]
     pub tags: Vec<String>,
+    #[serde(default)]
+    pub features: Vec<String>,
     pub cover_image_path: Option<String>,
     pub background_image_path: Option<String>,
     pub icon_image_path: Option<String>,
