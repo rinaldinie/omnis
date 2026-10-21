@@ -279,6 +279,8 @@ pub struct GameMetadataPatch {
     pub publishers: Vec<String>,
     pub tags: Vec<String>,
     #[serde(default)]
+    pub features: Vec<String>,
+    #[serde(default)]
     pub extra_metadata: Option<String>,
 }
 

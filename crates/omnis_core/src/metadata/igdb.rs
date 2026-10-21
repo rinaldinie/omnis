@@ -202,6 +202,7 @@ pub fn igdb_game_to_patch(game: &IgdbGame) -> GameMetadataPatch {
         developers,
         publishers,
         tags: Vec::new(),
+        features: Vec::new(),
         extra_metadata: None,
     }
 }

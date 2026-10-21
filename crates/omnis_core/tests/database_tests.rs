@@ -76,6 +76,7 @@ fn test_seed_and_metadata_patch() {
         developers: vec!["CD PROJEKT RED".to_string()],
         publishers: vec!["CD PROJEKT".to_string()],
         tags: vec![],
+        features: vec!["Single-player".to_string(), "Achievements".to_string()],
         extra_metadata: None,
     };
 
@@ -87,6 +88,7 @@ fn test_seed_and_metadata_patch() {
     assert_eq!(fetched.description.as_deref(), Some("Test description"));
     assert_eq!(fetched.cover_image_path.as_deref(), Some("/cache/covers/test.jpg"));
     assert_eq!(fetched.genres, vec!["GDR", "Azione"]);
+    assert_eq!(fetched.features, vec!["Single-player", "Achievements"]);
     assert_eq!(fetched.developers, vec!["CD PROJEKT RED"]);
     assert_eq!(fetched.publishers, vec!["CD PROJEKT"]);
 }

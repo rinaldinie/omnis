@@ -713,6 +713,11 @@ impl Database {
         } else {
             None
         };
+        let features_joined = if !patch.features.is_empty() {
+            Some(patch.features.join(", "))
+        } else {
+            None
+        };
 
         let extra_metadata_merged: Option<String> = if let Some(ref new_extra_str) = patch.extra_metadata {
             let existing_str: Option<String> = conn
@@ -755,6 +760,7 @@ impl Database {
                 developers = COALESCE(?10, developers),
                 publishers = COALESCE(?11, publishers),
                 tags = COALESCE(?12, tags),
+                features = COALESCE(?15, features),
                 extra_metadata = COALESCE(?14, extra_metadata),
                 modified_timestamp = ?13
             WHERE id = ?1
@@ -774,6 +780,7 @@ impl Database {
                 tags_joined,
                 now,
                 extra_metadata_merged,
+                features_joined,
             ],
         )?;
 

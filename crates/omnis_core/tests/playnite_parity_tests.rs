@@ -459,6 +459,7 @@ async fn test_5_metadata_candidate_dto_and_patch_enrichment() {
         developers: vec!["CD PROJEKT RED".to_string()],
         publishers: vec!["CD PROJEKT".to_string()],
         tags: vec!["Cyberpunk".to_string(), "Sci-Fi".to_string()],
+        features: vec!["Single-player".to_string(), "Ray Tracing".to_string()],
         extra_metadata: None,
     };
 

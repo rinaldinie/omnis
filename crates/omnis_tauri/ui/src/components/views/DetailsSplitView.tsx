@@ -139,6 +139,78 @@ export default function DetailsSplitView({
     if (activeFilter === "indie" && gLower === "indie") return true;
     return false;
   };
+
+  const getCompletionStatusInfo = (status?: string | null) => {
+    switch (status) {
+      case "Playing":
+        return {
+          label: "In corso",
+          color: "text-sky-300",
+          bg: "bg-sky-500/15",
+          border: "border-sky-500/30",
+          dot: "bg-sky-400",
+        };
+      case "Completed":
+        return {
+          label: "Completato 100%",
+          color: "text-emerald-300",
+          bg: "bg-emerald-500/15",
+          border: "border-emerald-500/30",
+          dot: "bg-emerald-400",
+        };
+      case "Beaten":
+        return {
+          label: "Finito",
+          color: "text-purple-300",
+          bg: "bg-purple-500/15",
+          border: "border-purple-500/30",
+          dot: "bg-purple-400",
+        };
+      case "Backlog":
+        return {
+          label: "Backlog",
+          color: "text-amber-300",
+          bg: "bg-amber-500/15",
+          border: "border-amber-500/30",
+          dot: "bg-amber-400",
+        };
+      case "PlanToPlay":
+        return {
+          label: "Da iniziare",
+          color: "text-indigo-300",
+          bg: "bg-indigo-500/15",
+          border: "border-indigo-500/30",
+          dot: "bg-indigo-400",
+        };
+      case "Abandoned":
+        return {
+          label: "Abbandonato",
+          color: "text-rose-300",
+          bg: "bg-rose-500/15",
+          border: "border-rose-500/30",
+          dot: "bg-rose-400",
+        };
+      case "NotPlayed":
+      default:
+        return {
+          label: t("game_details.not_played") || "Non giocato",
+          color: "text-slate-300",
+          bg: "bg-slate-500/15",
+          border: "border-slate-500/30",
+          dot: "bg-slate-400",
+        };
+    }
+  };
+
+  const handleFilterByCompletion = (status?: string | null) => {
+    if (!setActiveFilter) return;
+    const target = `completion:${status || "NotPlayed"}`;
+    if (activeFilter === target) {
+      setActiveFilter("all");
+    } else {
+      setActiveFilter(target);
+    }
+  };
   return (
     <div className="flex-1 flex overflow-hidden">
       {/* Left Column: Titles Quick List (300px collapsible master panel) */}
@@ -396,6 +468,26 @@ export default function DetailsSplitView({
                     ★ {selectedGame.critic_score}
                   </span>
                 )}
+                {/* Completion Status Badge */}
+                {(() => {
+                  const statusInfo = getCompletionStatusInfo(selectedGame.completion_status);
+                  const isFiltered = activeFilter === `completion:${selectedGame.completion_status || "NotPlayed"}`;
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => handleFilterByCompletion(selectedGame.completion_status)}
+                      className={`px-2.5 py-0.5 rounded text-[10px] font-bold border shadow-xs flex items-center gap-1.5 cursor-pointer transition-all active:scale-95 ${
+                        isFiltered
+                          ? "ring-2 ring-indigo-400 " + statusInfo.bg + " " + statusInfo.border + " " + statusInfo.color
+                          : statusInfo.bg + " " + statusInfo.border + " " + statusInfo.color
+                      }`}
+                      title={`Filtra per stato: ${statusInfo.label}`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full ${statusInfo.dot}`} />
+                      <span>{statusInfo.label}</span>
+                    </button>
+                  );
+                })()}
                 {selectedGame.series && (
                   <span
                     className="px-2.5 py-0.5 rounded text-[10px] font-bold border"
@@ -662,9 +754,25 @@ export default function DetailsSplitView({
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
                   {t("groups.completion_status")}
                 </span>
-                <p className="text-xs font-bold text-indigo-400 truncate">
-                  {selectedGame.completion_status || t("game_details.not_played")}
-                </p>
+                <div className="pt-0.5">
+                  {(() => {
+                    const statusInfo = getCompletionStatusInfo(selectedGame.completion_status);
+                    const isFiltered = activeFilter === `completion:${selectedGame.completion_status || "NotPlayed"}`;
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => handleFilterByCompletion(selectedGame.completion_status)}
+                        className={`px-2.5 py-1 rounded-xl text-xs font-semibold border flex items-center gap-1.5 cursor-pointer transition-all active:scale-95 ${
+                          isFiltered ? "ring-2 ring-indigo-400 " : ""
+                        } ${statusInfo.bg} ${statusInfo.border} ${statusInfo.color}`}
+                        title={`Filtra per stato: ${statusInfo.label}`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full ${statusInfo.dot}`} />
+                        <span>{statusInfo.label}</span>
+                      </button>
+                    );
+                  })()}
+                </div>
               </div>
 
               <div className="space-y-1">

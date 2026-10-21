@@ -47,6 +47,11 @@ export function useLibraryFilters(games: GameDto[]) {
           return false;
         }
       }
+      if (activeFilter.startsWith("completion:")) {
+        const target = activeFilter.slice(11).toLowerCase().trim();
+        const status = (g.completion_status || "NotPlayed").toLowerCase().trim();
+        if (status !== target) return false;
+      }
 
       if (searchQuery.trim() !== "") {
         const query = searchQuery.toLowerCase();
