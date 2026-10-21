@@ -28,6 +28,8 @@ pub struct GameDto {
     pub series: Option<String>,
     pub completion_status: Option<String>,
     pub user_notes: Option<String>,
+    #[serde(default)]
+    pub features: Vec<String>,
     pub custom_links: Vec<omnis_sdk::CustomLink>,
     #[serde(default)]
     pub extra_metadata: Option<String>,
@@ -160,6 +162,7 @@ pub fn game_to_dto(g: Game, _cache: &ImageCache) -> GameDto {
         series: g.series,
         completion_status: g.completion_status,
         user_notes: g.user_notes,
+        features: g.features,
         custom_links: g.custom_links,
         extra_metadata: g.extra_metadata,
     }

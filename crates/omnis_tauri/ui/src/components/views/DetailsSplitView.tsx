@@ -79,6 +79,8 @@ interface DetailsSplitViewProps {
   elapsedSeconds?: number;
   formatDuration?: (seconds: number) => string;
   handleKillRunningGame?: () => void;
+  activeFilter?: string;
+  setActiveFilter?: (filter: string) => void;
 }
 
 export default function DetailsSplitView({
@@ -106,8 +108,37 @@ export default function DetailsSplitView({
   elapsedSeconds,
   formatDuration,
   handleKillRunningGame,
+  activeFilter,
+  setActiveFilter,
 }: DetailsSplitViewProps) {
   const isSelectedGameRunning = activeGame?.game_id === selectedGame.id;
+
+  const handleFilterByGenre = (genre: string) => {
+    if (!setActiveFilter) return;
+    const gLower = genre.toLowerCase().trim();
+    let target = `genre:${genre.trim()}`;
+    if (gLower === "azione" || gLower === "action") target = "action";
+    else if (gLower === "gdr" || gLower === "rpg") target = "rpg";
+    else if (gLower === "strategia" || gLower === "strategy") target = "strategy";
+    else if (gLower === "indie") target = "indie";
+
+    if (activeFilter === target) {
+      setActiveFilter("all");
+    } else {
+      setActiveFilter(target);
+    }
+  };
+
+  const isGenreActive = (genre: string) => {
+    if (!activeFilter) return false;
+    const gLower = genre.toLowerCase().trim();
+    if (activeFilter === `genre:${genre.trim()}`) return true;
+    if (activeFilter === "action" && (gLower === "azione" || gLower === "action")) return true;
+    if (activeFilter === "rpg" && (gLower === "gdr" || gLower === "rpg")) return true;
+    if (activeFilter === "strategy" && (gLower === "strategia" || gLower === "strategy")) return true;
+    if (activeFilter === "indie" && gLower === "indie") return true;
+    return false;
+  };
   return (
     <div className="flex-1 flex overflow-hidden">
       {/* Left Column: Titles Quick List (300px collapsible master panel) */}
@@ -164,6 +195,22 @@ export default function DetailsSplitView({
             </button>
           )}
         </div>
+
+        {/* Active filter badge if activeFilter is not "all" */}
+        {detailsSidebarOpen && activeFilter && activeFilter !== "all" && (
+          <div className="px-3 py-1.5 border-b border-indigo-500/20 bg-indigo-500/10 flex items-center justify-between text-[11px] text-indigo-300">
+            <span className="truncate font-medium">
+              Filtro: {activeFilter.startsWith("genre:") ? activeFilter.slice(6) : activeFilter}
+            </span>
+            <button
+              onClick={() => setActiveFilter && setActiveFilter("all")}
+              className="p-0.5 hover:text-white transition-colors cursor-pointer"
+              title="Rimuovi filtro"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+        )}
 
         {/* Master list of games */}
         {detailsSidebarOpen && (
@@ -367,6 +414,31 @@ export default function DetailsSplitView({
                 {selectedGame.title}
               </h1>
 
+              {/* Genre Badges (Clickable Filters) */}
+              {selectedGame.genres && selectedGame.genres.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                  {selectedGame.genres.map((genre) => {
+                    const active = isGenreActive(genre);
+                    return (
+                      <button
+                        key={genre}
+                        type="button"
+                        onClick={() => handleFilterByGenre(genre)}
+                        className={`px-2.5 py-1 rounded-full text-xs font-semibold border transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 shadow-sm ${
+                          active
+                            ? "bg-indigo-600 border-indigo-400 text-white shadow-indigo-500/30"
+                            : "bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white border-white/[0.08] hover:border-indigo-400/50"
+                        }`}
+                        title={`Filtra per genere: ${genre}`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full ${active ? "bg-white" : "bg-indigo-400"}`} />
+                        <span>{genre}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
               {/* Action Buttons Bar */}
               <div data-omnis="details.actions" className="flex flex-wrap items-center gap-3 pt-2">
                 {isSelectedGameRunning ? (
@@ -535,13 +607,39 @@ export default function DetailsSplitView({
                 </p>
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-1.5 sm:col-span-2">
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
                   {t("game_details.genres")}
                 </span>
-                <p className="text-xs font-bold text-white truncate">
-                  {selectedGame.genres.join(", ") || "N/A"}
-                </p>
+                <div className="flex flex-wrap gap-1.5 pt-0.5">
+                  {selectedGame.genres && selectedGame.genres.length > 0 ? (
+                    selectedGame.genres.map((genre) => {
+                      const active = isGenreActive(genre);
+                      return (
+                        <button
+                          key={genre}
+                          type="button"
+                          onClick={() => handleFilterByGenre(genre)}
+                          className={`px-2.5 py-1 rounded-xl text-xs font-medium border transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 ${
+                            active
+                              ? "bg-indigo-600/30 border-indigo-500 text-indigo-200 shadow-xs shadow-indigo-500/20"
+                              : "bg-white/[0.03] hover:bg-white/[0.08] border-white/[0.06] hover:border-indigo-500/30 text-slate-200 hover:text-white"
+                          }`}
+                          title={`Filtra per genere: ${genre}`}
+                        >
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              active ? "bg-indigo-400" : "bg-slate-500"
+                            }`}
+                          />
+                          <span>{genre}</span>
+                        </button>
+                      );
+                    })
+                  ) : (
+                    <span className="text-xs font-bold text-slate-400">N/A</span>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-1">
@@ -589,26 +687,40 @@ export default function DetailsSplitView({
             </div>
           </div>
 
-          {/* Card 3: Player Notes */}
+          {/* Card 3: Key Features (Playnite Parity) */}
           <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/[0.06] space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold tracking-wider uppercase flex items-center gap-2 text-slate-400">
-                <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-400" />
-                <span>{t("game_details.player_notes")}</span>
+                <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                <span>{t("game_details.features")}</span>
               </span>
               <button
                 onClick={() => {
                   setGameToEdit(selectedGame);
                   setShowEditorModal(true);
                 }}
-                className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300 transition-colors"
+                className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300 transition-colors cursor-pointer"
               >
                 {t("common.edit")}
               </button>
             </div>
-            <p className="text-xs leading-relaxed whitespace-pre-wrap text-slate-300">
-              {selectedGame.user_notes || t("game_details.no_player_notes")}
-            </p>
+            {selectedGame.features && selectedGame.features.length > 0 ? (
+              <div className="flex flex-wrap gap-2 pt-1">
+                {selectedGame.features.map((feature, idx) => (
+                  <span
+                    key={idx}
+                    className="px-3 py-1.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] text-xs font-medium text-slate-200 transition-colors flex items-center gap-2 shadow-xs"
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-400/80 shrink-0" />
+                    <span>{feature}</span>
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs leading-relaxed text-slate-400">
+                {t("game_details.no_features")}
+              </p>
+            )}
           </div>
 
           {/* Card 4: Custom Links */}

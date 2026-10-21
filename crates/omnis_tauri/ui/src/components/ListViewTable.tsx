@@ -31,6 +31,7 @@ export interface GameItem {
   series?: string | null;
   completion_status?: string | null;
   user_notes?: string | null;
+  features?: string[];
   custom_links?: Array<{ title: string; url: string }>;
   extra_metadata?: string | null;
   genres: string[];

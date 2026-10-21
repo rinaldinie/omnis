@@ -129,6 +129,9 @@ export interface TranslationSchema {
     identify_metadata: string;
     quick_actions: string;
     player_notes: string;
+    features: string;
+    features_placeholder: string;
+    no_features: string;
     description: string;
     no_description: string;
     genres: string;

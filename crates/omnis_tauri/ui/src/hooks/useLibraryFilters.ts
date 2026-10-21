@@ -41,6 +41,12 @@ export function useLibraryFilters(games: GameDto[]) {
       )
         return false;
       if (activeFilter === "indie" && !g.genres.some((x) => x.toLowerCase().includes("indie"))) return false;
+      if (activeFilter.startsWith("genre:")) {
+        const target = activeFilter.slice(6).toLowerCase().trim();
+        if (!g.genres.some((x) => x.toLowerCase().trim() === target || x.toLowerCase().includes(target))) {
+          return false;
+        }
+      }
 
       if (searchQuery.trim() !== "") {
         const query = searchQuery.toLowerCase();

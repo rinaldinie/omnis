@@ -150,6 +150,7 @@ fn test_2_game_update_dto_persistence() {
         developers: vec!["CD PROJEKT RED".to_string()],
         publishers: vec!["CD PROJEKT".to_string()],
         tags: vec!["Fantasy".to_string(), "Story Rich".to_string()],
+        features: vec!["Single-player".to_string(), "Cloud Saves".to_string(), "Achievements".to_string()],
         cover_image_path: Some("C:\\covers\\witcher3_goty.jpg".to_string()),
         background_image_path: Some("C:\\wallpapers\\witcher3_goty.jpg".to_string()),
         icon_image_path: Some("C:\\icons\\witcher3.ico".to_string()),
@@ -190,6 +191,10 @@ fn test_2_game_update_dto_persistence() {
     assert_eq!(
         updated_game.user_notes.as_deref(),
         Some("Masterpiece RPG. Completed all quests and expansions.")
+    );
+    assert_eq!(
+        updated_game.features,
+        vec!["Single-player", "Cloud Saves", "Achievements"]
     );
     assert_eq!(updated_game.play_actions.len(), 1);
     assert_eq!(updated_game.play_actions[0].executable, "bin/x64/witcher3.exe");

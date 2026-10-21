@@ -28,6 +28,7 @@ export interface GameDto {
   series?: string | null;
   completion_status?: string | null;
   user_notes?: string | null;
+  features?: string[];
   custom_links?: Array<{ title: string; url: string }>;
   extra_metadata?: string | null;
   genres: string[];
@@ -380,6 +381,7 @@ export const SAMPLE_GAMES: GameDto[] = [
     series: "Cyberpunk",
     completion_status: "Playing",
     user_notes: "Build attuale: Netrunner con Cyberdeck Militech e Smart Sniper. Missione in sospeso: Phantom Liberty.",
+    features: ["Single-player", "Ray Tracing", "DLSS 3 / FSR", "Full controller support", "Steam Cloud", "Achievements", "HDR"],
     custom_links: [
       { title: "Wiki Ufficiale", url: "https://cyberpunk.fandom.com" },
       { title: "Nexus Mods", url: "https://www.nexusmods.com/cyberpunk2077" },
@@ -404,6 +406,7 @@ export const SAMPLE_GAMES: GameDto[] = [
     series: "The Witcher",
     completion_status: "Completed",
     user_notes: "Completato al 100% inclusi Hearts of Stone e Blood and Wine a difficoltà Marcia della Morte.",
+    features: ["Single-player", "Ray Tracing", "Full controller support", "Cloud Saves", "Achievements", "Cross-Platform Saves"],
     custom_links: [
       { title: "Witcher Wiki", url: "https://witcher.fandom.com" },
     ],
@@ -427,6 +430,7 @@ export const SAMPLE_GAMES: GameDto[] = [
     series: "Hades",
     completion_status: "Beaten",
     user_notes: "Fuga completata con lo Scudo del Caos e i dardi di Artemide.",
+    features: ["Single-player", "Full controller support", "Steam Cloud", "Achievements", "Fast Loading"],
     custom_links: [
       { title: "Supergiant Games", url: "https://www.supergiantgames.com/games/hades/" },
     ],
@@ -450,6 +454,7 @@ export const SAMPLE_GAMES: GameDto[] = [
     series: "Portal",
     completion_status: "Completed",
     user_notes: "Completata campagna single player e coop in cooperativa.",
+    features: ["Single-player", "Co-op", "Online Co-op", "Split-screen", "Full controller support", "Steam Cloud", "Steam Workshop", "Achievements"],
     custom_links: [
       { title: "Steam Store", url: "https://store.steampowered.com/app/620/Portal_2/" },
     ],
@@ -473,6 +478,7 @@ export const SAMPLE_GAMES: GameDto[] = [
     series: "Baldur's Gate",
     completion_status: "Playing",
     user_notes: "Campagna Paladino Giuramento degli Antichi in Atto 3 (Bassa Città).",
+    features: ["Single-player", "Multi-player", "Online Co-op", "LAN Co-op", "Full controller support", "Cloud Saves", "Achievements"],
     custom_links: [
       { title: "BG3 Wiki", url: "https://bg3.wiki" },
     ],
@@ -496,6 +502,7 @@ export const SAMPLE_GAMES: GameDto[] = [
     series: "Soulsborne",
     completion_status: "Beaten",
     user_notes: "Sconfitto Radagon e la Belva Ancestrale. Finale Era delle Stelle.",
+    features: ["Single-player", "Multi-player", "Online Co-op", "Full controller support", "Steam Cloud", "Achievements", "Anti-Cheat"],
     custom_links: [
       { title: "Fextralife Elden Ring", url: "https://eldenring.wiki.fextralife.com" },
     ],

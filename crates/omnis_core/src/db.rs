@@ -241,7 +241,7 @@ const GAME_COLUMNS: &str = "
     last_activity, release_date, user_score, critic_score,
     community_score, description, cover_image_path,
     background_image_path, icon_image_path,
-    genres, developers, publishers, tags,
+    genres, developers, publishers, tags, features,
     series, age_rating, completion_status, user_notes,
     custom_links, play_actions, extra_metadata,
     added_timestamp, modified_timestamp
@@ -314,32 +314,42 @@ fn map_row_to_game(row: &rusqlite::Row) -> rusqlite::Result<Game> {
         })
         .unwrap_or_default();
 
-    let series: Option<String> = row.get(22)?;
-    let age_rating: Option<String> = row.get(23)?;
-    let completion_status: Option<String> = row.get(24)?;
-    let user_notes: Option<String> = row.get(25)?;
-
-    let custom_links: Vec<CustomLink> = row
-        .get::<_, Option<String>>(26)?
-        .as_deref()
-        .and_then(|s| serde_json::from_str(s).ok())
+    let features_str: Option<String> = row.get(22)?;
+    let features: Vec<String> = features_str
+        .map(|s| {
+            s.split(',')
+                .map(|f| f.trim().to_string())
+                .filter(|f| !f.is_empty())
+                .collect()
+        })
         .unwrap_or_default();
 
-    let play_actions: Vec<LaunchConfiguration> = row
+    let series: Option<String> = row.get(23)?;
+    let age_rating: Option<String> = row.get(24)?;
+    let completion_status: Option<String> = row.get(25)?;
+    let user_notes: Option<String> = row.get(26)?;
+
+    let custom_links: Vec<CustomLink> = row
         .get::<_, Option<String>>(27)?
         .as_deref()
         .and_then(|s| serde_json::from_str(s).ok())
         .unwrap_or_default();
 
-    let extra_metadata: Option<String> = row.get(28)?;
+    let play_actions: Vec<LaunchConfiguration> = row
+        .get::<_, Option<String>>(28)?
+        .as_deref()
+        .and_then(|s| serde_json::from_str(s).ok())
+        .unwrap_or_default();
 
-    let added_str: String = row.get(29)?;
+    let extra_metadata: Option<String> = row.get(29)?;
+
+    let added_str: String = row.get(30)?;
     let added_timestamp = DateTime::parse_from_rfc3339(&added_str)
         .ok()
         .map(|dt| dt.with_timezone(&Utc))
         .unwrap_or_else(Utc::now);
 
-    let mod_str: String = row.get(30)?;
+    let mod_str: String = row.get(31)?;
     let modified_timestamp = DateTime::parse_from_rfc3339(&mod_str)
         .ok()
         .map(|dt| dt.with_timezone(&Utc))
@@ -369,6 +379,7 @@ fn map_row_to_game(row: &rusqlite::Row) -> rusqlite::Result<Game> {
         publishers,
         tags,
         categories: Vec::new(),
+        features,
         series,
         age_rating,
         completion_status,
@@ -548,6 +559,7 @@ impl Database {
                OR developers LIKE ?1
                OR publishers LIKE ?1
                OR tags LIKE ?1
+               OR features LIKE ?1
                OR user_notes LIKE ?1
             ORDER BY sorting_title ASC
             ",
@@ -590,6 +602,11 @@ impl Database {
         } else {
             Some(update.tags.join(", "))
         };
+        let features_str = if update.features.is_empty() {
+            None
+        } else {
+            Some(update.features.join(", "))
+        };
         let custom_links_json = serde_json::to_string(&update.custom_links)
             .unwrap_or_else(|_| "[]".to_string());
         let play_actions_json = serde_json::to_string(&update.play_actions)
@@ -619,13 +636,14 @@ impl Database {
                     developers = ?14,
                     publishers = ?15,
                     tags = ?16,
-                    cover_image_path = ?17,
-                    background_image_path = ?18,
-                    icon_image_path = ?19,
-                    play_actions = ?20,
-                    custom_links = ?21,
-                    extra_metadata = COALESCE(?22, extra_metadata),
-                    modified_timestamp = ?23
+                    features = ?17,
+                    cover_image_path = ?18,
+                    background_image_path = ?19,
+                    icon_image_path = ?20,
+                    play_actions = ?21,
+                    custom_links = ?22,
+                    extra_metadata = COALESCE(?23, extra_metadata),
+                    modified_timestamp = ?24
                 WHERE id = ?1
                 ",
                 params![
@@ -645,6 +663,7 @@ impl Database {
                     devs_str,
                     pubs_str,
                     tags_str,
+                    features_str,
                     update.cover_image_path,
                     update.background_image_path,
                     update.icon_image_path,

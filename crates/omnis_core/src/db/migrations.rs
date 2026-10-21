@@ -26,6 +26,7 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
             developers TEXT,
             publishers TEXT,
             tags TEXT,
+            features TEXT,
             series TEXT,
             age_rating TEXT,
             completion_status TEXT DEFAULT 'NotPlayed',
@@ -92,6 +93,7 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
     let _ = conn.execute("ALTER TABLE games ADD COLUMN developers TEXT;", []);
     let _ = conn.execute("ALTER TABLE games ADD COLUMN publishers TEXT;", []);
     let _ = conn.execute("ALTER TABLE games ADD COLUMN tags TEXT;", []);
+    let _ = conn.execute("ALTER TABLE games ADD COLUMN features TEXT;", []);
     let _ = conn.execute("ALTER TABLE games ADD COLUMN series TEXT;", []);
     let _ = conn.execute("ALTER TABLE games ADD COLUMN age_rating TEXT;", []);
     let _ = conn.execute(
