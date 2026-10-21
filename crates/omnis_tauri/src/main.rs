@@ -109,6 +109,7 @@ fn main() {
             download_batch_metadata,
             cancel_metadata_download,
             enrich_single_game,
+            refresh_game_howlongtobeat,
             get_metadata_providers,
             refresh_metadata_providers,
             save_provider_settings,

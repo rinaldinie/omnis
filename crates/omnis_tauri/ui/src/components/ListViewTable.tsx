@@ -278,22 +278,20 @@ export default function ListViewTable({
 
   return (
     <div
-      className={`w-full overflow-x-auto select-none rounded-xl border shadow-lg ${
+      className={`w-full overflow-x-auto select-none rounded-xl border border-white/[0.06] shadow-xl ${
         isGroupedChild ? "border-t-0 rounded-t-none" : ""
       } ${className}`}
       style={{
         backgroundColor: "var(--bg-card)",
-        borderColor: "var(--border-color)",
       }}
     >
       <table className="w-full text-left border-collapse text-xs">
         {/* TABLE HEADER */}
         <thead>
           <tr
-            className="border-b text-[10px] font-black uppercase tracking-wider sticky top-0 z-10 backdrop-blur-md"
+            className="border-b border-white/[0.06] text-[10px] font-black uppercase tracking-wider sticky top-0 z-10 backdrop-blur-md"
             style={{
               backgroundColor: "var(--bg-surface)",
-              borderColor: "var(--border-color)",
               color: "var(--text-muted)",
             }}
           >
@@ -395,8 +393,7 @@ export default function ListViewTable({
 
         {/* TABLE BODY */}
         <tbody
-          className="divide-y font-medium transition-colors"
-          style={{ borderColor: "var(--border-color)" }}
+          className="divide-y divide-white/[0.04] font-medium transition-colors"
         >
           {sortedGames.length === 0 ? (
             <tr>
@@ -427,11 +424,10 @@ export default function ListViewTable({
                     }
                   }}
                   className={`cursor-pointer transition-colors group ${
-                    isSelected ? "ring-1 ring-inset" : "hover:bg-white/[0.04]"
-                  } ${index % 2 === 1 ? "bg-black/[0.12]" : ""}`}
+                    isSelected ? "bg-white/[0.08]" : "hover:bg-white/[0.03]"
+                  } ${index % 2 === 1 ? "bg-white/[0.01]" : ""}`}
                   style={{
                     backgroundColor: isSelected ? "var(--bg-surface)" : undefined,
-                    outlineColor: isSelected ? "var(--accent-primary)" : undefined,
                     contentVisibility: "auto",
                     containIntrinsicSize: "0 34px",
                   }}
@@ -441,10 +437,9 @@ export default function ListViewTable({
                   <td className="py-1 px-2.5 text-center">
                     <div className="flex items-center justify-center">
                       <div
-                        className="w-6 h-6 rounded overflow-hidden flex items-center justify-center border shadow-xs shrink-0"
+                        className="w-6 h-6 rounded overflow-hidden flex items-center justify-center border border-white/[0.08] shadow-xs shrink-0"
                         style={{
                           backgroundColor: "var(--bg-surface)",
-                          borderColor: "var(--border-color)",
                         }}
                       >
                         {thumbnailSrc ? (

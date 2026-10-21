@@ -252,6 +252,33 @@ impl MetadataDownloader {
         Ok(self.get_providers_info().await)
     }
 
+    /// Fetches completion times from HowLongToBeat from source/API for a game title.
+    pub async fn fetch_hltb_times(&self, title: &str) -> (String, String, String) {
+        let providers_guard = self.providers.read().await;
+        if let Some(prov) = providers_guard.get("howlongtobeat") {
+            let request = MetadataSearchRequest {
+                title: title.to_string(),
+                external_id: None,
+                library_id: "all".to_string(),
+            };
+            let settings_guard = self.settings_cache.read().await;
+            let settings = settings_guard.get("howlongtobeat").cloned().unwrap_or_default();
+            if let Ok(patch) = prov.fetch_metadata(&request, &settings).await {
+                if let Some(extra_str) = patch.extra_metadata {
+                    if let Ok(v) = serde_json::from_str::<serde_json::Value>(&extra_str) {
+                        if let Some(hltb) = v.get("howlongtobeat") {
+                            let main_s = hltb.get("main_story").and_then(|x| x.as_str()).unwrap_or("N/D").to_string();
+                            let extra_s = hltb.get("main_extra").and_then(|x| x.as_str()).unwrap_or("N/D").to_string();
+                            let comp_s = hltb.get("completionist").and_then(|x| x.as_str()).unwrap_or("N/D").to_string();
+                            return (main_s, extra_s, comp_s);
+                        }
+                    }
+                }
+            }
+        }
+        ExternalMetadataProvider::fallback_hltb_times(title)
+    }
+
     /// Dynamically load and hot-register a native or manifest-based plugin from a library or directory
     pub async fn load_and_register_dynamic_plugin(&self, path: &Path) -> Result<ProviderInfo, String> {
         let library_path = if path.is_file() {
