@@ -79,6 +79,9 @@ export default function GameEditorModal({
     icon_image_path: "",
     play_actions: [],
     custom_links: [],
+    hltb_main: "",
+    hltb_extra: "",
+    hltb_completionist: "",
   });
 
   const [isSaving, setIsSaving] = useState(false);
@@ -92,6 +95,14 @@ export default function GameEditorModal({
     setSaveSuccess(false);
 
     const initFromGame = (g: any) => {
+      let parsedExtra: any = {};
+      try {
+        if (g.extra_metadata) {
+          parsedExtra = typeof g.extra_metadata === "string" ? JSON.parse(g.extra_metadata) : g.extra_metadata;
+        }
+      } catch {}
+      const hltb = parsedExtra?.howlongtobeat || {};
+
       setFormData({
         title: g.title || "",
         sorting_title: g.sorting_title || g.title?.toLowerCase() || "",
@@ -113,6 +124,9 @@ export default function GameEditorModal({
         icon_image_path: g.icon_image_path || "",
         play_actions: Array.isArray(g.play_actions) ? g.play_actions : [],
         custom_links: Array.isArray(g.custom_links) ? g.custom_links : [],
+        hltb_main: hltb.main_story || "",
+        hltb_extra: hltb.main_extra || "",
+        hltb_completionist: hltb.completionist || "",
       });
     };
 
@@ -146,6 +160,28 @@ export default function GameEditorModal({
           .map((s) => s.trim())
           .filter((s) => s.length > 0);
 
+      let existingExtra: any = {};
+      try {
+        if (game.extra_metadata) {
+          existingExtra = typeof game.extra_metadata === "string" ? JSON.parse(game.extra_metadata) : game.extra_metadata;
+        }
+      } catch {}
+
+      const hasHltbData = formData.hltb_main?.trim() || formData.hltb_extra?.trim() || formData.hltb_completionist?.trim();
+      const updatedExtra = {
+        ...existingExtra,
+        ...(hasHltbData
+          ? {
+              howlongtobeat: {
+                main_story: formData.hltb_main?.trim() || "--",
+                main_extra: formData.hltb_extra?.trim() || "--",
+                completionist: formData.hltb_completionist?.trim() || "--",
+              },
+            }
+          : {}),
+      };
+      const extraMetadataStr = Object.keys(updatedExtra).length > 0 ? JSON.stringify(updatedExtra) : null;
+
       const gameUpdate = {
         id: game.id,
         title: formData.title.trim(),
@@ -168,6 +204,7 @@ export default function GameEditorModal({
         age_rating: formData.age_rating.trim() || null,
         completion_status: formData.completion_status || "NotPlayed",
         user_notes: formData.user_notes.trim() || null,
+        extra_metadata: extraMetadataStr,
         genres: parseCsv(formData.genresText),
         developers: parseCsv(formData.developersText),
         publishers: parseCsv(formData.publishersText),

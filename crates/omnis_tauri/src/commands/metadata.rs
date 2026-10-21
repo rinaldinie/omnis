@@ -35,6 +35,35 @@ pub async fn download_all_metadata(
 }
 
 #[tauri::command]
+pub async fn download_batch_metadata(
+    game_ids: Vec<String>,
+    app_handle: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<usize, String> {
+    let uuids: Vec<Uuid> = game_ids
+        .into_iter()
+        .filter_map(|s| Uuid::parse_str(&s).ok())
+        .collect();
+    let downloader = state.downloader.clone();
+    let db = state.db.clone();
+    let cache_dir = state.covers_dir.parent().unwrap_or(&state.covers_dir).to_path_buf();
+    let handle = app_handle.clone();
+    downloader
+        .download_for_games(db, uuids, &cache_dir, move |cur, tot, title| {
+            let _ = handle.emit(
+                "metadata-progress",
+                MetadataProgressPayload {
+                    current: cur,
+                    total: tot,
+                    title: title.to_string(),
+                },
+            );
+        })
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 pub async fn cancel_metadata_download(state: State<'_, AppState>) -> Result<bool, String> {
     state.downloader.cancel_download();
     Ok(true)

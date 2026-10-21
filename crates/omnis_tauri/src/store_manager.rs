@@ -596,10 +596,23 @@ impl StoreAccountManager {
         }
 
         // Ingest into SQLite database
-        let count = self
-            .db
-            .ingest_discovered_batch(&games)
-            .map_err(|e| e.to_string())?;
+        let count = match self.db.ingest_discovered_batch(&games) {
+            Ok(c) => c,
+            Err(e) => {
+                let err_msg = format!("Errore salvataggio giochi per {}: {}", plugin.name(), e);
+                let _ = app_handle.emit(
+                    "store-sync-progress",
+                    StoreSyncProgressPayload {
+                        store_id: store_id.to_string(),
+                        current: 0,
+                        total: 0,
+                        status: "error".to_string(),
+                        message: Some(err_msg.clone()),
+                    },
+                );
+                return Err(err_msg);
+            }
+        };
 
         // Update last sync time
         self.last_syncs
@@ -650,8 +663,10 @@ impl StoreAccountManager {
     pub async fn sync_all_connected(&self, app_handle: &AppHandle) -> Result<usize, String> {
         let accounts = self.get_store_accounts().await?;
         let mut total_synced = 0;
+        let mut connected_count = 0;
         for acc in accounts {
             if acc.is_connected {
+                connected_count += 1;
                 match self.sync_store(app_handle, &acc.store_id).await {
                     Ok(count) => total_synced += count,
                     Err(err) => {
@@ -659,6 +674,18 @@ impl StoreAccountManager {
                     }
                 }
             }
+        }
+        if connected_count == 0 {
+            let _ = app_handle.emit(
+                "store-sync-progress",
+                StoreSyncProgressPayload {
+                    store_id: "all".to_string(),
+                    current: 0,
+                    total: 0,
+                    status: "completed".to_string(),
+                    message: Some("Nessun account store collegato da sincronizzare.".to_string()),
+                },
+            );
         }
         Ok(total_synced)
     }
