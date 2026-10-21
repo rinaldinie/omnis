@@ -136,6 +136,7 @@ impl GogMetadataProvider {
                     developers,
                     publishers,
                     tags: Vec::new(),
+                    features: Vec::new(),
                     extra_metadata: None,
                 };
 
@@ -259,6 +260,7 @@ impl MetadataProvider for GogMetadataProvider {
                                     developers: Vec::new(),
                                     publishers: Vec::new(),
                                     tags: Vec::new(),
+                                    features: Vec::new(),
                                     extra_metadata: None,
                                 });
                             }
@@ -347,6 +349,7 @@ impl MetadataProvider for GogMetadataProvider {
             developers,
             publishers,
             tags: Vec::new(),
+            features: Vec::new(),
             extra_metadata: None,
         })
     }

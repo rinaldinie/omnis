@@ -789,6 +789,7 @@ impl MetadataDownloader {
                                         developers,
                                         publishers: Vec::new(),
                                         tags: Vec::new(),
+                                        features: Vec::new(),
                                         extra_metadata: None,
                                     };
 
@@ -1204,6 +1205,9 @@ impl MetadataDownloader {
             }
             if game.genres.is_empty() {
                 final_patch.genres = patch.genres.clone();
+            }
+            if game.features.is_empty() || !patch.features.is_empty() {
+                final_patch.features = patch.features.clone();
             }
             if game.developers.is_empty() {
                 final_patch.developers = patch.developers.clone();
@@ -1674,6 +1678,7 @@ impl MetadataDownloader {
             developers: vec!["Sviluppatore Ufficiale".to_string()],
             publishers: vec![library.to_uppercase()],
             tags: vec!["Preferito".to_string(), "PC".to_string()],
+            features: vec!["Single-player".to_string()],
             extra_metadata: None,
         }
     }

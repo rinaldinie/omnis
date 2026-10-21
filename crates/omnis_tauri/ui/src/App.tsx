@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
   Layers,
+  Filter,
   ZoomIn,
   ZoomOut,
   ChevronRight,
@@ -208,6 +209,24 @@ export default function App() {
 
   // WINDOW CONTROLS HOOK
   const { handleMinimize, handleToggleMaximize, handleClose } = useWindowControls();
+
+  // SMART FILTER BAR MENU
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const filterMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (filterMenuRef.current && !filterMenuRef.current.contains(e.target as Node)) {
+        setShowFilterMenu(false);
+      }
+    };
+    if (showFilterMenu) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showFilterMenu]);
 
   // TOGGLE BIG PICTURE FULLSCREEN
   const toggleBigPicture = async () => {
@@ -969,37 +988,163 @@ export default function App() {
                   borderColor: "var(--border-color)",
                 }}
               >
-                {/* Left: GroupBy Selector & Counter */}
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <Layers className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                    <span className="text-[11px] font-bold" style={{ color: "var(--text-muted)" }}>
-                      {t("views.group_by")}
-                    </span>
-                    <select
-                      value={groupBy}
-                      onChange={(e) => setGroupBy(e.target.value as GroupBy)}
-                      className="h-7 px-2.5 rounded-lg text-xs font-semibold border focus:outline-none cursor-pointer transition-colors"
-                      style={{
-                        backgroundColor: "var(--bg-card)",
-                        borderColor: "var(--border-color)",
-                        color: "var(--text-primary)",
-                      }}
-                    >
-                      <option value="none">{t("groups.none")}</option>
-                      <option value="library">{t("groups.library")}</option>
-                      <option value="is_installed">{t("groups.is_installed")}</option>
-                      <option value="genre">{t("groups.genre")}</option>
-                      <option value="developer">{t("groups.developer")}</option>
-                      <option value="release_year">{t("groups.release_year")}</option>
-                      <option value="completion_status">{t("groups.completion_status")}</option>
-                    </select>
+                {/* Left: Smart Filter Pills & Filter Dropdown */}
+                <div className="flex items-center gap-2.5 overflow-x-auto no-scrollbar py-1">
+                  {/* Quick Filter Pills */}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {[
+                      { id: "all", label: t("common.all") || "Tutti" },
+                      { id: "installed", label: t("sidebar.installed") || "Installati" },
+                      { id: "completion:Playing", label: "In corso" },
+                      { id: "completion:Completed", label: "Completati" },
+                      { id: "favorites", label: t("sidebar.favorites") || "Preferiti" },
+                    ].map((f) => {
+                      const isActive = activeFilter === f.id;
+                      return (
+                        <button
+                          key={f.id}
+                          onClick={() => setActiveFilter(f.id)}
+                          className={`h-7 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 select-none ${
+                            isActive
+                              ? "bg-indigo-600 text-white shadow-xs shadow-indigo-500/25 border border-indigo-500"
+                              : "bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white border border-white/[0.08]"
+                          }`}
+                        >
+                          <span>{f.label}</span>
+                        </button>
+                      );
+                    })}
                   </div>
 
-                  <div className="h-4 w-[1px]" style={{ backgroundColor: "var(--border-color)" }} />
+                  {/* Filter Dropdown Popover */}
+                  <div className="relative shrink-0" ref={filterMenuRef}>
+                    <button
+                      onClick={() => setShowFilterMenu((v) => !v)}
+                      className={`h-7 px-2.5 rounded-lg text-xs font-semibold border flex items-center gap-1.5 transition-all cursor-pointer select-none ${
+                        activeFilter !== "all" && !["installed", "recent", "favorites"].includes(activeFilter)
+                          ? "bg-indigo-600/30 border-indigo-500 text-indigo-200"
+                          : "bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white border-white/[0.08]"
+                      }`}
+                      title="Apri filtri avanzati"
+                    >
+                      <Filter className="w-3 h-3 text-indigo-400" />
+                      <span>{t("common.filter")}</span>
+                      <ChevronDown className="w-3 h-3 text-slate-400" />
+                    </button>
 
-                  <span className="text-[11px] font-semibold" style={{ color: "var(--text-muted)" }}>
-                    {t("topbar.filtered_count", { count: filteredGames.length })}
+                    {showFilterMenu && (
+                      <div
+                        className="absolute left-0 top-full mt-1.5 w-64 rounded-xl border p-3 shadow-2xl z-50 space-y-3"
+                        style={{
+                          backgroundColor: "var(--bg-surface)",
+                          borderColor: "var(--border-color)",
+                        }}
+                      >
+                        {/* Store / Platform */}
+                        <div className="space-y-1.5">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                            {t("sidebar.stores")}
+                          </span>
+                          <div className="grid grid-cols-2 gap-1 text-xs">
+                            {[
+                              { id: "steam", label: "Steam" },
+                              { id: "gog", label: "GOG" },
+                              { id: "epic", label: "Epic Games" },
+                              { id: "xbox", label: "Xbox" },
+                            ].map((store) => (
+                              <button
+                                key={store.id}
+                                onClick={() => {
+                                  setActiveFilter(activeFilter === store.id ? "all" : store.id);
+                                  setShowFilterMenu(false);
+                                }}
+                                className={`px-2 py-1 rounded-md text-left font-medium transition-colors ${
+                                  activeFilter === store.id
+                                    ? "bg-indigo-600 text-white"
+                                    : "bg-white/[0.03] hover:bg-white/[0.08] text-slate-300"
+                                }`}
+                              >
+                                {store.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Completion Status */}
+                        <div className="space-y-1.5 pt-1 border-t border-white/[0.06]">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                            {t("groups.completion_status")}
+                          </span>
+                          <div className="grid grid-cols-2 gap-1 text-xs">
+                            {[
+                              { id: "completion:Playing", label: "In corso" },
+                              { id: "completion:Completed", label: "Completati 100%" },
+                              { id: "completion:Beaten", label: "Finiti" },
+                              { id: "completion:PlanToPlay", label: "Da iniziare" },
+                              { id: "completion:Backlog", label: "Backlog" },
+                              { id: "completion:Abandoned", label: "Abbandonati" },
+                            ].map((st) => (
+                              <button
+                                key={st.id}
+                                onClick={() => {
+                                  setActiveFilter(activeFilter === st.id ? "all" : st.id);
+                                  setShowFilterMenu(false);
+                                }}
+                                className={`px-2 py-1 rounded-md text-left font-medium transition-colors truncate ${
+                                  activeFilter === st.id
+                                    ? "bg-indigo-600 text-white"
+                                    : "bg-white/[0.03] hover:bg-white/[0.08] text-slate-300"
+                                }`}
+                              >
+                                {st.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Reset Filter Button */}
+                        {activeFilter !== "all" && (
+                          <div className="pt-2 border-t border-white/[0.06]">
+                            <button
+                              onClick={() => {
+                                setActiveFilter("all");
+                                setShowFilterMenu(false);
+                              }}
+                              className="w-full py-1.5 rounded-lg text-xs font-bold text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition-colors cursor-pointer"
+                            >
+                              Azzera tutti i filtri
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Active custom filter chip (e.g. genre or completion status) */}
+                  {activeFilter !== "all" && !["installed", "recent", "favorites"].includes(activeFilter) && (
+                    <div className="h-7 px-2.5 rounded-lg bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-xs font-semibold flex items-center gap-1.5 shrink-0">
+                      <span>
+                        {activeFilter.startsWith("genre:")
+                          ? `Genere: ${activeFilter.slice(6)}`
+                          : activeFilter.startsWith("completion:")
+                          ? `Stato: ${activeFilter.slice(11)}`
+                          : activeFilter.toUpperCase()}
+                      </span>
+                      <button
+                        onClick={() => setActiveFilter("all")}
+                        className="hover:text-white transition-colors p-0.5 rounded cursor-pointer"
+                        title="Rimuovi filtro"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="h-4 w-[1px] shrink-0" style={{ backgroundColor: "var(--border-color)" }} />
+
+                  {/* Filtered Counter */}
+                  <span className="text-[11px] font-semibold shrink-0" style={{ color: "var(--text-muted)" }}>
+                    {filteredGames.length} {filteredGames.length === 1 ? "gioco" : "giochi"}
                   </span>
                 </div>
 

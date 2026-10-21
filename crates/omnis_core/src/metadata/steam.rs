@@ -235,6 +235,18 @@ impl MetadataProvider for SteamMetadataProvider {
             }
         }
 
+        let mut features = Vec::new();
+        if let Some(cat_arr) = data.get("categories").and_then(|v| v.as_array()) {
+            for c in cat_arr {
+                if let Some(desc) = c.get("description").and_then(|v| v.as_str()) {
+                    let trimmed = desc.trim();
+                    if !trimmed.is_empty() {
+                        features.push(trimmed.to_string());
+                    }
+                }
+            }
+        }
+
         let header_img = data
             .get("header_image")
             .and_then(|v| v.as_str())
@@ -269,6 +281,7 @@ impl MetadataProvider for SteamMetadataProvider {
             developers,
             publishers,
             tags: Vec::new(),
+            features,
             extra_metadata: None,
         })
     }
