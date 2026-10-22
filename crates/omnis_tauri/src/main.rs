@@ -159,6 +159,7 @@ fn main() {
             get_running_game,
             kill_running_game,
             open_folder,
+            open_external_url,
             open_game_install_dir,
             uninstall_game,
             create_desktop_shortcut,

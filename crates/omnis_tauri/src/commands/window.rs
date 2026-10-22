@@ -158,3 +158,53 @@ pub async fn pick_image_file() -> Result<Option<String>, String> {
     .await
     .map_err(|e| e.to_string())?
 }
+
+pub fn validate_external_url(url: &str) -> Result<&str, String> {
+    let trimmed = url.trim();
+    if !trimmed.starts_with("http://") && !trimmed.starts_with("https://") {
+        return Err("Solo protocolli HTTP e HTTPS sono supportati".to_string());
+    }
+    Ok(trimmed)
+}
+
+pub fn open_external_url_in_os(url: &str) -> Result<(), String> {
+    let trimmed = validate_external_url(url)?;
+
+    if cfg!(windows) {
+        std::process::Command::new("cmd.exe")
+            .args(["/c", "start", "", trimmed])
+            .spawn()
+            .map_err(|e| format!("Impossibile aprire l'URL: {}", e))?;
+    } else if cfg!(target_os = "macos") {
+        std::process::Command::new("open")
+            .arg(trimmed)
+            .spawn()
+            .map_err(|e| format!("Impossibile aprire l'URL: {}", e))?;
+    } else {
+        std::process::Command::new("xdg-open")
+            .arg(trimmed)
+            .spawn()
+            .map_err(|e| format!("Impossibile aprire l'URL: {}", e))?;
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn open_external_url(url: String) -> Result<(), String> {
+    open_external_url_in_os(&url)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_validate_external_url() {
+        assert!(validate_external_url("https://steamcommunity.com/my").is_ok());
+        assert!(validate_external_url("http://example.com").is_ok());
+        assert!(validate_external_url("file:///etc/passwd").is_err());
+        assert!(validate_external_url("javascript:alert(1)").is_err());
+        assert!(validate_external_url("").is_err());
+    }
+}

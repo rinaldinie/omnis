@@ -22,6 +22,7 @@ import VirtualKeyboard from "./components/VirtualKeyboard";
 import { SettingsModal, SettingsTab } from "./components/SettingsModal";
 import { useTranslation } from "./i18n";
 import soundEffects from "./utils/soundEffects";
+import { openExternalUrl } from "./utils/openUrl";
 import {
   SteamIcon,
   EpicIcon,
@@ -172,6 +173,24 @@ export default function App() {
     window.addEventListener("omnis:open-settings", handleOpenSettingsEvent);
     return () => {
       window.removeEventListener("omnis:open-settings", handleOpenSettingsEvent);
+    };
+  }, []);
+
+  // Global handler for external web links to open in the OS browser
+  useEffect(() => {
+    const handleGlobalClick = (e: MouseEvent) => {
+      const target = (e.target as HTMLElement)?.closest?.("a");
+      if (!target) return;
+      const href = target.getAttribute("href");
+      if (href && (href.startsWith("http://") || href.startsWith("https://"))) {
+        e.preventDefault();
+        e.stopPropagation();
+        openExternalUrl(href);
+      }
+    };
+    window.addEventListener("click", handleGlobalClick, true);
+    return () => {
+      window.removeEventListener("click", handleGlobalClick, true);
     };
   }, []);
 
