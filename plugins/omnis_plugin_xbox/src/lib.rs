@@ -1,7 +1,9 @@
 //! Xbox Live & PC Game Pass cloud store integration plugin for Omnis Game Library
 
+pub mod achievements;
 pub mod client;
 
+pub use achievements::*;
 use async_trait::async_trait;
 use omnis_sdk::{CloudStorePlugin, DiscoveredGame, LibraryPlugin, PluginError, StoreAccountSession};
 

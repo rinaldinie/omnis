@@ -193,6 +193,8 @@ fn main() {
             get_game_trailer_url,
             get_vault_status,
             get_slot_widgets,
+            get_game_achievements,
+            refresh_game_achievements,
         ])
         .run(tauri::generate_context!())
         .expect("Errore durante l'esecuzione dell'applicazione Tauri");

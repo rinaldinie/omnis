@@ -22,6 +22,7 @@ import { StoreBadge, StoreIcon } from "../StoreBadge";
 import soundEffects from "../../utils/soundEffects";
 import { VideoBackdrop } from "../common/VideoBackdrop";
 import { Slot } from "../common/Slot";
+import { GameAchievementsGallery } from "../achievements";
 
 interface BigPictureViewProps {
   focusedGame: GameDto | null;
@@ -709,7 +710,7 @@ export default function BigPictureView({
       {showFullscreenDetails && focusedGame && (
         <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-2xl flex items-center justify-center p-12">
           <div
-            className="relative max-w-4xl w-full rounded-3xl border p-8 space-y-6 shadow-2xl"
+            className="relative max-w-4xl w-full max-h-[88vh] overflow-y-auto rounded-3xl border p-8 space-y-6 shadow-2xl"
             style={{
               backgroundColor: "var(--bg-surface)",
               borderColor: "var(--border-color)",
@@ -825,6 +826,9 @@ export default function BigPictureView({
                 </p>
               </div>
             </div>
+
+            {/* Achievements Gallery in Big Picture Mode */}
+            <GameAchievementsGallery game={focusedGame} isBigPicture={true} />
 
             <div
               className="flex justify-end gap-4 pt-4 border-t"

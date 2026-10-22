@@ -208,6 +208,7 @@ export const de: TranslationSchema = {
     version_info: 'Omnis Game Library Version',
     tab_general: 'Allgemein',
     tab_accounts: 'Cloud-Konten',
+    tab_achievements: 'Erfolge (SuccessStory)',
     tray_section: 'Infobereich & Fenster',
     minimize_to_tray: 'Beim Schließen in den Infobereich minimieren',
     minimize_to_tray_desc: 'Wenn aktiviert, wird Omnis beim Klick auf das X-Symbol in den Infobereich neben der Uhr minimiert.',

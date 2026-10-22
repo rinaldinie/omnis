@@ -85,6 +85,27 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
             updated_at INTEGER NOT NULL
         );
         CREATE INDEX IF NOT EXISTS idx_secrets_updated_at ON secrets (updated_at);
+
+        CREATE TABLE IF NOT EXISTS game_achievements (
+            id TEXT PRIMARY KEY NOT NULL,
+            game_id TEXT NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+            api_name TEXT NOT NULL,
+            display_name TEXT NOT NULL COLLATE NOCASE,
+            description TEXT,
+            icon_unlocked_url TEXT NOT NULL,
+            icon_locked_url TEXT,
+            local_icon_path TEXT,
+            is_unlocked INTEGER NOT NULL DEFAULT 0,
+            unlock_time TEXT,
+            rarity_percentage REAL,
+            points INTEGER,
+            is_hidden INTEGER NOT NULL DEFAULT 0,
+            updated_timestamp TEXT NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_game_achievements_game ON game_achievements(game_id);
+        CREATE INDEX IF NOT EXISTS idx_game_achievements_unlocked ON game_achievements(game_id, is_unlocked);
+        CREATE INDEX IF NOT EXISTS idx_game_achievements_rarity ON game_achievements(game_id, rarity_percentage);
         ",
     )?;
 

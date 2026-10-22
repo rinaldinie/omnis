@@ -1,3 +1,4 @@
+pub mod achievements;
 pub mod events;
 pub mod ffi;
 pub mod models;
@@ -6,6 +7,7 @@ pub mod settings_schema;
 pub mod widget;
 
 pub use async_trait::async_trait;
+pub use uuid::Uuid;
 pub use events::*;
 pub use ffi::*;
 pub use models::*;

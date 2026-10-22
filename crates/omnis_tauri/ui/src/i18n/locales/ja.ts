@@ -208,6 +208,7 @@ export const ja: TranslationSchema = {
     version_info: 'Omnis Game Library バージョン',
     tab_general: '一般',
     tab_accounts: 'クラウド連携',
+    tab_achievements: '実績 (SuccessStory)',
     tray_section: 'システムトレイとウィンドウ',
     minimize_to_tray: '閉じる時にシステムトレイへ最小化',
     minimize_to_tray_desc: '有効にすると、Xボタンで閉じた時に時計の横のシステムトレイへ最小化されます。',

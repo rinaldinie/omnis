@@ -29,6 +29,7 @@ import { StoreBadge } from "../StoreBadge";
 import { VideoBackdrop } from "../common/VideoBackdrop";
 import { Slot } from "../common/Slot";
 import { GameCardCover } from "../common/GameCardCover";
+import { GameAchievementsGallery } from "../achievements";
 
 function ListThumbCover({ thumb, title }: { thumb?: string | null; title: string }) {
   const [hasError, setHasError] = React.useState(false);
@@ -406,7 +407,7 @@ export default function DetailsSplitView({
       <div className="flex-1 flex flex-col overflow-y-auto">
         {/* Top Bar with Back Button & Breadcrumbs */}
         <div
-          className="px-8 py-3 border-b border-white/[0.06] flex items-center justify-between shrink-0 z-20 backdrop-blur-md"
+          className="px-6 md:px-8 py-2.5 border-b border-white/[0.06] flex items-center justify-between shrink-0 z-20 backdrop-blur-md"
           style={{
             backgroundColor: "var(--bg-surface)",
           }}
@@ -432,7 +433,7 @@ export default function DetailsSplitView({
         </div>
 
         {/* Hero Background Full-Width with Ambient Gradient / Video Trailer */}
-        <section data-omnis="details.hero" className="relative h-88 min-h-[340px] w-full overflow-hidden flex items-end p-8">
+        <section data-omnis="details.hero" className="relative min-h-[360px] h-auto w-full overflow-hidden flex items-end p-6 md:p-8 shrink-0">
           {currentTheme ? (
             <VideoBackdrop
               game={selectedGame}
@@ -473,9 +474,9 @@ export default function DetailsSplitView({
             </>
           )}
 
-          <div className="relative z-10 flex items-end gap-6 w-full">
+          <div className="relative z-10 flex items-end gap-5 md:gap-6 w-full pt-4">
             {/* 3D Boxart Cover with Border & Shadow */}
-            <div className="w-40 aspect-[2/3] rounded-2xl overflow-hidden shadow-2xl border-2 border-white/20 flex-shrink-0 bg-black/60 [transform:translateZ(0)]">
+            <div className="w-32 sm:w-36 md:w-40 aspect-[2/3] rounded-2xl overflow-hidden shadow-2xl border-2 border-white/20 flex-shrink-0 bg-black/60 [transform:translateZ(0)]">
               <GameCardCover
                 coverImage={selectedGame.cover_image}
                 backgroundImage={selectedGame.background_image}
@@ -487,7 +488,7 @@ export default function DetailsSplitView({
 
             {/* Title, Badges & Hero Actions */}
             <div className="space-y-3.5 flex-1 min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                 <StoreBadge library={selectedGame.library} showName={true} className="py-1 px-3 text-xs" />
                 {isSelectedGameRunning && (
                   <span className={`px-3 py-1 rounded-full text-xs font-black border shadow-lg flex items-center gap-1.5 ${
@@ -558,7 +559,7 @@ export default function DetailsSplitView({
                 )}
               </div>
 
-              <h1 data-omnis="details.title" className="text-3xl md:text-4xl font-black text-white tracking-tight drop-shadow-md">
+              <h1 data-omnis="details.title" className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tight drop-shadow-md leading-tight">
                 {selectedGame.title}
               </h1>
 
@@ -588,7 +589,7 @@ export default function DetailsSplitView({
               )}
 
               {/* Action Buttons Bar */}
-              <div data-omnis="details.actions" className="flex flex-wrap items-center gap-3 pt-2">
+              <div data-omnis="details.actions" className="flex flex-wrap items-center gap-2 sm:gap-2.5 pt-2">
                 {isSelectedGameRunning ? (
                   <>
                     <button
@@ -962,6 +963,9 @@ export default function DetailsSplitView({
               </div>
             </div>
           </div>
+
+          {/* Native Achievements Showcase */}
+          <GameAchievementsGallery game={selectedGame} />
 
           {/* Card 3: Key Features (Playnite Parity) */}
           <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/[0.06] space-y-3">

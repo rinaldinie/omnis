@@ -1,3 +1,4 @@
+pub mod achievements;
 pub mod games;
 pub mod marketplace;
 pub mod metadata;
@@ -7,6 +8,7 @@ pub mod themes;
 pub mod trailers;
 pub mod window;
 
+pub use achievements::*;
 pub use games::*;
 pub use marketplace::*;
 pub use metadata::*;

@@ -1,6 +1,8 @@
+pub mod achievements;
 pub mod client;
 pub mod vdf_parser;
 
+pub use achievements::*;
 pub use client::*;
 
 use async_trait::async_trait;
