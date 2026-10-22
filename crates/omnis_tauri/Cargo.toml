@@ -10,7 +10,7 @@ name = "omnis"
 path = "src/main.rs"
 
 [dependencies]
-tauri = { version = "2.1", features = ["protocol-asset"] }
+tauri = { version = "2.1", features = ["protocol-asset", "tray-icon"] }
 omnis_core = { path = "../omnis_core" }
 omnis_sdk = { path = "../omnis_sdk" }
 omnis_plugin_steam = { path = "../../plugins/omnis_plugin_steam" }

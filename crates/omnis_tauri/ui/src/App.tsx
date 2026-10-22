@@ -58,6 +58,7 @@ import ThemeModal from "./components/modals/ThemeModal";
 import PluginManagerModal from "./components/modals/PluginManagerModal";
 import CustomGameModal from "./components/modals/CustomGameModal";
 import BatchEnrichModal from "./components/modals/BatchEnrichModal";
+import { UninstallModal } from "./components/modals/UninstallModal";
 import GlobalContextMenu from "./components/GlobalContextMenu";
 
 export interface SessionToastInfo {
@@ -581,6 +582,13 @@ export default function App() {
     let unlistenGameStatus: (() => void) | null = null;
     let unlistenGameStopped: (() => void) | null = null;
     let unlistenMetaProgress: (() => void) | null = null;
+    let unlistenTrayLaunch: (() => void) | null = null;
+    let unlistenTraySettings: (() => void) | null = null;
+
+    // Sync minimize to tray setting to backend
+    const savedTray = localStorage.getItem("omnis_minimize_to_tray");
+    const enabledTray = savedTray !== null ? JSON.parse(savedTray) : true;
+    invokeTauri("set_minimize_to_tray", { enabled: enabledTray }).catch(console.warn);
 
     (async () => {
       try {
@@ -759,6 +767,18 @@ export default function App() {
           setStatusMessage(`Arricchimento metadati (${current}/${total}): ${title}`);
         });
         if (!isMounted) { hMetaProgress(); } else { unlistenMetaProgress = hMetaProgress; }
+
+        const hTrayLaunch = await listen<string>("tray-launch-game", (event) => {
+          if (event.payload) {
+            handleLaunch(event.payload);
+          }
+        });
+        if (!isMounted) { hTrayLaunch(); } else { unlistenTrayLaunch = hTrayLaunch; }
+
+        const hTraySettings = await listen("tray-open-settings", () => {
+          handleOpenSettings("general");
+        });
+        if (!isMounted) { hTraySettings(); } else { unlistenTraySettings = hTraySettings; }
       } catch (e) {
         console.warn("Failed to register store sync listener in App:", e);
       }
@@ -778,6 +798,8 @@ export default function App() {
       if (unlistenGameStatus) unlistenGameStatus();
       if (unlistenGameStopped) unlistenGameStopped();
       if (unlistenMetaProgress) unlistenMetaProgress();
+      if (unlistenTrayLaunch) unlistenTrayLaunch();
+      if (unlistenTraySettings) unlistenTraySettings();
     };
   }, []);
 
@@ -871,6 +893,70 @@ export default function App() {
 
   const handleOpenFolder = (folderType: string) => {
     invokeTauri("open_folder", { folderType });
+  };
+
+  // GAME MANAGEMENT
+  const [gameToUninstall, setGameToUninstall] = useState<GameDto | null>(null);
+  const [showUninstallModal, setShowUninstallModal] = useState<boolean>(false);
+
+  const handleOpenInstallDir = async (gameId: string) => {
+    try {
+      await invokeTauri("open_game_install_dir", { gameId });
+      setStatusMessage("Apertura cartella di installazione in corso...");
+    } catch (err: any) {
+      setStatusMessage(`Errore apertura cartella: ${err?.message || err}`);
+    }
+  };
+
+  const handleCreateShortcut = async (gameId: string) => {
+    try {
+      const path = await invokeTauri<string>("create_desktop_shortcut", { gameId });
+      setStatusMessage(`Collegamento desktop creato: ${path}`);
+    } catch (err: any) {
+      setStatusMessage(`Errore creazione collegamento: ${err?.message || err}`);
+    }
+  };
+
+  const handleVerifyFiles = async (gameId: string) => {
+    try {
+      await invokeTauri("verify_game_files", { gameId });
+      setStatusMessage("Avvio verifica integrità file nel client nativo...");
+    } catch (err: any) {
+      setStatusMessage(`Errore verifica file: ${err?.message || err}`);
+    }
+  };
+
+  const handleOpenUninstallModal = (game: GameDto) => {
+    setGameToUninstall(game);
+    setShowUninstallModal(true);
+  };
+
+  const handleConfirmUninstall = async (gameId: string) => {
+    try {
+      await invokeTauri("uninstall_game", { gameId });
+      setStatusMessage("Procedura di disinstallazione avviata nel client nativo.");
+      await refreshLibrary();
+    } catch (err: any) {
+      setStatusMessage(`Errore disinstallazione: ${err?.message || err}`);
+    }
+  };
+
+  const handleRemoveFromLibrary = async (gameId: string) => {
+    const g = games.find((x) => x.id === gameId);
+    const title = g?.title || "questo gioco";
+    if (!window.confirm(`Sei sicuro di voler rimuovere "${title}" dalla libreria Omnis?`)) {
+      return;
+    }
+    try {
+      await invokeTauri("remove_game_from_library", { gameId });
+      setStatusMessage(`"${title}" rimosso dalla libreria`);
+      await refreshLibrary();
+      if (selectedGame?.id === gameId) {
+        setSelectedGame(null);
+      }
+    } catch (err: any) {
+      setStatusMessage(`Errore rimozione gioco: ${err?.message || err}`);
+    }
   };
 
   return (
@@ -1283,6 +1369,11 @@ export default function App() {
                     activeFilter={activeFilter}
                     setActiveFilter={setActiveFilter}
                     isFilterActive={isFilterActive}
+                    handleOpenInstallDir={handleOpenInstallDir}
+                    handleCreateShortcut={handleCreateShortcut}
+                    handleVerifyFiles={handleVerifyFiles}
+                    handleOpenUninstallModal={handleOpenUninstallModal}
+                    handleRemoveFromLibrary={handleRemoveFromLibrary}
                   />
                 ) : (
                   <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
@@ -1515,6 +1606,11 @@ export default function App() {
           setSelectedGame(game);
           setViewMode("details");
         }}
+        onOpenFolder={(game) => handleOpenInstallDir(game.id)}
+        onCreateShortcut={(game) => handleCreateShortcut(game.id)}
+        onVerifyFiles={(game) => handleVerifyFiles(game.id)}
+        onUninstall={handleOpenUninstallModal}
+        onRemoveFromLibrary={(game) => handleRemoveFromLibrary(game.id)}
       />
 
       {/* METADATA EDITOR MODAL */}
@@ -1595,6 +1691,17 @@ export default function App() {
           setShowAddCustomModal(false);
           setStatusMessage(`Gioco personalizzato '${title}' aggiunto con successo!`);
         }}
+      />
+
+      {/* UNINSTALL CONFIRMATION MODAL */}
+      <UninstallModal
+        isOpen={showUninstallModal}
+        game={gameToUninstall}
+        onClose={() => {
+          setShowUninstallModal(false);
+          setGameToUninstall(null);
+        }}
+        onConfirmUninstall={handleConfirmUninstall}
       />
 
       {/* SETTINGS & OPTIONS MODAL */}

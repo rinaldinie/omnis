@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation, SUPPORTED_LOCALES, LocaleCode } from '../i18n';
-import { Settings, Globe, Volume2, VolumeX, Check, Info, Palette, Sliders, Cloud } from 'lucide-react';
+import { Settings, Globe, Volume2, VolumeX, Check, Info, Palette, Sliders, Cloud, Minimize2 } from 'lucide-react';
 import { soundEffects } from '../utils/soundEffects';
 import { StoreAccountsTab } from './StoreAccountsTab';
 
@@ -29,6 +29,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 }) => {
   const { locale, setLocale, t } = useTranslation();
   const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
+  const [minimizeToTray, setMinimizeToTray] = useState<boolean>(() => {
+    const saved = localStorage.getItem('omnis_minimize_to_tray');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+
+  const handleToggleMinimizeToTray = async () => {
+    soundEffects.playSelect();
+    const next = !minimizeToTray;
+    setMinimizeToTray(next);
+    localStorage.setItem('omnis_minimize_to_tray', JSON.stringify(next));
+    try {
+      if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__) {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('set_minimize_to_tray', { enabled: next });
+      }
+    } catch (e) {
+      console.warn('Failed to update minimize_to_tray:', e);
+    }
+  };
 
   React.useEffect(() => {
     if (isOpen) {
@@ -256,6 +275,32 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   }}
                 >
                   {t('topbar.themes')}
+                </button>
+              </div>
+            </div>
+
+            {/* SECTION 4: SYSTEM TRAY & WINDOW */}
+            <div className="space-y-3 pt-4 border-t" style={{ borderColor: 'var(--border-color)' }}>
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-sm font-bold text-white">
+                    <Minimize2 className="w-4 h-4 text-cyan-400" />
+                    <span>{t('settings_modal.tray_section')}</span>
+                  </div>
+                  <p className="text-xs max-w-sm" style={{ color: 'var(--text-muted)' }}>
+                    {t('settings_modal.minimize_to_tray_desc')}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleToggleMinimizeToTray}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${
+                    minimizeToTray
+                      ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 hover:bg-cyan-500/30'
+                      : 'bg-white/5 text-slate-400 border-white/10 hover:bg-white/10'
+                  }`}
+                >
+                  {minimizeToTray ? t('common.enabled') : t('common.disabled')}
                 </button>
               </div>
             </div>

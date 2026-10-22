@@ -1,4 +1,5 @@
 import React from "react";
+import { createPortal } from "react-dom";
 import {
   Search,
   X,
@@ -15,6 +16,13 @@ import {
   Square,
   Clock,
   RefreshCw,
+  Settings2,
+  ChevronDown,
+  FolderOpen,
+  Monitor,
+  ShieldCheck,
+  Trash2,
+  XCircle,
 } from "lucide-react";
 import { ActiveGameSession, GameDto, ThemeConfig, ViewMode, formatImageUrl } from "../../types";
 import { StoreBadge } from "../StoreBadge";
@@ -82,6 +90,11 @@ interface DetailsSplitViewProps {
   activeFilter?: string;
   setActiveFilter?: (filter: string) => void;
   isFilterActive?: (filterId: string) => boolean;
+  handleOpenInstallDir?: (gameId: string) => void;
+  handleCreateShortcut?: (gameId: string) => void;
+  handleVerifyFiles?: (gameId: string) => void;
+  handleOpenUninstallModal?: (game: GameDto) => void;
+  handleRemoveFromLibrary?: (gameId: string) => void;
 }
 
 export default function DetailsSplitView({
@@ -112,8 +125,46 @@ export default function DetailsSplitView({
   activeFilter,
   setActiveFilter,
   isFilterActive,
+  handleOpenInstallDir,
+  handleCreateShortcut,
+  handleVerifyFiles,
+  handleOpenUninstallModal,
+  handleRemoveFromLibrary,
 }: DetailsSplitViewProps) {
   const isSelectedGameRunning = activeGame?.game_id === selectedGame.id;
+  const manageButtonRef = React.useRef<HTMLButtonElement>(null);
+  const [showManageMenu, setShowManageMenu] = React.useState(false);
+  const [menuPosition, setMenuPosition] = React.useState<{ top: number; left: number }>({ top: 0, left: 0 });
+
+  const toggleManageMenu = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!showManageMenu && manageButtonRef.current) {
+      const rect = manageButtonRef.current.getBoundingClientRect();
+      const menuHeight = 260;
+      const fitsBelow = rect.bottom + menuHeight <= window.innerHeight;
+      const top = fitsBelow ? rect.bottom + 6 : Math.max(10, rect.top - menuHeight - 6);
+      const left = Math.min(rect.left, window.innerWidth - 270);
+      setMenuPosition({ top, left });
+      setShowManageMenu(true);
+    } else {
+      setShowManageMenu(false);
+    }
+  };
+
+  React.useEffect(() => {
+    setShowManageMenu(false);
+  }, [selectedGame.id]);
+
+  React.useEffect(() => {
+    if (!showManageMenu) return;
+    const handleClose = () => setShowManageMenu(false);
+    window.addEventListener("scroll", handleClose, true);
+    window.addEventListener("resize", handleClose);
+    return () => {
+      window.removeEventListener("scroll", handleClose, true);
+      window.removeEventListener("resize", handleClose);
+    };
+  }, [showManageMenu]);
 
   const handleFilterByGenre = (genre: string) => {
     if (!setActiveFilter) return;
@@ -621,6 +672,116 @@ export default function DetailsSplitView({
                   <Search className="w-3.5 h-3.5 text-sky-400" />
                   <span>{t("game_details.identify_metadata")}</span>
                 </button>
+
+                {/* Manage Menu Button */}
+                <button
+                  ref={manageButtonRef}
+                  type="button"
+                  onClick={toggleManageMenu}
+                  className="flex items-center gap-2 px-4 py-3 rounded-xl border border-white/[0.08] bg-white/[0.04] text-xs font-bold text-white transition-all backdrop-blur-md hover:bg-white/[0.08] hover:border-slate-400 active:opacity-90 cursor-pointer"
+                  title={t("game_details.manage")}
+                >
+                  <Settings2 className="w-4 h-4 text-slate-300" />
+                  <span>{t("game_details.manage")}</span>
+                  <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${showManageMenu ? "rotate-180" : ""}`} />
+                </button>
+
+                {/* Manage Menu Portal (renders into document.body to avoid parent overflow clipping) */}
+                {showManageMenu &&
+                  createPortal(
+                    <>
+                      <div
+                        className="fixed inset-0 z-[9998]"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowManageMenu(false);
+                        }}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          setShowManageMenu(false);
+                        }}
+                      />
+                      <div
+                        className="fixed z-[9999] w-64 rounded-2xl border shadow-2xl backdrop-blur-xl py-1.5 select-none text-xs animate-in fade-in zoom-in-95 duration-150"
+                        style={{
+                          top: `${menuPosition.top}px`,
+                          left: `${menuPosition.left}px`,
+                          backgroundColor: "var(--bg-surface)",
+                          borderColor: "var(--border-color)",
+                          boxShadow: "0 16px 40px rgba(0,0,0,0.85)",
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {selectedGame.is_installed && handleOpenInstallDir && (
+                          <button
+                            onClick={() => {
+                              setShowManageMenu(false);
+                              handleOpenInstallDir(selectedGame.id);
+                            }}
+                            className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-left font-medium text-slate-200 hover:text-white hover:bg-white/5 transition-colors"
+                          >
+                            <FolderOpen className="w-4 h-4 text-amber-400" />
+                            <span>{t("game_details.open_install_dir")}</span>
+                          </button>
+                        )}
+
+                        {handleCreateShortcut && (
+                          <button
+                            onClick={() => {
+                              setShowManageMenu(false);
+                              handleCreateShortcut(selectedGame.id);
+                            }}
+                            className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-left font-medium text-slate-200 hover:text-white hover:bg-white/5 transition-colors"
+                          >
+                            <Monitor className="w-4 h-4 text-cyan-400" />
+                            <span>{t("game_details.create_desktop_shortcut")}</span>
+                          </button>
+                        )}
+
+                        {["steam", "epic"].includes(selectedGame.library.toLowerCase()) && handleVerifyFiles && (
+                          <button
+                            onClick={() => {
+                              setShowManageMenu(false);
+                              handleVerifyFiles(selectedGame.id);
+                            }}
+                            className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-left font-medium text-slate-200 hover:text-white hover:bg-white/5 transition-colors"
+                          >
+                            <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                            <span>{t("game_details.verify_files")}</span>
+                          </button>
+                        )}
+
+                        <div className="my-1 border-t" style={{ borderColor: "var(--border-color)" }} />
+
+                        {selectedGame.is_installed && handleOpenUninstallModal && (
+                          <button
+                            onClick={() => {
+                              setShowManageMenu(false);
+                              handleOpenUninstallModal(selectedGame);
+                            }}
+                            className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-left font-bold text-rose-400 hover:bg-rose-500/10 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4 text-rose-400" />
+                            <span>{t("game_details.uninstall")}</span>
+                          </button>
+                        )}
+
+                        {handleRemoveFromLibrary && (
+                          <button
+                            onClick={() => {
+                              setShowManageMenu(false);
+                              handleRemoveFromLibrary(selectedGame.id);
+                            }}
+                            className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-left font-medium text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors"
+                          >
+                            <XCircle className="w-4 h-4 text-slate-500" />
+                            <span>{t("game_details.remove_from_library")}</span>
+                          </button>
+                        )}
+                      </div>
+                    </>,
+                    document.body
+                  )}
               </div>
 
               {/* Slot: Details Hero */}

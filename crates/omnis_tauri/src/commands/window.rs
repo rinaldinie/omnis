@@ -58,8 +58,18 @@ pub fn window_set_fullscreen(fullscreen: bool, window: Window) -> Result<(), Str
 }
 
 #[tauri::command]
-pub fn window_close(window: Window) -> Result<(), String> {
-    window.close().map_err(|e| e.to_string())
+pub fn set_minimize_to_tray(enabled: bool, state: State<'_, AppState>) -> Result<(), String> {
+    state.minimize_to_tray.store(enabled, std::sync::atomic::Ordering::SeqCst);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn window_close(window: Window, state: State<'_, AppState>) -> Result<(), String> {
+    if state.minimize_to_tray.load(std::sync::atomic::Ordering::SeqCst) {
+        window.hide().map_err(|e| e.to_string())
+    } else {
+        window.close().map_err(|e| e.to_string())
+    }
 }
 
 #[tauri::command]

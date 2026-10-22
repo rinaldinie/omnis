@@ -794,6 +794,43 @@ impl Database {
         Ok(deleted)
     }
 
+    /// Update the installation status of a game
+    pub fn set_game_installed(&self, game_id: Uuid, is_installed: bool) -> Result<Game> {
+        let conn = self.conn.lock().unwrap();
+        let now = Utc::now().to_rfc3339();
+        conn.execute(
+            "UPDATE games SET is_installed = ?2, modified_timestamp = ?3 WHERE id = ?1",
+            params![game_id.to_string(), if is_installed { 1 } else { 0 }, now],
+        )?;
+        drop(conn);
+        self.get_game_by_id(game_id)?
+            .ok_or(rusqlite::Error::QueryReturnedNoRows)
+    }
+
+    /// Delete a game from the database
+    pub fn delete_game(&self, game_id: Uuid) -> Result<bool> {
+        let conn = self.conn.lock().unwrap();
+        let affected = conn.execute("DELETE FROM games WHERE id = ?1", params![game_id.to_string()])?;
+        drop(conn);
+        Ok(affected > 0)
+    }
+
+    /// Retrieve recent games ordered by last_activity DESC (or playtime)
+    pub fn get_recent_games(&self, limit: usize) -> Result<Vec<Game>> {
+        let conn = self.conn.lock().unwrap();
+        let sql = format!(
+            "SELECT {} FROM games WHERE last_activity IS NOT NULL OR playtime_seconds > 0 ORDER BY COALESCE(last_activity, added_timestamp) DESC LIMIT ?1",
+            GAME_COLUMNS
+        );
+        let mut stmt = conn.prepare(&sql)?;
+        let rows = stmt.query_map(params![limit as i64], map_row_to_game)?;
+        let mut games = Vec::new();
+        for r in rows {
+            games.push(r?);
+        }
+        Ok(games)
+    }
+
     /// Seed iconic starter games if the library is empty
     pub fn seed_sample_games(&self) -> Result<usize> {
         let count = self.count_games()?;

@@ -129,6 +129,7 @@ pub struct AppState {
     pub store_account_manager: Arc<crate::store_manager::StoreAccountManager>,
     pub trailer_cache: Arc<tokio::sync::RwLock<HashMap<String, String>>>,
     pub active_game_manager: Arc<crate::active_game::ActiveGameManager>,
+    pub minimize_to_tray: Arc<std::sync::atomic::AtomicBool>,
 }
 
 pub fn game_to_dto(g: Game, _cache: &ImageCache) -> GameDto {
