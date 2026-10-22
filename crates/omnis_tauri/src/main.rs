@@ -4,10 +4,12 @@
 pub mod active_game;
 pub mod commands;
 pub mod store_manager;
+pub mod tray;
 pub mod types;
 
 pub use active_game::*;
 pub use commands::*;
+pub use tray::*;
 pub use types::*;
 
 use omnis_core::{Database, EventBus, MarketplaceManager, MetadataDownloader, PluginHost};
@@ -84,6 +86,7 @@ fn main() {
         store_account_manager,
         trailer_cache: Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
         active_game_manager: active_game_manager.clone(),
+        minimize_to_tray: Arc::new(std::sync::atomic::AtomicBool::new(true)),
     };
 
     // Check if an installed game is already running and re-attach session on startup (Requirement B2)
@@ -91,13 +94,45 @@ fn main() {
     let db_startup = db.clone();
 
     tauri::Builder::default()
-        .setup(move |_app| {
+        .setup(move |app| {
             let active_mgr = active_mgr_startup.clone();
             let db_ref = db_startup.clone();
             tauri::async_runtime::spawn(async move {
                 active_mgr.check_and_reattach(&db_ref).await;
             });
+
+            // Initialize System Tray
+            if let Err(e) = tray::setup_tray(&app.handle()) {
+                tracing::error!("Impossibile inizializzare il system tray: {}", e);
+            }
+
+            // Listen for library and game events to update tray menu
+            let app_handle = app.handle().clone();
+            use tauri::Listener;
+            let h1 = app_handle.clone();
+            app.listen("library-updated", move |_| {
+                tray::update_tray_menu(&h1);
+            });
+            let h2 = app_handle.clone();
+            app.listen("game-started", move |_| {
+                tray::update_tray_menu(&h2);
+            });
+            let h3 = app_handle.clone();
+            app.listen("game-stopped", move |_| {
+                tray::update_tray_menu(&h3);
+            });
+
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                use tauri::Manager;
+                let state = window.state::<AppState>();
+                if state.minimize_to_tray.load(std::sync::atomic::Ordering::SeqCst) {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
+            }
         })
         .manage(state)
         .invoke_handler(tauri::generate_handler![
@@ -124,6 +159,12 @@ fn main() {
             get_running_game,
             kill_running_game,
             open_folder,
+            open_game_install_dir,
+            uninstall_game,
+            create_desktop_shortcut,
+            verify_game_files,
+            remove_game_from_library,
+            set_minimize_to_tray,
             window_start_dragging,
             window_minimize,
             window_unminimize,

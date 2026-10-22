@@ -1,5 +1,5 @@
 import React from "react";
-import { Play, Download, Pencil, Search, Info } from "lucide-react";
+import { Play, Download, Pencil, Search, Info, FolderOpen, Monitor, ShieldCheck, Trash2, XCircle } from "lucide-react";
 import { GameDto } from "../types";
 import { useTranslation } from "../i18n";
 
@@ -14,6 +14,11 @@ interface GlobalContextMenuProps {
   onEdit: (game: GameDto) => void;
   onResolve: (game: GameDto) => void;
   onShowDetails: (game: GameDto) => void;
+  onOpenFolder?: (game: GameDto) => void;
+  onCreateShortcut?: (game: GameDto) => void;
+  onVerifyFiles?: (game: GameDto) => void;
+  onUninstall?: (game: GameDto) => void;
+  onRemoveFromLibrary?: (game: GameDto) => void;
 }
 
 export default function GlobalContextMenu({
@@ -23,6 +28,11 @@ export default function GlobalContextMenu({
   onEdit,
   onResolve,
   onShowDetails,
+  onOpenFolder,
+  onCreateShortcut,
+  onVerifyFiles,
+  onUninstall,
+  onRemoveFromLibrary,
 }: GlobalContextMenuProps) {
   const { t } = useTranslation();
   if (!contextMenu) return null;
@@ -115,6 +125,74 @@ export default function GlobalContextMenu({
           <Info className="w-3.5 h-3.5 text-slate-400" />
           <span>{t("context_menu.view_details")}</span>
         </button>
+
+        <div className="my-1 border-t" style={{ borderColor: "var(--border-color)" }} />
+
+        {/* Management Actions */}
+        {contextMenu.game.is_installed && onOpenFolder && (
+          <button
+            onClick={() => {
+              onOpenFolder(contextMenu.game);
+              onClose();
+            }}
+            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-left font-medium text-slate-300 hover:text-white hover:bg-white/5 transition-colors"
+          >
+            <FolderOpen className="w-3.5 h-3.5 text-amber-400" />
+            <span>{t("context_menu.open_install_dir")}</span>
+          </button>
+        )}
+
+        {onCreateShortcut && (
+          <button
+            onClick={() => {
+              onCreateShortcut(contextMenu.game);
+              onClose();
+            }}
+            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-left font-medium text-slate-300 hover:text-white hover:bg-white/5 transition-colors"
+          >
+            <Monitor className="w-3.5 h-3.5 text-cyan-400" />
+            <span>{t("context_menu.create_desktop_shortcut")}</span>
+          </button>
+        )}
+
+        {["steam", "epic"].includes(contextMenu.game.library.toLowerCase()) && onVerifyFiles && (
+          <button
+            onClick={() => {
+              onVerifyFiles(contextMenu.game);
+              onClose();
+            }}
+            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-left font-medium text-slate-300 hover:text-white hover:bg-white/5 transition-colors"
+          >
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+            <span>{t("context_menu.verify_files")}</span>
+          </button>
+        )}
+
+        {contextMenu.game.is_installed && onUninstall && (
+          <button
+            onClick={() => {
+              onUninstall(contextMenu.game);
+              onClose();
+            }}
+            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-left font-semibold text-rose-400 hover:bg-rose-500/10 transition-colors"
+          >
+            <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+            <span>{t("context_menu.uninstall")}</span>
+          </button>
+        )}
+
+        {onRemoveFromLibrary && (
+          <button
+            onClick={() => {
+              onRemoveFromLibrary(contextMenu.game);
+              onClose();
+            }}
+            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-left font-medium text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors"
+          >
+            <XCircle className="w-3.5 h-3.5 text-slate-500" />
+            <span>{t("context_menu.remove_from_library")}</span>
+          </button>
+        )}
       </div>
     </>
   );

@@ -161,6 +161,12 @@ export interface TranslationSchema {
     expand_sidebar: string;
     filter_titles_placeholder: string;
     breadcrumb_library: string;
+    manage: string;
+    open_install_dir: string;
+    create_desktop_shortcut: string;
+    verify_files: string;
+    uninstall: string;
+    remove_from_library: string;
   };
   context_menu: {
     launch: string;
@@ -168,6 +174,11 @@ export interface TranslationSchema {
     edit_manual: string;
     identify_metadata: string;
     view_details: string;
+    open_install_dir: string;
+    create_desktop_shortcut: string;
+    verify_files: string;
+    uninstall: string;
+    remove_from_library: string;
   };
   table: {
     cover: string;
@@ -213,6 +224,16 @@ export interface TranslationSchema {
     version_info: string;
     tab_general: string;
     tab_accounts: string;
+    tray_section: string;
+    minimize_to_tray: string;
+    minimize_to_tray_desc: string;
+  };
+  uninstall_modal: {
+    title: string;
+    confirm_msg: string;
+    reassurance_note: string;
+    uninstall_btn: string;
+    uninstalling: string;
   };
   plugins_modal: {
     title: string;
