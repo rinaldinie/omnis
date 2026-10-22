@@ -208,6 +208,7 @@ export const it: TranslationSchema = {
     version_info: 'Versione di Omnis Game Library',
     tab_general: 'Generale',
     tab_accounts: 'Account Cloud',
+    tab_achievements: 'Obiettivi (SuccessStory)',
     tray_section: 'Area di Notifica & Finestra',
     minimize_to_tray: 'Riduci nella barra delle applicazioni alla chiusura',
     minimize_to_tray_desc: 'Se attivo, chiudere la finestra con la X minimizzerà Omnis nella barra di sistema a fianco dell\'orologio.',

@@ -1,3 +1,4 @@
+pub mod achievements;
 pub mod db;
 pub mod dynamic_loader;
 pub mod event_bus;
@@ -11,6 +12,7 @@ pub mod security;
 pub mod theme;
 pub mod wasm_host;
 
+pub use achievements::*;
 pub use db::{Database, DatabaseError, LibraryCounts};
 pub use dynamic_loader::{DynamicNativeMetadataProvider, DynamicPluginHandle, DynamicPluginLoader};
 pub use event_bus::EventBus;

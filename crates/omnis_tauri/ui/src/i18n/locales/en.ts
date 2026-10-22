@@ -208,6 +208,7 @@ export const en: TranslationSchema = {
     version_info: 'Omnis Game Library Version',
     tab_general: 'General',
     tab_accounts: 'Cloud Accounts',
+    tab_achievements: 'Achievements (SuccessStory)',
     tray_section: 'System Tray & Window',
     minimize_to_tray: 'Minimize to tray on close',
     minimize_to_tray_desc: 'When enabled, closing the window with the X button minimizes Omnis to the system tray next to the clock.',

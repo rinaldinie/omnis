@@ -511,3 +511,30 @@ export const SAMPLE_GAMES: GameDto[] = [
     publishers: ["Bandai Namco"],
   },
 ];
+
+export interface Achievement {
+  id: string;
+  game_id: string;
+  api_name: string;
+  display_name: string;
+  description: string | null;
+  icon_unlocked_url: string;
+  icon_locked_url: string | null;
+  local_icon_path: string | null;
+  is_unlocked: boolean;
+  unlock_time: string | null;
+  rarity_percentage: number | null;
+  points: number | null;
+  is_hidden: boolean;
+}
+
+export interface GameAchievementsSummary {
+  game_id: string;
+  total_count: number;
+  unlocked_count: number;
+  completion_percentage: number;
+  total_points: number;
+  earned_points: number;
+  achievements: Achievement[];
+}
+

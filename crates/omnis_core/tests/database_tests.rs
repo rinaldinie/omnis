@@ -432,3 +432,89 @@ fn test_game_sessions_persistence_and_query() {
     assert_eq!(updated_game.play_count, 2);
 }
 
+#[test]
+fn test_achievements_upsert_and_summary() {
+    let db = Database::open_in_memory().expect("Failed to open DB");
+
+    // First create the parent game record (enforcing foreign key)
+    let sample = DiscoveredGame {
+        library_id: "steam".to_string(),
+        external_id: "730".to_string(),
+        title: "CS:GO".to_string(),
+        install_dir: None,
+        is_installed: true,
+        play_action: None,
+        playtime_seconds: 1200,
+        play_count: 5,
+        last_activity: Some(Utc::now()),
+        cover_image_path: None,
+        background_image_path: None,
+    };
+    db.ingest_discovered_batch(&[sample]).expect("Failed ingest");
+    let games = db.get_all_games().unwrap();
+    let real_game_id = games[0].id;
+
+    let achievements = vec![
+        omnis_sdk::Achievement {
+            id: format!("steam_{}_ach_1", real_game_id),
+            game_id: real_game_id,
+            api_name: "ach_1".to_string(),
+            display_name: "First Blood".to_string(),
+            description: Some("Get your first kill".to_string()),
+            icon_unlocked_url: "https://example.com/icon1.png".to_string(),
+            icon_locked_url: Some("https://example.com/icon1_gray.png".to_string()),
+            local_icon_path: None,
+            is_unlocked: true,
+            unlock_time: Some(Utc::now()),
+            rarity_percentage: Some(85.5),
+            points: Some(10),
+            is_hidden: false,
+        },
+        omnis_sdk::Achievement {
+            id: format!("steam_{}_ach_2", real_game_id),
+            game_id: real_game_id,
+            api_name: "ach_2".to_string(),
+            display_name: "Master of War".to_string(),
+            description: Some("Win 100 matches".to_string()),
+            icon_unlocked_url: "https://example.com/icon2.png".to_string(),
+            icon_locked_url: Some("https://example.com/icon2_gray.png".to_string()),
+            local_icon_path: None,
+            is_unlocked: false,
+            unlock_time: None,
+            rarity_percentage: Some(4.2),
+            points: Some(50),
+            is_hidden: true,
+        },
+    ];
+
+    db.upsert_achievements(real_game_id, &achievements)
+        .expect("Failed to upsert achievements");
+
+    let summary = db
+        .get_game_achievements(real_game_id)
+        .expect("Failed to get summary");
+
+    assert_eq!(summary.total_count, 2);
+    assert_eq!(summary.unlocked_count, 1);
+    assert_eq!(summary.total_points, 60);
+    assert_eq!(summary.earned_points, 10);
+    assert!((summary.completion_percentage - 50.0).abs() < f32::EPSILON);
+    assert_eq!(summary.achievements.len(), 2);
+
+    // Test updating local icon path
+    db.update_achievement_local_icon(
+        &format!("steam_{}_ach_1", real_game_id),
+        "C:\\cache\\ach_1.png",
+    )
+    .expect("Failed to update local icon path");
+
+    let summary2 = db.get_game_achievements(real_game_id).unwrap();
+    let ach1 = summary2
+        .achievements
+        .iter()
+        .find(|a| a.api_name == "ach_1")
+        .unwrap();
+    assert_eq!(ach1.local_icon_path.as_deref(), Some("C:\\cache\\ach_1.png"));
+}
+
+

@@ -1,7 +1,9 @@
 //! GOG Galaxy library and cloud store integration plugin for Omnis Game Library
 
+pub mod achievements;
 pub mod client;
 
+pub use achievements::*;
 pub use client::{
     deserialize_string_or_number, extract_code_from_url, fetch_user_data, fetch_user_games,
     normalize_gog_game, GogGameDetails, GogGamesResponse, GogTokenResponse, GogUserData,

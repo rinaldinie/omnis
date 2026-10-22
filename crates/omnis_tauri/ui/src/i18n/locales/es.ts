@@ -208,6 +208,7 @@ export const es: TranslationSchema = {
     version_info: 'Versión de Omnis Game Library',
     tab_general: 'General',
     tab_accounts: 'Cuentas en la nube',
+    tab_achievements: 'Logros (SuccessStory)',
     tray_section: 'Bandeja del sistema y ventana',
     minimize_to_tray: 'Minimizar a la bandeja al cerrar',
     minimize_to_tray_desc: 'Al cerrar con la X, Omnis permanecerá activo en la bandeja del sistema junto al reloj.',

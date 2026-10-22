@@ -6,7 +6,10 @@ use omnis_sdk::{
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+pub mod achievements;
 pub mod client;
+
+pub use achievements::*;
 
 /// Deserialized structure of an Epic Games Store `.item` manifest
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
