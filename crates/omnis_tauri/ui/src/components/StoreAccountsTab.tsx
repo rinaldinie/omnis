@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { SteamIcon, EpicIcon, GogIcon, XboxIcon } from "./StoreBadge";
 import soundEffects from "../utils/soundEffects";
+import { openExternalUrl } from "../utils/openUrl";
 import {
   StoreAccount,
   StoreSyncProgress,
@@ -654,7 +655,11 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
                               href="https://steamcommunity.com/my"
                               target="_blank"
                               rel="noreferrer"
-                              className="text-sky-400 hover:text-sky-300 text-xs font-bold inline-flex items-center gap-1"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                openExternalUrl("https://steamcommunity.com/my");
+                              }}
+                              className="text-sky-400 hover:text-sky-300 text-xs font-bold inline-flex items-center gap-1 cursor-pointer"
                             >
                               <span>Ottieni ID account</span>
                               <ExternalLink className="w-3 h-3" />
@@ -679,7 +684,11 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
                               href="https://steamcommunity.com/dev/apikey"
                               target="_blank"
                               rel="noreferrer"
-                              className="text-sky-400 hover:text-sky-300 text-xs font-bold inline-flex items-center gap-1"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                openExternalUrl("https://steamcommunity.com/dev/apikey");
+                              }}
+                              className="text-sky-400 hover:text-sky-300 text-xs font-bold inline-flex items-center gap-1 cursor-pointer"
                             >
                               <span>Ottieni la chiave API</span>
                               <ExternalLink className="w-3 h-3" />
@@ -953,7 +962,11 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
                   href="https://steamcommunity.com/dev/apikey"
                   target="_blank"
                   rel="noreferrer"
-                  className="text-sky-400 underline font-bold"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    openExternalUrl("https://steamcommunity.com/dev/apikey");
+                  }}
+                  className="text-sky-400 underline font-bold cursor-pointer"
                 >
                   steamcommunity.com/dev/apikey
                 </a>
