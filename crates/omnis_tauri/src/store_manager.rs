@@ -7,10 +7,36 @@ use chrono::{DateTime, Utc};
 use omnis_core::{Database, SecretVault};
 use omnis_sdk::models::{DiscoveredGame, StoreAccountDto, StoreSyncProgressPayload};
 use omnis_sdk::plugin::{CloudStorePlugin, StoreAccountSession};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
+
+/// Integration settings DTO matching Playnite store configuration options
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StoreIntegrationSettingsDto {
+    pub store_id: String,
+    pub import_installed: bool,
+    pub connect_account: bool,
+    pub import_uninstalled: bool,
+    pub ignore_other_accounts: bool,
+    // Steam specific
+    #[serde(default)]
+    pub account_id: Option<String>,
+    #[serde(default)]
+    pub api_key: Option<String>,
+    #[serde(default)]
+    pub import_free_items: Option<bool>,
+    #[serde(default)]
+    pub import_family_sharing: Option<bool>,
+    // Xbox specific
+    #[serde(default)]
+    pub import_game_pass: Option<bool>,
+    // Advanced
+    #[serde(default)]
+    pub custom_client_path: Option<String>,
+}
 
 /// Manages cloud store accounts, OAuth authentication, credentials in envelope-encrypted SQLite vault, and catalog synchronization.
 #[derive(Clone)]
@@ -85,6 +111,115 @@ impl StoreAccountManager {
             self.save_session(store_id, &session)?;
         }
         Ok(())
+    }
+
+    /// Save full store integration configuration options (Playnite parity)
+    pub fn save_integration_settings(
+        &self,
+        settings: &StoreIntegrationSettingsDto,
+    ) -> Result<(), String> {
+        let store_id = &settings.store_id;
+
+        // Strict validation for Steam
+        if store_id == "steam" {
+            if settings.connect_account {
+                let key = settings.api_key.as_deref().unwrap_or("").trim();
+                if key.is_empty() {
+                    return Err("La Steam Web API Key è obbligatoria per connettere l'account Steam.".to_string());
+                }
+                let acc_id = settings.account_id.as_deref().unwrap_or("").trim();
+                if acc_id.is_empty() {
+                    return Err("L'ID Account Steam (SteamID64 di 17 cifre) è obbligatorio.".to_string());
+                }
+                if !acc_id.chars().all(|c| c.is_ascii_digit()) || acc_id.len() < 16 {
+                    return Err("L'ID Account Steam deve essere numerico (SteamID64 di 17 cifre).".to_string());
+                }
+
+                // Update active session for Steam with verified API Key & User ID
+                let existing_avatar = self.load_session("steam").ok().flatten().and_then(|s| s.avatar_url.clone());
+                let session = StoreAccountSession {
+                    store_id: "steam".to_string(),
+                    user_id: acc_id.to_string(),
+                    username: format!("Steam ID {}", acc_id),
+                    avatar_url: existing_avatar,
+                    access_token: key.to_string(),
+                    refresh_token: Some(format!("steam_session:{}", acc_id)),
+                    expires_at: None,
+                };
+                self.save_session("steam", &session)?;
+            } else {
+                // If user toggles off connect_account for steam, remove session
+                let _ = self.delete_session("steam");
+            }
+        }
+
+        // Encrypt and persist integration settings in Vault
+        let secret_id = format!("store_settings:{}", store_id);
+        let json = serde_json::to_string(settings).map_err(|e| e.to_string())?;
+        let (nonce, ciphertext) = self
+            .vault
+            .encrypt(&secret_id, json.as_bytes())
+            .map_err(|e| format!("Vault encryption error: {}", e))?;
+        self.db
+            .store_secret(&secret_id, &nonce, &ciphertext)
+            .map_err(|e| format!("DB error storing settings: {}", e))?;
+
+        Ok(())
+    }
+
+    /// Retrieve store integration configuration options (Playnite parity)
+    pub fn get_integration_settings(
+        &self,
+        store_id: &str,
+    ) -> Result<StoreIntegrationSettingsDto, String> {
+        let secret_id = format!("store_settings:{}", store_id);
+        if let Some((nonce, ciphertext)) = self.db.get_secret(&secret_id).map_err(|e| e.to_string())? {
+            if let Ok(decrypted) = self.vault.decrypt(&secret_id, &nonce, &ciphertext) {
+                if let Ok(settings) = serde_json::from_slice::<StoreIntegrationSettingsDto>(&decrypted) {
+                    return Ok(settings);
+                }
+            }
+        }
+
+        // Return defaults based on active session
+        let session = self.load_session(store_id).ok().flatten();
+        let has_key = session.as_ref().map(|s| {
+            !s.access_token.starts_with("steam_session:") && !s.access_token.trim().is_empty()
+        });
+        let is_connected = if store_id == "steam" {
+            session.is_some() && has_key == Some(true)
+        } else {
+            session.is_some()
+        };
+
+        let (account_id, api_key) = if store_id == "steam" {
+            if let Some(ref s) = session {
+                let key = if has_key == Some(true) {
+                    Some(s.access_token.clone())
+                } else {
+                    None
+                };
+                (Some(s.user_id.clone()), key)
+            } else {
+                (None, None)
+            }
+        } else {
+            (None, None)
+        };
+
+        Ok(StoreIntegrationSettingsDto {
+            store_id: store_id.to_string(),
+            import_installed: true,
+            connect_account: is_connected,
+            import_uninstalled: true,
+            ignore_other_accounts: true,
+            account_id,
+            api_key,
+            import_free_items: Some(false),
+            import_family_sharing: Some(true),
+            import_game_pass: Some(true),
+            custom_client_path: None,
+        })
     }
 
     /// Returns true if master key is stored in filesystem fallback instead of OS keyring (Requirement D3)
@@ -897,6 +1032,74 @@ mod tests {
         let loaded = manager.load_session("steam").unwrap().unwrap();
         assert_eq!(loaded.access_token, api_key);
         assert_eq!(loaded.user_id, "76561198000000000");
+
+        let _ = manager.delete_session("steam");
+    }
+
+    #[tokio::test]
+    async fn test_store_integration_settings_steam_validation() {
+        let (manager, _db) = make_test_manager();
+        let _ = manager.delete_session("steam");
+
+        // 1. Missing API Key when connecting Steam must fail
+        let invalid_cfg = StoreIntegrationSettingsDto {
+            store_id: "steam".to_string(),
+            import_installed: true,
+            connect_account: true,
+            import_uninstalled: true,
+            ignore_other_accounts: true,
+            account_id: Some("76561198016913702".to_string()),
+            api_key: None,
+            import_free_items: Some(false),
+            import_family_sharing: Some(true),
+            import_game_pass: None,
+            custom_client_path: None,
+        };
+        let res = manager.save_integration_settings(&invalid_cfg);
+        assert!(res.is_err());
+        assert!(res.unwrap_err().contains("API Key"));
+
+        // 2. Missing Account ID must fail
+        let invalid_id_cfg = StoreIntegrationSettingsDto {
+            store_id: "steam".to_string(),
+            import_installed: true,
+            connect_account: true,
+            import_uninstalled: true,
+            ignore_other_accounts: true,
+            account_id: Some("invalid_not_number".to_string()),
+            api_key: Some("1234567890ABCDEF1234567890ABCDEF".to_string()),
+            import_free_items: Some(false),
+            import_family_sharing: Some(true),
+            import_game_pass: None,
+            custom_client_path: None,
+        };
+        let res2 = manager.save_integration_settings(&invalid_id_cfg);
+        assert!(res2.is_err());
+
+        // 3. Valid Steam configuration succeeds and sets session
+        let valid_cfg = StoreIntegrationSettingsDto {
+            store_id: "steam".to_string(),
+            import_installed: true,
+            connect_account: true,
+            import_uninstalled: true,
+            ignore_other_accounts: true,
+            account_id: Some("76561198016913702".to_string()),
+            api_key: Some("1234567890ABCDEF1234567890ABCDEF".to_string()),
+            import_free_items: Some(false),
+            import_family_sharing: Some(true),
+            import_game_pass: None,
+            custom_client_path: None,
+        };
+        assert!(manager.save_integration_settings(&valid_cfg).is_ok());
+
+        let retrieved = manager.get_integration_settings("steam").unwrap();
+        assert_eq!(retrieved.account_id, Some("76561198016913702".to_string()));
+        assert_eq!(retrieved.api_key, Some("1234567890ABCDEF1234567890ABCDEF".to_string()));
+        assert!(retrieved.connect_account);
+
+        let session = manager.load_session("steam").unwrap().unwrap();
+        assert_eq!(session.user_id, "76561198016913702");
+        assert_eq!(session.access_token, "1234567890ABCDEF1234567890ABCDEF");
 
         let _ = manager.delete_session("steam");
     }
