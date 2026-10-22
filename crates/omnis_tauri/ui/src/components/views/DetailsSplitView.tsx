@@ -446,14 +446,14 @@ export default function DetailsSplitView({
               {selectedGame.background_image ? (
                 <img
                   key={selectedGame.background_image}
-                  src={formatImageUrl(selectedGame.background_image)}
+                  src={formatImageUrl(selectedGame.background_image) || undefined}
                   alt="Hero"
                   className="absolute inset-0 w-full h-full object-cover"
                 />
               ) : selectedGame.cover_image ? (
                 <img
                   key={selectedGame.cover_image}
-                  src={formatImageUrl(selectedGame.cover_image)}
+                  src={formatImageUrl(selectedGame.cover_image) || undefined}
                   alt="Hero"
                   className="absolute inset-0 w-full h-full object-cover filter blur-md scale-110 opacity-40"
                 />

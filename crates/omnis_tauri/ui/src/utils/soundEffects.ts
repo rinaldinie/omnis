@@ -180,6 +180,39 @@ export class SoundSystem {
       // Ignore web audio errors
     }
   }
+
+  /**
+   * Unlock / Sync sound: Chime arpeggio (C5 -> E5 -> G5 over 0.35s).
+   * Used for achievement unlocks and sync success.
+   */
+  public playUnlock() {
+    if (!this.enabled || this.isMuted) return;
+    try {
+      this.ensureContext();
+      if (!this.ctx) return;
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(523.25, now);
+      osc.frequency.setValueAtTime(659.25, now + 0.08);
+      osc.frequency.setValueAtTime(783.99, now + 0.16);
+      gain.gain.setValueAtTime(0.1, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.onended = () => {
+        try {
+          osc.disconnect();
+          gain.disconnect();
+        } catch {}
+      };
+      osc.start(now);
+      osc.stop(now + 0.35);
+    } catch {
+      // Ignore web audio errors
+    }
+  }
 }
 
 export const soundEffects = new SoundSystem();

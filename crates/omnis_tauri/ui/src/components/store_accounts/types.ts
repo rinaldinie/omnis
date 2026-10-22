@@ -20,6 +20,20 @@ export interface StoreSyncProgress {
   message?: string;
 }
 
+export interface StoreIntegrationSettings {
+  store_id: string;
+  import_installed: boolean;
+  connect_account: boolean;
+  import_uninstalled: boolean;
+  ignore_other_accounts: boolean;
+  account_id?: string | null;
+  api_key?: string | null;
+  import_free_items?: boolean | null;
+  import_family_sharing?: boolean | null;
+  import_game_pass?: boolean | null;
+  custom_client_path?: string | null;
+}
+
 export async function invokeTauri<T>(cmd: string, args?: Record<string, unknown>): Promise<T | null> {
   try {
     return await invoke<T>(cmd, args);

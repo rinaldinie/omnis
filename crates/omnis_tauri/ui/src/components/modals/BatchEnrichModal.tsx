@@ -96,10 +96,10 @@ export default function BatchEnrichModal({
       const gameIds = targetGames.map((g) => g.id);
       const count = await invokeTauri<number>("download_batch_metadata", { gameIds });
 
-      setResultMessage(`Arricchimento completato! ${count ?? targetGames.length} titoli aggiornati.`);
+      setResultMessage(`Download completato con successo! ${count ?? targetGames.length} titoli aggiornati.`);
       await onComplete();
     } catch (err: any) {
-      setResultMessage(`Errore durante l'arricchimento: ${err}`);
+      setResultMessage(`Errore durante il download dei dati: ${err}`);
     } finally {
       setIsRunning(false);
     }
@@ -287,18 +287,18 @@ export default function BatchEnrichModal({
 
           {/* PROGRESS BAR & STATUS */}
           {isRunning && progress && (
-            <div className="p-4 rounded-xl border border-indigo-500/30 bg-indigo-500/5 space-y-2.5 animate-in fade-in">
+            <div className="p-4 rounded-xl border border-indigo-500/40 bg-indigo-500/10 space-y-2.5 animate-in fade-in">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-semibold text-indigo-300 truncate max-w-[280px]">
-                  {progress.title}
+                  Scaricamento per: "{progress.title}"
                 </span>
                 <span className="font-bold text-white">
                   {progress.current} / {progress.total} ({percent}%)
                 </span>
               </div>
-              <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden">
+              <div className="w-full h-2.5 rounded-full bg-white/10 overflow-hidden">
                 <div
-                  className="h-full rounded-full transition-all duration-300 bg-gradient-to-r from-indigo-500 to-amber-500 shadow-sm"
+                  className="h-full rounded-full transition-all duration-300 bg-gradient-to-r from-indigo-500 via-purple-500 to-amber-400 shadow-sm"
                   style={{ width: `${percent}%` }}
                 />
               </div>
@@ -363,7 +363,7 @@ export default function BatchEnrichModal({
                 }}
               >
                 <Sparkles className="w-4 h-4" />
-                <span>Avvia Arricchimento ({targetGames.length})</span>
+                <span>Scarica Dati ({targetGames.length})</span>
               </button>
             )}
           </div>

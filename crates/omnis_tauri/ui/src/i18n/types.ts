@@ -224,6 +224,7 @@ export interface TranslationSchema {
     version_info: string;
     tab_general: string;
     tab_accounts: string;
+    tab_achievements?: string;
     tray_section: string;
     minimize_to_tray: string;
     minimize_to_tray_desc: string;
