@@ -189,6 +189,8 @@ fn main() {
             disconnect_store_account,
             sync_store_library,
             save_store_api_key,
+            save_store_integration_settings,
+            get_store_integration_settings,
             clear_library,
             get_game_trailer_url,
             get_vault_status,

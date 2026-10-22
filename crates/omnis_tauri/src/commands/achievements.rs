@@ -26,13 +26,15 @@ async fn refresh_game_achievements_internal(
             let session = state
                 .store_account_manager
                 .load_session("steam")
-                .ok()
-                .flatten();
+                .map_err(|e| format!("Errore nel caricamento della sessione Steam: {e}"))?
+                .ok_or_else(|| {
+                    "Nessun account Steam configurato. Inserisci la Steam Web API Key e l'ID Account nelle impostazioni Store.".to_string()
+                })?;
             let provider = SteamPlugin::new();
             provider
-                .fetch_achievements(&game, session.as_ref())
+                .fetch_achievements(&game, Some(&session))
                 .await
-                .map_err(|e| format!("Steam achievements fetch error: {e}"))?
+                .map_err(|e| format!("{e}"))?
         }
         "xbox" => {
             let session = state

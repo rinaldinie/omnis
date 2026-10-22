@@ -299,100 +299,59 @@ pub fn extract_xml_tag(content: &str, tag: &str) -> Option<String> {
     Some(extracted)
 }
 
-/// Fetch owned games using Steam Web API with fallback to public Steam Community XML.
+/// Fetch owned games using Steam Web API (API key is mandatory for cloud sync).
 pub async fn fetch_user_games_web_api(
     client: &reqwest::Client,
     steam_id: &str,
     api_key: Option<&str>,
 ) -> Result<Vec<DiscoveredGame>, PluginError> {
-    // 1. If api_key is present, attempt Steam Web API request
-    if let Some(key) = api_key {
-        let trimmed_key = key.trim();
-        if !trimmed_key.is_empty() {
-            let url = format!(
-                "{}?key={}&steamid={}&include_appinfo=1&include_played_free_games=1&format=json",
-                STEAM_API_OWNED_GAMES_URL,
-                urlencoding::encode(trimmed_key),
-                urlencoding::encode(steam_id.trim())
-            );
-
-            match client.get(&url).send().await {
-                Ok(response) if response.status().is_success() => {
-                    match response.json::<SteamOwnedGamesApiResponse>().await {
-                        Ok(api_response) => {
-                            let games = api_response.response.games.unwrap_or_default();
-                            return Ok(map_steam_games_to_discovered(games));
-                        }
-                        Err(err) => {
-                            tracing::warn!("Failed to deserialize Steam Web API response: {}", err);
-                        }
-                    }
-                }
-                Ok(response) => {
-                    let status = response.status();
-                    if status == reqwest::StatusCode::FORBIDDEN || status == reqwest::StatusCode::UNAUTHORIZED {
-                        return Err(PluginError::Other(
-                            "Steam Web API Key non valida o non autorizzata. Verifica la chiave nelle impostazioni.".to_string(),
-                        ));
-                    }
-                    tracing::warn!(
-                        "Steam Web API returned status {} for steamid: {}",
-                        status,
-                        steam_id
-                    );
-                }
-                Err(err) => {
-                    tracing::warn!("Steam Web API request failed: {}", err);
-                }
-            }
+    let key = match api_key.map(|k| k.trim()).filter(|k| !k.is_empty()) {
+        Some(k) => k,
+        None => {
+            return Err(PluginError::Other(
+                "La Steam Web API Key è obbligatoria per sincronizzare la libreria cloud e gli obiettivi. Configura la chiave nelle impostazioni Store.".to_string(),
+            ));
         }
-    }
-
-    // 2. Fallback to public Steam Community games XML endpoint
-    let community_url = if steam_id.chars().all(|c| c.is_ascii_digit()) && steam_id.len() == 17 {
-        format!("{}/profiles/{}/games?tab=all&xml=1", STEAM_COMMUNITY_URL, steam_id)
-    } else {
-        format!("{}/id/{}/games?tab=all&xml=1", STEAM_COMMUNITY_URL, steam_id)
     };
 
-    match client.get(&community_url).send().await {
+    let url = format!(
+        "{}?key={}&steamid={}&include_appinfo=1&include_played_free_games=1&format=json",
+        STEAM_API_OWNED_GAMES_URL,
+        urlencoding::encode(key),
+        urlencoding::encode(steam_id.trim())
+    );
+
+    match client.get(&url).send().await {
         Ok(response) if response.status().is_success() => {
-            let final_url = response.url().as_str().to_lowercase();
-            if final_url.contains("/login") {
-                return Err(PluginError::Other(
-                    "Profilo Steam non pubblico o protetto da login. Inserisci la tua Steam Web API Key gratuita nelle impostazioni per sincronizzare la libreria cloud dei giochi posseduti.".to_string(),
-                ));
-            }
-
-            let xml_content = response
-                .text()
-                .await
-                .map_err(|e| PluginError::Other(format!("Failed to read Steam community XML: {}", e)))?;
-
-            let games = parse_steam_community_games_xml(&xml_content);
-            if games.is_empty() {
-                if let Some(err_msg) = extract_xml_tag(&xml_content, "error") {
-                    return Err(PluginError::Other(format!(
-                        "Steam ha restituito un errore: '{}'. Imposta 'Dettagli dei giochi' su Pubblico nel profilo Steam o inserisci una Steam Web API Key.",
-                        err_msg
-                    )));
+            match response.json::<SteamOwnedGamesApiResponse>().await {
+                Ok(api_response) => {
+                    let games = api_response.response.games.unwrap_or_default();
+                    Ok(map_steam_games_to_discovered(games))
                 }
-                return Err(PluginError::Other(
-                    "Nessun gioco rilevato dal profilo Steam pubblico. Valve richiede una Steam Web API Key per scaricare la libreria cloud dei giochi posseduti.".to_string(),
-                ));
+                Err(err) => {
+                    Err(PluginError::Other(format!(
+                        "Errore nella decodifica della risposta Steam Web API: {}",
+                        err
+                    )))
+                }
             }
-
-            Ok(map_steam_games_to_discovered(games))
         }
         Ok(response) => {
-            Err(PluginError::Other(format!(
-                "Steam Community games endpoint returned status: {}",
-                response.status()
-            )))
+            let status = response.status();
+            if status == reqwest::StatusCode::FORBIDDEN || status == reqwest::StatusCode::UNAUTHORIZED {
+                Err(PluginError::Other(
+                    "Steam Web API Key non valida o non autorizzata. Verifica la chiave nelle impostazioni Account Store.".to_string(),
+                ))
+            } else {
+                Err(PluginError::Other(format!(
+                    "Steam Web API ha restituito lo stato HTTP: {}",
+                    status
+                )))
+            }
         }
         Err(err) => {
             Err(PluginError::Other(format!(
-                "Steam Community games request failed: {}",
+                "Richiesta Steam Web API fallita: {}",
                 err
             )))
         }
