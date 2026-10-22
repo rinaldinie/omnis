@@ -122,8 +122,8 @@ export default function App() {
   const [sessionToast, setSessionToast] = useState<SessionToastInfo | null>(null);
   const [syncBanner, setSyncBanner] = useState<SyncBannerInfo | null>(null);
   const [showKillConfirmModal, setShowKillConfirmModal] = useState<boolean>(false);
-  const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const syncBannerTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const syncBannerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const gamesRef = useRef<GameDto[]>([]);
   gamesRef.current = games;
   const activeGameRef = useRef<ActiveGameSession | null>(null);
@@ -163,6 +163,17 @@ export default function App() {
     setSettingsInitialTab(tab);
     setShowSettingsModal(true);
   };
+
+  useEffect(() => {
+    const handleOpenSettingsEvent = (e: Event) => {
+      const customEvent = e as CustomEvent<{ tab?: SettingsTab }>;
+      handleOpenSettings(customEvent.detail?.tab || "general");
+    };
+    window.addEventListener("omnis:open-settings", handleOpenSettingsEvent);
+    return () => {
+      window.removeEventListener("omnis:open-settings", handleOpenSettingsEvent);
+    };
+  }, []);
 
   // METADATA MODALS
   const [showEditorModal, setShowEditorModal] = useState<boolean>(false);
@@ -497,16 +508,16 @@ export default function App() {
   const handleEnrichSingleGame = async (gameId: string) => {
     try {
       setIsEnrichingSingle(true);
-      setStatusMessage("Arricchimento Diamond con SteamGridDB, OpenCritic e Steam in corso...");
+      setStatusMessage("Scaricamento dati e copertine HD in corso...");
       const updated = await invokeTauri<GameDto>("enrich_single_game", { gameId });
       if (updated) {
         const normalized = normalizeGame(updated);
         setSelectedGame(normalized);
         setGames((prev) => prev.map((g) => (g.id === normalized.id ? normalized : g)));
-        setStatusMessage(`'${normalized.title}' arricchito con successo!`);
+        setStatusMessage(`Dati e copertine per '${normalized.title}' aggiornati con successo!`);
       }
     } catch (err: any) {
-      setStatusMessage(`Errore arricchimento: ${err}`);
+      setStatusMessage(`Errore scaricamento dati: ${err}`);
     } finally {
       setIsEnrichingSingle(false);
     }
@@ -534,12 +545,12 @@ export default function App() {
   const handleRunMassivePipeline = async () => {
     try {
       setIsPipelineEnriching(true);
-      setPipelineProgress("Avvio scansione e arricchimento libreria con Diamond Pipeline...");
+      setPipelineProgress("Avvio download dati e copertine per tutta la libreria...");
       const count = await invokeTauri<number>("download_all_metadata");
-      setPipelineProgress(`Completato! ${count || 0} titoli arricchiti con la Diamond Pipeline.`);
+      setPipelineProgress(`Completato! ${count || 0} titoli aggiornati.`);
       await refreshLibrary();
     } catch (err: any) {
-      setPipelineProgress(`Errore durante l'arricchimento massivo: ${err}`);
+      setPipelineProgress(`Errore durante il download: ${err}`);
     } finally {
       setIsPipelineEnriching(false);
     }
@@ -547,9 +558,9 @@ export default function App() {
 
   const handleCancelPipeline = async () => {
     try {
-      setPipelineProgress("Interruzione dell'arricchimento in corso...");
+      setPipelineProgress("Interruzione del download dati in corso...");
       await invokeTauri("cancel_metadata_download");
-      setStatusMessage("Richiesta di interruzione arricchimento inviata.");
+      setStatusMessage("Richiesta di interruzione download inviata.");
     } catch (err: any) {
       console.warn("Failed to cancel metadata download:", err);
     }
@@ -757,14 +768,16 @@ export default function App() {
 
           loadGames();
         });
+        if (!isMounted) { hStopped(); } else { unlistenGameStopped = hStopped; }
+
         const hMetaProgress = await listen<{
           current: number;
           total: number;
           title: string;
         }>("metadata-progress", (event) => {
           const { current, total, title } = event.payload;
-          setPipelineProgress(`Arricchimento (${current}/${total}): "${title}"...`);
-          setStatusMessage(`Arricchimento metadati (${current}/${total}): ${title}`);
+          setPipelineProgress(`Download dati (${current}/${total}): "${title}"...`);
+          setStatusMessage(`Scaricamento dati e copertine (${current}/${total}): ${title}`);
         });
         if (!isMounted) { hMetaProgress(); } else { unlistenMetaProgress = hMetaProgress; }
 
@@ -1660,7 +1673,7 @@ export default function App() {
           filteredGames={filteredGames}
           onComplete={async () => {
             await refreshLibrary();
-            setStatusMessage("Arricchimento massivo completato e libreria aggiornata!");
+            setStatusMessage("Download dati completato e libreria aggiornata!");
           }}
         />
       )}

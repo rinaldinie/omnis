@@ -80,9 +80,6 @@ export default function GameEditorModal({
     icon_image_path: "",
     play_actions: [],
     custom_links: [],
-    hltb_main: "",
-    hltb_extra: "",
-    hltb_completionist: "",
   });
 
   const [isSaving, setIsSaving] = useState(false);

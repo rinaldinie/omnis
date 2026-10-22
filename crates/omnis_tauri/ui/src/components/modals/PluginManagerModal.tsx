@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Puzzle,
   RefreshCw,
@@ -248,6 +248,26 @@ export default function PluginManagerModal({
     "providers" | "pipeline" | "enrich" | "marketplace"
   >("providers");
   const [categoryFilter, setCategoryFilter] = useState<PluginCategory>("all");
+  const [liveProgress, setLiveProgress] = useState<{ current: number; total: number; title: string } | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let unlisten: (() => void) | undefined;
+    (async () => {
+      try {
+        const { listen } = await import("@tauri-apps/api/event");
+        unlisten = await listen<{ current: number; total: number; title: string }>(
+          "metadata-progress",
+          (e) => setLiveProgress(e.payload)
+        );
+      } catch (err) {
+        console.warn("Failed to attach metadata-progress listener in PluginManagerModal:", err);
+      }
+    })();
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, [isOpen]);
 
   const [libraryToggles, setLibraryToggles] = useState<Record<string, boolean>>(() => {
     try {
@@ -898,7 +918,7 @@ export default function PluginManagerModal({
               }}
             >
               <Sparkles className="w-3.5 h-3.5" />
-              <span>Arricchimento Massivo</span>
+              <span>Download Dati Catalogo</span>
             </button>
             <button
               onClick={() => setPluginModalTab("marketplace")}
@@ -1325,7 +1345,7 @@ export default function PluginManagerModal({
                     <span>Preserva locandine e sfondi già esistenti (Consigliato)</span>
                   </div>
                   <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>
-                    Quando attivo, l'arricchimento massivo scarica descrizioni, generi e voti senza sovrascrivere o corrompere le immagini già salvate su disco.
+                    Quando attivo, il download dati catalogo scarica descrizioni, generi e voti senza sovrascrivere o corrompere le immagini già salvate su disco.
                   </p>
                 </div>
                 <button
@@ -1384,10 +1404,10 @@ export default function PluginManagerModal({
                   </div>
                   <div>
                     <h4 className="text-sm font-black text-white">
-                      Sincronizzazione Massiva con la Pipeline
+                      Download Dati e Copertine per la Libreria
                     </h4>
                     <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                      Arricchisci tutti i {gamesCount} giochi della libreria applicando le priorità definite
+                      Scarica automaticamente locandine HD, sfondi, voti e tempi di gioco per tutti i {gamesCount} giochi
                     </p>
                   </div>
                 </div>
@@ -1439,7 +1459,29 @@ export default function PluginManagerModal({
                   </span>
                 </div>
 
-                {pipelineProgress && (
+                {/* REAL-TIME PROGRESS BAR */}
+                {isPipelineEnriching && liveProgress && (
+                  <div className="p-4 rounded-xl border border-indigo-500/40 bg-indigo-500/10 space-y-2.5 animate-in fade-in">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-semibold text-indigo-300 truncate max-w-[320px]">
+                        Scaricamento per: "{liveProgress.title}"
+                      </span>
+                      <span className="font-bold text-white">
+                        {liveProgress.current} / {liveProgress.total} ({liveProgress.total > 0 ? Math.round((liveProgress.current / liveProgress.total) * 100) : 0}%)
+                      </span>
+                    </div>
+                    <div className="w-full h-2.5 rounded-full bg-white/10 overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-300 bg-gradient-to-r from-indigo-500 via-purple-500 to-amber-400 shadow-sm"
+                        style={{
+                          width: `${liveProgress.total > 0 ? Math.round((liveProgress.current / liveProgress.total) * 100) : 0}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {pipelineProgress && !isPipelineEnriching && (
                   <div
                     className="p-3 rounded-xl border text-xs font-medium"
                     style={{
@@ -1469,8 +1511,8 @@ export default function PluginManagerModal({
                     />
                     <span>
                       {isPipelineEnriching
-                        ? "Arricchimento Massivo in Corso..."
-                        : "Avvia Arricchimento di Tutta la Libreria"}
+                        ? "Scaricamento Dati in Corso..."
+                        : "Scarica Dati per Tutti i Giochi"}
                     </span>
                   </button>
 
@@ -1479,7 +1521,7 @@ export default function PluginManagerModal({
                       type="button"
                       onClick={handleCancelPipeline}
                       className="px-5 py-3 rounded-xl font-black text-xs text-white bg-red-600 hover:bg-red-500 shadow-lg shadow-red-500/25 transition-all flex items-center justify-center gap-2 active:scale-95 animate-pulse"
-                      title="Interrompi l'arricchimento in corso"
+                      title="Interrompi l'operazione in corso"
                     >
                       <Square className="w-3.5 h-3.5 fill-current" />
                       <span>Ferma</span>
