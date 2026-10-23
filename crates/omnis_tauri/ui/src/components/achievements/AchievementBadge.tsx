@@ -23,6 +23,56 @@ export const AchievementBadge: React.FC<AchievementBadgeProps> = ({
   const [revealed, setRevealed] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
+  const badgeRef = React.useRef<HTMLDivElement>(null);
+  const [horizontalAlign, setHorizontalAlign] = useState<"center" | "left" | "right">("center");
+  const [verticalAlign, setVerticalAlign] = useState<"top" | "bottom">("top");
+
+  // Dynamically compute boundary-safe tooltip positioning
+  React.useEffect(() => {
+    if (!showTooltip && !isFocused) return;
+    if (!badgeRef.current) return;
+
+    const badgeEl = badgeRef.current;
+    const badgeRect = badgeEl.getBoundingClientRect();
+    const container =
+      badgeEl.closest(".overflow-y-auto, [data-omnis='bigpicture'], main, body") ||
+      document.body;
+    const containerRect = container.getBoundingClientRect();
+
+    const tooltipWidth = 288; // w-72 = 18rem = 288px
+    const halfWidth = tooltipWidth / 2;
+
+    const spaceLeft = badgeRect.left - containerRect.left;
+    const spaceRight = containerRect.right - badgeRect.right;
+
+    // Check if centering overflows to the left or right of the container
+    if (spaceLeft < halfWidth - badgeRect.width / 2 + 12) {
+      setHorizontalAlign("left");
+    } else if (spaceRight < halfWidth - badgeRect.width / 2 + 12) {
+      setHorizontalAlign("right");
+    } else {
+      setHorizontalAlign("center");
+    }
+
+    // Check vertical space (if badge is too close to top of container or viewport)
+    const spaceTop = Math.min(badgeRect.top - containerRect.top, badgeRect.top);
+    if (spaceTop < 180) {
+      setVerticalAlign("bottom");
+    } else {
+      setVerticalAlign("top");
+    }
+  }, [showTooltip, isFocused]);
+
+  const positionClasses = React.useMemo(() => {
+    const vClass = verticalAlign === "bottom" ? "top-full mt-3" : "bottom-full mb-3";
+    let hClass = "left-1/2 -translate-x-1/2";
+    if (horizontalAlign === "left") {
+      hClass = "left-0 translate-x-0";
+    } else if (horizontalAlign === "right") {
+      hClass = "right-0 left-auto translate-x-0";
+    }
+    return `${vClass} ${hClass}`;
+  }, [horizontalAlign, verticalAlign]);
 
   const isUltraRare =
     achievement.rarity_percentage !== null &&
@@ -78,6 +128,7 @@ export const AchievementBadge: React.FC<AchievementBadgeProps> = ({
 
   return (
     <div
+      ref={badgeRef}
       className="relative group select-none outline-hidden"
       onMouseEnter={() => setShowTooltip(true)}
       onMouseLeave={() => setShowTooltip(false)}
@@ -152,7 +203,7 @@ export const AchievementBadge: React.FC<AchievementBadgeProps> = ({
       {/* Interactive Tooltip Popover */}
       {(showTooltip || isFocused) && (
         <div
-          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-72 p-4 rounded-2xl border shadow-2xl backdrop-blur-xl z-50 pointer-events-auto transition-all animate-in fade-in zoom-in-95 duration-150"
+          className={`absolute ${positionClasses} w-72 p-4 rounded-2xl border shadow-2xl backdrop-blur-xl z-50 pointer-events-auto transition-all animate-in fade-in zoom-in-95 duration-150`}
           style={{
             backgroundColor: "rgba(15, 23, 42, 0.95)",
             borderColor: isUltraRare
