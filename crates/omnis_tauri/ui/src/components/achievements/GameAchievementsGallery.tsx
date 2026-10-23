@@ -4,6 +4,7 @@ import { Trophy, RefreshCw, Sparkles, Award, Lock, CheckCircle2, AlertCircle, Se
 import { Achievement, GameAchievementsSummary, GameDto } from "../../types";
 import { AchievementBadge } from "./AchievementBadge";
 import soundEffects from "../../utils/soundEffects";
+import { useTranslation } from "../../i18n";
 
 interface GameAchievementsGalleryProps {
   game: GameDto;
@@ -16,6 +17,7 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
   game,
   isBigPicture = false,
 }) => {
+  const { t, locale } = useTranslation();
   const isSupportedStore =
     game.library === "steam" ||
     game.library === "xbox" ||
@@ -81,7 +83,10 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
       if (activeGameIdRef.current === targetGameId) {
         console.warn("Failed to load achievements:", err);
         if (isRefresh) {
-          const errorMsg = typeof err === "string" ? err : err?.message || "Errore sconosciuto durante la sincronizzazione.";
+          const errorMsg =
+            typeof err === "string"
+              ? err
+              : err?.message || t("achievements.unknown_sync_error");
           setSyncError(errorMsg);
         }
       }
@@ -210,7 +215,9 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
             <div className="flex items-start gap-2.5">
               <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
               <div className="space-y-0.5">
-                <div className="font-bold text-amber-200">Configurazione Store richiesta</div>
+                <div className="font-bold text-amber-200">
+                  {t("achievements.config_required")}
+                </div>
                 <div className="text-amber-300/90 leading-relaxed">
                   {syncError.replace(/^ERR_[A-Z_]+:\s*/, "")}
                 </div>
@@ -222,7 +229,7 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
               className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition-colors cursor-pointer self-start sm:self-center"
             >
               <Settings className="w-3.5 h-3.5" />
-              <span>Configura Store</span>
+              <span>{t("achievements.configure_store")}</span>
             </button>
           </div>
         );
@@ -240,7 +247,7 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
             disabled={refreshing}
             className="shrink-0 px-2.5 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 font-bold text-xs transition-colors cursor-pointer"
           >
-            Riprova
+            {t("achievements.retry")}
           </button>
         </div>
       );
@@ -250,7 +257,9 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
       return (
         <div className="flex items-center gap-2 p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-xs animate-in fade-in">
           <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-          <span className="font-medium">Obiettivi sincronizzati con successo dallo store!</span>
+          <span className="font-medium">
+            {t("achievements.sync_success")}
+          </span>
         </div>
       );
     }
@@ -262,7 +271,9 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
     return (
       <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/[0.06] flex items-center justify-center gap-3 text-slate-400">
         <RefreshCw className="w-5 h-5 animate-spin text-indigo-400" />
-        <span className="text-xs font-medium">Caricamento obiettivi in corso...</span>
+        <span className="text-xs font-medium">
+          {t("achievements.loading")}
+        </span>
       </div>
     );
   }
@@ -287,10 +298,10 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
             <Trophy className="w-5 h-5 text-slate-500" />
             <div>
               <span className="text-xs text-slate-300 font-medium block">
-                Nessun obiettivo registrato o sincronizzato per questo gioco su {storeLabel}.
+                {t("achievements.no_achievements", { store: storeLabel })}
               </span>
               <span className="text-[11px] text-slate-500">
-                Clicca su sincronizza per recuperare i progressi dallo store.
+                {t("achievements.sync_hint")}
               </span>
             </div>
           </div>
@@ -303,7 +314,11 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
             className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.08] text-xs font-bold text-white transition-all cursor-pointer disabled:opacity-50"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin text-indigo-400" : ""}`} />
-            <span>{refreshing ? "Sincronizzazione..." : "Sincronizza"}</span>
+            <span>
+              {refreshing
+                ? t("achievements.syncing")
+                : t("achievements.sync")}
+            </span>
           </button>
         </div>
 
@@ -322,13 +337,13 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
           </div>
           <div>
             <h3 className="text-sm font-bold text-white tracking-wide flex items-center gap-2">
-              <span>Obiettivi</span>
+              <span>{t("achievements.title")}</span>
               <span className="text-xs px-2 py-0.5 rounded-full bg-white/[0.06] text-slate-300 font-semibold">
                 {stats.unlocked} / {stats.total}
               </span>
             </h3>
             <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-400 font-medium">
-              <span>{stats.percentage}% Completato</span>
+              <span>{stats.percentage}% {t("achievements.completed")}</span>
               {stats.totalPoints > 0 && (
                 <>
                   <span className="text-white/20">•</span>
@@ -346,13 +361,13 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
           {stats.ultraRareCount > 0 && (
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-400/10 border border-amber-400/30 text-[11px] font-bold text-amber-300 shadow-xs">
               <Sparkles className="w-3 h-3 text-amber-400" />
-              <span>{stats.ultraRareCount} Ultra-Rari</span>
+              <span>{stats.ultraRareCount} {t("achievements.ultra_rare")}</span>
             </span>
           )}
 
           {refreshing && (
             <span className="text-xs text-indigo-400 animate-pulse font-medium">
-              Sincronizzazione...
+              {t("achievements.syncing")}
             </span>
           )}
 
@@ -362,11 +377,13 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
               fetchAchievements(true);
             }}
             disabled={refreshing}
-            title="Aggiorna obiettivi dallo store"
+            title={t("achievements.refresh_title")}
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white transition-all cursor-pointer disabled:opacity-50"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin text-indigo-400" : ""}`} />
-            <span className="text-xs font-semibold">Sincronizza</span>
+            <span className="text-xs font-semibold">
+              {t("achievements.sync")}
+            </span>
           </button>
         </div>
       </div>
@@ -395,7 +412,7 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
               : "bg-white/[0.04] text-slate-400 hover:text-slate-200 hover:bg-white/[0.08]"
           }`}
         >
-          Tutti ({stats.total})
+          {t("achievements.all")} ({stats.total})
         </button>
 
         <button
@@ -410,7 +427,7 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
           }`}
         >
           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-          <span>Sbloccati ({stats.unlocked})</span>
+          <span>{t("achievements.unlocked")} ({stats.unlocked})</span>
         </button>
 
         <button
@@ -425,7 +442,7 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
           }`}
         >
           <Lock className="w-3 h-3 text-slate-400" />
-          <span>Da Sbloccare ({stats.total - stats.unlocked})</span>
+          <span>{t("achievements.locked")} ({stats.total - stats.unlocked})</span>
         </button>
 
         {stats.ultraRareCount > 0 && (
@@ -441,7 +458,7 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
             }`}
           >
             <Sparkles className="w-3 h-3 text-amber-400" />
-            <span>Ultra-Rari ({stats.ultraRareCount})</span>
+            <span>{t("achievements.ultra_rare")} ({stats.ultraRareCount})</span>
           </button>
         )}
       </div>
@@ -464,7 +481,7 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
 
         {filteredAchievements.length === 0 && (
           <div className="py-8 w-full text-center text-xs text-slate-500 font-medium">
-            Nessun obiettivo corrisponde al filtro selezionato.
+            {t("achievements.empty_filter")}
           </div>
         )}
       </div>
