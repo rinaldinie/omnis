@@ -7,6 +7,7 @@ use omnis_plugin_gog::GogCloudPlugin;
 use omnis_plugin_steam::SteamPlugin;
 use omnis_plugin_xbox::XboxCloudPlugin;
 use omnis_sdk::{Achievement, AchievementProvider, GameAchievementsSummary};
+use std::sync::Arc;
 use tauri::State;
 use tracing::{debug, warn};
 use uuid::Uuid;
@@ -91,17 +92,22 @@ async fn refresh_game_achievements_internal(
         .upsert_achievements(game_id, &achievements)
         .map_err(|e| format!("Database error saving achievements: {e}"))?;
 
-    // 2. Cache icons to disk in parallel (limit 8 concurrent downloads)
+    // 2. Cache icons to disk in background (limit 8 concurrent downloads)
+    // We spawn this task so the IPC call returns immediately with remote CDN icon URLs,
+    // avoiding a multi-second delay while dozens of images download over HTTP.
+    let db_clone = Arc::clone(&state.db);
     let cache_dir = state.app_dir.join("cache").join("achievements");
     let cache_manager = AchievementCacheManager::new(cache_dir);
-    if let Err(e) = cache_manager
-        .cache_achievements_for_game(&state.db, game_id, &achievements)
-        .await
-    {
-        warn!("Achievement icon caching had errors for {game_id}: {e}");
-    }
+    tokio::spawn(async move {
+        if let Err(e) = cache_manager
+            .cache_achievements_for_game(&db_clone, game_id, &achievements)
+            .await
+        {
+            warn!("Achievement icon caching had errors for {game_id}: {e}");
+        }
+    });
 
-    // 3. Return updated summary
+    // 3. Return updated summary immediately
     state
         .db
         .get_game_achievements(game_id)
