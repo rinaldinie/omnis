@@ -1,16 +1,22 @@
 {
   "name": "omnis-ui-tauri",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "release": "node ../../../scripts/release.js",
+    "release:patch": "node ../../../scripts/release.js patch",
+    "release:minor": "node ../../../scripts/release.js minor",
+    "release:major": "node ../../../scripts/release.js major"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.1.1",
+    "@tauri-apps/plugin-process": "^2.1.0",
+    "@tauri-apps/plugin-updater": "^2.1.0",
     "hls.js": "^1.7.3",
     "lucide-react": "^0.475.0",
     "react": "^18.3.1",
