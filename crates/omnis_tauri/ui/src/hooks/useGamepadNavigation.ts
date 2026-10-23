@@ -376,8 +376,7 @@ export function useGamepadNavigation({
               soundEffects.playSelect();
               setIsMenuOpen(true);
             } else {
-              const current =
-                filteredGamesRef.current[focusedIndexRef.current] || selectedGameRef.current;
+              const current = filteredGamesRef.current[focusedIndexRef.current];
               if (current) {
                 soundEffects.playSelect();
                 handleLaunchRef.current(current.id);
@@ -396,7 +395,7 @@ export function useGamepadNavigation({
             }
             // In Big Picture home screen, B does NOT exit to desktop!
           } else if (isEdgeX) {
-            if (!isMenuOpenRef.current) {
+            if (!isMenuOpenRef.current && filteredGamesRef.current.length > 0) {
               soundEffects.playSelect();
               setShowFullscreenDetails((prev) => !prev);
             }
@@ -557,14 +556,18 @@ export function useGamepadNavigation({
             return next;
           });
         } else if (e.key === "Enter") {
-          soundEffects.playSelect();
-          setShowFullscreenDetails(true);
+          if (filteredGames.length > 0) {
+            soundEffects.playSelect();
+            setShowFullscreenDetails(true);
+          }
         } else if (e.key.toLowerCase() === "m" || e.key === "F10") {
           soundEffects.playSelect();
           setIsMenuOpen((prev) => !prev);
         } else if (e.key.toLowerCase() === "x") {
-          soundEffects.playSelect();
-          setShowFullscreenDetails((prev) => !prev);
+          if (filteredGames.length > 0) {
+            soundEffects.playSelect();
+            setShowFullscreenDetails((prev) => !prev);
+          }
         } else if (e.key.toLowerCase() === "t") {
           soundEffects.playSelect();
           setShowThemeModal(true);

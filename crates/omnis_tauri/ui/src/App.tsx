@@ -323,7 +323,9 @@ export default function App() {
     isSuspended: isGameRunning,
   });
 
-  const focusedGame = filteredGames[focusedIndex] || filteredGames[0] || selectedGame;
+  const focusedGame = filteredGames.length > 0
+    ? (filteredGames[focusedIndex] || filteredGames[0] || null)
+    : null;
 
   // CONTEXT MENU HANDLERS
   const handleOpenContextMenu = (e: React.MouseEvent, game: GameDto) => {
