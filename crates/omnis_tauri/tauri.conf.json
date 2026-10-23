@@ -69,7 +69,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDM4MkJFMTRFQzcxRjFFMDcKUldSZjYxRmd2a25WZXp1a1pMNEtEbmtJNW12QWJ3OUN0Ym5oR1ZBMzZ2dW5qUG14T25iRml3U2IK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDdENjBENDk0MUM5RkI0MzgKUldRNHRKOGNsTlJnZlNQTVhXRmkvUFJnbmZSdTVhUWlNdmRxUm1XL01ndGVqb3FHdHdLNm1zcVUK",
       "endpoints": [
         "https://github.com/rinaldinie/omins/releases/latest/download/latest.json"
       ]
