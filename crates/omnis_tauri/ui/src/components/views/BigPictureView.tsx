@@ -183,12 +183,19 @@ export default function BigPictureView({
   React.useEffect(() => {
     if (showFullscreenDetails && focusedGame) {
       setDetailGame(focusedGame);
-    } else if (!showFullscreenDetails) {
+    } else if (!showFullscreenDetails || !focusedGame) {
       setDetailGame(null);
     }
   }, [showFullscreenDetails, focusedGame]);
 
-  const activeDetailGame = detailGame || focusedGame;
+  // If there are no games matching the filter, automatically close fullscreen details
+  React.useEffect(() => {
+    if (filteredGames.length === 0 && showFullscreenDetails) {
+      setShowFullscreenDetails(false);
+    }
+  }, [filteredGames.length, showFullscreenDetails, setShowFullscreenDetails]);
+
+  const activeDetailGame = filteredGames.length > 0 ? (detailGame || focusedGame) : null;
 
   // Navigation state inside Game Details page
   const [detailsFocusedSection, setDetailsFocusedSection] = React.useState<"hero" | "achievements">("hero");
@@ -789,197 +796,233 @@ export default function BigPictureView({
         </span>
       </div>
 
-      {/* MAIN HERO STAGE */}
-      <div className="relative z-10 flex-1 flex flex-col justify-end px-16 pb-8">
-        <section data-omnis="bigpicture.hero" className="max-w-3xl mb-8 space-y-4">
-          <div className="flex items-center gap-3">
-            {focusedGame && (
-              <StoreBadge library={focusedGame.library} showName={true} className="py-1 px-3 text-xs" />
-            )}
-            {focusedGame?.is_installed && (
-              <span className="flex items-center gap-1.5 px-3 py-1 rounded-md text-[11px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                {t("big_picture.installed")}
-              </span>
-            )}
-            {focusedGame?.critic_score && (
-              <span className="px-3 py-1 rounded-md text-[11px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                ★ {focusedGame.critic_score} METACRITIC
-              </span>
-            )}
-            <span className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-              {t("game_details.playtime")}:{" "}
-              <strong className="text-white">{focusedGame?.playtime_formatted}</strong>
-            </span>
-          </div>
-
-          <h1 data-omnis="bigpicture.title" className="text-4xl md:text-5xl font-black text-white tracking-tight drop-shadow-md">
-            {focusedGame?.title}
-          </h1>
-
-          <p
-            className="text-sm line-clamp-2 leading-relaxed max-w-2xl font-normal drop-shadow"
-            style={{ color: "var(--text-muted)" }}
+      {/* MAIN HERO STAGE OR EMPTY STATE */}
+      {filteredGames.length === 0 ? (
+        <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-16 text-center">
+          <div
+            className="p-10 rounded-3xl border flex flex-col items-center max-w-lg space-y-4 shadow-2xl backdrop-blur-xl"
+            style={{
+              backgroundColor: "var(--bg-surface)",
+              borderColor: "var(--border-color)",
+            }}
           >
-            {focusedGame?.description || t("big_picture.no_desc")}
-          </p>
+            <div
+              className="w-20 h-20 rounded-3xl flex items-center justify-center shadow-lg"
+              style={{
+                backgroundColor: "var(--bg-card)",
+                borderColor: "var(--border-color)",
+              }}
+            >
+              <Search className="w-10 h-10 text-slate-400" />
+            </div>
 
-          {/* ACTION BUTTONS WITH CONTROLLER HINTS */}
-          <div className="flex items-center gap-4 pt-2">
-            {isFocusedGameRunning ? (
-              <>
-                <button
-                  disabled
-                  className="flex items-center gap-3 px-8 py-4 rounded-2xl text-base font-black text-emerald-200 bg-emerald-600/30 border border-emerald-500/50 shadow-2xl cursor-default"
-                >
-                  <span className="w-3 h-3 rounded-full bg-emerald-400 animate-ping" />
-                  <span>
-                    {t("big_picture.running")} (
-                    {formatDuration
-                      ? formatDuration(elapsedSeconds || 0)
-                      : `${elapsedSeconds || 0}s`}
-                    )
-                  </span>
-                </button>
+            <div className="space-y-1.5">
+              <h2 className="text-2xl font-black text-white tracking-wide">
+                Nessun gioco trovato
+              </h2>
+              <p className="text-sm font-medium leading-relaxed" style={{ color: "var(--text-muted)" }}>
+                {searchQuery
+                  ? `Nessun risultato corrisponde alla ricerca "${searchQuery}". Prova con un termine diverso o premi (Y) per modificare il filtro.`
+                  : "Nessun gioco presente in questa categoria o filtro selezionato. Usa LB / RB per cambiare categoria."}
+              </p>
+            </div>
 
-                {handleKillRunningGame && (
-                  <button
-                    type="button"
-                    onClick={handleKillRunningGame}
-                    className="flex items-center gap-3 px-8 py-4 rounded-2xl text-base font-black text-white bg-rose-600 hover:bg-rose-500 active:bg-rose-700 border border-rose-400/50 shadow-2xl shadow-rose-950/50 transition-all hover:scale-105 active:opacity-90 cursor-pointer"
-                    title={t("big_picture.kill_game_title")}
-                  >
-                    <Square className="w-5 h-5 fill-white" />
-                    <span>{t("big_picture.kill_game")}</span>
-                    <span className="w-6 h-6 rounded-full bg-black/40 flex items-center justify-center text-[10px] font-black border border-white/20">
-                      K
-                    </span>
-                  </button>
-                )}
-              </>
-            ) : (
+            <div className="flex items-center gap-3 pt-2">
               <button
-                onClick={() => focusedGame && handleLaunch(focusedGame.id)}
-                className="flex items-center gap-3 px-8 py-4 rounded-2xl text-base font-black text-white transition-all hover:brightness-110 active:opacity-90 shadow-2xl"
+                type="button"
+                onClick={() => {
+                  soundEffects.playSelect();
+                  setShowVirtualKeyboard(true);
+                }}
+                className="flex items-center gap-2 px-6 py-3 rounded-2xl text-xs font-bold text-white transition-all shadow-md"
                 style={{
                   backgroundColor: "var(--accent-primary)",
-                  boxShadow: `0 0 30px var(--accent-glow)`,
+                  boxShadow: "0 0 20px var(--accent-glow)",
                 }}
               >
-                {focusedGame?.is_installed ? (
-                  <>
-                    <Play className="w-5 h-5 fill-white" />
-                    <span>{t("big_picture.play_action")}</span>
-                  </>
-                ) : (
-                  <>
-                    <Download className="w-5 h-5 text-white" />
-                    <span>{t("game_details.install_now")}</span>
-                  </>
-                )}
-                <span className="w-6 h-6 rounded-full bg-black/30 flex items-center justify-center text-[11px] font-black border border-white/20">
-                  A
-                </span>
+                <Search className="w-4 h-4" />
+                <span>{searchQuery ? "Modifica ricerca (Y)" : "Cerca nella libreria (Y)"}</span>
               </button>
-            )}
-
-            <button
-              onClick={() => {
-                soundEffects.playSelect();
-                setShowFullscreenDetails(true);
-              }}
-              className="flex items-center gap-2.5 px-6 py-4 rounded-2xl text-white text-sm font-bold border transition-all hover:bg-white/10 active:opacity-90 backdrop-blur-md"
-              style={{
-                backgroundColor: "var(--bg-card)",
-                borderColor: "var(--border-color)",
-              }}
-            >
-              <Info className="w-4 h-4" style={{ color: "var(--accent-primary)" }} />
-              <span>{t("big_picture.details_action")}</span>
-              <span className="w-5 h-5 rounded-full bg-black/30 flex items-center justify-center text-[10px] font-black border border-white/20">
-                X
-              </span>
-            </button>
-
-            <button
-              onClick={() => {
-                soundEffects.playSelect();
-                handleSync();
-              }}
-              className="flex items-center gap-2.5 px-6 py-4 rounded-2xl text-white text-sm font-bold border transition-all backdrop-blur-md"
-              style={{
-                backgroundColor: "var(--bg-card)",
-                borderColor: "var(--border-color)",
-              }}
-            >
-              <RefreshCw className={`w-4 h-4 ${isSyncing ? "animate-spin text-white" : ""}`} />
-              <span>{t("common.refresh")}</span>
-            </button>
-          </div>
-
-          {/* Declarative Plugin Slot */}
-          <Slot name="bigpicture.hero" gameId={focusedGame?.id} />
-        </section>
-
-        {/* HORIZONTAL CAROUSEL SHELF */}
-        <div className="w-full">
-          <div
-            className="flex items-center justify-between mb-3 text-xs font-bold"
-            style={{ color: "var(--text-muted)" }}
-          >
-            <span>{t("big_picture.catalog_title", { count: filteredGames.length })}</span>
-            <span>{t("big_picture.nav_hint")}</span>
-          </div>
-
-          <div
-            ref={carouselRef}
-            className="flex items-center gap-6 overflow-x-auto pb-4 pt-2 px-2 scrollbar-none scroll-smooth"
-          >
-            {filteredGames.map((game, idx) => {
-              const isFocused = idx === focusedIndex;
-              return (
-                <div
-                  key={game.id}
-                  onClick={() => {
-                    soundEffects.playSelect();
-                    setFocusedIndex(idx);
-                    setSelectedGame(game);
-                    if (isFocused) {
-                      setShowFullscreenDetails(true);
-                    }
-                  }}
-                  onDoubleClick={() => {
-                    soundEffects.playSelect();
-                    setShowFullscreenDetails(true);
-                  }}
-                  className={`relative flex-shrink-0 w-44 aspect-[2/3] rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 transform-gpu will-change-transform [backface-visibility:hidden] [transform:translateZ(0)] ${
-                    isFocused
-                      ? "scale-110 z-20 shadow-2xl ring-4"
-                      : "scale-95 opacity-60 hover:opacity-90 hover:scale-100"
-                  }`}
-                  style={{
-                    backgroundColor: "var(--bg-card)",
-                    borderColor: isFocused ? "var(--accent-primary)" : "var(--border-color)",
-                    boxShadow: isFocused ? `0 0 30px var(--accent-glow)` : undefined,
-                  }}
-                >
-                  <BigPictureCardCover game={game} />
-
-                  <div className="absolute top-2.5 right-2.5">
-                    <StoreBadge library={game.library} />
-                  </div>
-
-                  {isFocused && (
-                    <div className="absolute bottom-2.5 left-2.5 right-2.5 px-3 py-1 rounded-lg bg-black/90 text-center text-xs font-black text-white border border-white/20 truncate select-none [transform:translateZ(0)]">
-                      {game.title}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+            </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="relative z-10 flex-1 flex flex-col justify-end px-16 pb-8">
+          <section data-omnis="bigpicture.hero" className="max-w-3xl mb-8 space-y-4">
+            <div className="flex items-center gap-3">
+              {focusedGame && (
+                <StoreBadge library={focusedGame.library} showName={true} className="py-1 px-3 text-xs" />
+              )}
+              {focusedGame?.is_installed && (
+                <span className="flex items-center gap-1.5 px-3 py-1 rounded-md text-[11px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  {t("big_picture.installed")}
+                </span>
+              )}
+              {focusedGame?.critic_score && (
+                <span className="px-3 py-1 rounded-md text-[11px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  ★ {focusedGame.critic_score} METACRITIC
+                </span>
+              )}
+              <span className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+                {t("game_details.playtime")}:{" "}
+                <strong className="text-white">{focusedGame?.playtime_formatted}</strong>
+              </span>
+            </div>
+
+            <h1 data-omnis="bigpicture.title" className="text-4xl md:text-5xl font-black text-white tracking-tight drop-shadow-md">
+              {focusedGame?.title}
+            </h1>
+
+            <p
+              className="text-sm line-clamp-2 leading-relaxed max-w-2xl font-normal drop-shadow"
+              style={{ color: "var(--text-muted)" }}
+            >
+              {focusedGame?.description || t("big_picture.no_desc")}
+            </p>
+
+            {/* ACTION BUTTONS WITH CONTROLLER HINTS */}
+            <div className="flex items-center gap-4 pt-2">
+              {isFocusedGameRunning ? (
+                <>
+                  <button
+                    disabled
+                    className="flex items-center gap-3 px-8 py-4 rounded-2xl text-base font-black text-emerald-200 bg-emerald-600/30 border border-emerald-500/50 shadow-2xl cursor-default"
+                  >
+                    <span className="w-3 h-3 rounded-full bg-emerald-400 animate-ping" />
+                    <span>
+                      {t("big_picture.running")} (
+                      {formatDuration
+                        ? formatDuration(elapsedSeconds || 0)
+                        : `${elapsedSeconds || 0}s`}
+                      )
+                    </span>
+                  </button>
+
+                  {handleKillRunningGame && (
+                    <button
+                      type="button"
+                      onClick={handleKillRunningGame}
+                      className="flex items-center gap-3 px-8 py-4 rounded-2xl text-base font-black text-white bg-rose-600 hover:bg-rose-500 active:bg-rose-700 border border-rose-400/50 shadow-2xl shadow-rose-950/50 transition-all hover:scale-105 active:opacity-90 cursor-pointer"
+                      title={t("big_picture.kill_game_title")}
+                    >
+                      <Square className="w-5 h-5 fill-white" />
+                      <span>{t("big_picture.kill_game")}</span>
+                      <span className="w-6 h-6 rounded-full bg-black/40 flex items-center justify-center text-[10px] font-black border border-white/20">
+                        K
+                      </span>
+                    </button>
+                  )}
+                </>
+              ) : (
+                <button
+                  onClick={() => focusedGame && handleLaunch(focusedGame.id)}
+                  className="flex items-center gap-3 px-8 py-4 rounded-2xl text-base font-black text-white transition-all hover:brightness-110 active:opacity-90 shadow-2xl"
+                  style={{
+                    backgroundColor: "var(--accent-primary)",
+                    boxShadow: `0 0 30px var(--accent-glow)`,
+                  }}
+                >
+                  {focusedGame?.is_installed ? (
+                    <>
+                      <Play className="w-5 h-5 fill-white" />
+                      <span>{t("big_picture.play_action")}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-5 h-5 text-white" />
+                      <span>{t("game_details.install_now")}</span>
+                    </>
+                  )}
+                  <span className="w-6 h-6 rounded-full bg-black/30 flex items-center justify-center text-[11px] font-black border border-white/20">
+                    A
+                  </span>
+                </button>
+              )}
+
+              <button
+                onClick={() => {
+                  soundEffects.playSelect();
+                  setShowFullscreenDetails(true);
+                }}
+                className="flex items-center gap-2.5 px-6 py-4 rounded-2xl text-white text-sm font-bold border transition-all hover:bg-white/10 active:opacity-90 backdrop-blur-md"
+                style={{
+                  backgroundColor: "var(--bg-card)",
+                  borderColor: "var(--border-color)",
+                }}
+              >
+                <Info className="w-4 h-4" style={{ color: "var(--accent-primary)" }} />
+                <span>{t("big_picture.details_action")}</span>
+                <span className="w-5 h-5 rounded-full bg-black/30 flex items-center justify-center text-[10px] font-black border border-white/20">
+                  X
+                </span>
+              </button>
+            </div>
+
+            {/* Declarative Plugin Slot */}
+            <Slot name="bigpicture.hero" gameId={focusedGame?.id} />
+          </section>
+
+          {/* HORIZONTAL CAROUSEL SHELF */}
+          <div className="w-full">
+            <div
+              className="flex items-center justify-between mb-3 text-xs font-bold"
+              style={{ color: "var(--text-muted)" }}
+            >
+              <span>{t("big_picture.catalog_title", { count: filteredGames.length })}</span>
+              <span>{t("big_picture.nav_hint")}</span>
+            </div>
+
+            <div
+              ref={carouselRef}
+              className="flex items-center gap-6 overflow-x-auto pb-4 pt-2 px-2 scrollbar-none scroll-smooth"
+            >
+              {filteredGames.map((game, idx) => {
+                const isFocused = idx === focusedIndex;
+                return (
+                  <div
+                    key={game.id}
+                    onClick={() => {
+                      soundEffects.playSelect();
+                      setFocusedIndex(idx);
+                      setSelectedGame(game);
+                      if (isFocused) {
+                        setShowFullscreenDetails(true);
+                      }
+                    }}
+                    onDoubleClick={() => {
+                      soundEffects.playSelect();
+                      setShowFullscreenDetails(true);
+                    }}
+                    className={`relative flex-shrink-0 w-44 aspect-[2/3] rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 transform-gpu will-change-transform [backface-visibility:hidden] [transform:translateZ(0)] ${
+                      isFocused
+                        ? "scale-110 z-20 shadow-2xl ring-4"
+                        : "scale-95 opacity-60 hover:opacity-90 hover:scale-100"
+                    }`}
+                    style={{
+                      backgroundColor: "var(--bg-card)",
+                      borderColor: isFocused ? "var(--accent-primary)" : "var(--border-color)",
+                      boxShadow: isFocused ? `0 0 30px var(--accent-glow)` : undefined,
+                    }}
+                  >
+                    <BigPictureCardCover game={game} />
+
+                    <div className="absolute top-2.5 right-2.5">
+                      <StoreBadge library={game.library} />
+                    </div>
+
+                    {isFocused && (
+                      <div className="absolute bottom-2.5 left-2.5 right-2.5 px-3 py-1 rounded-lg bg-black/90 text-center text-xs font-black text-white border border-white/20 truncate select-none [transform:translateZ(0)]">
+                        {game.title}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* BOTTOM CONTROLLER LEGEND */}
       <footer
@@ -991,37 +1034,34 @@ export default function BigPictureView({
         }}
       >
         <div className="flex items-center gap-6">
-          {isFocusedGameRunning ? (
-            <div className="flex items-center gap-2">
-              <span className="w-5 h-5 rounded-full bg-rose-600 text-white flex items-center justify-center text-[10px] font-black shadow">
-                K
-              </span>
-              <span className="text-rose-400 font-bold">
-                {t("big_picture.kill_game")}
-              </span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-black shadow">
-                A
-              </span>
-              <span>{t("big_picture.launch_game")}</span>
-            </div>
+          {filteredGames.length > 0 && (
+            <>
+              {isFocusedGameRunning ? (
+                <div className="flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full bg-rose-600 text-white flex items-center justify-center text-[10px] font-black shadow">
+                    K
+                  </span>
+                  <span className="text-rose-400 font-bold">
+                    {t("big_picture.kill_game")}
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-black shadow">
+                    A
+                  </span>
+                  <span>{t("big_picture.launch_game")}</span>
+                </div>
+              )}
+
+              <div className="flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-sky-600 text-white flex items-center justify-center text-[10px] font-black shadow">
+                  X
+                </span>
+                <span>{t("big_picture.details_sheet")}</span>
+              </div>
+            </>
           )}
-
-          <div className="flex items-center gap-2">
-            <span className="w-5 h-5 rounded-full bg-sky-600 text-white flex items-center justify-center text-[10px] font-black shadow">
-              X
-            </span>
-            <span>{t("big_picture.details_sheet")}</span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <span className="w-5 h-5 rounded-full bg-amber-600 text-white flex items-center justify-center text-[10px] font-black shadow">
-              Y
-            </span>
-            <span>{t("topbar.themes")}</span>
-          </div>
 
           <div className="flex items-center gap-2">
             <span
@@ -1034,21 +1074,6 @@ export default function BigPictureView({
               LB / RB
             </span>
             <span>{t("big_picture.change_category")}</span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2">
-            <span
-              className="px-1.5 py-0.5 rounded text-[10px] font-black border"
-              style={{
-                backgroundColor: "var(--bg-card)",
-                borderColor: "var(--border-color)",
-              }}
-            >
-              SELECT / F11
-            </span>
-            <span>{t("big_picture.return_desktop")}</span>
           </div>
         </div>
       </footer>

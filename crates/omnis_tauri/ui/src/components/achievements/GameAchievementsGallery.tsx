@@ -303,21 +303,23 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
               </span>
             </div>
           </div>
-          <button
-            onClick={() => {
-              soundEffects.playSelect();
-              fetchAchievements(true);
-            }}
-            disabled={refreshing}
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.08] text-xs font-bold text-white transition-all cursor-pointer disabled:opacity-50"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin text-indigo-400" : ""}`} />
-            <span>
-              {refreshing
-                ? t("achievements.syncing")
-                : t("achievements.sync")}
-            </span>
-          </button>
+          {!isBigPicture && (
+            <button
+              onClick={() => {
+                soundEffects.playSelect();
+                fetchAchievements(true);
+              }}
+              disabled={refreshing}
+              className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.08] text-xs font-bold text-white transition-all cursor-pointer disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin text-indigo-400" : ""}`} />
+              <span>
+                {refreshing
+                  ? t("achievements.syncing")
+                  : t("achievements.sync")}
+              </span>
+            </button>
+          )}
         </div>
 
         {renderFeedbackBanner()}
@@ -369,20 +371,22 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
             </span>
           )}
 
-          <button
-            onClick={() => {
-              soundEffects.playSelect();
-              fetchAchievements(true);
-            }}
-            disabled={refreshing}
-            title={t("achievements.refresh_title")}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white transition-all cursor-pointer disabled:opacity-50"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin text-indigo-400" : ""}`} />
-            <span className="text-xs font-semibold">
-              {t("achievements.sync")}
-            </span>
-          </button>
+          {!isBigPicture && (
+            <button
+              onClick={() => {
+                soundEffects.playSelect();
+                fetchAchievements(true);
+              }}
+              disabled={refreshing}
+              title={t("achievements.refresh_title")}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white transition-all cursor-pointer disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin text-indigo-400" : ""}`} />
+              <span className="text-xs font-semibold">
+                {t("achievements.sync")}
+              </span>
+            </button>
+          )}
         </div>
       </div>
 
