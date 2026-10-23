@@ -17,6 +17,7 @@ import {
   Tv,
   Square,
   ArrowLeft,
+  Menu,
 } from "lucide-react";
 import { ActiveGameSession, GameDto, LibraryCounts, ThemeConfig, formatImageUrl } from "../../types";
 import { StoreBadge, StoreIcon } from "../StoreBadge";
@@ -69,6 +70,12 @@ interface BigPictureViewProps {
     gameId: string;
   } | null;
   onDismissToast?: () => void;
+  homeFocusZone?: "carousel" | "topbar";
+  setHomeFocusZone?: (zone: "carousel" | "topbar") => void;
+  isMenuOpen?: boolean;
+  setIsMenuOpen?: React.Dispatch<React.SetStateAction<boolean>>;
+  themes?: ThemeConfig[];
+  onSelectTheme?: (theme: ThemeConfig) => void;
 }
 
 function BigPictureCardCover({ game }: { game: GameDto }) {
@@ -160,6 +167,12 @@ export default function BigPictureView({
   handleKillRunningGame,
   sessionToast,
   onDismissToast,
+  homeFocusZone = "carousel",
+  setHomeFocusZone,
+  isMenuOpen = false,
+  setIsMenuOpen,
+  themes = [],
+  onSelectTheme,
 }: BigPictureViewProps) {
   const { locale } = useTranslation();
   const isFocusedGameRunning = activeGame?.game_id === focusedGame?.id;
@@ -307,10 +320,109 @@ export default function BigPictureView({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [activeGame, focusedGame, handleKillRunningGame]);
+
+  // Dropdown menu focused index
+  const [menuFocusedIndex, setMenuFocusedIndex] = React.useState<number>(0);
+
+  // Reset menu focus to 0 whenever the dropdown menu opens
+  React.useEffect(() => {
+    if (isMenuOpen) {
+      setMenuFocusedIndex(0);
+    }
+  }, [isMenuOpen]);
+
+  // Handle D-pad / Arrow navigation inside dropdown menu
+  React.useEffect(() => {
+    if (!isMenuOpen) return;
+
+    const handleMenuNav = (e: Event) => {
+      const customEvent = e as CustomEvent<{ direction: "up" | "down" | "left" | "right" }>;
+      const dir = customEvent.detail?.direction;
+      if (!dir) return;
+
+      const TOTAL_MENU_ITEMS = 7;
+      if (dir === "down") {
+        setMenuFocusedIndex((prev) => (prev + 1) % TOTAL_MENU_ITEMS);
+        soundEffects.playNav();
+      } else if (dir === "up") {
+        setMenuFocusedIndex((prev) => (prev <= 0 ? TOTAL_MENU_ITEMS - 1 : prev - 1));
+        soundEffects.playNav();
+      } else if (dir === "left" || dir === "right") {
+        // Horizontal navigation inside menu items (for cycling settings inline)
+        if (menuFocusedIndex === 3 && themes.length > 0 && onSelectTheme) {
+          const curIdx = themes.findIndex((th) => th.id === currentTheme.id);
+          const delta = dir === "right" ? 1 : -1;
+          const nextIdx = (curIdx + delta + themes.length) % themes.length;
+          soundEffects.playNav();
+          onSelectTheme(themes[nextIdx]);
+        } else if (menuFocusedIndex === 2) {
+          // Toggle audio effects
+          handleToggleSound();
+        }
+      }
+    };
+
+    window.addEventListener("omnis:menu-nav", handleMenuNav);
+    return () => window.removeEventListener("omnis:menu-nav", handleMenuNav);
+  }, [isMenuOpen, menuFocusedIndex, themes, currentTheme, onSelectTheme, handleToggleSound]);
+
+  // Handle Button A / Enter inside dropdown menu
+  React.useEffect(() => {
+    if (!isMenuOpen) return;
+
+    const handleMenuActionA = () => {
+      soundEffects.playSelect();
+      switch (menuFocusedIndex) {
+        case 0: // Cerca nella libreria (virtual keyboard)
+          setIsMenuOpen?.(false);
+          setShowVirtualKeyboard(true);
+          break;
+        case 1: // Sincronizza libreria
+          handleSync();
+          break;
+        case 2: // Effetti Sonori UI
+          handleToggleSound();
+          break;
+        case 3: // Cambia Tema (inline cycle)
+          if (themes.length > 0 && onSelectTheme) {
+            const curIdx = themes.findIndex((th) => th.id === currentTheme.id);
+            const nextIdx = (curIdx + 1) % themes.length;
+            onSelectTheme(themes[nextIdx]);
+          }
+          break;
+        case 4: // Plugin Metadati (inline refresh)
+          loadProvidersAndConfig();
+          break;
+        case 5: // Torna alla Modalità Desktop
+          setIsMenuOpen?.(false);
+          toggleBigPicture();
+          break;
+        case 6: // Chiudi Menu
+          setIsMenuOpen?.(false);
+          break;
+      }
+    };
+
+    window.addEventListener("omnis:menu-action-a", handleMenuActionA);
+    return () => window.removeEventListener("omnis:menu-action-a", handleMenuActionA);
+  }, [
+    isMenuOpen,
+    menuFocusedIndex,
+    themes,
+    currentTheme,
+    onSelectTheme,
+    handleToggleSound,
+    handleSync,
+    loadProvidersAndConfig,
+    toggleBigPicture,
+    setIsMenuOpen,
+    setShowVirtualKeyboard,
+  ]);
+
   return (
     <main
       data-omnis="bigpicture"
-      className="relative flex flex-col h-screen w-screen overflow-hidden transition-colors duration-500"
+      className="relative flex flex-col h-screen w-screen overflow-hidden transition-colors duration-500 cursor-none pointer-events-none select-none"
       style={{ backgroundColor: "var(--bg-base)" }}
     >
       {/* Ambient Cinema Backdrop / Dynamic Video Trailer */}
@@ -321,52 +433,88 @@ export default function BigPictureView({
         isPaused={isGameRunning}
       />
 
-      {/* 10-FOOT TOP BAR */}
+      {/* 10-FOOT PLAYNITE-STYLE TOP BAR */}
       <header
-        onMouseDown={handleStartDragging}
-        onDoubleClick={handleToggleMaximize}
-        data-tauri-drag-region
-        className="relative z-20 flex items-center justify-between px-10 py-5 border-b cursor-default select-none"
+        className="relative z-30 flex items-center justify-between px-10 py-4 border-b select-none"
         style={{
           backgroundColor: "var(--bg-surface)",
           borderColor: "var(--border-color)",
         }}
       >
+        {/* Left: Playnite-style Menu Button */}
         <div className="flex items-center gap-4">
           <div
-            className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg"
+            className={`flex items-center gap-3 px-5 py-2.5 rounded-2xl border-2 transition-all duration-200 ${
+              homeFocusZone === "topbar" || isMenuOpen
+                ? "scale-105 shadow-2xl"
+                : "opacity-85"
+            }`}
             style={{
-              backgroundColor: "var(--accent-primary)",
-              boxShadow: `0 0 20px var(--accent-glow)`,
+              backgroundColor:
+                homeFocusZone === "topbar" || isMenuOpen
+                  ? "var(--accent-primary)"
+                  : "var(--bg-card)",
+              borderColor:
+                homeFocusZone === "topbar" || isMenuOpen
+                  ? "var(--accent-glow, #6366f1)"
+                  : "var(--border-color)",
+              boxShadow:
+                homeFocusZone === "topbar" || isMenuOpen
+                  ? "0 0 25px var(--accent-glow)"
+                  : undefined,
+              color:
+                homeFocusZone === "topbar" || isMenuOpen
+                  ? "#ffffff"
+                  : "var(--text-primary)",
             }}
           >
-            <Tv className="w-5 h-5 text-white" />
+            <Menu className="w-5 h-5 text-white" />
+            <span className="font-black text-sm tracking-wide uppercase">Menu</span>
+            <span
+              className={`ml-1 text-[11px] font-black px-2 py-0.5 rounded-md border ${
+                homeFocusZone === "topbar" || isMenuOpen
+                  ? "bg-black/40 border-white/40 text-amber-300"
+                  : "bg-white/10 border-white/10 text-slate-300"
+              }`}
+            >
+              {homeFocusZone === "topbar" ? "A" : "SELECT"}
+            </span>
           </div>
-          <div className="flex flex-col">
-            <span className="font-semibold text-lg tracking-wider text-white">OMNIS BIG PICTURE</span>
-            <span className="text-xs font-semibold" style={{ color: "var(--text-muted)" }}>
-              Modalità Fullscreen & Controller TV
+
+          {/* Omnis Big Picture Brand / Logo subtle pill */}
+          <div className="hidden md:flex items-center gap-2.5 px-3.5 py-1.5 rounded-xl border border-white/10 bg-white/5">
+            <Tv className="w-4 h-4 text-white/70" />
+            <span className="font-bold text-xs tracking-wider text-white/80 uppercase">
+              Omnis Big Picture
             </span>
           </div>
         </div>
 
-        {/* Live Running Game Indicator in 10-Foot Top Bar */}
+        {/* Center: Live Running Game Indicator (if active) */}
         {activeGame && (
-          <div className={`flex items-center gap-3 px-5 py-2.5 rounded-full border-2 text-sm font-extrabold shadow-xl backdrop-blur-md ${
-            activeGame.state === "launching"
-              ? "bg-amber-500/20 border-amber-500/60 text-amber-300 animate-pulse shadow-amber-950/60"
-              : activeGame.state === "stopping"
-              ? "bg-rose-500/20 border-rose-500/60 text-rose-300 shadow-rose-950/60"
-              : "bg-emerald-500/20 border-emerald-500/60 text-emerald-300 animate-pulse shadow-emerald-950/60"
-          }`}>
-            <span className={`w-2.5 h-2.5 rounded-full ${
-              activeGame.state === "launching" ? "bg-amber-400" : activeGame.state === "stopping" ? "bg-rose-400" : "bg-emerald-400 animate-ping"
-            }`} />
+          <div
+            className={`flex items-center gap-3 px-5 py-2 rounded-full border-2 text-xs font-black shadow-xl backdrop-blur-md ${
+              activeGame.state === "launching"
+                ? "bg-amber-500/20 border-amber-500/60 text-amber-300 animate-pulse"
+                : activeGame.state === "stopping"
+                ? "bg-rose-500/20 border-rose-500/60 text-rose-300"
+                : "bg-emerald-500/20 border-emerald-500/60 text-emerald-300 animate-pulse"
+            }`}
+          >
+            <span
+              className={`w-2 h-2 rounded-full ${
+                activeGame.state === "launching"
+                  ? "bg-amber-400"
+                  : activeGame.state === "stopping"
+                  ? "bg-rose-400"
+                  : "bg-emerald-400 animate-ping"
+              }`}
+            />
             <span>
               {activeGame.state === "launching" ? (
-                <>⏳ {t("status.launching")} <strong className="text-white">{activeGame.title}</strong>...</>
+                <>⏳ {t("status.launching")} <strong className="text-white">{activeGame.title}</strong></>
               ) : activeGame.state === "stopping" ? (
-                <>🛑 {t("status.stopping")} <strong className="text-white">{activeGame.title}</strong>...</>
+                <>🛑 {t("status.stopping")} <strong className="text-white">{activeGame.title}</strong></>
               ) : (
                 <>● {t("status.running")}: <strong className="text-white">{activeGame.title}</strong> ({formatDuration ? formatDuration(elapsedSeconds || 0) : `${elapsedSeconds || 0}s`})</>
               )}
@@ -378,8 +526,7 @@ export default function BigPictureView({
                   e.stopPropagation();
                   handleKillRunningGame();
                 }}
-                className="ml-2 px-3 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 active:bg-rose-700 text-white text-xs font-black uppercase tracking-wider transition-all shadow-md cursor-pointer"
-                title={t("status.kill_game_title")}
+                className="ml-2 px-2.5 py-0.5 rounded-lg bg-rose-600 text-white text-[10px] font-black uppercase tracking-wider shadow"
               >
                 {t("status.kill_game")}
               </button>
@@ -387,136 +534,202 @@ export default function BigPictureView({
           </div>
         )}
 
-        <div className="flex items-center gap-4">
-          {/* Gamepad Connection Badge */}
+        {/* Right: Controller status and active search filter */}
+        <div className="flex items-center gap-3">
+          {searchQuery && (
+            <div
+              className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border"
+              style={{
+                backgroundColor: "var(--accent-primary)",
+                borderColor: "var(--accent-glow)",
+                color: "#fff",
+              }}
+            >
+              <Search className="w-3.5 h-3.5" />
+              <span>Filtro: "{searchQuery}"</span>
+            </div>
+          )}
+
           <div
-            className={`flex items-center gap-2.5 px-4 py-2 rounded-full border text-xs font-bold transition-all ${
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full border text-xs font-bold transition-all ${
               gamepadConnected
                 ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-400"
-                : "border-slate-700/40 text-slate-400"
+                : "border-white/10 text-slate-400"
             }`}
-            style={{ backgroundColor: !gamepadConnected ? "var(--bg-card)" : undefined }}
+            style={{ backgroundColor: "var(--bg-card)" }}
           >
-            <Gamepad2 className={`w-4 h-4 ${gamepadConnected ? "animate-pulse" : ""}`} />
-            <span>{gamepadConnected ? gamepadName : "Controller pronto (Gamepad API)"}</span>
-          </div>
-
-          {/* Virtual Keyboard / Search Shortcut */}
-          <button
-            onClick={() => {
-              soundEffects.playSelect();
-              setShowVirtualKeyboard(true);
-            }}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl border text-xs font-bold text-white transition-all shadow-md group hover:border-white/40"
-            style={{
-              backgroundColor: searchQuery ? "var(--accent-primary)" : "var(--bg-card)",
-              borderColor: searchQuery ? "var(--accent-primary)" : "var(--border-color)",
-              boxShadow: searchQuery ? `0 0 15px var(--accent-glow)` : undefined,
-            }}
-            title="Apri Tastiera Virtuale / Cerca nella Libreria (Y)"
-          >
-            <Search className="w-4 h-4" />
-            <span>{searchQuery ? `Ricerca: "${searchQuery}"` : "Cerca"}</span>
-            <span className="w-5 h-5 rounded-full bg-black/40 border border-white/20 flex items-center justify-center text-[10px] font-black text-amber-300">
-              Y
-            </span>
-          </button>
-
-          {/* Sound Effects Toggle Button */}
-          <button
-            onClick={handleToggleSound}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-bold text-white transition-all shadow-md hover:bg-white/10"
-            style={{
-              backgroundColor: "var(--bg-card)",
-              borderColor: "var(--border-color)",
-              color: soundEnabled ? "var(--text-primary)" : "var(--text-muted)",
-            }}
-            title={
-              soundEnabled
-                ? "Effetti sonori UI attivi (Clicca per silenziare)"
-                : "Effetti sonori UI mutati (Clicca per attivare)"
-            }
-          >
-            {soundEnabled ? (
-              <Volume2 className="w-4 h-4 text-emerald-400" />
-            ) : (
-              <VolumeX className="w-4 h-4 text-slate-400" />
-            )}
-            <span>{soundEnabled ? "Audio ON" : "Audio OFF"}</span>
-          </button>
-
-          {/* Theme Shortcut */}
-          <button
-            onClick={() => {
-              soundEffects.playSelect();
-              setShowThemeModal(true);
-            }}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl border text-xs font-bold text-white transition-all shadow-md"
-            style={{
-              backgroundColor: "var(--bg-card)",
-              borderColor: "var(--border-color)",
-            }}
-          >
-            <Palette className="w-4 h-4" style={{ color: "var(--accent-primary)" }} />
-            <span>Tema: {currentTheme.name}</span>
-          </button>
-
-          {/* Plugin Shortcut */}
-          <button
-            onClick={() => {
-              loadProvidersAndConfig();
-              setShowPluginModal(true);
-            }}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl border text-xs font-bold text-white transition-all shadow-md"
-            style={{
-              backgroundColor: "var(--bg-card)",
-              borderColor: "var(--border-color)",
-            }}
-          >
-            <Puzzle className="w-4 h-4 text-indigo-400" />
-            <span>Plugin Metadati</span>
-          </button>
-
-          {/* Exit Fullscreen */}
-          <button
-            type="button"
-            onClick={toggleBigPicture}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white transition-all shadow-lg shrink-0"
-            style={{
-              backgroundColor: "var(--accent-primary)",
-              boxShadow: `0 0 15px var(--accent-glow)`,
-            }}
-          >
-            <Minimize2 className="w-4 h-4" />
-            <span>{t("big_picture.exit_hint")}</span>
-          </button>
-
-          {/* Big Picture Window Controls */}
-          <div
-            className="flex items-center gap-1 shrink-0 ml-2 pl-2 border-l border-white/10 z-50"
-            data-no-drag="true"
-          >
-            <button
-              type="button"
-              onClick={handleMinimize}
-              className="w-8 h-8 rounded-lg hover:bg-white/10 active:bg-white/20 flex items-center justify-center transition-all cursor-pointer text-slate-400 hover:text-white"
-              title={t("big_picture.minimize")}
-              data-no-drag="true"
-            >
-              <Minus className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={handleClose}
-              className="w-8 h-8 rounded-lg hover:bg-rose-600 hover:text-white active:bg-rose-700 flex items-center justify-center transition-all cursor-pointer text-slate-400"
-              title={t("big_picture.close")}
-              data-no-drag="true"
-            >
-              <X className="w-4 h-4" />
-            </button>
+            <Gamepad2 className={`w-3.5 h-3.5 ${gamepadConnected ? "animate-pulse" : ""}`} />
+            <span>{gamepadConnected ? gamepadName : "Controller pronto"}</span>
           </div>
         </div>
       </header>
+
+      {/* PLAYNITE-STYLE FULLSCREEN DROPDOWN MENU */}
+      {isMenuOpen && (
+        <div className="fixed inset-0 z-50 flex items-start justify-start pt-20 pl-10 bg-black/60 backdrop-blur-md">
+          <div
+            className="w-[420px] rounded-3xl border-2 p-3 shadow-2xl flex flex-col gap-1.5"
+            style={{
+              backgroundColor: "var(--bg-surface)",
+              borderColor: "var(--border-color)",
+              boxShadow: "0 25px 60px -15px rgba(0, 0, 0, 0.8), 0 0 35px var(--accent-glow)",
+            }}
+          >
+            {/* Menu Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+              <div className="flex items-center gap-2.5">
+                <div
+                  className="w-7 h-7 rounded-lg flex items-center justify-center shadow"
+                  style={{ backgroundColor: "var(--accent-primary)" }}
+                >
+                  <Tv className="w-4 h-4 text-white" />
+                </div>
+                <span className="font-extrabold text-sm tracking-wider text-white uppercase">
+                  Menu Principale
+                </span>
+              </div>
+              <span className="text-[11px] font-black text-slate-400">
+                (B) Chiudi
+              </span>
+            </div>
+
+            {/* Menu Items */}
+            <div className="flex flex-col gap-1 py-1">
+              {[
+                {
+                  id: "search",
+                  icon: Search,
+                  label: "Cerca nella Libreria",
+                  subtitle: searchQuery ? `Filtro: "${searchQuery}"` : "Cerca giochi con la tastiera virtuale",
+                  badge: searchQuery ? "Attivo" : undefined,
+                  badgeVariant: "emerald",
+                  actionKey: "A",
+                },
+                {
+                  id: "sync",
+                  icon: RefreshCw,
+                  isSpinning: isSyncing,
+                  label: "Sincronizza Libreria",
+                  subtitle: isSyncing ? "Sincronizzazione in corso..." : "Scansiona Steam, Epic, GOG",
+                  badge: isSyncing ? "Sync..." : undefined,
+                  badgeVariant: "emerald",
+                  actionKey: "A",
+                },
+                {
+                  id: "sound",
+                  icon: soundEnabled ? Volume2 : VolumeX,
+                  label: "Effetti Sonori UI",
+                  subtitle: soundEnabled ? "Feedback sonoro attivo" : "Audio dell'interfaccia silenziato",
+                  badge: soundEnabled ? "ON" : "OFF",
+                  badgeVariant: soundEnabled ? "emerald" : "slate",
+                  actionKey: "A",
+                },
+                {
+                  id: "theme",
+                  icon: Palette,
+                  label: "Tema dell'Interfaccia",
+                  subtitle: currentTheme.name,
+                  badge: currentTheme.name,
+                  badgeVariant: "default",
+                  actionKey: "◄/►",
+                },
+                {
+                  id: "plugins",
+                  icon: Puzzle,
+                  label: "Plugin e Metadati",
+                  subtitle: "Ricarica configurazione scraper metadati",
+                  actionKey: "A",
+                },
+                {
+                  id: "desktop",
+                  icon: Minimize2,
+                  label: "Torna alla Modalità Desktop",
+                  subtitle: "Passa alla finestra launcher standard",
+                  badge: "Desktop",
+                  badgeVariant: "slate",
+                  actionKey: "A",
+                },
+                {
+                  id: "close",
+                  icon: X,
+                  label: "Chiudi Menu",
+                  subtitle: "Torna alla navigazione dei giochi",
+                  actionKey: "B",
+                },
+              ].map((item, idx) => {
+                const isFocused = menuFocusedIndex === idx;
+                const Icon = item.icon;
+                return (
+                  <div
+                    key={item.id}
+                    className={`flex items-center justify-between px-4 py-3 rounded-2xl border transition-all duration-150 ${
+                      isFocused
+                        ? "scale-[1.02] border-white/60 shadow-lg"
+                        : "border-transparent opacity-80"
+                    }`}
+                    style={{
+                      backgroundColor: isFocused ? "var(--accent-primary)" : "transparent",
+                      borderColor: isFocused ? "var(--accent-glow, #ffffff)" : "transparent",
+                      boxShadow: isFocused ? "0 0 20px var(--accent-glow)" : undefined,
+                      color: isFocused ? "#ffffff" : "var(--text-primary)",
+                    }}
+                  >
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                          isFocused ? "bg-white/20 text-white" : "bg-white/5 text-slate-300"
+                        }`}
+                      >
+                        <Icon className={`w-4 h-4 ${item.isSpinning ? "animate-spin" : ""}`} />
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <span className="font-bold text-sm truncate leading-tight">
+                          {item.label}
+                        </span>
+                        <span
+                          className={`text-[11px] truncate leading-normal ${
+                            isFocused ? "text-white/85" : "text-slate-400"
+                          }`}
+                        >
+                          {item.subtitle}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0 ml-3">
+                      {item.badge && (
+                        <span
+                          className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md border ${
+                            item.badgeVariant === "emerald"
+                              ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300"
+                              : item.badgeVariant === "slate"
+                              ? "bg-slate-700/50 border-slate-600 text-slate-300"
+                              : "bg-white/10 border-white/20 text-white"
+                          }`}
+                        >
+                          {item.badge}
+                        </span>
+                      )}
+                      {isFocused && (
+                        <span className="w-5 h-5 rounded-full bg-white/20 border border-white/40 flex items-center justify-center text-[10px] font-black text-amber-300 shadow">
+                          {item.actionKey}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Menu Footer Navigation Hint */}
+            <div className="flex items-center justify-between px-4 py-2 border-t border-white/10 text-[10px] font-bold text-slate-400">
+              <span>▲/▼ Sposta</span>
+              <span>(A) Seleziona</span>
+              <span>(B) Esci</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* CATEGORY SELECTOR PILLS (LB / RB SWITCHABLE) */}
       <div className="relative z-20 flex items-center justify-center gap-2 px-10 my-4">

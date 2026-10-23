@@ -277,6 +277,12 @@ export default function App() {
   const toggleBigPicture = async () => {
     const next = !isBigPicture;
     setIsBigPicture(next);
+    try {
+      const { getCurrentWindow } = await import("@tauri-apps/api/window");
+      await getCurrentWindow().setFullscreen(next);
+    } catch {
+      // Dev or test environment fallback
+    }
     await invokeTauri("window_set_fullscreen", { fullscreen: next });
     if (next) {
       setFocusedIndex(0);
@@ -299,6 +305,10 @@ export default function App() {
     setFocusedIndex,
     showFullscreenDetails,
     setShowFullscreenDetails,
+    homeFocusZone,
+    setHomeFocusZone,
+    isMenuOpen,
+    setIsMenuOpen,
   } = useGamepadNavigation({
     isBigPicture,
     toggleBigPicture,
@@ -1042,6 +1052,12 @@ export default function App() {
           handleKillRunningGame={handleKillRunningGame}
           sessionToast={sessionToast}
           onDismissToast={() => setSessionToast(null)}
+          homeFocusZone={homeFocusZone}
+          setHomeFocusZone={setHomeFocusZone}
+          isMenuOpen={isMenuOpen}
+          setIsMenuOpen={setIsMenuOpen}
+          themes={themes}
+          onSelectTheme={selectTheme}
         />
       ) : (
         /* DESKTOP LAUNCHER MODE */
