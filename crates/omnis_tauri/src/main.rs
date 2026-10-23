@@ -97,6 +97,8 @@ fn main() {
     let db_startup = db.clone();
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .setup(move |app| {
             let active_mgr = active_mgr_startup.clone();
             let db_ref = db_startup.clone();

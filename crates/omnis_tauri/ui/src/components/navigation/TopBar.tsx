@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { ActiveGameSession, GameDto, ProviderInfo, ThemeConfig, ViewMode } from "../../types";
 import soundEffects from "../../utils/soundEffects";
+import { useUpdater } from "../../hooks/useAppUpdater";
 
 interface TopBarProps {
   currentTheme: ThemeConfig;
@@ -101,6 +102,8 @@ export default function TopBar({
   handleKillRunningGame,
   setShowBatchEnrichModal,
 }: TopBarProps) {
+  const updater = useUpdater();
+  const isUpdateAvailable = updater?.status === "available";
   const [showMoreMenu, setShowMoreMenu] = React.useState(false);
   const moreMenuRef = React.useRef<HTMLDivElement>(null);
 
@@ -329,15 +332,23 @@ export default function TopBar({
             soundEffects.playSelect();
             setShowSettingsModal(true);
           }}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-bold transition-all hover:bg-white/10 active:opacity-90 shadow-sm shrink-0"
+          className="relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-bold transition-all hover:bg-white/10 active:opacity-90 shadow-sm shrink-0"
           style={{
             backgroundColor: "var(--bg-card)",
             borderColor: "var(--border-color)",
             color: "var(--text-primary)",
           }}
-          title={t("topbar.options")}
+          title={isUpdateAvailable ? `${t("topbar.options")} (${updater?.availableVersion ? `v${updater.availableVersion}` : ''})` : t("topbar.options")}
         >
-          <Settings className="w-3.5 h-3.5" style={{ color: "var(--accent-primary)" }} />
+          <div className="relative">
+            <Settings className="w-3.5 h-3.5" style={{ color: "var(--accent-primary)" }} />
+            {isUpdateAvailable && (
+              <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-sky-500"></span>
+              </span>
+            )}
+          </div>
           <span className="hidden 2xl:inline">{t("topbar.options")}</span>
         </button>
 

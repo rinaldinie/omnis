@@ -13,6 +13,7 @@ import {
   RefreshCw,
   CheckCircle2,
   Check,
+  Sparkles,
 } from "lucide-react";
 import { listen } from "@tauri-apps/api/event";
 import GameEditorModal from "./components/GameEditorModal";
@@ -49,6 +50,7 @@ import {
 import { useWindowControls } from "./hooks/useWindowControls";
 import { useLibraryFilters } from "./hooks/useLibraryFilters";
 import { useGamepadNavigation } from "./hooks/useGamepadNavigation";
+import { useAppUpdater, UpdaterContext } from "./hooks/useAppUpdater";
 import FullscreenView from "./components/views/FullscreenView";
 import DetailsSplitView from "./components/views/DetailsSplitView";
 import GridView from "./components/views/GridView";
@@ -129,6 +131,19 @@ export default function App() {
   gamesRef.current = games;
   const activeGameRef = useRef<ActiveGameSession | null>(null);
   activeGameRef.current = activeGame;
+
+  // ONLINE APP UPDATER
+  const updater = useAppUpdater();
+
+  // Check for updates silently on startup after 4-second delay
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      updater.checkForUpdates(true).catch((err) => {
+        console.warn("Silent background update check failed:", err);
+      });
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, [updater.checkForUpdates]);
 
   // Live timer for active game session (counts from process detection, Requirement A6)
   useEffect(() => {
@@ -1036,8 +1051,9 @@ export default function App() {
   };
 
   return (
-    <div
-      className="flex flex-col h-screen w-screen select-none overflow-hidden transition-colors duration-300"
+    <UpdaterContext.Provider value={updater}>
+      <div
+        className="flex flex-col h-screen w-screen select-none overflow-hidden transition-colors duration-300"
       style={{
         backgroundColor: "var(--bg-base)",
         color: "var(--text-primary)",
@@ -1933,6 +1949,23 @@ export default function App() {
           </button>
         </div>
       )}
+
+      {/* UPDATE NOTIFICATION TOAST */}
+      {updater.status === "available" && (
+        <div
+          onClick={() => handleOpenSettings("general")}
+          className="fixed bottom-6 right-6 z-50 flex items-center gap-3 p-4 rounded-2xl bg-slate-900/95 border border-sky-500/50 text-white shadow-2xl backdrop-blur-xl animate-in slide-in-from-bottom-5 cursor-pointer hover:border-sky-400 transition-all"
+        >
+          <Sparkles className="w-5 h-5 text-sky-400 shrink-0" />
+          <div>
+            <h4 className="text-xs font-bold text-white">
+              {t("general_settings.updater_available")} {updater.availableVersion ? `(v${updater.availableVersion})` : ""}
+            </h4>
+            <p className="text-[11px] text-slate-400">{t("topbar.options")}</p>
+          </div>
+        </div>
+      )}
     </div>
+    </UpdaterContext.Provider>
   );
 }

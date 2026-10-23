@@ -379,6 +379,18 @@ export interface TranslationSchema {
     themes_note: string;
     reset_defaults: string;
     saved: string;
+    updater_title: string;
+    updater_desc: string;
+    updater_current_version: string;
+    updater_check_button: string;
+    updater_checking: string;
+    updater_up_to_date: string;
+    updater_available: string;
+    updater_download_button: string;
+    updater_downloading: string;
+    updater_ready_to_install: string;
+    updater_relaunch_button: string;
+    updater_error: string;
   };
   batch_enrich: {
     target_group: string;

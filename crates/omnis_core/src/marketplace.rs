@@ -12,7 +12,7 @@ use tracing::{info, warn};
 
 pub const EMBEDDED_SEED_CATALOG: &str = include_str!("marketplace_seed.json");
 pub const DEFAULT_CATALOG_URL: &str =
-    "http://truenas:30142/enrico.rinaldini/omnis-plugins/raw/branch/main/marketplace.json";
+    "https://raw.githubusercontent.com/rinaldinie/omins/main/plugins/marketplace.json";
 
 /// Platform-specific downloadable asset information
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
