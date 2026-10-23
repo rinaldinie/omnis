@@ -18,6 +18,7 @@ import {
   Square,
   ArrowLeft,
   Menu,
+  Power,
 } from "lucide-react";
 import { ActiveGameSession, GameDto, LibraryCounts, ThemeConfig, formatImageUrl } from "../../types";
 import { StoreBadge, StoreIcon } from "../StoreBadge";
@@ -347,7 +348,7 @@ export default function FullscreenView({
       const dir = customEvent.detail?.direction;
       if (!dir) return;
 
-      const TOTAL_MENU_ITEMS = 7;
+      const TOTAL_MENU_ITEMS = 8;
       if (dir === "down") {
         setMenuFocusedIndex((prev) => (prev + 1) % TOTAL_MENU_ITEMS);
         soundEffects.playNav();
@@ -404,7 +405,11 @@ export default function FullscreenView({
           setIsMenuOpen?.(false);
           toggleFullscreen();
           break;
-        case 6: // Chiudi Menu
+        case 6: // Esci da Omnis (Chiudi Applicazione)
+          setIsMenuOpen?.(false);
+          handleClose();
+          break;
+        case 7: // Chiudi Menu
           setIsMenuOpen?.(false);
           break;
       }
@@ -422,6 +427,7 @@ export default function FullscreenView({
     handleSync,
     loadProvidersAndConfig,
     toggleFullscreen,
+    handleClose,
     setIsMenuOpen,
     setShowVirtualKeyboard,
   ]);
@@ -657,6 +663,15 @@ export default function FullscreenView({
                   actionKey: "A",
                 },
                 {
+                  id: "exit",
+                  icon: Power,
+                  label: t("fullscreen.exit_app"),
+                  subtitle: t("fullscreen.exit_app_desc"),
+                  badge: "Esci",
+                  badgeVariant: "rose",
+                  actionKey: "A",
+                },
+                {
                   id: "close",
                   icon: X,
                   label: "Chiudi Menu",
@@ -709,6 +724,8 @@ export default function FullscreenView({
                           className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md border ${
                             item.badgeVariant === "emerald"
                               ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300"
+                              : item.badgeVariant === "rose"
+                              ? "bg-rose-500/20 border-rose-500/50 text-rose-300"
                               : item.badgeVariant === "slate"
                               ? "bg-slate-700/50 border-slate-600 text-slate-300"
                               : "bg-white/10 border-white/20 text-white"
@@ -904,10 +921,10 @@ export default function FullscreenView({
                       type="button"
                       onClick={handleKillRunningGame}
                       className="flex items-center gap-3 px-8 py-4 rounded-2xl text-base font-black text-white bg-rose-600 hover:bg-rose-500 active:bg-rose-700 border border-rose-400/50 shadow-2xl shadow-rose-950/50 transition-all hover:scale-105 active:opacity-90 cursor-pointer"
-                      title={t("fullscreen.kill_game_title")}
+                      title={activeGame?.state === "launching" ? t("fullscreen.cancel_launch") : t("fullscreen.kill_game_title")}
                     >
                       <Square className="w-5 h-5 fill-white" />
-                      <span>{t("fullscreen.kill_game")}</span>
+                      <span>{activeGame?.state === "launching" ? t("fullscreen.cancel_launch") : t("fullscreen.kill_game")}</span>
                       <span className="w-6 h-6 rounded-full bg-black/40 flex items-center justify-center text-[10px] font-black border border-white/20">
                         K
                       </span>
@@ -1250,7 +1267,7 @@ export default function FullscreenView({
                             K
                           </span>
                           <Square className="w-4 h-4 fill-white" />
-                          <span>{t("fullscreen.kill_game_hint")}</span>
+                          <span>{activeGame?.state === "launching" ? t("fullscreen.cancel_launch_hint") : t("fullscreen.kill_game_hint")}</span>
                         </button>
                       )}
                     </>

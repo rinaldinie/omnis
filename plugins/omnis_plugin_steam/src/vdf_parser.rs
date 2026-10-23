@@ -319,6 +319,7 @@ pub fn parse_appmanifest(
                     vec![
                         "/c".to_string(),
                         "start".to_string(),
+                        "".to_string(),
                         format!("steam://rungameid/{}", id),
                     ]
                 } else {

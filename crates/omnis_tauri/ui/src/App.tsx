@@ -954,11 +954,19 @@ export default function App() {
     } else {
       setStatusMessage("Avvio del gioco in corso...");
     }
-    await invokeTauri("launch_game", { gameId });
-    if (g && !g.is_installed) {
-      setStatusMessage(`Procedura di installazione avviata nel client nativo!`);
-    } else {
-      setStatusMessage("Gioco in esecuzione (Tracking kernel zero-CPU)");
+    try {
+      await invokeTauri("launch_game", { gameId });
+      if (g && !g.is_installed) {
+        setStatusMessage(`Procedura di installazione avviata nel client nativo!`);
+      } else {
+        setStatusMessage("Gioco in esecuzione (Tracking kernel zero-CPU)");
+      }
+    } catch (err: any) {
+      console.error("Launch game error:", err);
+      const errMsg = typeof err === "string" ? err : err?.message || "Errore durante l'avvio del gioco";
+      setStatusMessage(`Errore avvio: ${errMsg}`);
+      setIsGameRunning(false);
+      setActiveGame(null);
     }
   };
 

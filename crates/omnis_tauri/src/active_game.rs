@@ -21,6 +21,7 @@ pub struct ActiveGameSession {
 #[derive(Debug, Clone)]
 pub struct ActiveGameManager {
     current: Arc<RwLock<Option<ActiveGameSession>>>,
+    abort_handle: Arc<RwLock<Option<tokio::task::AbortHandle>>>,
 }
 
 impl ActiveGameManager {
@@ -28,6 +29,7 @@ impl ActiveGameManager {
     pub fn new() -> Self {
         Self {
             current: Arc::new(RwLock::new(None)),
+            abort_handle: Arc::new(RwLock::new(None)),
         }
     }
 
@@ -44,6 +46,12 @@ impl ActiveGameManager {
             process_detected_at: None,
             elapsed_seconds: 0,
         });
+    }
+
+    /// Register the background tracking task's AbortHandle to enable instant cancellation
+    pub async fn set_abort_handle(&self, handle: tokio::task::AbortHandle) {
+        let mut lock = self.abort_handle.write().await;
+        *lock = Some(handle);
     }
 
     /// Update session to Running state upon process detection (Requirement A6, B3)
@@ -80,6 +88,10 @@ impl ActiveGameManager {
 
     /// Clear the active game session when the game exits
     pub async fn clear_running(&self) {
+        {
+            let mut abort_lock = self.abort_handle.write().await;
+            let _ = abort_lock.take();
+        }
         let mut lock = self.current.write().await;
         *lock = None;
     }
@@ -97,6 +109,14 @@ impl ActiveGameManager {
 
     /// Graceful termination: sends WM_CLOSE, waits up to timeout_secs, then falls back to hard kill
     pub async fn kill_running_graceful(&self, timeout_secs: u64) -> Result<bool, String> {
+        // Abort background tracker immediately if active
+        {
+            let mut abort_lock = self.abort_handle.write().await;
+            if let Some(handle) = abort_lock.take() {
+                handle.abort();
+            }
+        }
+
         let pid_to_kill = {
             let lock = self.current.read().await;
             if let Some(ref session) = *lock {
@@ -107,7 +127,7 @@ impl ActiveGameManager {
         };
 
         if let Some(pid) = pid_to_kill {
-            omnis_core::launcher::GameLauncher::kill_process_graceful(pid, timeout_secs).await?;
+            let _ = omnis_core::launcher::GameLauncher::kill_process_graceful(pid, timeout_secs).await;
         }
 
         let mut lock = self.current.write().await;
