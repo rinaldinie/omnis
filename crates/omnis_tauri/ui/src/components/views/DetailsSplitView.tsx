@@ -965,7 +965,7 @@ export default function DetailsSplitView({
           </div>
 
           {/* Native Achievements Showcase */}
-          <GameAchievementsGallery game={selectedGame} />
+          <GameAchievementsGallery key={selectedGame.id} game={selectedGame} />
 
           {/* Card 3: Key Features (Playnite Parity) */}
           <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/[0.06] space-y-3">

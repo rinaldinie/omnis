@@ -828,7 +828,7 @@ export default function BigPictureView({
             </div>
 
             {/* Achievements Gallery in Big Picture Mode */}
-            <GameAchievementsGallery game={focusedGame} isBigPicture={true} />
+            <GameAchievementsGallery key={focusedGame.id} game={focusedGame} isBigPicture={true} />
 
             <div
               className="flex justify-end gap-4 pt-4 border-t"

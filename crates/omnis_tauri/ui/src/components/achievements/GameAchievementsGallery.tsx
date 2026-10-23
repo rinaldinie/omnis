@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Trophy, RefreshCw, Sparkles, Award, Lock, CheckCircle2, AlertCircle, Settings } from "lucide-react";
 import { Achievement, GameAchievementsSummary, GameDto } from "../../types";
@@ -16,13 +16,21 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
   game,
   isBigPicture = false,
 }) => {
+  const isSupportedStore =
+    game.library === "steam" ||
+    game.library === "xbox" ||
+    game.library === "gog" ||
+    game.library === "epic";
+
   const [summary, setSummary] = useState<GameAchievementsSummary | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<boolean>(isSupportedStore);
   const [refreshing, setRefreshing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [syncSuccess, setSyncSuccess] = useState<boolean>(false);
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const [focusedIndex, setFocusedIndex] = useState<number>(0);
+
+  const activeGameIdRef = useRef<string>(game.id);
 
   const openStoreSettings = useCallback(() => {
     soundEffects.playSelect();
@@ -30,6 +38,15 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
   }, []);
 
   const fetchAchievements = useCallback(async (isRefresh = false) => {
+    const targetGameId = game.id;
+    activeGameIdRef.current = targetGameId;
+
+    if (!isSupportedStore) {
+      setSummary(null);
+      setLoading(false);
+      return;
+    }
+
     try {
       if (isRefresh) {
         setRefreshing(true);
@@ -37,33 +54,54 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
         setSyncSuccess(false);
       } else {
         setLoading(true);
+        setSummary(null);
+        setSyncError(null);
+        setSyncSuccess(false);
       }
 
       const cmd = isRefresh ? "refresh_game_achievements" : "get_game_achievements";
       const result = await invoke<GameAchievementsSummary>(cmd, {
-        gameId: game.id,
+        gameId: targetGameId,
       });
-      setSummary(result);
-      if (isRefresh) {
-        setSyncSuccess(true);
-        soundEffects.playUnlock?.();
-        setTimeout(() => setSyncSuccess(false), 4500);
+
+      // Discard stale responses if user switched games while request was in-flight
+      if (activeGameIdRef.current === targetGameId) {
+        setSummary(result);
+        if (isRefresh) {
+          setSyncSuccess(true);
+          soundEffects.playUnlock?.();
+          setTimeout(() => {
+            if (activeGameIdRef.current === targetGameId) {
+              setSyncSuccess(false);
+            }
+          }, 4500);
+        }
       }
     } catch (err: any) {
-      console.warn("Failed to load achievements:", err);
-      if (isRefresh) {
-        const errorMsg = typeof err === "string" ? err : err?.message || "Errore sconosciuto durante la sincronizzazione.";
-        setSyncError(errorMsg);
+      if (activeGameIdRef.current === targetGameId) {
+        console.warn("Failed to load achievements:", err);
+        if (isRefresh) {
+          const errorMsg = typeof err === "string" ? err : err?.message || "Errore sconosciuto durante la sincronizzazione.";
+          setSyncError(errorMsg);
+        }
       }
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (activeGameIdRef.current === targetGameId) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
-  }, [game.id]);
+  }, [game.id, isSupportedStore]);
 
   useEffect(() => {
+    activeGameIdRef.current = game.id;
     fetchAchievements(false);
-  }, [fetchAchievements]);
+    return () => {
+      if (activeGameIdRef.current === game.id) {
+        activeGameIdRef.current = "";
+      }
+    };
+  }, [fetchAchievements, game.id]);
 
   // Statistics calculation
   const stats = useMemo(() => {
