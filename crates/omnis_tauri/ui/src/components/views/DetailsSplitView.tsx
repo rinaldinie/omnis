@@ -554,7 +554,7 @@ export default function DetailsSplitView({
                       color: "var(--text-primary)",
                     }}
                   >
-                    {t("game_details.series")}: {selectedGame.series}
+                    {selectedGame.series}
                   </span>
                 )}
               </div>
@@ -852,17 +852,19 @@ export default function DetailsSplitView({
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-4">
               <div className="space-y-1">
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                  {t("game_details.series")}
-                </span>
-                <p className="text-xs font-bold text-white truncate">{selectedGame.series || "N/A"}</p>
-              </div>
-
-              <div className="space-y-1">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
                   {t("game_details.developers")}
                 </span>
                 <p className="text-xs font-bold text-white truncate">
                   {selectedGame.developers.join(", ") || "N/A"}
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                  {t("game_details.publishers")}
+                </span>
+                <p className="text-xs font-bold text-white truncate">
+                  {(selectedGame.publishers && selectedGame.publishers.join(", ")) || "N/A"}
                 </p>
               </div>
 
@@ -950,15 +952,6 @@ export default function DetailsSplitView({
                 </span>
                 <p className="text-xs font-bold text-amber-400 truncate">
                   {selectedGame.critic_score ? `★ ${selectedGame.critic_score}` : "N/A"}
-                </p>
-              </div>
-
-              <div className="space-y-1">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                  {t("game_details.publishers")}
-                </span>
-                <p className="text-xs font-bold text-white truncate">
-                  {(selectedGame.publishers && selectedGame.publishers.join(", ")) || "N/A"}
                 </p>
               </div>
             </div>

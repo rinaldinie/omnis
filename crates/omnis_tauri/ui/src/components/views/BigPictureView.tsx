@@ -23,6 +23,7 @@ import soundEffects from "../../utils/soundEffects";
 import { VideoBackdrop } from "../common/VideoBackdrop";
 import { Slot } from "../common/Slot";
 import { GameAchievementsGallery } from "../achievements";
+import { useTranslation } from "../../i18n/i18nContext";
 
 interface BigPictureViewProps {
   focusedGame: GameDto | null;
@@ -158,6 +159,7 @@ export default function BigPictureView({
   sessionToast,
   onDismissToast,
 }: BigPictureViewProps) {
+  const { locale } = useTranslation();
   const isFocusedGameRunning = activeGame?.game_id === focusedGame?.id;
 
   // Shortcut key listener: "k" or "Delete" terminates running focused game
@@ -368,7 +370,7 @@ export default function BigPictureView({
               type="button"
               onClick={handleMinimize}
               className="w-8 h-8 rounded-lg hover:bg-white/10 active:bg-white/20 flex items-center justify-center transition-all cursor-pointer text-slate-400 hover:text-white"
-              title="Riduci a icona"
+              title={t("big_picture.minimize")}
               data-no-drag="true"
             >
               <Minus className="w-4 h-4" />
@@ -377,7 +379,7 @@ export default function BigPictureView({
               type="button"
               onClick={handleClose}
               className="w-8 h-8 rounded-lg hover:bg-rose-600 hover:text-white active:bg-rose-700 flex items-center justify-center transition-all cursor-pointer text-slate-400"
-              title="Chiudi applicazione"
+              title={t("big_picture.close")}
               data-no-drag="true"
             >
               <X className="w-4 h-4" />
@@ -454,7 +456,7 @@ export default function BigPictureView({
             {focusedGame?.is_installed && (
               <span className="flex items-center gap-1.5 px-3 py-1 rounded-md text-[11px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
                 <CheckCircle2 className="w-3.5 h-3.5" />
-                INSTALLATO
+                {t("big_picture.installed")}
               </span>
             )}
             {focusedGame?.critic_score && (
@@ -463,7 +465,8 @@ export default function BigPictureView({
               </span>
             )}
             <span className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-              Tempo di gioco: <strong className="text-white">{focusedGame?.playtime_formatted}</strong>
+              {t("game_details.playtime")}:{" "}
+              <strong className="text-white">{focusedGame?.playtime_formatted}</strong>
             </span>
           </div>
 
@@ -475,7 +478,7 @@ export default function BigPictureView({
             className="text-sm line-clamp-2 leading-relaxed max-w-2xl font-normal drop-shadow"
             style={{ color: "var(--text-muted)" }}
           >
-            {focusedGame?.description || "Nessuna descrizione disponibile per questo titolo."}
+            {focusedGame?.description || t("big_picture.no_desc")}
           </p>
 
           {/* ACTION BUTTONS WITH CONTROLLER HINTS */}
@@ -487,7 +490,13 @@ export default function BigPictureView({
                   className="flex items-center gap-3 px-8 py-4 rounded-2xl text-base font-black text-emerald-200 bg-emerald-600/30 border border-emerald-500/50 shadow-2xl cursor-default"
                 >
                   <span className="w-3 h-3 rounded-full bg-emerald-400 animate-ping" />
-                  <span>In Esecuzione... ({formatDuration ? formatDuration(elapsedSeconds || 0) : `${elapsedSeconds || 0}s`})</span>
+                  <span>
+                    {t("big_picture.running")} (
+                    {formatDuration
+                      ? formatDuration(elapsedSeconds || 0)
+                      : `${elapsedSeconds || 0}s`}
+                    )
+                  </span>
                 </button>
 
                 {handleKillRunningGame && (
@@ -495,10 +504,10 @@ export default function BigPictureView({
                     type="button"
                     onClick={handleKillRunningGame}
                     className="flex items-center gap-3 px-8 py-4 rounded-2xl text-base font-black text-white bg-rose-600 hover:bg-rose-500 active:bg-rose-700 border border-rose-400/50 shadow-2xl shadow-rose-950/50 transition-all hover:scale-105 active:opacity-90 cursor-pointer"
-                    title="Termina Gioco (Forzato - Tasto K)"
+                    title={t("big_picture.kill_game_title")}
                   >
                     <Square className="w-5 h-5 fill-white" />
-                    <span>Termina Gioco</span>
+                    <span>{t("big_picture.kill_game")}</span>
                     <span className="w-6 h-6 rounded-full bg-black/40 flex items-center justify-center text-[10px] font-black border border-white/20">
                       K
                     </span>
@@ -644,14 +653,16 @@ export default function BigPictureView({
               <span className="w-5 h-5 rounded-full bg-rose-600 text-white flex items-center justify-center text-[10px] font-black shadow">
                 K
               </span>
-              <span className="text-rose-400 font-bold">Termina Gioco</span>
+              <span className="text-rose-400 font-bold">
+                {t("big_picture.kill_game")}
+              </span>
             </div>
           ) : (
             <div className="flex items-center gap-2">
               <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-black shadow">
                 A
               </span>
-              <span>Avvia Gioco</span>
+              <span>{t("big_picture.launch_game")}</span>
             </div>
           )}
 
@@ -659,21 +670,21 @@ export default function BigPictureView({
             <span className="w-5 h-5 rounded-full bg-rose-600 text-white flex items-center justify-center text-[10px] font-black shadow">
               B
             </span>
-            <span>Indietro / Chiudi</span>
+            <span>{t("big_picture.back_close")}</span>
           </div>
 
           <div className="flex items-center gap-2">
             <span className="w-5 h-5 rounded-full bg-sky-600 text-white flex items-center justify-center text-[10px] font-black shadow">
               X
             </span>
-            <span>Scheda Dettagli</span>
+            <span>{t("big_picture.details_sheet")}</span>
           </div>
 
           <div className="flex items-center gap-2">
             <span className="w-5 h-5 rounded-full bg-amber-600 text-white flex items-center justify-center text-[10px] font-black shadow">
               Y
             </span>
-            <span>Temi Grafici</span>
+            <span>{t("topbar.themes")}</span>
           </div>
 
           <div className="flex items-center gap-2">
@@ -686,7 +697,7 @@ export default function BigPictureView({
             >
               LB / RB
             </span>
-            <span>Cambia Categoria</span>
+            <span>{t("big_picture.change_category")}</span>
           </div>
         </div>
 
@@ -701,7 +712,7 @@ export default function BigPictureView({
             >
               SELECT / F11
             </span>
-            <span>Torna al Desktop</span>
+            <span>{t("big_picture.return_desktop")}</span>
           </div>
         </div>
       </footer>
@@ -733,7 +744,7 @@ export default function BigPictureView({
                 <div>
                   <h2 className="text-3xl font-black text-white">{focusedGame.title}</h2>
                   <p className="text-sm mt-1 font-medium" style={{ color: "var(--text-muted)" }}>
-                    Sviluppato da:{" "}
+                    {t("big_picture.developed_by")}{" "}
                     <span className="text-white font-bold">
                       {focusedGame.developers.join(", ") || "N/A"}
                     </span>
@@ -774,13 +785,13 @@ export default function BigPictureView({
                 className="text-xs font-black tracking-widest uppercase"
                 style={{ color: "var(--text-muted)" }}
               >
-                Sinossi & Descrizione
+                {t("big_picture.synopsis_description")}
               </span>
               <p
                 className="text-sm leading-relaxed max-h-48 overflow-y-auto pr-2"
                 style={{ color: "var(--text-primary)" }}
               >
-                {focusedGame.description || "Nessuna descrizione disponibile."}
+                {focusedGame.description || t("big_picture.no_desc")}
               </p>
             </div>
 
@@ -793,7 +804,7 @@ export default function BigPictureView({
                 }}
               >
                 <span className="text-[10px] font-bold uppercase" style={{ color: "var(--text-muted)" }}>
-                  Data di Rilascio
+                  {t("game_details.release_date")}
                 </span>
                 <p className="text-base font-black text-white mt-1">{focusedGame.release_date || "N/A"}</p>
               </div>
@@ -819,7 +830,7 @@ export default function BigPictureView({
                 }}
               >
                 <span className="text-[10px] font-bold uppercase" style={{ color: "var(--text-muted)" }}>
-                  Tempo Registrato
+                  {t("game_details.playtime")}
                 </span>
                 <p className="text-base font-black text-emerald-400 mt-1">
                   {focusedGame.playtime_formatted}
@@ -846,7 +857,7 @@ export default function BigPictureView({
                   color: "var(--text-primary)",
                 }}
               >
-                Chiudi (B)
+                {t("big_picture.close_hint")}
               </button>
               {isFocusedGameRunning ? (
                 <>
@@ -855,7 +866,13 @@ export default function BigPictureView({
                     className="flex items-center gap-2 px-6 py-3 rounded-xl text-emerald-300 text-xs font-black bg-emerald-600/30 border border-emerald-500/50 cursor-default"
                   >
                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                    <span>In Esecuzione... ({formatDuration ? formatDuration(elapsedSeconds || 0) : `${elapsedSeconds || 0}s`})</span>
+                    <span>
+                      {t("big_picture.running")} (
+                      {formatDuration
+                        ? formatDuration(elapsedSeconds || 0)
+                        : `${elapsedSeconds || 0}s`}
+                      )
+                    </span>
                   </button>
                   {handleKillRunningGame && (
                     <button
@@ -867,7 +884,7 @@ export default function BigPictureView({
                       className="flex items-center gap-2 px-6 py-3 rounded-xl text-white text-xs font-black bg-rose-600 hover:bg-rose-500 border border-rose-400/50 shadow-lg cursor-pointer"
                     >
                       <Square className="w-4 h-4 fill-white" />
-                      <span>Termina Gioco (K)</span>
+                      <span>{t("big_picture.kill_game_hint")}</span>
                     </button>
                   )}
                 </>
@@ -884,7 +901,7 @@ export default function BigPictureView({
                   }}
                 >
                   <Play className="w-4 h-4 fill-white" />
-                  <span>AVVIA GIOCO (A)</span>
+                  <span>{t("big_picture.launch_game_hint")}</span>
                 </button>
               )}
             </div>
@@ -902,19 +919,24 @@ export default function BigPictureView({
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
               <span className="text-xs font-black uppercase tracking-widest text-emerald-300">
-                SESSIONE DI GIOCO TERMINATA
+                {t("big_picture.session_ended")}
               </span>
             </div>
             <h3 className="text-xl font-black text-white truncate mt-0.5">{sessionToast.title}</h3>
             <p className="text-sm text-slate-300 font-semibold mt-0.5">
-              Tempo giocato: +{Math.max(1, Math.round(sessionToast.durationSeconds / 60))} minuti ({formatDuration ? formatDuration(sessionToast.durationSeconds) : `${sessionToast.durationSeconds}s`})
+              {t("big_picture.played_time")} +{Math.max(1, Math.round(sessionToast.durationSeconds / 60))}{" "}
+              {t("big_picture.minutes")} (
+              {formatDuration
+                ? formatDuration(sessionToast.durationSeconds)
+                : `${sessionToast.durationSeconds}s`}
+              )
             </p>
           </div>
           {onDismissToast && (
             <button
               onClick={onDismissToast}
               className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm border border-white/20 hover:bg-white/10 active:opacity-80 transition-all text-slate-300 hover:text-white"
-              title="Chiudi"
+              title={t("common.close")}
             >
               ✕
             </button>

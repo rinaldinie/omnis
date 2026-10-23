@@ -327,7 +327,7 @@ export default function TopBar({
             soundEffects.playSelect();
             setShowSettingsModal(true);
           }}
-          className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg border text-xs font-bold transition-all hover:bg-white/10 active:opacity-90 shadow-sm shrink-0"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-bold transition-all hover:bg-white/10 active:opacity-90 shadow-sm shrink-0"
           style={{
             backgroundColor: "var(--bg-card)",
             borderColor: "var(--border-color)",
@@ -335,7 +335,6 @@ export default function TopBar({
           }}
           title={t("topbar.options")}
         >
-          <span className="text-sm leading-none">{currentLocaleInfo.flag}</span>
           <Settings className="w-3.5 h-3.5" style={{ color: "var(--accent-primary)" }} />
           <span className="hidden 2xl:inline">{t("topbar.options")}</span>
         </button>

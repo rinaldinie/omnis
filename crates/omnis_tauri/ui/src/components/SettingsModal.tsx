@@ -105,11 +105,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 soundEffects.playSelect();
                 setActiveTab('general');
               }}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeTab === 'general'
-                  ? 'text-white shadow-md'
-                  : 'text-slate-400 hover:text-white hover:bg-white/5'
-              }`}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeTab === 'general'
+                ? 'text-white shadow-md'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                }`}
               style={{
                 backgroundColor: activeTab === 'general' ? 'var(--accent-primary)' : 'transparent',
               }}
@@ -124,11 +123,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 soundEffects.playSelect();
                 setActiveTab('accounts');
               }}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeTab === 'accounts'
-                  ? 'text-white shadow-md'
-                  : 'text-slate-400 hover:text-white hover:bg-white/5'
-              }`}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeTab === 'accounts'
+                ? 'text-white shadow-md'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                }`}
               style={{
                 backgroundColor: activeTab === 'accounts' ? 'var(--accent-primary)' : 'transparent',
               }}
@@ -143,11 +141,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 soundEffects.playSelect();
                 setActiveTab('achievements');
               }}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeTab === 'achievements'
-                  ? 'text-white shadow-md'
-                  : 'text-slate-400 hover:text-white hover:bg-white/5'
-              }`}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeTab === 'achievements'
+                ? 'text-white shadow-md'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                }`}
               style={{
                 backgroundColor: activeTab === 'achievements' ? 'var(--accent-primary)' : 'transparent',
               }}
@@ -182,7 +179,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             />
           )}
 
-          {/* TAB 3: OBIETTIVI (SUCCESSSTORY) */}
+          {/* TAB 3: OBIETTIVI */}
           {activeTab === 'achievements' && (
             <AchievementsSettingsTab onClose={handleClose} />
           )}

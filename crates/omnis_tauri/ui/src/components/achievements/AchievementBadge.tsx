@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { Lock, Eye, Sparkles, Award } from "lucide-react";
 import { Achievement } from "../../types";
+import { useTranslation } from "../../i18n/i18nContext";
 
 interface AchievementBadgeProps {
   achievement: Achievement;
@@ -18,6 +19,7 @@ export const AchievementBadge: React.FC<AchievementBadgeProps> = ({
   onClick,
   onFocus,
 }) => {
+  const { t, locale } = useTranslation();
   const [revealed, setRevealed] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
@@ -62,7 +64,7 @@ export const AchievementBadge: React.FC<AchievementBadgeProps> = ({
   const formatUnlockDate = (dateStr: string) => {
     try {
       const d = new Date(dateStr);
-      return d.toLocaleDateString("it-IT", {
+      return d.toLocaleDateString(locale, {
         day: "numeric",
         month: "short",
         year: "numeric",
@@ -178,7 +180,9 @@ export const AchievementBadge: React.FC<AchievementBadgeProps> = ({
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-1">
                 <h4 className="text-xs font-black text-white truncate">
-                  {isSecretLocked ? "Obiettivo Segreto" : achievement.display_name}
+                  {isSecretLocked
+                    ? t("achievements.secret_title")
+                    : achievement.display_name}
                 </h4>
                 {achievement.points !== null && achievement.points !== undefined && (
                   <span className="text-[10px] font-black text-emerald-400 shrink-0">
@@ -190,11 +194,11 @@ export const AchievementBadge: React.FC<AchievementBadgeProps> = ({
               <div className="flex items-center gap-1.5 mt-0.5">
                 {achievement.is_unlocked ? (
                   <span className="text-[10px] font-bold text-emerald-400 flex items-center gap-1">
-                    ✓ Sbloccato
+                    ✓ {t("achievements.unlocked")}
                   </span>
                 ) : (
                   <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
-                    <Lock className="w-2.5 h-2.5" /> Bloccato
+                    <Lock className="w-2.5 h-2.5" /> {t("achievements.locked")}
                   </span>
                 )}
 
@@ -221,7 +225,7 @@ export const AchievementBadge: React.FC<AchievementBadgeProps> = ({
             {isSecretLocked ? (
               <div className="space-y-1.5">
                 <p className="text-[11px] text-slate-400 italic">
-                  I dettagli di questo obiettivo sono nascosti per evitare spoiler.
+                  {t("achievements.secret_desc")}
                 </p>
                 <button
                   type="button"
@@ -231,18 +235,19 @@ export const AchievementBadge: React.FC<AchievementBadgeProps> = ({
                   }}
                   className="inline-flex items-center gap-1.5 text-[10px] font-bold text-indigo-400 hover:text-indigo-300 transition-colors"
                 >
-                  <Eye className="w-3 h-3" /> Rivela dettagli segreti
+                  <Eye className="w-3 h-3" />{" "}
+                  {t("achievements.reveal")}
                 </button>
               </div>
             ) : (
               <p className="text-[11px] text-slate-200 leading-relaxed">
-                {achievement.description || "Nessuna descrizione disponibile."}
+                {achievement.description || t("achievements.no_desc")}
               </p>
             )}
 
             {achievement.unlock_time && (
               <div className="mt-2 text-[10px] text-slate-400 flex items-center justify-between">
-                <span>Data sblocco:</span>
+                <span>{t("achievements.unlocked_on")}</span>
                 <span className="text-white font-medium">
                   {formatUnlockDate(achievement.unlock_time)}
                 </span>

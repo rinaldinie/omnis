@@ -126,7 +126,7 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
           }`}
         >
           <Globe className="w-3.5 h-3.5" />
-          <span>Lingua</span>
+          <span>{t('general_settings.tab_language')}</span>
           {activeSubTab === 'language' && (
             <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-sky-400 rounded-full" />
           )}
@@ -145,7 +145,7 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
           }`}
         >
           <Volume2 className="w-3.5 h-3.5" />
-          <span>Audio &amp; Suoni</span>
+          <span>{t('general_settings.tab_audio')}</span>
           {activeSubTab === 'audio' && (
             <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-sky-400 rounded-full" />
           )}
@@ -164,7 +164,7 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
           }`}
         >
           <Minimize2 className="w-3.5 h-3.5" />
-          <span>Finestra &amp; Tray</span>
+          <span>{t('general_settings.tab_window')}</span>
           {activeSubTab === 'window' && (
             <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-sky-400 rounded-full" />
           )}
@@ -183,7 +183,7 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
           }`}
         >
           <Palette className="w-3.5 h-3.5" />
-          <span>Aspetto &amp; Temi</span>
+          <span>{t('general_settings.tab_appearance')}</span>
           {activeSubTab === 'appearance' && (
             <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-sky-400 rounded-full" />
           )}
@@ -200,7 +200,8 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
               <span>{t('settings_modal.language_section')}</span>
             </div>
             <p className="text-xs text-slate-400 leading-relaxed">
-              {t('settings_modal.select_language')}. La modifica ha effetto immediato in tutta l'applicazione e nelle notifiche.
+              {t('settings_modal.select_language')}.{' '}
+              {t('general_settings.language_immediate_note')}
             </p>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2">
@@ -248,7 +249,7 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
             <div className="p-3.5 rounded-xl border border-sky-500/20 bg-sky-500/5 text-sky-300 flex items-start gap-3 text-xs mt-4">
               <Info className="w-4 h-4 shrink-0 text-sky-400 mt-0.5" />
               <div className="leading-relaxed">
-                I titoli e le descrizioni degli obiettivi sincronizzati (Steam, Xbox, GOG, Epic) verranno mostrati nella lingua originale dello store o localizzati se forniti dall'API del publisher.
+                {t('general_settings.achievements_lang_note')}
               </div>
             </div>
           </div>
@@ -259,10 +260,12 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
           <div className="space-y-5">
             <div className="flex items-center gap-2 text-xs font-black tracking-wider uppercase text-slate-300">
               <Volume2 className="w-4 h-4 text-emerald-400" />
-              <span>Effetti Sonori &amp; Sintetizzatore Audio</span>
+              <span>
+                {t('general_settings.audio_cues_title')}
+              </span>
             </div>
             <p className="text-xs text-slate-400 leading-relaxed">
-              Configura i segnali acustici per la navigazione via controller, selezione elementi e notifiche di sblocco obiettivi.
+              {t('general_settings.audio_cues_desc')}
             </p>
 
             {/* Audio Toggle Card */}
@@ -297,10 +300,12 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
             <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/10 space-y-3">
               <div className="flex items-center gap-2 text-xs font-bold text-slate-300">
                 <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                <span>Test Rapido Segnali Acustici</span>
+                <span>
+                  {t('general_settings.sound_test_title')}
+                </span>
               </div>
               <p className="text-[11px] text-slate-400">
-                Ascolta in anteprima gli effetti generati in tempo reale tramite Web Audio API:
+                {t('general_settings.sound_test_desc')}
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
@@ -311,7 +316,7 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
                   className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 active:scale-95 text-xs font-semibold text-slate-200 transition-all disabled:opacity-30 disabled:pointer-events-none"
                 >
                   <Play className="w-3 h-3 text-indigo-400" />
-                  <span>Suono Selezione</span>
+                  <span>{t('general_settings.sound_select')}</span>
                 </button>
 
                 <button
@@ -321,7 +326,7 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
                   className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 active:scale-95 text-xs font-semibold text-slate-200 transition-all disabled:opacity-30 disabled:pointer-events-none"
                 >
                   <Play className="w-3 h-3 text-sky-400" />
-                  <span>Suono Navigazione</span>
+                  <span>{t('general_settings.sound_nav')}</span>
                 </button>
 
                 <button
@@ -331,7 +336,7 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
                   className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 active:scale-95 text-xs font-semibold text-slate-200 transition-all disabled:opacity-30 disabled:pointer-events-none"
                 >
                   <Play className="w-3 h-3 text-emerald-400" />
-                  <span>Suono Avvio Gioco</span>
+                  <span>{t('general_settings.sound_launch')}</span>
                 </button>
               </div>
             </div>
@@ -339,7 +344,7 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
             <div className="p-3.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-emerald-300 flex items-start gap-3 text-xs">
               <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-400 mt-0.5" />
               <div className="leading-relaxed">
-                Durante l'esecuzione attiva di un gioco, la pipeline audio Web Audio viene automaticamente sospesa per rilasciare l'hardware sonoro e garantire il 100% delle risorse alle sessioni di gioco.
+                {t('general_settings.audio_gaming_note')}
               </div>
             </div>
           </div>
@@ -353,7 +358,7 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
               <span>{t('settings_modal.tray_section')}</span>
             </div>
             <p className="text-xs text-slate-400 leading-relaxed">
-              Configura il comportamento della finestra desktop, dell'area di notifica e del ciclo di vita dei processi.
+              {t('general_settings.tray_config_desc')}
             </p>
 
             {/* Tray Toggle Card */}
@@ -384,17 +389,19 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
             <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/10 space-y-2">
               <div className="flex items-center gap-2 text-xs font-bold text-slate-200">
                 <Monitor className="w-4 h-4 text-indigo-400" />
-                <span>Motore Monitoraggio Processi &amp; Big Picture</span>
+                <span>
+                  {t('general_settings.process_engine_title')}
+                </span>
               </div>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Omnis integra un demone in background in Rust che traccia gli ID dei processi (.exe o URI di avvio per Steam, Epic, GOG, Xbox). Quando avvii un titolo, la finestra può minimizzarsi o ripristinarsi al termine della partita.
+                {t('general_settings.process_engine_desc')}
               </p>
             </div>
 
             <div className="p-3.5 rounded-xl border border-cyan-500/20 bg-cyan-500/5 text-cyan-300 flex items-start gap-3 text-xs">
               <Info className="w-4 h-4 shrink-0 text-cyan-400 mt-0.5" />
               <div className="leading-relaxed">
-                Puoi passare alla modalità a schermo intero (Big Picture) in qualunque momento premendo il tasto <kbd className="px-1.5 py-0.5 bg-black/40 rounded border border-cyan-400/30 text-[10px] font-mono">F11</kbd> o cliccando l'icona del gamepad nella barra superiore.
+                {t('general_settings.big_picture_shortcut_note')}
               </div>
             </div>
           </div>
@@ -408,7 +415,7 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
               <span>{t('settings_modal.theme_section')}</span>
             </div>
             <p className="text-xs text-slate-400 leading-relaxed">
-              Personalizza i colori di accento, la densità delle copertine e gli stili visivi dell'interfaccia di Omnis.
+              {t('general_settings.appearance_desc')}
             </p>
 
             {/* Active Theme Card */}
@@ -416,7 +423,9 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
               <div className="space-y-1">
                 <div className="flex items-center gap-2 text-sm font-bold text-white">
                   <Palette className="w-4 h-4 text-purple-400" />
-                  <span>Tema Attivo Corrente</span>
+                  <span>
+                    {t('general_settings.active_theme_label')}
+                  </span>
                 </div>
                 <p className="text-xs text-slate-400">
                   {t('settings_modal.active_theme')}: <strong className="text-white font-mono px-2 py-0.5 rounded bg-white/10">{currentThemeName}</strong>
@@ -442,10 +451,12 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
               <div className="space-y-1">
                 <div className="flex items-center gap-2 text-sm font-bold text-white">
                   <Sparkles className="w-4 h-4 text-amber-400" />
-                  <span>Transizioni ed Effetti Fluide UI</span>
+                  <span>
+                    {t('general_settings.smooth_animations_title')}
+                  </span>
                 </div>
                 <p className="text-xs text-slate-400 max-w-md">
-                  Abilita le micro-animazioni CSS su hover di copertine, caroselli e sfondi blurati.
+                  {t('general_settings.smooth_animations_desc')}
                 </p>
               </div>
               <button
@@ -464,7 +475,7 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
             <div className="p-3.5 rounded-xl border border-purple-500/20 bg-purple-500/5 text-purple-300 flex items-start gap-3 text-xs">
               <Info className="w-4 h-4 shrink-0 text-purple-400 mt-0.5" />
               <div className="leading-relaxed">
-                I temi supportano la palette completa HSL con glow personalizzato per i badge degli obiettivi ultra-rari e per le barre di avanzamento dei giochi.
+                {t('general_settings.themes_note')}
               </div>
             </div>
           </div>
@@ -482,14 +493,14 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
           className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
         >
           <RotateCcw className="w-3.5 h-3.5" />
-          <span>Ripristina Default</span>
+          <span>{t('general_settings.reset_defaults')}</span>
         </button>
 
         <div className="flex items-center gap-3">
           {savedSuccess && (
             <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-400 animate-in fade-in duration-200">
               <Check className="w-3.5 h-3.5" />
-              <span>Impostazioni Salvate!</span>
+              <span>{t('general_settings.saved')}</span>
             </span>
           )}
 
@@ -500,7 +511,7 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
             style={{ backgroundColor: 'var(--accent-primary)' }}
           >
             <Save className="w-3.5 h-3.5" />
-            <span>Salva</span>
+            <span>{t('common.save')}</span>
           </button>
 
           {onClose && (
@@ -514,7 +525,7 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
                 color: 'var(--text-primary)',
               }}
             >
-              Annulla
+              {t('common.cancel')}
             </button>
           )}
         </div>

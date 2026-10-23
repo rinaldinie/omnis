@@ -91,15 +91,24 @@ export default function BatchEnrichModal({
     try {
       setIsRunning(true);
       setResultMessage(null);
-      setProgress({ current: 0, total: targetGames.length, title: "Preparazione catalogo..." });
+      setProgress({
+        current: 0,
+        total: targetGames.length,
+        title: t("batch_enrich.preparing"),
+      });
 
       const gameIds = targetGames.map((g) => g.id);
       const count = await invokeTauri<number>("download_batch_metadata", { gameIds });
 
-      setResultMessage(`Download completato con successo! ${count ?? targetGames.length} titoli aggiornati.`);
+      const updatedCount = count ?? targetGames.length;
+      setResultMessage(
+        t("batch_enrich.completed").replace("{count}", String(updatedCount))
+      );
       await onComplete();
     } catch (err: any) {
-      setResultMessage(`Errore durante il download dei dati: ${err}`);
+      setResultMessage(
+        t("batch_enrich.error").replace("{err}", String(err))
+      );
     } finally {
       setIsRunning(false);
     }
@@ -108,7 +117,7 @@ export default function BatchEnrichModal({
   const handleCancel = async () => {
     try {
       await invokeTauri("cancel_metadata_download");
-      setResultMessage("Richiesta di interruzione inviata...");
+      setResultMessage(t("batch_enrich.cancel_requested"));
     } catch (err) {
       console.warn("Failed to cancel metadata download:", err);
     }
@@ -166,7 +175,7 @@ export default function BatchEnrichModal({
           {/* TARGET SELECTION */}
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2.5">
-              Seleziona il Gruppo di Titoli Target
+              {t("batch_enrich.target_group")}
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               {/* Option 1: Missing HLTB */}
@@ -182,9 +191,9 @@ export default function BatchEnrichModal({
               >
                 <Clock className={`w-4 h-4 mt-0.5 shrink-0 ${targetMode === "missing_hltb" ? "text-amber-400" : "text-slate-400"}`} />
                 <div className="min-w-0">
-                  <div className="text-xs font-semibold text-white">Senza HowLongToBeat</div>
+                  <div className="text-xs font-semibold text-white">{t("batch_enrich.missing_hltb")}</div>
                   <div className="text-[11px] text-slate-400">
-                    {allGames.filter((g) => !g.extra_metadata?.includes("howlongtobeat")).length} giochi
+                    {allGames.filter((g) => !g.extra_metadata?.includes("howlongtobeat")).length} {t("batch_enrich.games_count")}
                   </div>
                 </div>
               </button>
@@ -202,9 +211,9 @@ export default function BatchEnrichModal({
               >
                 <Filter className={`w-4 h-4 mt-0.5 shrink-0 ${targetMode === "filtered" ? "text-indigo-400" : "text-slate-400"}`} />
                 <div className="min-w-0">
-                  <div className="text-xs font-semibold text-white">Filtro / Ricerca Attiva</div>
+                  <div className="text-xs font-semibold text-white">{t("batch_enrich.filtered")}</div>
                   <div className="text-[11px] text-slate-400">
-                    {filteredGames.length} giochi visibili
+                    {filteredGames.length} {t("batch_enrich.games_visible")}
                   </div>
                 </div>
               </button>
@@ -222,9 +231,9 @@ export default function BatchEnrichModal({
               >
                 <ImageIcon className={`w-4 h-4 mt-0.5 shrink-0 ${targetMode === "missing_artwork" ? "text-sky-400" : "text-slate-400"}`} />
                 <div className="min-w-0">
-                  <div className="text-xs font-semibold text-white">Senza Copertina</div>
+                  <div className="text-xs font-semibold text-white">{t("batch_enrich.missing_artwork")}</div>
                   <div className="text-[11px] text-slate-400">
-                    {allGames.filter((g) => !g.cover_image).length} giochi
+                    {allGames.filter((g) => !g.cover_image).length} {t("batch_enrich.games_count")}
                   </div>
                 </div>
               </button>
@@ -242,8 +251,8 @@ export default function BatchEnrichModal({
               >
                 <Layers className={`w-4 h-4 mt-0.5 shrink-0 ${targetMode === "all" ? "text-emerald-400" : "text-slate-400"}`} />
                 <div className="min-w-0">
-                  <div className="text-xs font-semibold text-white">Tutta la Libreria</div>
-                  <div className="text-[11px] text-slate-400">{allGames.length} giochi totali</div>
+                  <div className="text-xs font-semibold text-white">{t("batch_enrich.all_library")}</div>
+                  <div className="text-[11px] text-slate-400">{allGames.length} {t("batch_enrich.games_total")}</div>
                 </div>
               </button>
             </div>
@@ -258,8 +267,8 @@ export default function BatchEnrichModal({
             }}
           >
             <div className="flex items-center justify-between text-xs">
-              <span className="font-semibold text-white">Giochi da elaborare:</span>
-              <span className="font-bold text-amber-400">{targetGames.length} titoli</span>
+              <span className="font-semibold text-white">{t("batch_enrich.games_to_process")}</span>
+              <span className="font-bold text-amber-400">{targetGames.length} {t("batch_enrich.titles_count")}</span>
             </div>
             {targetGames.length > 0 ? (
               <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1">
@@ -274,13 +283,13 @@ export default function BatchEnrichModal({
                 ))}
                 {targetGames.length > 8 && (
                   <span className="px-2 py-0.5 rounded-md text-[10px] font-bold text-slate-400">
-                    +{targetGames.length - 8} altri...
+                    +{targetGames.length - 8} {t("batch_enrich.more_titles")}
                   </span>
                 )}
               </div>
             ) : (
               <p className="text-[11px] text-slate-400 italic">
-                Nessun titolo corrisponde a questo criterio di selezione.
+                {t("batch_enrich.no_games_matched")}
               </p>
             )}
           </div>
@@ -290,7 +299,7 @@ export default function BatchEnrichModal({
             <div className="p-4 rounded-xl border border-indigo-500/40 bg-indigo-500/10 space-y-2.5 animate-in fade-in">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-semibold text-indigo-300 truncate max-w-[280px]">
-                  Scaricamento per: "{progress.title}"
+                  {t("batch_enrich.download_for").replace("{title}", progress.title)}
                 </span>
                 <span className="font-bold text-white">
                   {progress.current} / {progress.total} ({percent}%)
@@ -309,12 +318,12 @@ export default function BatchEnrichModal({
           {resultMessage && (
             <div
               className={`p-3 rounded-xl border flex items-center gap-2 text-xs ${
-                resultMessage.includes("Errore")
+                resultMessage.includes("Errore") || resultMessage.includes("Error")
                   ? "border-rose-500/40 bg-rose-500/10 text-rose-300"
                   : "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
               }`}
             >
-              {resultMessage.includes("Errore") ? (
+              {resultMessage.includes("Errore") || resultMessage.includes("Error") ? (
                 <AlertCircle className="w-4 h-4 shrink-0" />
               ) : (
                 <CheckCircle2 className="w-4 h-4 shrink-0" />
@@ -338,7 +347,7 @@ export default function BatchEnrichModal({
             disabled={isRunning}
             className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white hover:bg-white/5 transition-colors disabled:opacity-40"
           >
-            {resultMessage ? "Chiudi" : "Annulla"}
+            {resultMessage ? t("common.close") : t("common.cancel")}
           </button>
 
           <div className="flex items-center gap-2">
@@ -349,7 +358,7 @@ export default function BatchEnrichModal({
                 className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-rose-600 hover:bg-rose-500 active:scale-95 transition-all shadow-md"
               >
                 <Square className="w-3.5 h-3.5 fill-current" />
-                <span>Interrompi</span>
+                <span>{t("batch_enrich.stop")}</span>
               </button>
             ) : (
               <button
@@ -363,7 +372,7 @@ export default function BatchEnrichModal({
                 }}
               >
                 <Sparkles className="w-4 h-4" />
-                <span>Scarica Dati ({targetGames.length})</span>
+                <span>{t("batch_enrich.download_button")} ({targetGames.length})</span>
               </button>
             )}
           </div>

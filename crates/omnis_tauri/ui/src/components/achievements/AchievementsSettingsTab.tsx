@@ -161,13 +161,12 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
             soundEffects.playNav();
             setActiveSubTab("sources");
           }}
-          className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative ${
-            activeSubTab === "sources"
-              ? "text-sky-400 bg-sky-500/10 shadow-xs"
-              : "text-slate-400 hover:text-white hover:bg-white/5"
-          }`}
+          className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative ${activeSubTab === "sources"
+            ? "text-sky-400 bg-sky-500/10 shadow-xs"
+            : "text-slate-400 hover:text-white hover:bg-white/5"
+            }`}
         >
-          <span>SuccessStory</span>
+          <span>Achievements</span>
           {activeSubTab === "sources" && (
             <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-sky-400 rounded-full" />
           )}
@@ -179,11 +178,10 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
             soundEffects.playNav();
             setActiveSubTab("view");
           }}
-          className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative ${
-            activeSubTab === "view"
-              ? "text-sky-400 bg-sky-500/10 shadow-xs"
-              : "text-slate-400 hover:text-white hover:bg-white/5"
-          }`}
+          className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative ${activeSubTab === "view"
+            ? "text-sky-400 bg-sky-500/10 shadow-xs"
+            : "text-slate-400 hover:text-white hover:bg-white/5"
+            }`}
         >
           <span>Extension view</span>
           {activeSubTab === "view" && (
@@ -197,11 +195,10 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
             soundEffects.playNav();
             setActiveSubTab("misc");
           }}
-          className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative ${
-            activeSubTab === "misc"
-              ? "text-sky-400 bg-sky-500/10 shadow-xs"
-              : "text-slate-400 hover:text-white hover:bg-white/5"
-          }`}
+          className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative ${activeSubTab === "misc"
+            ? "text-sky-400 bg-sky-500/10 shadow-xs"
+            : "text-slate-400 hover:text-white hover:bg-white/5"
+            }`}
         >
           <span>Misc</span>
           {activeSubTab === "misc" && (
@@ -215,11 +212,10 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
             soundEffects.playNav();
             setActiveSubTab("appearance");
           }}
-          className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative ${
-            activeSubTab === "appearance"
-              ? "text-sky-400 bg-sky-500/10 shadow-xs"
-              : "text-slate-400 hover:text-white hover:bg-white/5"
-          }`}
+          className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative ${activeSubTab === "appearance"
+            ? "text-sky-400 bg-sky-500/10 shadow-xs"
+            : "text-slate-400 hover:text-white hover:bg-white/5"
+            }`}
         >
           <span>Appearance</span>
           {activeSubTab === "appearance" && (
@@ -233,11 +229,10 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
             soundEffects.playNav();
             setActiveSubTab("ignored");
           }}
-          className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative ${
-            activeSubTab === "ignored"
-              ? "text-sky-400 bg-sky-500/10 shadow-xs"
-              : "text-slate-400 hover:text-white hover:bg-white/5"
-          }`}
+          className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative ${activeSubTab === "ignored"
+            ? "text-sky-400 bg-sky-500/10 shadow-xs"
+            : "text-slate-400 hover:text-white hover:bg-white/5"
+            }`}
         >
           <span>Ignored games</span>
           {activeSubTab === "ignored" && (
@@ -248,7 +243,7 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
 
       {/* Main SubTab Content Area */}
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
-        {/* SUBTAB 1: SOURCES (SuccessStory) */}
+        {/* SUBTAB 1: SOURCES */}
         {activeSubTab === "sources" && (
           <div className="space-y-6 font-sans">
             {/* Group 1: Store Ufficiali PC */}
