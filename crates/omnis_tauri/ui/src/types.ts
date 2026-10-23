@@ -85,7 +85,7 @@ export interface ThemeConfig {
   card_radius: string;
   font_family: string;
   custom_css?: string | null;
-  target_mode?: "all" | "desktop" | "bigpicture";
+  target_mode?: "all" | "desktop" | "fullscreen" | "bigpicture";
   enable_video_backdrop?: boolean;
   video_backdrop_opacity?: number;
   video_delay_ms?: number;

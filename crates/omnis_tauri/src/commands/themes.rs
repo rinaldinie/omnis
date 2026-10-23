@@ -24,7 +24,7 @@ Ogni tema può essere una cartella contenente:
 - `name`: Nome visualizzato (es. "Mio Tema Personalizzato")
 - `description`: Descrizione del tema
 - `author`: Nome dell'autore
-- `target_mode`: "all" | "desktop" | "bigpicture"
+- `target_mode`: "all" | "desktop" | "fullscreen" (o "bigpicture" per retrocompatibilità)
 - `enable_video_backdrop`: `true` per abilitare video trailer di sottofondo, `false` altrimenti
 - `video_backdrop_opacity`: Opacità del video (es. 0.55)
 - `video_delay_ms`: Ritardo avvio trailer su focus (es. 1000 ms)
@@ -42,7 +42,7 @@ Ogni tema può essere una cartella contenente:
 ## Personalizzazione CSS Avanzata (`style.css`):
 Nel file `style.css` puoi scrivere qualsiasi regola CSS valida per sovrascrivere elementi del launcher:
 - `.game-card`: Schede dei giochi
-- `.big-picture-hero`: Hero banner in modalità Big Picture
+- `.fullscreen-hero`, `.big-picture-hero`: Hero banner in modalità Fullscreen
 - `.sidebar`: Barra di navigazione laterale
 "#;
         let _ = std::fs::write(&readme_path, readme_content);

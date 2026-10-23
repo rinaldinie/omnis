@@ -28,7 +28,7 @@ import { Slot } from "../common/Slot";
 import { GameAchievementsGallery } from "../achievements";
 import { useTranslation } from "../../i18n/i18nContext";
 
-interface BigPictureViewProps {
+interface FullscreenViewProps {
   focusedGame: GameDto | null;
   filteredGames: GameDto[];
   focusedIndex: number;
@@ -47,7 +47,7 @@ interface BigPictureViewProps {
   setShowThemeModal: (show: boolean) => void;
   loadProvidersAndConfig: () => void;
   setShowPluginModal: (show: boolean) => void;
-  toggleBigPicture: () => void;
+  toggleFullscreen: () => void;
   handleMinimize: () => void;
   handleClose: () => void;
   handleToggleMaximize: () => void;
@@ -78,7 +78,7 @@ interface BigPictureViewProps {
   onSelectTheme?: (theme: ThemeConfig) => void;
 }
 
-function BigPictureCardCover({ game }: { game: GameDto }) {
+function FullscreenCardCover({ game }: { game: GameDto }) {
   const [imgSrc, setImgSrc] = React.useState<string | null>(game.cover_image || null);
   const [isFallback, setIsFallback] = React.useState(false);
   const [hasError, setHasError] = React.useState(!game.cover_image);
@@ -129,7 +129,7 @@ function BigPictureCardCover({ game }: { game: GameDto }) {
   );
 }
 
-export default function BigPictureView({
+export default function FullscreenView({
   focusedGame,
   filteredGames,
   focusedIndex,
@@ -148,7 +148,7 @@ export default function BigPictureView({
   setShowThemeModal,
   loadProvidersAndConfig,
   setShowPluginModal,
-  toggleBigPicture,
+  toggleFullscreen,
   handleMinimize,
   handleClose,
   handleToggleMaximize,
@@ -173,7 +173,7 @@ export default function BigPictureView({
   setIsMenuOpen,
   themes = [],
   onSelectTheme,
-}: BigPictureViewProps) {
+}: FullscreenViewProps) {
   const { locale } = useTranslation();
   const isFocusedGameRunning = activeGame?.game_id === focusedGame?.id;
 
@@ -402,7 +402,7 @@ export default function BigPictureView({
           break;
         case 5: // Torna alla Modalità Desktop
           setIsMenuOpen?.(false);
-          toggleBigPicture();
+          toggleFullscreen();
           break;
         case 6: // Chiudi Menu
           setIsMenuOpen?.(false);
@@ -421,14 +421,14 @@ export default function BigPictureView({
     handleToggleSound,
     handleSync,
     loadProvidersAndConfig,
-    toggleBigPicture,
+    toggleFullscreen,
     setIsMenuOpen,
     setShowVirtualKeyboard,
   ]);
 
   return (
     <main
-      data-omnis="bigpicture"
+      data-omnis="fullscreen"
       className="relative flex flex-col h-screen w-screen overflow-hidden transition-colors duration-500 cursor-none pointer-events-none select-none"
       style={{ backgroundColor: "var(--bg-base)" }}
     >
@@ -436,7 +436,7 @@ export default function BigPictureView({
       <VideoBackdrop
         game={focusedGame}
         theme={currentTheme}
-        blurLevel={currentTheme.enable_video_backdrop ? "subtle" : "ambient"}
+        blurLevel="none"
         isPaused={isGameRunning}
       />
 
@@ -488,11 +488,11 @@ export default function BigPictureView({
             </span>
           </div>
 
-          {/* Omnis Big Picture Brand / Logo subtle pill */}
+          {/* Omnis Fullscreen Brand / Logo subtle pill */}
           <div className="hidden md:flex items-center gap-2.5 px-3.5 py-1.5 rounded-xl border border-white/10 bg-white/5">
             <Tv className="w-4 h-4 text-white/70" />
             <span className="font-bold text-xs tracking-wider text-white/80 uppercase">
-              Omnis Big Picture
+              Omnis Fullscreen
             </span>
           </div>
         </div>
@@ -848,7 +848,7 @@ export default function BigPictureView({
         </div>
       ) : (
         <div className="relative z-10 flex-1 flex flex-col justify-end px-16 pb-8">
-          <section data-omnis="bigpicture.hero" className="max-w-3xl mb-8 space-y-4">
+          <section data-omnis="fullscreen.hero" className="max-w-3xl mb-8 space-y-4">
             <div className="flex items-center gap-3">
               {focusedGame && (
                 <StoreBadge library={focusedGame.library} showName={true} className="py-1 px-3 text-xs" />
@@ -856,7 +856,7 @@ export default function BigPictureView({
               {focusedGame?.is_installed && (
                 <span className="flex items-center gap-1.5 px-3 py-1 rounded-md text-[11px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
                   <CheckCircle2 className="w-3.5 h-3.5" />
-                  {t("big_picture.installed")}
+                  {t("fullscreen.installed")}
                 </span>
               )}
               {focusedGame?.critic_score && (
@@ -870,7 +870,7 @@ export default function BigPictureView({
               </span>
             </div>
 
-            <h1 data-omnis="bigpicture.title" className="text-4xl md:text-5xl font-black text-white tracking-tight drop-shadow-md">
+            <h1 data-omnis="fullscreen.title" className="text-4xl md:text-5xl font-black text-white tracking-tight drop-shadow-md">
               {focusedGame?.title}
             </h1>
 
@@ -878,7 +878,7 @@ export default function BigPictureView({
               className="text-sm line-clamp-2 leading-relaxed max-w-2xl font-normal drop-shadow"
               style={{ color: "var(--text-muted)" }}
             >
-              {focusedGame?.description || t("big_picture.no_desc")}
+              {focusedGame?.description || t("fullscreen.no_desc")}
             </p>
 
             {/* ACTION BUTTONS WITH CONTROLLER HINTS */}
@@ -891,7 +891,7 @@ export default function BigPictureView({
                   >
                     <span className="w-3 h-3 rounded-full bg-emerald-400 animate-ping" />
                     <span>
-                      {t("big_picture.running")} (
+                      {t("fullscreen.running")} (
                       {formatDuration
                         ? formatDuration(elapsedSeconds || 0)
                         : `${elapsedSeconds || 0}s`}
@@ -904,10 +904,10 @@ export default function BigPictureView({
                       type="button"
                       onClick={handleKillRunningGame}
                       className="flex items-center gap-3 px-8 py-4 rounded-2xl text-base font-black text-white bg-rose-600 hover:bg-rose-500 active:bg-rose-700 border border-rose-400/50 shadow-2xl shadow-rose-950/50 transition-all hover:scale-105 active:opacity-90 cursor-pointer"
-                      title={t("big_picture.kill_game_title")}
+                      title={t("fullscreen.kill_game_title")}
                     >
                       <Square className="w-5 h-5 fill-white" />
-                      <span>{t("big_picture.kill_game")}</span>
+                      <span>{t("fullscreen.kill_game")}</span>
                       <span className="w-6 h-6 rounded-full bg-black/40 flex items-center justify-center text-[10px] font-black border border-white/20">
                         K
                       </span>
@@ -926,7 +926,7 @@ export default function BigPictureView({
                   {focusedGame?.is_installed ? (
                     <>
                       <Play className="w-5 h-5 fill-white" />
-                      <span>{t("big_picture.play_action")}</span>
+                      <span>{t("fullscreen.play_action")}</span>
                     </>
                   ) : (
                     <>
@@ -952,7 +952,7 @@ export default function BigPictureView({
                 }}
               >
                 <Info className="w-4 h-4" style={{ color: "var(--accent-primary)" }} />
-                <span>{t("big_picture.details_action")}</span>
+                <span>{t("fullscreen.details_action")}</span>
                 <span className="w-5 h-5 rounded-full bg-black/30 flex items-center justify-center text-[10px] font-black border border-white/20">
                   X
                 </span>
@@ -960,7 +960,7 @@ export default function BigPictureView({
             </div>
 
             {/* Declarative Plugin Slot */}
-            <Slot name="bigpicture.hero" gameId={focusedGame?.id} />
+            <Slot name="fullscreen.hero" gameId={focusedGame?.id} />
           </section>
 
           {/* HORIZONTAL CAROUSEL SHELF */}
@@ -969,8 +969,8 @@ export default function BigPictureView({
               className="flex items-center justify-between mb-3 text-xs font-bold"
               style={{ color: "var(--text-muted)" }}
             >
-              <span>{t("big_picture.catalog_title", { count: filteredGames.length })}</span>
-              <span>{t("big_picture.nav_hint")}</span>
+              <span>{t("fullscreen.catalog_title", { count: filteredGames.length })}</span>
+              <span>{t("fullscreen.nav_hint")}</span>
             </div>
 
             <div
@@ -1005,7 +1005,7 @@ export default function BigPictureView({
                       boxShadow: isFocused ? `0 0 30px var(--accent-glow)` : undefined,
                     }}
                   >
-                    <BigPictureCardCover game={game} />
+                    <FullscreenCardCover game={game} />
 
                     <div className="absolute top-2.5 right-2.5">
                       <StoreBadge library={game.library} />
@@ -1042,7 +1042,7 @@ export default function BigPictureView({
                     K
                   </span>
                   <span className="text-rose-400 font-bold">
-                    {t("big_picture.kill_game")}
+                    {t("fullscreen.kill_game")}
                   </span>
                 </div>
               ) : (
@@ -1050,7 +1050,7 @@ export default function BigPictureView({
                   <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-black shadow">
                     A
                   </span>
-                  <span>{t("big_picture.launch_game")}</span>
+                  <span>{t("fullscreen.launch_game")}</span>
                 </div>
               )}
 
@@ -1058,7 +1058,7 @@ export default function BigPictureView({
                 <span className="w-5 h-5 rounded-full bg-sky-600 text-white flex items-center justify-center text-[10px] font-black shadow">
                   X
                 </span>
-                <span>{t("big_picture.details_sheet")}</span>
+                <span>{t("fullscreen.details_sheet")}</span>
               </div>
             </>
           )}
@@ -1073,7 +1073,7 @@ export default function BigPictureView({
             >
               LB / RB
             </span>
-            <span>{t("big_picture.change_category")}</span>
+            <span>{t("fullscreen.change_category")}</span>
           </div>
         </div>
       </footer>
@@ -1133,13 +1133,13 @@ export default function BigPictureView({
                 }}
               >
                 <ArrowLeft className="w-4 h-4" style={{ color: "var(--accent-primary)" }} />
-                <span>{t("big_picture.back_close")}</span>
+                <span>{t("fullscreen.back_close")}</span>
               </button>
               <div
                 className="flex items-center gap-2 text-xs font-semibold"
                 style={{ color: "var(--text-muted)" }}
               >
-                <span>OMNIS BIG PICTURE</span>
+                <span>OMNIS FULLSCREEN</span>
                 <span>/</span>
                 <StoreBadge library={activeDetailGame.library} showName={true} />
                 <span>/</span>
@@ -1159,7 +1159,7 @@ export default function BigPictureView({
                 borderColor: "var(--border-color)",
                 color: "var(--text-primary)",
               }}
-              title={t("big_picture.close_hint")}
+              title={t("fullscreen.close_hint")}
             >
               ✕
             </button>
@@ -1208,7 +1208,7 @@ export default function BigPictureView({
                   </h1>
 
                   <p className="text-base font-semibold" style={{ color: "var(--text-muted)" }}>
-                    {t("big_picture.developed_by")}{" "}
+                    {t("fullscreen.developed_by")}{" "}
                     <span className="text-white font-bold">
                       {activeDetailGame.developers.join(", ") || "N/A"}
                     </span>
@@ -1225,7 +1225,7 @@ export default function BigPictureView({
                       <div className="flex items-center gap-3 px-6 py-4 rounded-2xl text-emerald-300 text-sm font-black bg-emerald-600/30 border border-emerald-500/50 shadow-xl">
                         <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
                         <span>
-                          {t("big_picture.running")} (
+                          {t("fullscreen.running")} (
                           {formatDuration
                             ? formatDuration(elapsedSeconds || 0)
                             : `${elapsedSeconds || 0}s`}
@@ -1250,7 +1250,7 @@ export default function BigPictureView({
                             K
                           </span>
                           <Square className="w-4 h-4 fill-white" />
-                          <span>{t("big_picture.kill_game_hint")}</span>
+                          <span>{t("fullscreen.kill_game_hint")}</span>
                         </button>
                       )}
                     </>
@@ -1275,7 +1275,7 @@ export default function BigPictureView({
                         A
                       </span>
                       <Play className="w-5 h-5 fill-white" />
-                      <span>{t("big_picture.launch_game_hint")}</span>
+                      <span>{t("fullscreen.launch_game_hint")}</span>
                     </button>
                   )}
 
@@ -1299,7 +1299,7 @@ export default function BigPictureView({
                     <span className="w-5 h-5 rounded-full bg-white/10 text-white flex items-center justify-center text-[10px] font-black">
                       B
                     </span>
-                    <span>{t("big_picture.close_hint")}</span>
+                    <span>{t("fullscreen.close_hint")}</span>
                   </button>
                 </div>
 
@@ -1373,13 +1373,13 @@ export default function BigPictureView({
                 style={{ color: "var(--text-muted)" }}
               >
                 <Info className="w-4 h-4" style={{ color: "var(--accent-primary)" }} />
-                <span>{t("big_picture.synopsis_description")}</span>
+                <span>{t("fullscreen.synopsis_description")}</span>
               </h3>
               <p
                 className="text-sm sm:text-base leading-relaxed max-h-56 overflow-y-auto pr-3 whitespace-pre-line"
                 style={{ color: "var(--text-primary)" }}
               >
-                {activeDetailGame.description || t("big_picture.no_desc")}
+                {activeDetailGame.description || t("fullscreen.no_desc")}
               </p>
             </section>
 
@@ -1398,7 +1398,7 @@ export default function BigPictureView({
               <GameAchievementsGallery
                 key={activeDetailGame.id}
                 game={activeDetailGame}
-                isBigPicture={true}
+                isFullscreen={true}
                 focusedIndex={achievementsFocusedIndex}
                 onFocusIndexChange={setAchievementsFocusedIndex}
                 onTotalAchievementsChange={setTotalAchievements}
@@ -1424,8 +1424,8 @@ export default function BigPictureView({
                     </span>
                     <span>
                       {heroFocusedButton === "back"
-                        ? t("big_picture.back_close")
-                        : (isFocusedGameRunning ? t("big_picture.kill_game") : t("big_picture.launch_game"))}
+                        ? t("fullscreen.back_close")
+                        : (isFocusedGameRunning ? t("fullscreen.kill_game") : t("fullscreen.launch_game"))}
                     </span>
                   </div>
 
@@ -1433,7 +1433,7 @@ export default function BigPictureView({
                     <span className="w-5 h-5 rounded-full bg-rose-600 text-white flex items-center justify-center text-[10px] font-black shadow">
                       B
                     </span>
-                    <span>{t("big_picture.back_close")}</span>
+                    <span>{t("fullscreen.back_close")}</span>
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -1494,7 +1494,7 @@ export default function BigPictureView({
                     <span className="w-5 h-5 rounded-full bg-rose-600 text-white flex items-center justify-center text-[10px] font-black shadow">
                       B
                     </span>
-                    <span>{t("big_picture.back_close")}</span>
+                    <span>{t("fullscreen.back_close")}</span>
                   </div>
                 </>
               )}
@@ -1517,13 +1517,13 @@ export default function BigPictureView({
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
               <span className="text-xs font-black uppercase tracking-widest text-emerald-300">
-                {t("big_picture.session_ended")}
+                {t("fullscreen.session_ended")}
               </span>
             </div>
             <h3 className="text-xl font-black text-white truncate mt-0.5">{sessionToast.title}</h3>
             <p className="text-sm text-slate-300 font-semibold mt-0.5">
-              {t("big_picture.played_time")} +{Math.max(1, Math.round(sessionToast.durationSeconds / 60))}{" "}
-              {t("big_picture.minutes")} (
+              {t("fullscreen.played_time")} +{Math.max(1, Math.round(sessionToast.durationSeconds / 60))}{" "}
+              {t("fullscreen.minutes")} (
               {formatDuration
                 ? formatDuration(sessionToast.durationSeconds)
                 : `${sessionToast.durationSeconds}s`}

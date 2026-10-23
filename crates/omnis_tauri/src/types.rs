@@ -242,7 +242,7 @@ pub fn get_builtin_themes() -> Vec<ThemeConfig> {
             card_radius: "8px".to_string(),
             font_family: "system-ui, sans-serif".to_string(),
             custom_css: None,
-            target_mode: Some("bigpicture".to_string()),
+            target_mode: Some("fullscreen".to_string()),
             enable_video_backdrop: false,
             video_backdrop_opacity: None,
             video_delay_ms: None,

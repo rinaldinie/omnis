@@ -49,7 +49,7 @@ import {
 import { useWindowControls } from "./hooks/useWindowControls";
 import { useLibraryFilters } from "./hooks/useLibraryFilters";
 import { useGamepadNavigation } from "./hooks/useGamepadNavigation";
-import BigPictureView from "./components/views/BigPictureView";
+import FullscreenView from "./components/views/FullscreenView";
 import DetailsSplitView from "./components/views/DetailsSplitView";
 import GridView from "./components/views/GridView";
 import TopBar from "./components/navigation/TopBar";
@@ -116,7 +116,7 @@ export default function App() {
   const [uiZoom, setUiZoom] = useState<number>(1.0);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
-  const [statusMessage, setStatusMessage] = useState<string>("Pronto (Motore Tauri 2.0 / Big Picture)");
+  const [statusMessage, setStatusMessage] = useState<string>("Pronto (Motore Tauri 2.0 / Fullscreen)");
   const [isGameRunning, setIsGameRunning] = useState<boolean>(false);
   const [activeGame, setActiveGame] = useState<ActiveGameSession | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
@@ -205,11 +205,43 @@ export default function App() {
   const [currentTheme, setCurrentTheme] = useState<ThemeConfig>(BUILTIN_THEMES[0]);
   const [showThemeModal, setShowThemeModal] = useState<boolean>(false);
 
-  // FULLSCREEN / BIG PICTURE
-  const [isBigPicture, setIsBigPicture] = useState<boolean>(false);
+  // FULLSCREEN MODE
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      const p = new URLSearchParams(window.location.search);
+      return (
+        p.get("fullscreen") === "true" ||
+        p.has("fullscreen") ||
+        window.location.hash.includes("fullscreen")
+      );
+    }
+    return false;
+  });
   const carouselRef = useRef<HTMLDivElement>(null);
   const [showVirtualKeyboard, setShowVirtualKeyboard] = useState<boolean>(false);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(soundEffects.enabled);
+
+  // DETECT --fullscreen / --bigpicture CLI ARGUMENTS FROM TAURI
+  useEffect(() => {
+    const checkFullscreenLaunch = async () => {
+      try {
+        const isFsCli = await invokeTauri<boolean>("is_fullscreen_launch");
+        if (isFsCli) {
+          setIsFullscreen(true);
+          try {
+            const { getCurrentWindow } = await import("@tauri-apps/api/window");
+            await getCurrentWindow().setFullscreen(true);
+          } catch {
+            // Dev or fallback
+          }
+          await invokeTauri("window_set_fullscreen", { fullscreen: true });
+        }
+      } catch (err) {
+        console.warn("Error detecting fullscreen CLI argument:", err);
+      }
+    };
+    checkFullscreenLaunch();
+  }, []);
 
   // CUSTOM GAME MODAL
   const [showAddCustomModal, setShowAddCustomModal] = useState<boolean>(false);
@@ -273,10 +305,10 @@ export default function App() {
     };
   }, [showFilterMenu]);
 
-  // TOGGLE BIG PICTURE FULLSCREEN
-  const toggleBigPicture = async () => {
-    const next = !isBigPicture;
-    setIsBigPicture(next);
+  // TOGGLE FULLSCREEN MODE
+  const toggleFullscreen = async () => {
+    const next = !isFullscreen;
+    setIsFullscreen(next);
     try {
       const { getCurrentWindow } = await import("@tauri-apps/api/window");
       await getCurrentWindow().setFullscreen(next);
@@ -310,8 +342,8 @@ export default function App() {
     isMenuOpen,
     setIsMenuOpen,
   } = useGamepadNavigation({
-    isBigPicture,
-    toggleBigPicture,
+    isFullscreen,
+    toggleFullscreen,
     filteredGames,
     selectedGame,
     showVirtualKeyboard,
@@ -1014,9 +1046,9 @@ export default function App() {
     >
       {currentTheme.custom_css && <style>{currentTheme.custom_css}</style>}
 
-      {/* FULLSCREEN BIG PICTURE MODE */}
-      {isBigPicture ? (
-        <BigPictureView
+      {/* FULLSCREEN MODE */}
+      {isFullscreen ? (
+        <FullscreenView
           focusedGame={focusedGame}
           filteredGames={filteredGames}
           focusedIndex={focusedIndex}
@@ -1035,7 +1067,7 @@ export default function App() {
           setShowThemeModal={setShowThemeModal}
           loadProvidersAndConfig={loadProvidersAndConfig}
           setShowPluginModal={setShowPluginModal}
-          toggleBigPicture={toggleBigPicture}
+          toggleFullscreen={toggleFullscreen}
           handleMinimize={handleMinimize}
           handleClose={handleClose}
           handleToggleMaximize={handleToggleMaximize}
@@ -1071,7 +1103,7 @@ export default function App() {
             setViewMode={setViewMode}
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
-            toggleBigPicture={toggleBigPicture}
+            toggleFullscreen={toggleFullscreen}
             handleToggleSound={handleToggleSound}
             soundEnabled={soundEnabled}
             setShowSettingsModal={setShowSettingsModal}
@@ -1590,7 +1622,7 @@ export default function App() {
             </div>
 
             <div className="flex items-center gap-4 shrink-0">
-              <span>F11: Attiva Big Picture Mode</span>
+              <span>F11: Attiva Modalità Fullscreen</span>
               <span>
                 Tema Attivo: <strong className="text-white">{currentTheme.name}</strong>
               </span>
@@ -1715,7 +1747,7 @@ export default function App() {
         />
       )}
 
-      {/* BIG PICTURE VIRTUAL KEYBOARD */}
+      {/* FULLSCREEN VIRTUAL KEYBOARD */}
       <VirtualKeyboard
         isOpen={showVirtualKeyboard}
         value={searchQuery}
@@ -1878,7 +1910,7 @@ export default function App() {
       )}
 
       {/* DESKTOP SESSION END TOAST */}
-      {!isBigPicture && sessionToast && (
+      {!isFullscreen && sessionToast && (
         <div className="fixed bottom-10 right-6 z-50 flex items-center gap-3.5 p-4 rounded-2xl bg-slate-900/95 border border-emerald-500/50 text-white shadow-2xl shadow-emerald-950/50 backdrop-blur-xl animate-in slide-in-from-bottom-5 duration-300 max-w-md">
           <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center shrink-0">
             <Gamepad2 className="w-5 h-5 text-emerald-400" />

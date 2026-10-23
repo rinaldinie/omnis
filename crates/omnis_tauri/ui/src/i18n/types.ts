@@ -68,7 +68,8 @@ export interface TranslationSchema {
     kill_game_title: string;
   };
   topbar: {
-    big_picture: string;
+    fullscreen: string;
+    big_picture?: string;
     audio_on: string;
     audio_off: string;
     audio_ui: string;
@@ -203,7 +204,35 @@ export interface TranslationSchema {
     backlog: string;
     plan_to_play: string;
   };
-  big_picture: {
+  fullscreen: {
+    catalog_title: string;
+    nav_hint: string;
+    play_action: string;
+    details_action: string;
+    keyboard_action: string;
+    exit_hint: string;
+    minimize: string;
+    close: string;
+    running: string;
+    kill_game: string;
+    kill_game_title: string;
+    kill_game_hint: string;
+    launch_game: string;
+    launch_game_hint: string;
+    back_close: string;
+    close_hint: string;
+    details_sheet: string;
+    change_category: string;
+    return_desktop: string;
+    developed_by: string;
+    synopsis_description: string;
+    session_ended: string;
+    played_time: string;
+    minutes: string;
+    installed: string;
+    no_desc: string;
+  };
+  big_picture?: {
     catalog_title: string;
     nav_hint: string;
     play_action: string;
@@ -341,6 +370,7 @@ export interface TranslationSchema {
     tray_config_desc: string;
     process_engine_title: string;
     process_engine_desc: string;
+    fullscreen_shortcut_note?: string;
     big_picture_shortcut_note: string;
     appearance_desc: string;
     active_theme_label: string;

@@ -33,7 +33,7 @@ themes/
 | `name` | string | Nome visualizzato nell'interfaccia |
 | `description` | string | Descrizione breve dell'atmosfera del tema |
 | `author` | string | Autore del tema |
-| `target_mode` | string | `"all"`, `"desktop"`, oppure `"bigpicture"` |
+| `target_mode` | string | `"all"`, `"desktop"`, oppure `"fullscreen"` (anche `"bigpicture"` per retrocompatibilità) |
 | `enable_video_backdrop` | boolean | `true` per abilitare video trailer di sottofondo, `false` altrimenti |
 | `video_backdrop_opacity` | number | Opacità del trailer video di sfondo (es. `0.55`) |
 | `video_delay_ms` | number | Ritardo di avvio del trailer su focus (es. `1000` ms per evitare lag durante lo scroll rapido) |
@@ -55,7 +55,7 @@ Nel file `style.css` puoi scrivere qualsiasi regola CSS valida. Omnis inietterà
 
 ### Selettori e Classi Utili:
 - `.game-card`: Scheda del gioco nelle viste Grid e CoverFlow
-- `.big-picture-hero`: Hero banner principale in modalità Big Picture
+- `.fullscreen-hero`, `.big-picture-hero`: Hero banner principale in modalità Fullscreen
 - `.sidebar`: Barra laterale sinistra
 - `.top-bar`: Barra dei controlli superiore
 - `.video-backdrop`: Container del video trailer di sfondo
@@ -75,8 +75,8 @@ Nel file `style.css` puoi scrivere qualsiasi regola CSS valida. Omnis inietterà
   box-shadow: 0 16px 32px var(--accent-glow) !important;
 }
 
-/* Big Picture Hero Banner cinematografico */
-.big-picture-hero {
+/* Fullscreen Hero Banner cinematografico */
+.fullscreen-hero, .big-picture-hero {
   backdrop-filter: blur(10px) !important;
   border-radius: 24px !important;
 }

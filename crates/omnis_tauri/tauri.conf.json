@@ -38,7 +38,7 @@
       "icons/icon.ico"
     ],
     "shortDescription": "High-performance reactive game library manager",
-    "longDescription": "Omnis Game Library connects multiple platforms (Steam, Epic Games, Custom) with an immersive Big Picture mode and extensive metadata enrichment.",
+    "longDescription": "Omnis Game Library connects multiple platforms (Steam, Epic Games, Custom) with an immersive Fullscreen mode and extensive metadata enrichment.",
     "copyright": "Copyright © 2026 Omnis Game Library Team",
     "category": "Game",
     "windows": {

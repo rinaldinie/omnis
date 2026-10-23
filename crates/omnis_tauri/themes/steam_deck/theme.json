@@ -15,6 +15,6 @@
   "card_radius": "8px",
   "font_family": "system-ui, sans-serif",
   "custom_css": null,
-  "target_mode": "bigpicture",
+  "target_mode": "fullscreen",
   "enable_video_backdrop": false
 }
