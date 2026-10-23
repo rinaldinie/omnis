@@ -15,6 +15,20 @@ export interface DownloadProgress {
   percentage: number;
 }
 
+function formatErrorMessage(err: unknown, fallback: string): string {
+  if (!err) return fallback;
+  if (typeof err === "string") return err;
+  if (err instanceof Error && err.message) return err.message;
+  if (typeof err === "object" && "message" in err && typeof (err as any).message === "string") {
+    return (err as any).message;
+  }
+  try {
+    return JSON.stringify(err);
+  } catch {
+    return String(err) || fallback;
+  }
+}
+
 export function useAppUpdater(defaultAppVersion: string = "0.2.0") {
   const [currentVersion, setCurrentVersion] = useState<string>(defaultAppVersion);
   const [status, setStatus] = useState<UpdateStatus>("idle");
@@ -52,9 +66,10 @@ export function useAppUpdater(defaultAppVersion: string = "0.2.0") {
         return false;
       }
     } catch (err: any) {
+      console.error("Update check error:", err);
       updateRef.current = null;
       if (!silent) {
-        setErrorMessage(err?.message || "Impossibile verificare gli aggiornamenti");
+        setErrorMessage(formatErrorMessage(err, "Impossibile verificare gli aggiornamenti"));
         setStatus("error");
       } else {
         // In silent mode (at startup), fail gracefully without alerting
@@ -90,7 +105,8 @@ export function useAppUpdater(defaultAppVersion: string = "0.2.0") {
 
       setStatus("readyToInstall");
     } catch (err: any) {
-      setErrorMessage(err?.message || "Download dell'aggiornamento fallito");
+      console.error("Update download/install error:", err);
+      setErrorMessage(formatErrorMessage(err, "Download dell'aggiornamento fallito"));
       setStatus("error");
     }
   }, []);
