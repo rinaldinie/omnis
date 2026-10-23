@@ -33,6 +33,16 @@ export function useGamepadNavigation({
   const [gamepadName, setGamepadName] = useState<string>("Nessun Controller");
   const [focusedIndex, setFocusedIndex] = useState<number>(0);
   const [showFullscreenDetails, setShowFullscreenDetails] = useState<boolean>(false);
+  const [homeFocusZone, setHomeFocusZone] = useState<"carousel" | "topbar">("carousel");
+  const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!isBigPicture) {
+      setIsMenuOpen(false);
+      setHomeFocusZone("carousel");
+      setShowFullscreenDetails(false);
+    }
+  }, [isBigPicture]);
 
   // Mirrors of props and dynamic state in refs so the RAF polling loop never recreates
   const isBigPictureRef = useRef(isBigPicture);
@@ -48,6 +58,8 @@ export function useGamepadNavigation({
 
   const focusedIndexRef = useRef(focusedIndex);
   const showFullscreenDetailsRef = useRef(showFullscreenDetails);
+  const homeFocusZoneRef = useRef(homeFocusZone);
+  const isMenuOpenRef = useRef(isMenuOpen);
 
   // Sync refs on each render
   isBigPictureRef.current = isBigPicture;
@@ -62,6 +74,8 @@ export function useGamepadNavigation({
   isSuspendedRef.current = isSuspended;
   focusedIndexRef.current = focusedIndex;
   showFullscreenDetailsRef.current = showFullscreenDetails;
+  homeFocusZoneRef.current = homeFocusZone;
+  isMenuOpenRef.current = isMenuOpen;
 
   // Input timing & edge-triggering refs (persistent across renders)
   const awaitingNeutralStateRef = useRef<boolean>(false);
@@ -229,26 +243,114 @@ export function useGamepadNavigation({
               navStartYTimeRef.current = 0;
             }
           } else {
-            // Main Big Picture carousel navigation
-            if (currentDirX !== 0) {
-              if (navDirectionRef.current !== currentDirX) {
-                navDirectionRef.current = currentDirX;
-                navStartTimeRef.current = now;
-                lastNavTimeRef.current = now;
-                stepCarousel(currentDirX);
-              } else {
-                const holdDuration = now - navStartTimeRef.current;
-                const INITIAL_HOLD_DELAY = 380;
-                const REPEAT_INTERVAL = 170;
-
-                if (holdDuration >= INITIAL_HOLD_DELAY && now - lastNavTimeRef.current >= REPEAT_INTERVAL) {
-                  lastNavTimeRef.current = now;
-                  stepCarousel(currentDirX);
+            // Main Big Picture Home Screen
+            if (isMenuOpenRef.current) {
+              // --- A. DROPDOWN MENU IS OPEN ---
+              // Vertical navigation inside dropdown menu
+              if (currentDirY !== 0) {
+                if (navDirectionYRef.current !== currentDirY) {
+                  navDirectionYRef.current = currentDirY;
+                  navStartYTimeRef.current = now;
+                  lastNavYTimeRef.current = now;
+                  window.dispatchEvent(
+                    new CustomEvent("omnis:menu-nav", {
+                      detail: { direction: currentDirY === 1 ? "down" : "up" },
+                    })
+                  );
+                } else {
+                  const holdDuration = now - navStartYTimeRef.current;
+                  const INITIAL_HOLD_DELAY = 380;
+                  const REPEAT_INTERVAL = 170;
+                  if (holdDuration >= INITIAL_HOLD_DELAY && now - lastNavYTimeRef.current >= REPEAT_INTERVAL) {
+                    lastNavYTimeRef.current = now;
+                    window.dispatchEvent(
+                      new CustomEvent("omnis:menu-nav", {
+                        detail: { direction: currentDirY === 1 ? "down" : "up" },
+                      })
+                    );
+                  }
                 }
+              } else {
+                navDirectionYRef.current = 0;
+                navStartYTimeRef.current = 0;
               }
-            } else {
+
+              // Horizontal navigation in menu (for cycling settings/themes)
+              if (currentDirX !== 0) {
+                if (navDirectionRef.current !== currentDirX) {
+                  navDirectionRef.current = currentDirX;
+                  navStartTimeRef.current = now;
+                  lastNavTimeRef.current = now;
+                  window.dispatchEvent(
+                    new CustomEvent("omnis:menu-nav", {
+                      detail: { direction: currentDirX === 1 ? "right" : "left" },
+                    })
+                  );
+                } else {
+                  const holdDuration = now - navStartTimeRef.current;
+                  const INITIAL_HOLD_DELAY = 380;
+                  const REPEAT_INTERVAL = 170;
+                  if (holdDuration >= INITIAL_HOLD_DELAY && now - lastNavTimeRef.current >= REPEAT_INTERVAL) {
+                    lastNavTimeRef.current = now;
+                    window.dispatchEvent(
+                      new CustomEvent("omnis:menu-nav", {
+                        detail: { direction: currentDirX === 1 ? "right" : "left" },
+                      })
+                    );
+                  }
+                }
+              } else {
+                navDirectionRef.current = 0;
+                navStartTimeRef.current = 0;
+              }
+            } else if (homeFocusZoneRef.current === "topbar") {
+              // --- B. TOP BAR MENU BUTTON IS FOCUSED ---
+              if (currentDirY === 1) {
+                // D-Pad Down: return to game carousel
+                soundEffects.playNav();
+                setHomeFocusZone("carousel");
+                navDirectionYRef.current = 1;
+                navStartYTimeRef.current = now;
+              } else if (currentDirY === 0) {
+                navDirectionYRef.current = 0;
+                navStartYTimeRef.current = 0;
+              }
               navDirectionRef.current = 0;
               navStartTimeRef.current = 0;
+            } else {
+              // --- C. GAMES CAROUSEL IS FOCUSED ---
+              if (currentDirY === -1) {
+                // D-Pad Up: move focus up to the topbar menu button!
+                soundEffects.playNav();
+                setHomeFocusZone("topbar");
+                navDirectionYRef.current = -1;
+                navStartYTimeRef.current = now;
+              } else if (currentDirY === 0) {
+                navDirectionYRef.current = 0;
+                navStartYTimeRef.current = 0;
+              }
+
+              // Horizontal navigation in game carousel
+              if (currentDirX !== 0) {
+                if (navDirectionRef.current !== currentDirX) {
+                  navDirectionRef.current = currentDirX;
+                  navStartTimeRef.current = now;
+                  lastNavTimeRef.current = now;
+                  stepCarousel(currentDirX);
+                } else {
+                  const holdDuration = now - navStartTimeRef.current;
+                  const INITIAL_HOLD_DELAY = 380;
+                  const REPEAT_INTERVAL = 170;
+
+                  if (holdDuration >= INITIAL_HOLD_DELAY && now - lastNavTimeRef.current >= REPEAT_INTERVAL) {
+                    lastNavTimeRef.current = now;
+                    stepCarousel(currentDirX);
+                  }
+                }
+              } else {
+                navDirectionRef.current = 0;
+                navStartTimeRef.current = 0;
+              }
             }
           }
         }
@@ -268,6 +370,11 @@ export function useGamepadNavigation({
           if (isEdgeA) {
             if (showFullscreenDetailsRef.current) {
               window.dispatchEvent(new CustomEvent("omnis:details-action-a"));
+            } else if (isMenuOpenRef.current) {
+              window.dispatchEvent(new CustomEvent("omnis:menu-action-a"));
+            } else if (homeFocusZoneRef.current === "topbar") {
+              soundEffects.playSelect();
+              setIsMenuOpen(true);
             } else {
               const current =
                 filteredGamesRef.current[focusedIndexRef.current] || selectedGameRef.current;
@@ -280,27 +387,41 @@ export function useGamepadNavigation({
             if (showFullscreenDetailsRef.current) {
               soundEffects.playSelect();
               setShowFullscreenDetails(false);
+            } else if (isMenuOpenRef.current) {
+              soundEffects.playSelect();
+              setIsMenuOpen(false);
+            } else if (homeFocusZoneRef.current === "topbar") {
+              soundEffects.playNav();
+              setHomeFocusZone("carousel");
             }
             // In Big Picture home screen, B does NOT exit to desktop!
           } else if (isEdgeX) {
-            soundEffects.playSelect();
-            setShowFullscreenDetails((prev) => !prev);
+            if (!isMenuOpenRef.current) {
+              soundEffects.playSelect();
+              setShowFullscreenDetails((prev) => !prev);
+            }
           } else if (isEdgeY) {
-            soundEffects.playSelect();
-            setShowVirtualKeyboardRef.current(true);
+            if (!isMenuOpenRef.current) {
+              soundEffects.playSelect();
+              setShowVirtualKeyboardRef.current(true);
+            }
           } else if (isEdgeLB) {
-            if (!showFullscreenDetailsRef.current) {
+            if (!showFullscreenDetailsRef.current && !isMenuOpenRef.current) {
               soundEffects.playNav();
               cycleFilterRef.current(-1, () => setFocusedIndex(0));
             }
           } else if (isEdgeRB) {
-            if (!showFullscreenDetailsRef.current) {
+            if (!showFullscreenDetailsRef.current && !isMenuOpenRef.current) {
               soundEffects.playNav();
               cycleFilterRef.current(1, () => setFocusedIndex(0));
             }
           } else if (isEdgeSelect || isEdgeStart) {
-            soundEffects.playSelect();
-            toggleBigPictureRef.current();
+            // SELECT or START toggles the Playnite-style Fullscreen Menu!
+            // Prevents any single-button accidental desktop exit!
+            if (!showFullscreenDetailsRef.current) {
+              soundEffects.playSelect();
+              setIsMenuOpen((prev) => !prev);
+            }
           }
         } else {
           // In standard Desktop window: Start or Guide button enters Big Picture
@@ -343,7 +464,9 @@ export function useGamepadNavigation({
 
       if (e.key === "F11") {
         e.preventDefault();
-        toggleBigPicture();
+        if (!isBigPicture) {
+          toggleBigPicture();
+        }
         return;
       }
 
@@ -375,7 +498,53 @@ export function useGamepadNavigation({
           return;
         }
 
-        if (e.key === "ArrowLeft") {
+        // When Dropdown Menu is open:
+        if (isMenuOpen) {
+          if (e.key === "Escape") {
+            soundEffects.playSelect();
+            setIsMenuOpen(false);
+          } else if (e.key === "Enter") {
+            window.dispatchEvent(new CustomEvent("omnis:menu-action-a"));
+          } else if (e.key === "ArrowUp") {
+            window.dispatchEvent(
+              new CustomEvent("omnis:menu-nav", { detail: { direction: "up" } })
+            );
+          } else if (e.key === "ArrowDown") {
+            window.dispatchEvent(
+              new CustomEvent("omnis:menu-nav", { detail: { direction: "down" } })
+            );
+          } else if (e.key === "ArrowLeft") {
+            window.dispatchEvent(
+              new CustomEvent("omnis:menu-nav", { detail: { direction: "left" } })
+            );
+          } else if (e.key === "ArrowRight") {
+            window.dispatchEvent(
+              new CustomEvent("omnis:menu-nav", { detail: { direction: "right" } })
+            );
+          }
+          return;
+        }
+
+        // When Topbar Menu Button is focused:
+        if (homeFocusZone === "topbar") {
+          if (e.key === "ArrowDown") {
+            soundEffects.playNav();
+            setHomeFocusZone("carousel");
+          } else if (e.key === "Enter") {
+            soundEffects.playSelect();
+            setIsMenuOpen(true);
+          } else if (e.key === "Escape") {
+            soundEffects.playNav();
+            setHomeFocusZone("carousel");
+          }
+          return;
+        }
+
+        // When in Games Carousel:
+        if (e.key === "ArrowUp") {
+          soundEffects.playNav();
+          setHomeFocusZone("topbar");
+        } else if (e.key === "ArrowLeft") {
           setFocusedIndex((prev) => {
             const next = Math.max(0, prev - 1);
             if (next !== prev) soundEffects.playNav();
@@ -390,8 +559,9 @@ export function useGamepadNavigation({
         } else if (e.key === "Enter") {
           soundEffects.playSelect();
           setShowFullscreenDetails(true);
-        } else if (e.key === "Escape") {
-          // On home screen, Escape does NOT exit Big Picture (use F11 or Select to return to Desktop)
+        } else if (e.key.toLowerCase() === "m" || e.key === "F10") {
+          soundEffects.playSelect();
+          setIsMenuOpen((prev) => !prev);
         } else if (e.key.toLowerCase() === "x") {
           soundEffects.playSelect();
           setShowFullscreenDetails((prev) => !prev);
@@ -413,6 +583,8 @@ export function useGamepadNavigation({
     filteredGames,
     focusedIndex,
     showFullscreenDetails,
+    homeFocusZone,
+    isMenuOpen,
     selectedGame,
     showVirtualKeyboard,
     toggleBigPicture,
@@ -439,5 +611,9 @@ export function useGamepadNavigation({
     setFocusedIndex,
     showFullscreenDetails,
     setShowFullscreenDetails,
+    homeFocusZone,
+    setHomeFocusZone,
+    isMenuOpen,
+    setIsMenuOpen,
   };
 }

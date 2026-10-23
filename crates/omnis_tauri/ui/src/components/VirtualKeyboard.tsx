@@ -71,15 +71,21 @@ const ROW_2: KeyDef[] = [
   { label: "J", char: "J", action: "char" },
   { label: "K", char: "K", action: "char" },
   { label: "L", char: "L", action: "char" },
-  {
-    label: "Invio",
-    action: "enter",
-    icon: <CornerDownLeft className="w-4 h-4" />,
-    widthClass: "flex-[1.6]",
-  },
 ];
 
 const ROW_3: KeyDef[] = [
+  { label: "Z", char: "Z", action: "char" },
+  { label: "X", char: "X", action: "char" },
+  { label: "C", char: "C", action: "char" },
+  { label: "V", char: "V", action: "char" },
+  { label: "B", char: "B", action: "char" },
+  { label: "N", char: "N", action: "char" },
+  { label: "M", char: "M", action: "char" },
+  { label: "-", char: "-", action: "char" },
+  { label: ".", char: ".", action: "char" },
+];
+
+const ROW_4: KeyDef[] = [
   {
     label: "Spazio",
     action: "space",
@@ -87,20 +93,26 @@ const ROW_3: KeyDef[] = [
     widthClass: "flex-[3]",
   },
   {
-    label: "Cancella Tutto",
+    label: "Cancella",
     action: "clear",
     icon: <Trash2 className="w-4 h-4" />,
-    widthClass: "flex-[2]",
+    widthClass: "flex-[1.5]",
+  },
+  {
+    label: "Cerca",
+    action: "enter",
+    icon: <CornerDownLeft className="w-4 h-4" />,
+    widthClass: "flex-[1.8]",
   },
   {
     label: "Chiudi (B)",
     action: "close",
     icon: <X className="w-4 h-4" />,
-    widthClass: "flex-[2]",
+    widthClass: "flex-[1.5]",
   },
 ];
 
-const KEY_ROWS: KeyDef[][] = [ROW_0, ROW_1, ROW_2, ROW_3];
+const KEY_ROWS: KeyDef[][] = [ROW_0, ROW_1, ROW_2, ROW_3, ROW_4];
 
 export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
   isOpen,
