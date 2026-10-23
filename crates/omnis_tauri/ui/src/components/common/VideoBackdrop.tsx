@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import Hls from "hls.js";
-import { GameDto, ThemeConfig } from "../../types";
+import { GameDto, ThemeConfig, formatImageUrl } from "../../types";
 import { fetchGameTrailerUrl } from "../../utils/trailers";
 
 interface VideoBackdropProps {
@@ -197,22 +197,31 @@ export const VideoBackdrop: React.FC<VideoBackdropProps> = ({
     blurLevel === "none"
       ? ""
       : blurLevel === "subtle"
-      ? "filter blur-sm scale-105"
-      : "filter blur-xl scale-110";
+      ? "filter blur-[2px] scale-102"
+      : "filter blur-sm scale-105";
+
+  const backdropUrl =
+    formatImageUrl(game?.background_image) ||
+    game?.background_image ||
+    formatImageUrl(game?.cover_image) ||
+    game?.cover_image;
 
   return (
     <div
       className={`absolute inset-0 z-0 overflow-hidden pointer-events-none select-none ${className}`}
     >
-      {/* 1. Static Image Layer (always rendered immediately as baseline) */}
-      {game?.background_image ? (
+      {/* 1. Static Image Layer (renders immediately with high clarity and contrast) */}
+      {backdropUrl ? (
         <img
-          src={game.background_image}
-          alt={game.title || "Backdrop"}
-          className={`w-full h-full object-cover transition-all duration-700 ${
-            blurLevel === "ambient"
-              ? "opacity-25 filter blur-2xl scale-110"
-              : "opacity-40 object-cover"
+          key={backdropUrl}
+          src={backdropUrl}
+          alt={game?.title || "Backdrop"}
+          className={`w-full h-full object-cover transition-opacity duration-500 ${
+            blurLevel === "none"
+              ? "opacity-90 filter-none scale-100"
+              : blurLevel === "subtle"
+              ? "opacity-80 filter blur-[2px] scale-102"
+              : "opacity-70 filter blur-sm scale-105"
           }`}
         />
       ) : (
@@ -239,18 +248,21 @@ export const VideoBackdrop: React.FC<VideoBackdropProps> = ({
             setIsVideoPlaying(false);
             setVideoSrc(null);
           }}
-          className={`video-backdrop absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${blurClass}`}
+          className={`video-backdrop absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${blurClass}`}
           style={{
             opacity: !isPaused && isVideoPlaying ? targetOpacity : 0,
           }}
         />
       )}
 
-      {/* 3. Cinema Dark Gradient Overlay (guarantees text & UI readability) */}
+      {/* 3. Directional Vignette & Gradient Overlays (preserves bottom/left readability while keeping hero art vivid) */}
       <div
         className="absolute inset-0 transition-colors duration-500"
         style={{
-          background: `linear-gradient(to top, var(--bg-base) 10%, rgba(11, 14, 20, 0.65) 50%, rgba(11, 14, 20, 0.85) 100%)`,
+          background: `
+            linear-gradient(to top, var(--bg-base) 0%, var(--bg-base) 18%, rgba(11, 14, 20, 0.65) 45%, rgba(11, 14, 20, 0.15) 75%, transparent 100%),
+            linear-gradient(to right, rgba(11, 14, 20, 0.85) 0%, rgba(11, 14, 20, 0.45) 40%, transparent 75%)
+          `,
         }}
       />
     </div>

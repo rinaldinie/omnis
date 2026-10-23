@@ -8,6 +8,7 @@ import { useTranslation } from "../../i18n";
 
 interface GameAchievementsGalleryProps {
   game: GameDto;
+  isFullscreen?: boolean;
   isBigPicture?: boolean;
   focusedIndex?: number;
   onFocusIndexChange?: (idx: number) => void;
@@ -18,11 +19,13 @@ type FilterType = "all" | "unlocked" | "locked" | "ultrarare";
 
 export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = ({
   game,
+  isFullscreen = false,
   isBigPicture = false,
   focusedIndex: controlledFocusedIndex,
   onFocusIndexChange,
   onTotalAchievementsChange,
 }) => {
+  const isFullscreenMode = isFullscreen || isBigPicture;
   const { t, locale } = useTranslation();
   const isSupportedStore =
     game.library === "steam" ||
@@ -303,7 +306,7 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
               </span>
             </div>
           </div>
-          {!isBigPicture && (
+          {!isFullscreenMode && (
             <button
               onClick={() => {
                 soundEffects.playSelect();
@@ -371,7 +374,7 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
             </span>
           )}
 
-          {!isBigPicture && (
+          {!isFullscreenMode && (
             <button
               onClick={() => {
                 soundEffects.playSelect();
@@ -471,8 +474,8 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
           <AchievementBadge
             key={ach.id}
             achievement={ach}
-            size={isBigPicture ? "lg" : "md"}
-            isFocused={isBigPicture && effectiveFocusedIndex === idx}
+            size={isFullscreenMode ? "lg" : "md"}
+            isFocused={isFullscreenMode && effectiveFocusedIndex === idx}
             onClick={() => soundEffects.playSelect()}
             onFocus={() => {
               setFocusedIndex(idx);

@@ -58,6 +58,13 @@ pub fn window_set_fullscreen(fullscreen: bool, window: Window) -> Result<(), Str
 }
 
 #[tauri::command]
+pub fn is_fullscreen_launch() -> bool {
+    std::env::args().any(|arg| {
+        arg == "--fullscreen" || arg == "-f" || arg == "--bigpicture" || arg == "-b"
+    })
+}
+
+#[tauri::command]
 pub fn set_minimize_to_tray(enabled: bool, state: State<'_, AppState>) -> Result<(), String> {
     state.minimize_to_tray.store(enabled, std::sync::atomic::Ordering::SeqCst);
     Ok(())

@@ -167,7 +167,7 @@ pub async fn get_slot_widgets(
                                 });
                             }
                         }
-                        "bigpicture.hero" => {
+                        "fullscreen.hero" | "bigpicture.hero" => {
                             if let Some(ref json) = extra_json {
                                 let total = resolve_json_key(json, "achievements.total")
                                     .and_then(|v| v.as_u64())

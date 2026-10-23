@@ -35,7 +35,7 @@ export const AchievementBadge: React.FC<AchievementBadgeProps> = ({
     const badgeEl = badgeRef.current;
     const badgeRect = badgeEl.getBoundingClientRect();
     const container =
-      badgeEl.closest(".overflow-y-auto, [data-omnis='bigpicture'], main, body") ||
+      badgeEl.closest(".overflow-y-auto, [data-omnis='fullscreen'], [data-omnis='bigpicture'], main, body") ||
       document.body;
     const containerRect = container.getBoundingClientRect();
 

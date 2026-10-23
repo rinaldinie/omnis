@@ -32,7 +32,8 @@ interface TopBarProps {
   setViewMode: (mode: ViewMode) => void;
   searchQuery: string;
   setSearchQuery: (q: string) => void;
-  toggleBigPicture: () => void;
+  toggleFullscreen?: () => void;
+  toggleBigPicture?: () => void;
   handleToggleSound: () => void;
   soundEnabled: boolean;
   setShowSettingsModal: (open: boolean) => void;
@@ -69,6 +70,7 @@ export default function TopBar({
   setViewMode,
   searchQuery,
   setSearchQuery,
+  toggleFullscreen,
   toggleBigPicture,
   handleToggleSound,
   soundEnabled,
@@ -256,19 +258,19 @@ export default function TopBar({
 
       {/* Right Section: Actions Bar + Window Controls (Protected & Unified in One Flex Row) */}
       <div className="flex items-center gap-1.5 shrink-0 ml-auto" data-no-drag="true">
-        {/* Big Picture Button */}
+        {/* Fullscreen Button */}
         <button
           type="button"
-          onClick={toggleBigPicture}
+          onClick={toggleFullscreen || toggleBigPicture}
           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold text-white transition-all shadow-md hover:brightness-110 active:opacity-90 shrink-0"
           style={{
             backgroundColor: "var(--accent-primary)",
             boxShadow: `0 0 15px var(--accent-glow)`,
           }}
-          title={t("topbar.big_picture")}
+          title={t("topbar.fullscreen")}
         >
           <Tv className="w-3.5 h-3.5" />
-          <span className="hidden 2xl:inline">{t("topbar.big_picture")}</span>
+          <span className="hidden 2xl:inline">{t("topbar.fullscreen")}</span>
         </button>
 
         {/* Sync External Libraries */}

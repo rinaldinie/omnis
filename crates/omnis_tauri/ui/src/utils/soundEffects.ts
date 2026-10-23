@@ -1,5 +1,5 @@
 /**
- * Omnis Big Picture Web Audio Synthesizer (Zero-Latency, Zero External Dependencies)
+ * Omnis Fullscreen Web Audio Synthesizer (Zero-Latency, Zero External Dependencies)
  */
 
 export class SoundSystem {

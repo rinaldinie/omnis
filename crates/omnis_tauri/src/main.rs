@@ -62,7 +62,10 @@ fn main() {
         tracing::warn!("SecretVault initialization warning: {}. Using fallback.", e);
         omnis_core::SecretVault::from_key([0x42; 32])
     }));
-    let store_account_manager = Arc::new(store_manager::StoreAccountManager::new(db.clone(), vault.clone()));
+    let store_account_manager = Arc::new(store_manager::StoreAccountManager::new(
+        db.clone(),
+        vault.clone(),
+    ));
     store_account_manager.register_plugin(Arc::new(omnis_plugin_gog::GogCloudPlugin::new()));
     store_account_manager.register_plugin(Arc::new(omnis_plugin_xbox::XboxCloudPlugin::new()));
     store_account_manager.register_plugin(Arc::new(omnis_plugin_steam::SteamPlugin::new()));
@@ -101,6 +104,15 @@ fn main() {
                 active_mgr.check_and_reattach(&db_ref).await;
             });
 
+            // If started with --fullscreen, enter fullscreen mode immediately
+            let is_fullscreen = std::env::args().any(|arg| arg == "--fullscreen" || arg == "-f");
+            if is_fullscreen {
+                use tauri::Manager;
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.set_fullscreen(true);
+                }
+            }
+
             // Initialize System Tray
             if let Err(e) = tray::setup_tray(&app.handle()) {
                 tracing::error!("Impossibile inizializzare il system tray: {}", e);
@@ -128,7 +140,10 @@ fn main() {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 use tauri::Manager;
                 let state = window.state::<AppState>();
-                if state.minimize_to_tray.load(std::sync::atomic::Ordering::SeqCst) {
+                if state
+                    .minimize_to_tray
+                    .load(std::sync::atomic::Ordering::SeqCst)
+                {
                     api.prevent_close();
                     let _ = window.hide();
                 }
@@ -173,6 +188,7 @@ fn main() {
             window_toggle_maximize,
             window_toggle_fullscreen,
             window_set_fullscreen,
+            is_fullscreen_launch,
             window_close,
             get_themes,
             save_custom_theme,

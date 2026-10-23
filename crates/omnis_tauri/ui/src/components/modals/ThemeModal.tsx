@@ -207,10 +207,10 @@ export default function ThemeModal({
                                 TRAILER
                               </span>
                             )}
-                            {t.target_mode === "bigpicture" && (
+                            {(t.target_mode === "fullscreen" || t.target_mode === "bigpicture") && (
                               <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-black bg-sky-500/20 text-sky-300 border border-sky-500/30">
                                 <Tv className="w-2.5 h-2.5" />
-                                BIG PICTURE
+                                FULLSCREEN
                               </span>
                             )}
                             {t.target_mode === "desktop" && (

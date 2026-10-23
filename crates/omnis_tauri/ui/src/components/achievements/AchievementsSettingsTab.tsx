@@ -701,7 +701,7 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                   className="px-3 py-1.5 rounded-lg bg-slate-900 border border-white/10 text-white font-medium"
                 >
                   <option value="md">56 x 56 px (Standard Desktop)</option>
-                  <option value="lg">72 x 72 px (Grande / Big Picture)</option>
+                  <option value="lg">72 x 72 px (Grande / Fullscreen)</option>
                 </select>
               </div>
             </div>

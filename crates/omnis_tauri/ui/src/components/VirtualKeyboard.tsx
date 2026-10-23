@@ -420,7 +420,7 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
                 <KeyboardIcon className="w-4 h-4" />
               </div>
               <span className="tracking-wider uppercase font-black text-sm text-white">
-                Tastiera a Schermo Big Picture
+                Tastiera a Schermo Fullscreen
               </span>
             </div>
 

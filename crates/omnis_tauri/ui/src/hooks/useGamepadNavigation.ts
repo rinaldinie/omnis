@@ -3,8 +3,10 @@ import soundEffects from "../utils/soundEffects";
 import { GameDto } from "../types";
 
 interface UseGamepadNavigationProps {
-  isBigPicture: boolean;
-  toggleBigPicture: () => void;
+  isFullscreen?: boolean;
+  toggleFullscreen?: () => void;
+  isBigPicture?: boolean;
+  toggleBigPicture?: () => void;
   filteredGames: GameDto[];
   selectedGame: GameDto | null;
   showVirtualKeyboard: boolean;
@@ -17,8 +19,10 @@ interface UseGamepadNavigationProps {
 }
 
 export function useGamepadNavigation({
-  isBigPicture,
-  toggleBigPicture,
+  isFullscreen: propIsFullscreen,
+  toggleFullscreen: propToggleFullscreen,
+  isBigPicture: propIsBigPicture,
+  toggleBigPicture: propToggleBigPicture,
   filteredGames,
   selectedGame,
   showVirtualKeyboard,
@@ -29,6 +33,9 @@ export function useGamepadNavigation({
   carouselRef,
   isSuspended = false,
 }: UseGamepadNavigationProps) {
+  const isFullscreen = propIsFullscreen !== undefined ? propIsFullscreen : (propIsBigPicture ?? false);
+  const toggleFullscreen = propToggleFullscreen || propToggleBigPicture || (() => {});
+
   const [gamepadConnected, setGamepadConnected] = useState<boolean>(false);
   const [gamepadName, setGamepadName] = useState<string>("Nessun Controller");
   const [focusedIndex, setFocusedIndex] = useState<number>(0);
@@ -37,16 +44,16 @@ export function useGamepadNavigation({
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
 
   useEffect(() => {
-    if (!isBigPicture) {
+    if (!isFullscreen) {
       setIsMenuOpen(false);
       setHomeFocusZone("carousel");
       setShowFullscreenDetails(false);
     }
-  }, [isBigPicture]);
+  }, [isFullscreen]);
 
   // Mirrors of props and dynamic state in refs so the RAF polling loop never recreates
-  const isBigPictureRef = useRef(isBigPicture);
-  const toggleBigPictureRef = useRef(toggleBigPicture);
+  const isFullscreenRef = useRef(isFullscreen);
+  const toggleFullscreenRef = useRef(toggleFullscreen);
   const filteredGamesRef = useRef(filteredGames);
   const selectedGameRef = useRef(selectedGame);
   const showVirtualKeyboardRef = useRef(showVirtualKeyboard);
@@ -62,8 +69,8 @@ export function useGamepadNavigation({
   const isMenuOpenRef = useRef(isMenuOpen);
 
   // Sync refs on each render
-  isBigPictureRef.current = isBigPicture;
-  toggleBigPictureRef.current = toggleBigPicture;
+  isFullscreenRef.current = isFullscreen;
+  toggleFullscreenRef.current = toggleFullscreen;
   filteredGamesRef.current = filteredGames;
   selectedGameRef.current = selectedGame;
   showVirtualKeyboardRef.current = showVirtualKeyboard;
@@ -183,7 +190,7 @@ export function useGamepadNavigation({
         if (rawUp && !rawDown) currentDirY = -1;
         else if (rawDown && !rawUp) currentDirY = 1;
 
-        if (isBigPictureRef.current) {
+        if (isFullscreenRef.current) {
           if (showFullscreenDetailsRef.current) {
             // When in Fullscreen Details: handle horizontal navigation
             if (currentDirX !== 0) {
@@ -243,7 +250,7 @@ export function useGamepadNavigation({
               navStartYTimeRef.current = 0;
             }
           } else {
-            // Main Big Picture Home Screen
+            // Main Fullscreen Home Screen
             if (isMenuOpenRef.current) {
               // --- A. DROPDOWN MENU IS OPEN ---
               // Vertical navigation inside dropdown menu
@@ -366,7 +373,7 @@ export function useGamepadNavigation({
         const isEdgeStart = isEdge(9);
         const isEdgeGuide = isEdge(16) || isEdge(17);
 
-        if (isBigPictureRef.current) {
+        if (isFullscreenRef.current) {
           if (isEdgeA) {
             if (showFullscreenDetailsRef.current) {
               window.dispatchEvent(new CustomEvent("omnis:details-action-a"));
@@ -393,7 +400,7 @@ export function useGamepadNavigation({
               soundEffects.playNav();
               setHomeFocusZone("carousel");
             }
-            // In Big Picture home screen, B does NOT exit to desktop!
+            // In Fullscreen home screen, B does NOT exit to desktop!
           } else if (isEdgeX) {
             if (!isMenuOpenRef.current && filteredGamesRef.current.length > 0) {
               soundEffects.playSelect();
@@ -423,10 +430,10 @@ export function useGamepadNavigation({
             }
           }
         } else {
-          // In standard Desktop window: Start or Guide button enters Big Picture
+          // In standard Desktop window: Start or Guide button enters Fullscreen
           if (isEdgeStart || isEdgeGuide) {
             soundEffects.playSelect();
-            toggleBigPictureRef.current();
+            toggleFullscreenRef.current();
           }
         }
 
@@ -463,13 +470,13 @@ export function useGamepadNavigation({
 
       if (e.key === "F11") {
         e.preventDefault();
-        if (!isBigPicture) {
-          toggleBigPicture();
+        if (!isFullscreen) {
+          toggleFullscreen();
         }
         return;
       }
 
-      if (isBigPicture) {
+      if (isFullscreen) {
         if (showFullscreenDetails) {
           if (e.key === "Escape") {
             soundEffects.playSelect();
@@ -582,7 +589,7 @@ export function useGamepadNavigation({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [
-    isBigPicture,
+    isFullscreen,
     filteredGames,
     focusedIndex,
     showFullscreenDetails,
@@ -590,7 +597,7 @@ export function useGamepadNavigation({
     isMenuOpen,
     selectedGame,
     showVirtualKeyboard,
-    toggleBigPicture,
+    toggleFullscreen,
     handleLaunch,
     setShowThemeModal,
     setShowVirtualKeyboard,
@@ -599,13 +606,13 @@ export function useGamepadNavigation({
 
   // Auto-scroll focused card into view in carousel
   useEffect(() => {
-    if (isBigPicture && carouselRef.current) {
+    if (isFullscreen && carouselRef.current) {
       const activeCard = carouselRef.current.children[focusedIndex] as HTMLElement;
       if (activeCard) {
         activeCard.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
       }
     }
-  }, [focusedIndex, isBigPicture, carouselRef]);
+  }, [focusedIndex, isFullscreen, carouselRef]);
 
   return {
     gamepadConnected,
