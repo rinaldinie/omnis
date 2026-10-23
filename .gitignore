@@ -36,7 +36,9 @@ data/
 *.db-wal
 *.log
 
-# --- External References & Large Archives ---
+# --- Release Artifacts ---
+latest.json
+dist-release/
 Playnite-master/
 Playnite-master.zip
 *.zip
