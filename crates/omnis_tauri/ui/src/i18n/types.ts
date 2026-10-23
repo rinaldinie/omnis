@@ -217,6 +217,8 @@ export interface TranslationSchema {
     kill_game: string;
     kill_game_title: string;
     kill_game_hint: string;
+    cancel_launch: string;
+    cancel_launch_hint: string;
     launch_game: string;
     launch_game_hint: string;
     back_close: string;
@@ -224,6 +226,8 @@ export interface TranslationSchema {
     details_sheet: string;
     change_category: string;
     return_desktop: string;
+    exit_app: string;
+    exit_app_desc: string;
     developed_by: string;
     synopsis_description: string;
     session_ended: string;
@@ -245,6 +249,8 @@ export interface TranslationSchema {
     kill_game: string;
     kill_game_title: string;
     kill_game_hint: string;
+    cancel_launch: string;
+    cancel_launch_hint: string;
     launch_game: string;
     launch_game_hint: string;
     back_close: string;
@@ -252,6 +258,8 @@ export interface TranslationSchema {
     details_sheet: string;
     change_category: string;
     return_desktop: string;
+    exit_app: string;
+    exit_app_desc: string;
     developed_by: string;
     synopsis_description: string;
     session_ended: string;

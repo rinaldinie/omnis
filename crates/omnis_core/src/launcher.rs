@@ -525,7 +525,30 @@ impl GameLauncher {
 
         if is_uri {
             let mut cmd = Command::new(&config.executable);
-            cmd.args(&config.arguments);
+            let mut args = config.arguments.clone();
+            if cfg!(windows) {
+                // Ensure `start` has the empty title argument `""` so Windows doesn't treat URI as a title
+                let mut sanitized = Vec::new();
+                let mut iter = args.into_iter();
+                while let Some(arg) = iter.next() {
+                    let is_start = arg.eq_ignore_ascii_case("start");
+                    sanitized.push(arg);
+                    if is_start {
+                        if let Some(next_arg) = iter.next() {
+                            if !next_arg.is_empty()
+                                && (next_arg.contains("://")
+                                    || next_arg.ends_with(".exe")
+                                    || next_arg.starts_with('"'))
+                            {
+                                sanitized.push("".to_string());
+                            }
+                            sanitized.push(next_arg);
+                        }
+                    }
+                }
+                args = sanitized;
+            }
+            cmd.args(&args);
             if let Some(ref dir) = config.working_dir {
                 cmd.current_dir(dir);
             }

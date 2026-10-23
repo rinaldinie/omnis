@@ -140,8 +140,20 @@ pub async fn kill_running_game(
     app_handle: tauri::AppHandle,
     state: State<'_, AppState>,
 ) -> Result<bool, String> {
+    let current_session = state.active_game_manager.get_running().await;
     let killed = state.active_game_manager.kill_running().await?;
-    if killed {
+    if killed || current_session.is_some() {
+        if let Some(session) = current_session {
+            use tauri::Emitter;
+            let _ = app_handle.emit(
+                "game-stopped",
+                serde_json::json!({
+                    "session_id": session.session_id,
+                    "game_id": session.game_id,
+                    "duration_seconds": session.elapsed_seconds,
+                }),
+            );
+        }
         if let Some(window) = app_handle.get_webview_window("main") {
             let _ = window.unminimize();
             let _ = window.show();
@@ -186,7 +198,7 @@ pub async fn launch_game(
 
         let mut cmd = tokio::process::Command::new(if cfg!(windows) { "cmd.exe" } else { "xdg-open" });
         if cfg!(windows) {
-            cmd.args(["/c", "start", &install_uri]);
+            cmd.args(["/c", "start", "", &install_uri]);
         } else {
             cmd.arg(&install_uri);
         }
@@ -214,7 +226,7 @@ pub async fn launch_game(
                 "xdg-open".to_string()
             },
             arguments: if cfg!(windows) {
-                vec!["/c".to_string(), "start".to_string(), play_uri]
+                vec!["/c".to_string(), "start".to_string(), "".to_string(), play_uri]
             } else {
                 vec![play_uri]
             },
@@ -269,7 +281,7 @@ pub async fn launch_game(
     let app_handle_clone = app_handle.clone();
     let game_id_str = id.to_string();
 
-    tokio::spawn(async move {
+    let track_task = tokio::spawn(async move {
         // Task di persistenza incrementale ogni ~60s (Requirement B1)
         let is_running = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
         let is_running_cp = is_running.clone();
@@ -375,6 +387,11 @@ pub async fn launch_game(
         );
         let _ = app_handle_clone.emit("library-updated", ());
     });
+
+    state
+        .active_game_manager
+        .set_abort_handle(track_task.abort_handle())
+        .await;
 
     Ok(0)
 }

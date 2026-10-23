@@ -97,6 +97,17 @@ fn main() {
     let db_startup = db.clone();
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            use tauri::Manager;
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.unminimize();
+                let _ = window.show();
+                let _ = window.set_focus();
+                if argv.iter().any(|arg| arg == "--fullscreen" || arg == "-f") {
+                    let _ = window.set_fullscreen(true);
+                }
+            }
+        }))
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .setup(move |app| {
