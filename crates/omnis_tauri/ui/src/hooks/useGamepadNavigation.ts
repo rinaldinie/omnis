@@ -69,6 +69,9 @@ export function useGamepadNavigation({
   const navDirectionRef = useRef<number>(0); // -1 = left, 1 = right, 0 = neutral
   const navStartTimeRef = useRef<number>(0);
   const lastNavTimeRef = useRef<number>(0);
+  const navDirectionYRef = useRef<number>(0); // -1 = up, 1 = down, 0 = neutral
+  const navStartYTimeRef = useRef<number>(0);
+  const lastNavYTimeRef = useRef<number>(0);
 
   // Gamepad Polling Loop with Suspension, Ghost Input Shield, and Edge-Triggering
   useEffect(() => {
@@ -127,6 +130,9 @@ export function useGamepadNavigation({
             navDirectionRef.current = 0;
             navStartTimeRef.current = 0;
             lastNavTimeRef.current = 0;
+            navDirectionYRef.current = 0;
+            navStartYTimeRef.current = 0;
+            lastNavYTimeRef.current = 0;
           }
         }
 
@@ -150,37 +156,100 @@ export function useGamepadNavigation({
           return isDown(index) && !prevButtons[index];
         };
 
-        // --- 1. D-PAD & STICK HORIZONTAL NAVIGATION (Smooth repeat with hold delay) ---
+        // --- 1. D-PAD & STICK HORIZONTAL & VERTICAL NAVIGATION ---
         const rawLeft = isDown(14) || (a[0] !== undefined && a[0] < -0.45);
         const rawRight = isDown(15) || (a[0] !== undefined && a[0] > 0.45);
+        let currentDirX = 0;
+        if (rawLeft && !rawRight) currentDirX = -1;
+        else if (rawRight && !rawLeft) currentDirX = 1;
 
-        let currentDir = 0;
-        if (rawLeft && !rawRight) currentDir = -1;
-        else if (rawRight && !rawLeft) currentDir = 1;
+        const rawUp = isDown(12) || (a[1] !== undefined && a[1] < -0.45);
+        const rawDown = isDown(13) || (a[1] !== undefined && a[1] > 0.45);
+        let currentDirY = 0;
+        if (rawUp && !rawDown) currentDirY = -1;
+        else if (rawDown && !rawUp) currentDirY = 1;
 
         if (isBigPictureRef.current) {
-          if (currentDir !== 0) {
-            if (navDirectionRef.current !== currentDir) {
-              // Direction pressed for the first time: immediate single step
-              navDirectionRef.current = currentDir;
-              navStartTimeRef.current = now;
-              lastNavTimeRef.current = now;
-              stepCarousel(currentDir);
-            } else {
-              // Continued hold in the same direction: wait initial hold delay before repeating
-              const holdDuration = now - navStartTimeRef.current;
-              const INITIAL_HOLD_DELAY = 380; // ms to wait before repeating
-              const REPEAT_INTERVAL = 170; // ms between repeats
-
-              if (holdDuration >= INITIAL_HOLD_DELAY && now - lastNavTimeRef.current >= REPEAT_INTERVAL) {
+          if (showFullscreenDetailsRef.current) {
+            // When in Fullscreen Details: handle horizontal navigation
+            if (currentDirX !== 0) {
+              if (navDirectionRef.current !== currentDirX) {
+                navDirectionRef.current = currentDirX;
+                navStartTimeRef.current = now;
                 lastNavTimeRef.current = now;
-                stepCarousel(currentDir);
+                window.dispatchEvent(
+                  new CustomEvent("omnis:details-nav", {
+                    detail: { direction: currentDirX === 1 ? "right" : "left" },
+                  })
+                );
+              } else {
+                const holdDuration = now - navStartTimeRef.current;
+                const INITIAL_HOLD_DELAY = 380;
+                const REPEAT_INTERVAL = 170;
+                if (holdDuration >= INITIAL_HOLD_DELAY && now - lastNavTimeRef.current >= REPEAT_INTERVAL) {
+                  lastNavTimeRef.current = now;
+                  window.dispatchEvent(
+                    new CustomEvent("omnis:details-nav", {
+                      detail: { direction: currentDirX === 1 ? "right" : "left" },
+                    })
+                  );
+                }
               }
+            } else {
+              navDirectionRef.current = 0;
+              navStartTimeRef.current = 0;
+            }
+
+            // Handle vertical navigation (Up / Down) in details
+            if (currentDirY !== 0) {
+              if (navDirectionYRef.current !== currentDirY) {
+                navDirectionYRef.current = currentDirY;
+                navStartYTimeRef.current = now;
+                lastNavYTimeRef.current = now;
+                window.dispatchEvent(
+                  new CustomEvent("omnis:details-nav", {
+                    detail: { direction: currentDirY === 1 ? "down" : "up" },
+                  })
+                );
+              } else {
+                const holdDuration = now - navStartYTimeRef.current;
+                const INITIAL_HOLD_DELAY = 380;
+                const REPEAT_INTERVAL = 170;
+                if (holdDuration >= INITIAL_HOLD_DELAY && now - lastNavYTimeRef.current >= REPEAT_INTERVAL) {
+                  lastNavYTimeRef.current = now;
+                  window.dispatchEvent(
+                    new CustomEvent("omnis:details-nav", {
+                      detail: { direction: currentDirY === 1 ? "down" : "up" },
+                    })
+                  );
+                }
+              }
+            } else {
+              navDirectionYRef.current = 0;
+              navStartYTimeRef.current = 0;
             }
           } else {
-            // Neutral state
-            navDirectionRef.current = 0;
-            navStartTimeRef.current = 0;
+            // Main Big Picture carousel navigation
+            if (currentDirX !== 0) {
+              if (navDirectionRef.current !== currentDirX) {
+                navDirectionRef.current = currentDirX;
+                navStartTimeRef.current = now;
+                lastNavTimeRef.current = now;
+                stepCarousel(currentDirX);
+              } else {
+                const holdDuration = now - navStartTimeRef.current;
+                const INITIAL_HOLD_DELAY = 380;
+                const REPEAT_INTERVAL = 170;
+
+                if (holdDuration >= INITIAL_HOLD_DELAY && now - lastNavTimeRef.current >= REPEAT_INTERVAL) {
+                  lastNavTimeRef.current = now;
+                  stepCarousel(currentDirX);
+                }
+              }
+            } else {
+              navDirectionRef.current = 0;
+              navStartTimeRef.current = 0;
+            }
           }
         }
 
@@ -197,19 +266,22 @@ export function useGamepadNavigation({
 
         if (isBigPictureRef.current) {
           if (isEdgeA) {
-            const current =
-              filteredGamesRef.current[focusedIndexRef.current] || selectedGameRef.current;
-            if (current) {
-              soundEffects.playSelect();
-              handleLaunchRef.current(current.id);
+            if (showFullscreenDetailsRef.current) {
+              window.dispatchEvent(new CustomEvent("omnis:details-action-a"));
+            } else {
+              const current =
+                filteredGamesRef.current[focusedIndexRef.current] || selectedGameRef.current;
+              if (current) {
+                soundEffects.playSelect();
+                handleLaunchRef.current(current.id);
+              }
             }
           } else if (isEdgeB) {
-            soundEffects.playSelect();
             if (showFullscreenDetailsRef.current) {
+              soundEffects.playSelect();
               setShowFullscreenDetails(false);
-            } else {
-              toggleBigPictureRef.current();
             }
+            // In Big Picture home screen, B does NOT exit to desktop!
           } else if (isEdgeX) {
             soundEffects.playSelect();
             setShowFullscreenDetails((prev) => !prev);
@@ -217,11 +289,15 @@ export function useGamepadNavigation({
             soundEffects.playSelect();
             setShowVirtualKeyboardRef.current(true);
           } else if (isEdgeLB) {
-            soundEffects.playNav();
-            cycleFilterRef.current(-1, () => setFocusedIndex(0));
+            if (!showFullscreenDetailsRef.current) {
+              soundEffects.playNav();
+              cycleFilterRef.current(-1, () => setFocusedIndex(0));
+            }
           } else if (isEdgeRB) {
-            soundEffects.playNav();
-            cycleFilterRef.current(1, () => setFocusedIndex(0));
+            if (!showFullscreenDetailsRef.current) {
+              soundEffects.playNav();
+              cycleFilterRef.current(1, () => setFocusedIndex(0));
+            }
           } else if (isEdgeSelect || isEdgeStart) {
             soundEffects.playSelect();
             toggleBigPictureRef.current();
@@ -272,6 +348,33 @@ export function useGamepadNavigation({
       }
 
       if (isBigPicture) {
+        if (showFullscreenDetails) {
+          if (e.key === "Escape") {
+            soundEffects.playSelect();
+            setShowFullscreenDetails(false);
+          } else if (e.key === "Enter") {
+            window.dispatchEvent(new CustomEvent("omnis:details-action-a"));
+          } else if (e.key === "ArrowLeft") {
+            window.dispatchEvent(
+              new CustomEvent("omnis:details-nav", { detail: { direction: "left" } })
+            );
+          } else if (e.key === "ArrowRight") {
+            window.dispatchEvent(
+              new CustomEvent("omnis:details-nav", { detail: { direction: "right" } })
+            );
+          } else if (e.key === "ArrowUp") {
+            window.dispatchEvent(
+              new CustomEvent("omnis:details-nav", { detail: { direction: "up" } })
+            );
+          } else if (e.key === "ArrowDown") {
+            window.dispatchEvent(
+              new CustomEvent("omnis:details-nav", { detail: { direction: "down" } })
+            );
+          }
+          // In Fullscreen Details page: never change game carousel!
+          return;
+        }
+
         if (e.key === "ArrowLeft") {
           setFocusedIndex((prev) => {
             const next = Math.max(0, prev - 1);
@@ -286,16 +389,9 @@ export function useGamepadNavigation({
           });
         } else if (e.key === "Enter") {
           soundEffects.playSelect();
-          if (showFullscreenDetails) {
-            const current = filteredGames[focusedIndex] || selectedGame;
-            if (current) handleLaunch(current.id);
-          } else {
-            setShowFullscreenDetails(true);
-          }
+          setShowFullscreenDetails(true);
         } else if (e.key === "Escape") {
-          soundEffects.playSelect();
-          if (showFullscreenDetails) setShowFullscreenDetails(false);
-          else toggleBigPicture();
+          // On home screen, Escape does NOT exit Big Picture (use F11 or Select to return to Desktop)
         } else if (e.key.toLowerCase() === "x") {
           soundEffects.playSelect();
           setShowFullscreenDetails((prev) => !prev);

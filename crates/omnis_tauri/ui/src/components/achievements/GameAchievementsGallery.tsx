@@ -9,6 +9,9 @@ import { useTranslation } from "../../i18n";
 interface GameAchievementsGalleryProps {
   game: GameDto;
   isBigPicture?: boolean;
+  focusedIndex?: number;
+  onFocusIndexChange?: (idx: number) => void;
+  onTotalAchievementsChange?: (total: number) => void;
 }
 
 type FilterType = "all" | "unlocked" | "locked" | "ultrarare";
@@ -16,6 +19,9 @@ type FilterType = "all" | "unlocked" | "locked" | "ultrarare";
 export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = ({
   game,
   isBigPicture = false,
+  focusedIndex: controlledFocusedIndex,
+  onFocusIndexChange,
+  onTotalAchievementsChange,
 }) => {
   const { t, locale } = useTranslation();
   const isSupportedStore =
@@ -30,7 +36,21 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
   const [syncError, setSyncError] = useState<string | null>(null);
   const [syncSuccess, setSyncSuccess] = useState<boolean>(false);
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
-  const [focusedIndex, setFocusedIndex] = useState<number>(0);
+  const [localFocusedIndex, setLocalFocusedIndex] = useState<number>(-1);
+
+  const effectiveFocusedIndex =
+    controlledFocusedIndex !== undefined ? controlledFocusedIndex : localFocusedIndex;
+
+  const setFocusedIndex = useCallback(
+    (updater: number | ((prev: number) => number)) => {
+      setLocalFocusedIndex((prev) => {
+        const next = typeof updater === "function" ? updater(prev) : updater;
+        onFocusIndexChange?.(next);
+        return next;
+      });
+    },
+    [onFocusIndexChange]
+  );
 
   const activeGameIdRef = useRef<string>(game.id);
 
@@ -100,6 +120,7 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
 
   useEffect(() => {
     activeGameIdRef.current = game.id;
+    setFocusedIndex(-1);
     fetchAchievements(false);
     return () => {
       if (activeGameIdRef.current === game.id) {
@@ -172,33 +193,10 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
     }
   }, [summary, activeFilter]);
 
-  // Gamepad / Keyboard navigation in Big Picture mode
+  // Notify parent of total filtered achievements
   useEffect(() => {
-    if (!isBigPicture) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (filteredAchievements.length === 0) return;
-
-      if (e.key === "ArrowRight") {
-        e.preventDefault();
-        setFocusedIndex((prev) => {
-          const next = (prev + 1) % filteredAchievements.length;
-          soundEffects.playNav();
-          return next;
-        });
-      } else if (e.key === "ArrowLeft") {
-        e.preventDefault();
-        setFocusedIndex((prev) => {
-          const next = (prev - 1 + filteredAchievements.length) % filteredAchievements.length;
-          soundEffects.playNav();
-          return next;
-        });
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isBigPicture, filteredAchievements.length]);
+    onTotalAchievementsChange?.(filteredAchievements.length);
+  }, [filteredAchievements.length, onTotalAchievementsChange]);
 
   const isCredentialsError =
     syncError &&
@@ -470,7 +468,7 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
             key={ach.id}
             achievement={ach}
             size={isBigPicture ? "lg" : "md"}
-            isFocused={isBigPicture && focusedIndex === idx}
+            isFocused={isBigPicture && effectiveFocusedIndex === idx}
             onClick={() => soundEffects.playSelect()}
             onFocus={() => {
               setFocusedIndex(idx);
