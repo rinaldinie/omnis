@@ -65,10 +65,14 @@ pub fn build_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Error
 pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     let menu = build_tray_menu(app)?;
 
+    #[cfg(target_os = "windows")]
     let icon = app.default_window_icon().cloned()
         .or_else(|| {
             tauri::image::Image::from_app_icon_resource(32).ok()
         });
+
+    #[cfg(not(target_os = "windows"))]
+    let icon = app.default_window_icon().cloned();
 
     let mut builder = TrayIconBuilder::with_id("main-tray")
         .tooltip("Omnis Game Library")

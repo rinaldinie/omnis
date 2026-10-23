@@ -56,7 +56,7 @@ pub fn detect_steam_installation() -> Option<PathBuf> {
 
     #[cfg(target_os = "linux")]
     {
-        if let Some(home) = dirs::home_dir() {
+        if let Some(home) = std::env::var_os("HOME").map(PathBuf::from) {
             let candidates = [
                 home.join(".local/share/Steam"),
                 home.join(".steam/steam"),
