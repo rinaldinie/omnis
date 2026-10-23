@@ -3425,7 +3425,7 @@ dependencies = [
 
 [[package]]
 name = "omnis_cli"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "chrono",
  "omnis_core",
@@ -3439,7 +3439,7 @@ dependencies = [
 
 [[package]]
 name = "omnis_core"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "aes-gcm",
  "async-trait",
@@ -3473,7 +3473,7 @@ dependencies = [
 
 [[package]]
 name = "omnis_plugin_epic"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3490,7 +3490,7 @@ dependencies = [
 
 [[package]]
 name = "omnis_plugin_gog"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3506,7 +3506,7 @@ dependencies = [
 
 [[package]]
 name = "omnis_plugin_steam"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3539,7 +3539,7 @@ dependencies = [
 
 [[package]]
 name = "omnis_sdk"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3551,7 +3551,7 @@ dependencies = [
 
 [[package]]
 name = "omnis_tauri"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "base64 0.22.1",
  "chrono",
