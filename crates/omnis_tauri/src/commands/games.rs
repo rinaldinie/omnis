@@ -259,7 +259,10 @@ pub async fn launch_game(
         prev_pos = window.outer_position().ok();
         // Concede autorizzazione foreground in anticipo (Requirement C1)
         omnis_core::launcher::allow_set_foreground_window();
-        let _ = window.minimize();
+        // In fullscreen mode, don't minimize to desktop so the user stays in the immersive 10-foot launch screen (Playnite parity)
+        if !was_fullscreen {
+            let _ = window.minimize();
+        }
     }
 
     // Emette l'evento Tauri "game-started" con session_id e stato launching (Requirement B3)

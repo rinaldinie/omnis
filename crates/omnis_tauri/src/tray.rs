@@ -19,10 +19,8 @@ pub fn build_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Error
     menu.append(&show_hide)?;
     menu.append(&PredefinedMenuItem::separator(app)?)?;
 
-    // Check if game is currently running
-    let running_session = tauri::async_runtime::block_on(async {
-        state.active_game_manager.get_running().await
-    });
+    // Check if game is currently running (non-blocking, safe inside Tokio worker threads)
+    let running_session = state.active_game_manager.get_running_sync();
 
     if let Some(session) = running_session {
         let running_label = format!("● In esecuzione: {}", session.title);

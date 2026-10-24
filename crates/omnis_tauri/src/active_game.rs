@@ -102,6 +102,11 @@ impl ActiveGameManager {
         lock.clone()
     }
 
+    /// Non-blocking synchronous retrieval (safe to call inside Tokio worker threads or sync contexts)
+    pub fn get_running_sync(&self) -> Option<ActiveGameSession> {
+        self.current.try_read().ok().and_then(|guard| guard.clone())
+    }
+
     /// Forcibly or gracefully terminate the currently running game process (Requirement B4)
     pub async fn kill_running(&self) -> Result<bool, String> {
         self.kill_running_graceful(3).await

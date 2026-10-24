@@ -98,13 +98,15 @@ fn main() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
-            use tauri::Manager;
+            use tauri::{Manager, Emitter};
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.unminimize();
                 let _ = window.show();
                 let _ = window.set_focus();
-                if argv.iter().any(|arg| arg == "--fullscreen" || arg == "-f") {
+                if commands::is_fullscreen_requested(&argv) {
                     let _ = window.set_fullscreen(true);
+                    let _ = app.emit("app-set-fullscreen", true);
+                    let _ = window.emit("app-set-fullscreen", true);
                 }
             }
         }))
@@ -118,11 +120,12 @@ fn main() {
             });
 
             // If started with --fullscreen, enter fullscreen mode immediately
-            let is_fullscreen = std::env::args().any(|arg| arg == "--fullscreen" || arg == "-f");
+            let is_fullscreen = commands::is_fullscreen_requested(std::env::args());
             if is_fullscreen {
-                use tauri::Manager;
+                use tauri::{Manager, Emitter};
                 if let Some(window) = app.get_webview_window("main") {
                     let _ = window.set_fullscreen(true);
+                    let _ = window.emit("app-set-fullscreen", true);
                 }
             }
 
