@@ -120,7 +120,11 @@ impl Database {
                     is_installed = MAX(games.is_installed, excluded.is_installed),
                     playtime_seconds = MAX(games.playtime_seconds, excluded.playtime_seconds),
                     play_count = MAX(games.play_count, excluded.play_count),
-                    last_activity = COALESCE(excluded.last_activity, games.last_activity),
+                    last_activity = CASE
+                        WHEN excluded.last_activity IS NOT NULL AND games.last_activity IS NOT NULL
+                        THEN MAX(games.last_activity, excluded.last_activity)
+                        ELSE COALESCE(excluded.last_activity, games.last_activity)
+                    END,
                     cover_image_path = CASE
                         WHEN games.cover_image_path LIKE '%/header.jpg' AND excluded.cover_image_path IS NOT NULL AND excluded.cover_image_path NOT LIKE '%/header.jpg'
                         THEN excluded.cover_image_path
@@ -1176,7 +1180,7 @@ impl Database {
                 COALESCE(SUM(CASE WHEN LOWER(library_id) = 'gog' THEN 1 ELSE 0 END), 0),
                 COALESCE(SUM(CASE WHEN LOWER(library_id) = 'epic' THEN 1 ELSE 0 END), 0),
                 COALESCE(SUM(CASE WHEN LOWER(library_id) = 'xbox' THEN 1 ELSE 0 END), 0),
-                COALESCE(SUM(CASE WHEN playtime_seconds > 0 THEN 1 ELSE 0 END), 0),
+                COALESCE(SUM(CASE WHEN last_activity IS NOT NULL OR playtime_seconds > 0 THEN 1 ELSE 0 END), 0),
                 COALESCE(SUM(CASE WHEN critic_score >= 90 THEN 1 ELSE 0 END), 0),
                 COALESCE(SUM(CASE WHEN LOWER(genres) LIKE '%action%' OR LOWER(genres) LIKE '%azione%' THEN 1 ELSE 0 END), 0),
                 COALESCE(SUM(CASE WHEN LOWER(genres) LIKE '%rpg%' OR LOWER(genres) LIKE '%gdr%' THEN 1 ELSE 0 END), 0),

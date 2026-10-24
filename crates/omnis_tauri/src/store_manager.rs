@@ -684,9 +684,12 @@ impl StoreAccountManager {
                         if local.background_image_path.is_none() {
                             local.background_image_path = game.background_image_path.clone();
                         }
-                        if local.last_activity.is_none() {
-                            local.last_activity = game.last_activity;
-                        }
+                        local.last_activity = match (local.last_activity, game.last_activity) {
+                            (Some(l), Some(r)) => Some(l.max(r)),
+                            (Some(l), None) => Some(l),
+                            (None, Some(r)) => Some(r),
+                            (None, None) => None,
+                        };
                         local.is_installed = true;
                         *game = local;
                     }

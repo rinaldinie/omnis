@@ -34,6 +34,7 @@ export interface GameDto {
   genres: string[];
   developers: string[];
   publishers?: string[];
+  last_activity?: string | null;
 }
 
 export interface LibraryCounts {
