@@ -107,6 +107,17 @@ impl SecretVault {
         }
     }
 
+    /// Construct an in-memory ephemeral vault using a cryptographically secure random key
+    pub fn ephemeral() -> Self {
+        let key_bytes = Aes256Gcm::generate_key(OsRng);
+        let mut key = [0u8; 32];
+        key.copy_from_slice(&key_bytes);
+        Self {
+            master_key: Zeroizing::new(key),
+            is_using_keyring_fallback: true,
+        }
+    }
+
     /// Returns true if system keyring was unavailable and local fallback file is active
     pub fn is_fallback(&self) -> bool {
         self.is_using_keyring_fallback

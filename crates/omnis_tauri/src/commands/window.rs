@@ -198,23 +198,42 @@ pub fn validate_external_url(url: &str) -> Result<&str, String> {
     if !trimmed.starts_with("http://") && !trimmed.starts_with("https://") {
         return Err("Solo protocolli HTTP e HTTPS sono supportati".to_string());
     }
+
+    // Parse with url::Url to ensure structurally sound web URI
+    let parsed = url::Url::parse(trimmed).map_err(|e| format!("URL non valido: {}", e))?;
+    match parsed.scheme() {
+        "http" | "https" => {}
+        _ => return Err("Schema URL non supportato".to_string()),
+    }
+
+    // Strictly reject shell control/metacharacters to prevent command/argument injection
+    if trimmed.chars().any(|c| c.is_control() || "&|<>^%\"'\r\n\t".contains(c)) {
+        return Err("URL contiene caratteri non consentiti".to_string());
+    }
+
     Ok(trimmed)
 }
 
 pub fn open_external_url_in_os(url: &str) -> Result<(), String> {
     let trimmed = validate_external_url(url)?;
 
-    if cfg!(windows) {
-        std::process::Command::new("cmd.exe")
-            .args(["/c", "start", "", trimmed])
+    #[cfg(windows)]
+    {
+        // Use rundll32 FileProtocolHandler instead of cmd.exe /c start to avoid shell interpretation
+        std::process::Command::new("rundll32.exe")
+            .args(["url.dll,FileProtocolHandler", trimmed])
             .spawn()
             .map_err(|e| format!("Impossibile aprire l'URL: {}", e))?;
-    } else if cfg!(target_os = "macos") {
+    }
+    #[cfg(target_os = "macos")]
+    {
         std::process::Command::new("open")
             .arg(trimmed)
             .spawn()
             .map_err(|e| format!("Impossibile aprire l'URL: {}", e))?;
-    } else {
+    }
+    #[cfg(not(any(windows, target_os = "macos")))]
+    {
         std::process::Command::new("xdg-open")
             .arg(trimmed)
             .spawn()
@@ -240,5 +259,8 @@ mod tests {
         assert!(validate_external_url("file:///etc/passwd").is_err());
         assert!(validate_external_url("javascript:alert(1)").is_err());
         assert!(validate_external_url("").is_err());
+        // Verify rejection of shell metacharacters
+        assert!(validate_external_url("https://example.com\" & calc.exe & rem \"").is_err());
+        assert!(validate_external_url("https://example.com|calc").is_err());
     }
 }

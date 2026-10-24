@@ -200,19 +200,24 @@ export const Slot: React.FC<SlotProps> = ({ name, gameId, className = "" }) => {
           case "link-list":
             return (
               <div key={idx} data-omnis-widget="link-list" className="flex flex-wrap gap-2 py-1">
-                {widget.links.map((link, lIdx) => (
-                  <a
-                    key={lIdx}
-                    href={link.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    data-omnis="link"
-                    className="text-[11px] hover:underline flex items-center gap-1"
-                    style={{ color: "var(--omnis-accent, var(--accent-primary, #6366f1))" }}
-                  >
-                    {link.title}
-                  </a>
-                ))}
+                {widget.links
+                  .filter((link) => {
+                    const u = (link.url || "").trim().toLowerCase();
+                    return u.startsWith("http://") || u.startsWith("https://");
+                  })
+                  .map((link, lIdx) => (
+                    <a
+                      key={lIdx}
+                      href={link.url}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      data-omnis="link"
+                      className="text-[11px] hover:underline flex items-center gap-1"
+                      style={{ color: "var(--omnis-accent, var(--accent-primary, #6366f1))" }}
+                    >
+                      {link.title}
+                    </a>
+                  ))}
               </div>
             );
           case "text":

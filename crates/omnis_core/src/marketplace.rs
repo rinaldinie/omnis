@@ -85,6 +85,20 @@ pub fn is_newer_version(remote_v: &str, installed_v: &str) -> bool {
     }
 }
 
+/// Validates plugin ID allowlist and checks against path traversal sequences
+pub fn validate_plugin_id(plugin_id: &str) -> Result<(), String> {
+    if plugin_id.is_empty() {
+        return Err("ID plugin non valido: non può essere vuoto".to_string());
+    }
+    if !plugin_id.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-') {
+        return Err("ID plugin non valido: sono ammessi solo caratteri alfanumerici, trattini e underscore".to_string());
+    }
+    if plugin_id.contains("..") {
+        return Err("ID plugin non valido: sequenza traversal non consentita".to_string());
+    }
+    Ok(())
+}
+
 /// Marketplace Manager handling catalog queries and plugin lifecycle
 pub struct MarketplaceManager {
     client: reqwest::Client,
@@ -233,6 +247,7 @@ impl MarketplaceManager {
         plugin_id: &str,
         downloader: &Arc<crate::metadata::MetadataDownloader>,
     ) -> Result<crate::metadata::ProviderInfo, String> {
+        validate_plugin_id(plugin_id)?;
         let cached = { self.catalog_cache.read().await.clone() };
         let catalog = match cached {
             Some(c) => c,
@@ -319,7 +334,10 @@ impl MarketplaceManager {
                 extract_zip(&bytes, &target_dir)?;
                 normalize_extracted_dir(&target_dir);
             } else {
-                let dest = target_dir.join(&asset.filename);
+                let safe_filename = std::path::Path::new(&asset.filename)
+                    .file_name()
+                    .ok_or_else(|| "Nome file asset non valido".to_string())?;
+                let dest = target_dir.join(safe_filename);
                 std::fs::write(&dest, &bytes).map_err(|e| {
                     format!("Impossibile salvare il file del plugin in {}: {}", dest.display(), e)
                 })?;
@@ -392,6 +410,7 @@ impl MarketplaceManager {
         plugin_id: &str,
         downloader: &Arc<crate::metadata::MetadataDownloader>,
     ) -> Result<(), String> {
+        validate_plugin_id(plugin_id)?;
         info!("Disinstallazione plugin '{}'...", plugin_id);
 
         // 1. Unregister from metadata downloader
@@ -408,20 +427,26 @@ impl MarketplaceManager {
 
         let target_dir = plugins_dir.join(plugin_id);
         if target_dir.exists() {
-            // Attempt standard deletion
-            if let Err(e) = std::fs::remove_dir_all(&target_dir) {
-                warn!(
-                    "Impossibile rimuovere immediatamente la cartella {}: {}. Tento pulizia file...",
-                    target_dir.display(),
-                    e
-                );
-                // On Windows, if a DLL was recently freed, retry or clean loose files
-                if let Ok(entries) = std::fs::read_dir(&target_dir) {
-                    for entry in entries.flatten() {
-                        let _ = std::fs::remove_file(entry.path());
-                    }
+            // Verify containment within plugins_dir to eliminate path traversal
+            if let (Ok(canonical_target), Ok(canonical_plugins)) = (target_dir.canonicalize(), plugins_dir.canonicalize()) {
+                if !canonical_target.starts_with(&canonical_plugins) || canonical_target == canonical_plugins {
+                    return Err("Tentativo di cancellazione non consentito fuori dalla directory plugins".to_string());
                 }
-                let _ = std::fs::remove_dir_all(&target_dir);
+                // Attempt standard deletion
+                if let Err(e) = std::fs::remove_dir_all(&canonical_target) {
+                    warn!(
+                        "Impossibile rimuovere immediatamente la cartella {}: {}. Tento pulizia file...",
+                        canonical_target.display(),
+                        e
+                    );
+                    // On Windows, if a DLL was recently freed, retry or clean loose files
+                    if let Ok(entries) = std::fs::read_dir(&canonical_target) {
+                        for entry in entries.flatten() {
+                            let _ = std::fs::remove_file(entry.path());
+                        }
+                    }
+                    let _ = std::fs::remove_dir_all(&canonical_target);
+                }
             }
         }
 
@@ -680,5 +705,16 @@ mod tests {
         }
 
         let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_validate_plugin_id() {
+        assert!(validate_plugin_id("steam_metadata").is_ok());
+        assert!(validate_plugin_id("how-long-to-beat-123").is_ok());
+        assert!(validate_plugin_id("").is_err());
+        assert!(validate_plugin_id("../traversal").is_err());
+        assert!(validate_plugin_id("plugin/nested").is_err());
+        assert!(validate_plugin_id("plugin\\nested").is_err());
+        assert!(validate_plugin_id("plugin name").is_err());
     }
 }
