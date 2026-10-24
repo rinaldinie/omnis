@@ -124,17 +124,6 @@ export const UninstallModal: React.FC<UninstallModalProps> = ({
         >
           <button
             type="button"
-            onClick={() => {
-              soundEffects.playSelect();
-              onClose();
-            }}
-            disabled={isUninstalling}
-            className="px-5 py-2.5 rounded-xl text-xs font-bold text-slate-300 hover:text-white hover:bg-white/5 transition-all disabled:opacity-50"
-          >
-            {t('common.cancel')}
-          </button>
-          <button
-            type="button"
             onClick={handleConfirm}
             disabled={isUninstalling}
             className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-rose-600 hover:bg-rose-500 active:bg-rose-700 border border-rose-400/40 shadow-lg shadow-rose-950/40 transition-all hover:scale-105 active:opacity-90 disabled:opacity-50 cursor-pointer"
@@ -145,6 +134,17 @@ export const UninstallModal: React.FC<UninstallModalProps> = ({
                 ? t('uninstall_modal.uninstalling')
                 : t('uninstall_modal.uninstall_btn')}
             </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              soundEffects.playSelect();
+              onClose();
+            }}
+            disabled={isUninstalling}
+            className="px-5 py-2.5 rounded-xl text-xs font-bold text-slate-300 hover:text-white hover:bg-white/5 transition-all disabled:opacity-50 cursor-pointer"
+          >
+            {t('common.cancel')}
           </button>
         </div>
       </div>

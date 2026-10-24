@@ -699,18 +699,9 @@ export default function MetadataResolutionModal({
 
           <div className="flex items-center gap-3">
             <button
-              onClick={onClose}
-              disabled={isApplying}
-              className="px-5 py-2.5 rounded-xl border text-xs font-medium text-slate-300 hover:bg-white/5 transition-all"
-              style={{ borderColor: "var(--border-color)" }}
-            >
-              {t('common.cancel')}
-            </button>
-
-            <button
               onClick={handleApply}
               disabled={!selectedCandidate || selectedFields.length === 0 || isApplying}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-medium text-white shadow-xl transition-all hover:brightness-110 active:opacity-90 disabled:opacity-50"
+              className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-medium text-white shadow-xl transition-all hover:brightness-110 active:opacity-90 disabled:opacity-50 cursor-pointer"
               style={{
                 backgroundColor: "var(--accent-primary)",
                 boxShadow: "0 0 20px var(--accent-glow)",
@@ -722,6 +713,15 @@ export default function MetadataResolutionModal({
                 <Check className="w-4 h-4" />
               )}
               <span>{isApplying ? "Download & Applicazione..." : "Applica Metadati Selezionati"}</span>
+            </button>
+
+            <button
+              onClick={onClose}
+              disabled={isApplying}
+              className="px-5 py-2.5 rounded-xl border text-xs font-medium text-slate-300 hover:bg-white/5 transition-all cursor-pointer"
+              style={{ borderColor: "var(--border-color)" }}
+            >
+              {t('common.cancel')}
             </button>
           </div>
         </div>

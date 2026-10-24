@@ -506,21 +506,9 @@ export default function GameEditorModal({
         >
           <button
             type="button"
-            onClick={onClose}
-            disabled={isSaving}
-            className="px-5 py-2.5 rounded-xl border text-xs font-medium text-slate-300 hover:bg-white/5 transition-all"
-            style={{
-              borderColor: "var(--border-color)",
-            }}
-          >
-            {t('common.cancel')}
-          </button>
-
-          <button
-            type="button"
             onClick={handleSave}
             disabled={isSaving || !formData.title.trim()}
-            className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-medium text-white shadow-xl transition-all hover:brightness-110 active:opacity-90 disabled:opacity-50"
+            className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-medium text-white shadow-xl transition-all hover:brightness-110 active:opacity-90 disabled:opacity-50 cursor-pointer"
             style={{
               backgroundColor: "var(--accent-primary)",
               boxShadow: "0 0 20px var(--accent-glow)",
@@ -532,6 +520,18 @@ export default function GameEditorModal({
               <Save className="w-4 h-4" />
             )}
             <span>{isSaving ? t('common.loading') : t('editor_modal.save_changes')}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isSaving}
+            className="px-5 py-2.5 rounded-xl border text-xs font-medium text-slate-300 hover:bg-white/5 transition-all cursor-pointer"
+            style={{
+              borderColor: "var(--border-color)",
+            }}
+          >
+            {t('common.cancel')}
           </button>
         </div>
       </div>

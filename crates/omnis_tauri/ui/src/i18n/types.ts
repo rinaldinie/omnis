@@ -365,6 +365,7 @@ export interface TranslationSchema {
     tab_audio: string;
     tab_window: string;
     tab_appearance: string;
+    tab_updates: string;
     language_immediate_note: string;
     achievements_lang_note: string;
     audio_cues_title: string;
@@ -405,12 +406,14 @@ export interface TranslationSchema {
     missing_hltb: string;
     filtered: string;
     missing_artwork: string;
+    missing_achievements: string;
     all_library: string;
     games_to_process: string;
     no_games_matched: string;
     download_for: string;
     stop: string;
     download_button: string;
+    download_selected: string;
     preparing: string;
     completed: string;
     error: string;
@@ -420,6 +423,13 @@ export interface TranslationSchema {
     games_total: string;
     titles_count: string;
     more_titles: string;
+    type_all: string;
+    type_metadata: string;
+    type_hltb: string;
+    type_achievements: string;
+    select_all: string;
+    deselect_all: string;
+    search_placeholder: string;
   };
   uninstall_modal: {
     title: string;
