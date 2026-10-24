@@ -19,6 +19,7 @@ import {
   ArrowLeft,
   Menu,
   Power,
+  Sparkles,
 } from "lucide-react";
 import { ActiveGameSession, GameDto, LibraryCounts, ThemeConfig, formatImageUrl } from "../../types";
 import { StoreBadge, StoreIcon } from "../StoreBadge";
@@ -28,6 +29,7 @@ import { GameCardCover } from "../common/GameCardCover";
 import { Slot } from "../common/Slot";
 import { GameAchievementsGallery } from "../achievements";
 import { useTranslation } from "../../i18n/i18nContext";
+import { useUpdater } from "../../hooks/useAppUpdater";
 
 interface FullscreenViewProps {
   focusedGame: GameDto | null;
@@ -234,6 +236,7 @@ export default function FullscreenView({
   onSelectTheme,
 }: FullscreenViewProps) {
   const { locale } = useTranslation();
+  const updater = useUpdater();
   const isFocusedGameRunning = activeGame?.game_id === focusedGame?.id;
 
   // Lock game for details view so navigation inside details never switches games underneath
@@ -424,7 +427,8 @@ export default function FullscreenView({
       const dir = customEvent.detail?.direction;
       if (!dir) return;
 
-      const TOTAL_MENU_ITEMS = 8;
+      const hasUpdate = updater?.status === "available" || updater?.status === "downloading" || updater?.status === "readyToInstall";
+      const TOTAL_MENU_ITEMS = hasUpdate ? 9 : 8;
       if (dir === "down") {
         setMenuFocusedIndex((prev) => (prev + 1) % TOTAL_MENU_ITEMS);
         soundEffects.playNav();
@@ -433,13 +437,15 @@ export default function FullscreenView({
         soundEffects.playNav();
       } else if (dir === "left" || dir === "right") {
         // Horizontal navigation inside menu items (for cycling settings inline)
-        if (menuFocusedIndex === 3 && themes.length > 0 && onSelectTheme) {
+        const themeIndex = hasUpdate ? 4 : 3;
+        const soundIndex = hasUpdate ? 3 : 2;
+        if (menuFocusedIndex === themeIndex && themes.length > 0 && onSelectTheme) {
           const curIdx = themes.findIndex((th) => th.id === currentTheme.id);
           const delta = dir === "right" ? 1 : -1;
           const nextIdx = (curIdx + delta + themes.length) % themes.length;
           soundEffects.playNav();
           onSelectTheme(themes[nextIdx]);
-        } else if (menuFocusedIndex === 2) {
+        } else if (menuFocusedIndex === soundIndex) {
           // Toggle audio effects
           handleToggleSound();
         }
@@ -448,7 +454,7 @@ export default function FullscreenView({
 
     window.addEventListener("omnis:menu-nav", handleMenuNav);
     return () => window.removeEventListener("omnis:menu-nav", handleMenuNav);
-  }, [isMenuOpen, menuFocusedIndex, themes, currentTheme, onSelectTheme, handleToggleSound]);
+  }, [isMenuOpen, menuFocusedIndex, themes, currentTheme, onSelectTheme, handleToggleSound, updater?.status]);
 
   // Handle Button A / Enter inside dropdown menu
   React.useEffect(() => {
@@ -456,38 +462,83 @@ export default function FullscreenView({
 
     const handleMenuActionA = () => {
       soundEffects.playSelect();
-      switch (menuFocusedIndex) {
-        case 0: // Cerca nella libreria (virtual keyboard)
-          setIsMenuOpen?.(false);
-          setShowVirtualKeyboard(true);
-          break;
-        case 1: // Sincronizza libreria
-          handleSync();
-          break;
-        case 2: // Effetti Sonori UI
-          handleToggleSound();
-          break;
-        case 3: // Cambia Tema (inline cycle)
-          if (themes.length > 0 && onSelectTheme) {
-            const curIdx = themes.findIndex((th) => th.id === currentTheme.id);
-            const nextIdx = (curIdx + 1) % themes.length;
-            onSelectTheme(themes[nextIdx]);
-          }
-          break;
-        case 4: // Plugin Metadati (inline refresh)
-          loadProvidersAndConfig();
-          break;
-        case 5: // Torna alla Modalità Desktop
-          setIsMenuOpen?.(false);
-          toggleFullscreen();
-          break;
-        case 6: // Esci da Omnis (Chiudi Applicazione)
-          setIsMenuOpen?.(false);
-          handleClose();
-          break;
-        case 7: // Chiudi Menu
-          setIsMenuOpen?.(false);
-          break;
+      const hasUpdate = updater?.status === "available" || updater?.status === "downloading" || updater?.status === "readyToInstall";
+
+      if (hasUpdate) {
+        switch (menuFocusedIndex) {
+          case 0: // Aggiornamento disponibile / Scarica / Riavvia
+            if (updater?.status === "available") {
+              updater.downloadAndInstall();
+            } else if (updater?.status === "readyToInstall") {
+              updater.relaunch();
+            }
+            break;
+          case 1: // Cerca nella libreria (virtual keyboard)
+            setIsMenuOpen?.(false);
+            setShowVirtualKeyboard(true);
+            break;
+          case 2: // Sincronizza libreria
+            handleSync();
+            break;
+          case 3: // Effetti Sonori UI
+            handleToggleSound();
+            break;
+          case 4: // Cambia Tema (inline cycle)
+            if (themes.length > 0 && onSelectTheme) {
+              const curIdx = themes.findIndex((th) => th.id === currentTheme.id);
+              const nextIdx = (curIdx + 1) % themes.length;
+              onSelectTheme(themes[nextIdx]);
+            }
+            break;
+          case 5: // Plugin Metadati (inline refresh)
+            loadProvidersAndConfig();
+            break;
+          case 6: // Torna alla Modalità Desktop
+            setIsMenuOpen?.(false);
+            toggleFullscreen();
+            break;
+          case 7: // Esci da Omnis (Chiudi Applicazione)
+            setIsMenuOpen?.(false);
+            handleClose();
+            break;
+          case 8: // Chiudi Menu
+            setIsMenuOpen?.(false);
+            break;
+        }
+      } else {
+        switch (menuFocusedIndex) {
+          case 0: // Cerca nella libreria (virtual keyboard)
+            setIsMenuOpen?.(false);
+            setShowVirtualKeyboard(true);
+            break;
+          case 1: // Sincronizza libreria
+            handleSync();
+            break;
+          case 2: // Effetti Sonori UI
+            handleToggleSound();
+            break;
+          case 3: // Cambia Tema (inline cycle)
+            if (themes.length > 0 && onSelectTheme) {
+              const curIdx = themes.findIndex((th) => th.id === currentTheme.id);
+              const nextIdx = (curIdx + 1) % themes.length;
+              onSelectTheme(themes[nextIdx]);
+            }
+            break;
+          case 4: // Plugin Metadati (inline refresh)
+            loadProvidersAndConfig();
+            break;
+          case 5: // Torna alla Modalità Desktop
+            setIsMenuOpen?.(false);
+            toggleFullscreen();
+            break;
+          case 6: // Esci da Omnis (Chiudi Applicazione)
+            setIsMenuOpen?.(false);
+            handleClose();
+            break;
+          case 7: // Chiudi Menu
+            setIsMenuOpen?.(false);
+            break;
+        }
       }
     };
 
@@ -506,6 +557,7 @@ export default function FullscreenView({
     handleClose,
     setIsMenuOpen,
     setShowVirtualKeyboard,
+    updater,
   ]);
 
   return (
@@ -625,6 +677,27 @@ export default function FullscreenView({
 
         {/* Right: Controller status and active search filter */}
         <div className="flex items-center gap-3">
+          {updater && (updater.status === "available" || updater.status === "downloading" || updater.status === "readyToInstall") && (
+            <div
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
+                updater.status === "readyToInstall"
+                  ? "bg-emerald-500/20 border-emerald-500/60 text-emerald-300 animate-pulse"
+                  : updater.status === "downloading"
+                  ? "bg-amber-500/20 border-amber-500/60 text-amber-300"
+                  : "bg-sky-500/20 border-sky-500/60 text-sky-300 animate-bounce"
+              }`}
+            >
+              <Sparkles className={`w-3.5 h-3.5 ${updater.status === "downloading" ? "animate-spin" : ""}`} />
+              <span>
+                {updater.status === "readyToInstall"
+                  ? "Aggiornamento pronto: Riavvia dal Menu"
+                  : updater.status === "downloading"
+                  ? `Download aggiornamento: ${updater.progress?.percentage ?? 0}%`
+                  : `Aggiornamento v${updater.availableVersion ?? ""}`}
+              </span>
+            </div>
+          )}
+
           {searchQuery && (
             <div
               className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border"
@@ -685,13 +758,42 @@ export default function FullscreenView({
             {/* Menu Items */}
             <div className="flex flex-col gap-1 py-1">
               {[
+                ...(updater?.status === "available" || updater?.status === "downloading" || updater?.status === "readyToInstall"
+                  ? [
+                      {
+                        id: "updater",
+                        icon: Sparkles,
+                        isSpinning: updater.status === "downloading",
+                        label:
+                          updater.status === "readyToInstall"
+                            ? t("general_settings.updater_ready_to_install")
+                            : updater.status === "downloading"
+                            ? `${t("general_settings.updater_downloading")} (${updater.progress?.percentage ?? 0}%)`
+                            : `${t("general_settings.updater_available")} ${updater.availableVersion ? `(v${updater.availableVersion})` : ""}`,
+                        subtitle:
+                          updater.status === "readyToInstall"
+                            ? t("general_settings.updater_relaunch_button")
+                            : updater.status === "downloading"
+                            ? "Download in background..."
+                            : "Premi A per avviare il download e installare",
+                        badge:
+                          updater.status === "readyToInstall"
+                            ? "Riavvia"
+                            : updater.status === "downloading"
+                            ? `${updater.progress?.percentage ?? 0}%`
+                            : "Nuovo",
+                        badgeVariant: "emerald" as const,
+                        actionKey: "A",
+                      },
+                    ]
+                  : []),
                 {
                   id: "search",
                   icon: Search,
                   label: "Cerca nella Libreria",
                   subtitle: searchQuery ? `Filtro: "${searchQuery}"` : "Cerca giochi con la tastiera virtuale",
                   badge: searchQuery ? "Attivo" : undefined,
-                  badgeVariant: "emerald",
+                  badgeVariant: "emerald" as const,
                   actionKey: "A",
                 },
                 {
@@ -701,7 +803,7 @@ export default function FullscreenView({
                   label: "Sincronizza Libreria",
                   subtitle: isSyncing ? "Sincronizzazione in corso..." : "Scansiona Steam, Epic, GOG",
                   badge: isSyncing ? "Sync..." : undefined,
-                  badgeVariant: "emerald",
+                  badgeVariant: "emerald" as const,
                   actionKey: "A",
                 },
                 {
@@ -710,7 +812,7 @@ export default function FullscreenView({
                   label: "Effetti Sonori UI",
                   subtitle: soundEnabled ? "Feedback sonoro attivo" : "Audio dell'interfaccia silenziato",
                   badge: soundEnabled ? "ON" : "OFF",
-                  badgeVariant: soundEnabled ? "emerald" : "slate",
+                  badgeVariant: soundEnabled ? ("emerald" as const) : ("slate" as const),
                   actionKey: "A",
                 },
                 {
@@ -719,7 +821,7 @@ export default function FullscreenView({
                   label: "Tema dell'Interfaccia",
                   subtitle: currentTheme.name,
                   badge: currentTheme.name,
-                  badgeVariant: "default",
+                  badgeVariant: "default" as const,
                   actionKey: "◄/►",
                 },
                 {
@@ -727,6 +829,8 @@ export default function FullscreenView({
                   icon: Puzzle,
                   label: "Plugin e Metadati",
                   subtitle: "Ricarica configurazione scraper metadati",
+                  badge: undefined,
+                  badgeVariant: "default" as const,
                   actionKey: "A",
                 },
                 {
@@ -735,7 +839,7 @@ export default function FullscreenView({
                   label: "Torna alla Modalità Desktop",
                   subtitle: "Passa alla finestra launcher standard",
                   badge: "Desktop",
-                  badgeVariant: "slate",
+                  badgeVariant: "slate" as const,
                   actionKey: "A",
                 },
                 {
@@ -744,7 +848,7 @@ export default function FullscreenView({
                   label: t("fullscreen.exit_app"),
                   subtitle: t("fullscreen.exit_app_desc"),
                   badge: "Esci",
-                  badgeVariant: "rose",
+                  badgeVariant: "rose" as const,
                   actionKey: "A",
                 },
                 {
@@ -752,6 +856,8 @@ export default function FullscreenView({
                   icon: X,
                   label: "Chiudi Menu",
                   subtitle: "Torna alla navigazione dei giochi",
+                  badge: undefined,
+                  badgeVariant: "default" as const,
                   actionKey: "B",
                 },
               ].map((item, idx) => {
@@ -1602,6 +1708,38 @@ export default function FullscreenView({
             >
               ✕
             </button>
+          )}
+        </div>
+      )}
+
+      {/* FULLSCREEN UPDATE PROGRESS MODAL / OVERLAY */}
+      {updater && (updater.status === "downloading" || updater.status === "readyToInstall") && (
+        <div className="fixed bottom-10 right-10 z-50 flex flex-col gap-3 p-5 rounded-3xl bg-slate-900/95 border-2 border-sky-400 text-white shadow-2xl shadow-sky-500/30 backdrop-blur-xl animate-in slide-in-from-bottom-5 max-w-md w-full">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-sky-500/20 border border-sky-400/40 flex items-center justify-center shrink-0">
+              <Sparkles className={`w-5 h-5 text-sky-400 ${updater.status === "downloading" ? "animate-spin" : ""}`} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h4 className="text-sm font-extrabold text-white truncate">
+                {updater.status === "readyToInstall"
+                  ? t("general_settings.updater_ready_to_install")
+                  : t("general_settings.updater_downloading")}
+              </h4>
+              <p className="text-xs text-slate-300 font-medium">
+                {updater.status === "readyToInstall"
+                  ? "Apri il Menu (SELECT o Topbar) e premi A per riavviare"
+                  : `Download in corso... ${updater.progress?.percentage ?? 0}%`}
+              </p>
+            </div>
+          </div>
+
+          {updater.status === "downloading" && (
+            <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden border border-white/10">
+              <div
+                className="bg-gradient-to-r from-sky-500 to-indigo-500 h-full transition-all duration-300"
+                style={{ width: `${updater.progress?.percentage ?? 0}%` }}
+              />
+            </div>
           )}
         </div>
       )}
