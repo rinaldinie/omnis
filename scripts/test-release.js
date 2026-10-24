@@ -1,5 +1,5 @@
 import assert from "node:assert";
-import { bumpVersion, updateCargoToml, updateTauriConfig, updatePackageJson } from "./release-lib.js";
+import { bumpVersion, updateCargoToml, updateTauriConfig, updatePackageJson, updateCargoLock } from "./release-lib.js";
 
 // Test 1: SemVer increment
 assert.strictEqual(bumpVersion("0.2.0", "patch"), "0.2.1");
@@ -52,5 +52,19 @@ const parsedPkg = JSON.parse(updatedPkg);
 assert.strictEqual(parsedPkg.version, "0.2.1");
 assert.strictEqual(parsedPkg.name, "omnis");
 assert.strictEqual(parsedPkg.dependencies.react, "^18.0.0");
+
+// Test 5: Cargo.lock replacement
+const sampleLock = `[[package]]
+name = "omnis_core"
+version = "0.3.5"
+dependencies = []
+
+[[package]]
+name = "other_crate"
+version = "0.3.5"
+`;
+const updatedLock = updateCargoLock(sampleLock, "0.3.6");
+assert.ok(updatedLock.includes('name = "omnis_core"\nversion = "0.3.6"'));
+assert.ok(updatedLock.includes('name = "other_crate"\nversion = "0.3.5"'), "External crates should not be updated");
 
 console.log("All release-lib tests passed successfully!");
