@@ -57,11 +57,38 @@ pub fn window_set_fullscreen(fullscreen: bool, window: Window) -> Result<(), Str
     window.set_fullscreen(fullscreen).map_err(|e| e.to_string())
 }
 
+pub fn is_fullscreen_arg(raw: &str) -> bool {
+    let clean = raw.trim().trim_matches('"').trim_matches('\'').to_lowercase();
+    clean == "--fullscreen"
+        || clean == "-fullscreen"
+        || clean == "/fullscreen"
+        || clean == "-f"
+        || clean == "/f"
+        || clean == "--bigpicture"
+        || clean == "-bigpicture"
+        || clean == "/bigpicture"
+        || clean == "-b"
+        || clean == "/b"
+        || clean.starts_with("--fullscreen=")
+        || clean.starts_with("-fullscreen=")
+}
+
+pub fn is_fullscreen_requested<I, S>(args: I) -> bool
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<str>,
+{
+    let all: Vec<String> = args.into_iter().map(|s| s.as_ref().to_string()).collect();
+    let joined = all.join(" ").to_lowercase();
+    if joined.contains("fullscreen") || joined.contains("bigpicture") {
+        return true;
+    }
+    all.iter().any(|arg| is_fullscreen_arg(arg))
+}
+
 #[tauri::command]
 pub fn is_fullscreen_launch() -> bool {
-    std::env::args().any(|arg| {
-        arg == "--fullscreen" || arg == "-f" || arg == "--bigpicture" || arg == "-b"
-    })
+    is_fullscreen_requested(std::env::args())
 }
 
 #[tauri::command]

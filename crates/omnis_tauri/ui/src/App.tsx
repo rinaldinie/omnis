@@ -236,13 +236,23 @@ export default function App() {
   const [showVirtualKeyboard, setShowVirtualKeyboard] = useState<boolean>(false);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(soundEffects.enabled);
 
-  // DETECT --fullscreen / --bigpicture CLI ARGUMENTS FROM TAURI
+  // DETECT --fullscreen / --bigpicture CLI ARGUMENTS FROM TAURI & SINGLE-INSTANCE
   useEffect(() => {
     const checkFullscreenLaunch = async () => {
       try {
         const isFsCli = await invokeTauri<boolean>("is_fullscreen_launch");
-        if (isFsCli) {
+        let isWindowFs = false;
+        try {
+          const { getCurrentWindow } = await import("@tauri-apps/api/window");
+          isWindowFs = await getCurrentWindow().isFullscreen();
+        } catch {
+          // Dev or fallback
+        }
+
+        if (isFsCli || isWindowFs) {
           setIsFullscreen(true);
+          setFocusedIndex(0);
+          setShowFullscreenDetails(false);
           try {
             const { getCurrentWindow } = await import("@tauri-apps/api/window");
             await getCurrentWindow().setFullscreen(true);
@@ -256,6 +266,31 @@ export default function App() {
       }
     };
     checkFullscreenLaunch();
+
+    // Listen for single-instance or backend fullscreen trigger events (e.g. from Moonlight / Sunshine)
+    let unlistenEvent: (() => void) | undefined;
+    import("@tauri-apps/api/event").then(({ listen }) => {
+      listen<boolean>("app-set-fullscreen", async (event) => {
+        const shouldBeFs = event.payload ?? true;
+        setIsFullscreen(shouldBeFs);
+        if (shouldBeFs) {
+          setFocusedIndex(0);
+          setShowFullscreenDetails(false);
+        }
+        try {
+          const { getCurrentWindow } = await import("@tauri-apps/api/window");
+          await getCurrentWindow().setFullscreen(shouldBeFs);
+        } catch {
+          // fallback
+        }
+      }).then((fn) => {
+        unlistenEvent = fn;
+      });
+    }).catch(() => {});
+
+    return () => {
+      if (unlistenEvent) unlistenEvent();
+    };
   }, []);
 
   // CUSTOM GAME MODAL
