@@ -95,7 +95,10 @@ impl Database {
 
         let mut count = 0;
         for g in games {
-            let install_dir_str = g.install_dir.as_ref().map(|p| p.to_string_lossy().to_string());
+            let install_dir_str = g
+                .install_dir
+                .as_ref()
+                .map(|p| p.to_string_lossy().to_string());
             let last_activity_str = g.last_activity.map(|t| t.to_rfc3339());
             let sorting_title = g.title.to_lowercase();
             let new_id = Uuid::new_v4().to_string();
@@ -126,11 +129,15 @@ impl Database {
                         ELSE COALESCE(excluded.last_activity, games.last_activity)
                     END,
                     cover_image_path = CASE
-                        WHEN games.cover_image_path LIKE '%/header.jpg' AND excluded.cover_image_path IS NOT NULL AND excluded.cover_image_path NOT LIKE '%/header.jpg'
+                        WHEN (games.cover_image_path LIKE '%/header.jpg' OR games.cover_image_path LIKE '%/header.jpg') AND excluded.cover_image_path IS NOT NULL AND excluded.cover_image_path NOT LIKE '%/header.jpg' AND excluded.cover_image_path NOT LIKE '%/header.jpg'
                         THEN excluded.cover_image_path
                         ELSE COALESCE(games.cover_image_path, excluded.cover_image_path)
                     END,
-                    background_image_path = COALESCE(games.background_image_path, excluded.background_image_path),
+                    background_image_path = CASE
+                        WHEN (games.background_image_path LIKE '%/header.jpg' OR games.background_image_path LIKE '%/header.jpg') AND excluded.background_image_path IS NOT NULL AND excluded.background_image_path NOT LIKE '%/header.jpg' AND excluded.background_image_path NOT LIKE '%/header.jpg'
+                        THEN excluded.background_image_path
+                        ELSE COALESCE(games.background_image_path, excluded.background_image_path)
+                    END,
                     play_actions = CASE
                         WHEN games.is_installed = 1 AND games.play_actions IS NOT NULL AND TRIM(games.play_actions) != '' AND TRIM(games.play_actions) != '[]' AND excluded.is_installed = 0
                         THEN games.play_actions
@@ -211,9 +218,11 @@ impl Database {
     ) -> Result<Game> {
         let conn = self.conn.lock().unwrap();
         let now = Utc::now().to_rfc3339();
-        let play_actions_json = serde_json::to_string(&play_actions)
-            .unwrap_or_else(|_| "[]".to_string());
-        let install_dir_str = install_dir.as_ref().map(|p| p.to_string_lossy().to_string());
+        let play_actions_json =
+            serde_json::to_string(&play_actions).unwrap_or_else(|_| "[]".to_string());
+        let install_dir_str = install_dir
+            .as_ref()
+            .map(|p| p.to_string_lossy().to_string());
 
         conn.execute(
             "INSERT INTO games (
@@ -233,7 +242,10 @@ impl Database {
         )?;
 
         drop(conn);
-        self.search_index.write().unwrap().insert_or_update(id, title);
+        self.search_index
+            .write()
+            .unwrap()
+            .insert_or_update(id, title);
         self.get_game_by_id(id)?
             .ok_or(rusqlite::Error::QueryReturnedNoRows)
     }
@@ -611,14 +623,11 @@ impl Database {
         } else {
             Some(update.features.join(", "))
         };
-        let custom_links_json = serde_json::to_string(&update.custom_links)
-            .unwrap_or_else(|_| "[]".to_string());
-        let play_actions_json = serde_json::to_string(&update.play_actions)
-            .unwrap_or_else(|_| "[]".to_string());
-        let completion_status_val = update
-            .completion_status
-            .as_deref()
-            .unwrap_or("NotPlayed");
+        let custom_links_json =
+            serde_json::to_string(&update.custom_links).unwrap_or_else(|_| "[]".to_string());
+        let play_actions_json =
+            serde_json::to_string(&update.play_actions).unwrap_or_else(|_| "[]".to_string());
+        let completion_status_val = update.completion_status.as_deref().unwrap_or("NotPlayed");
 
         {
             let conn = self.conn.lock().unwrap();
@@ -723,7 +732,9 @@ impl Database {
             None
         };
 
-        let extra_metadata_merged: Option<String> = if let Some(ref new_extra_str) = patch.extra_metadata {
+        let extra_metadata_merged: Option<String> = if let Some(ref new_extra_str) =
+            patch.extra_metadata
+        {
             let existing_str: Option<String> = conn
                 .query_row(
                     "SELECT extra_metadata FROM games WHERE id = ?1",
@@ -738,7 +749,9 @@ impl Database {
                 .and_then(|s| serde_json::from_str(s).ok())
                 .unwrap_or_default();
 
-            if let Ok(new_map) = serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(new_extra_str) {
+            if let Ok(new_map) =
+                serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(new_extra_str)
+            {
                 for (k, v) in new_map {
                     merged_map.insert(k, v);
                 }
@@ -814,7 +827,10 @@ impl Database {
     /// Delete a game from the database
     pub fn delete_game(&self, game_id: Uuid) -> Result<bool> {
         let conn = self.conn.lock().unwrap();
-        let affected = conn.execute("DELETE FROM games WHERE id = ?1", params![game_id.to_string()])?;
+        let affected = conn.execute(
+            "DELETE FROM games WHERE id = ?1",
+            params![game_id.to_string()],
+        )?;
         drop(conn);
         Ok(affected > 0)
     }
@@ -944,11 +960,7 @@ impl Database {
             VALUES (?1, ?2, ?3, ?3, 0)
             ON CONFLICT(id) DO NOTHING
             ",
-            params![
-                session_id.to_string(),
-                game_id.to_string(),
-                started_at_str,
-            ],
+            params![session_id.to_string(), game_id.to_string(), started_at_str,],
         )?;
 
         tx.execute(
@@ -1080,11 +1092,7 @@ impl Database {
                     modified_timestamp = ?2
                 WHERE id = ?3
                 ",
-                params![
-                    total_duration as i64,
-                    ended_at_str,
-                    game_id.to_string(),
-                ],
+                params![total_duration as i64, ended_at_str, game_id.to_string(),],
             )?;
         }
 
@@ -1208,7 +1216,12 @@ impl Database {
     }
 
     /// Store an encrypted secret record (Requirement D1)
-    pub fn store_secret(&self, id: &str, nonce: &[u8], ciphertext: &[u8]) -> Result<(), DatabaseError> {
+    pub fn store_secret(
+        &self,
+        id: &str,
+        nonce: &[u8],
+        ciphertext: &[u8],
+    ) -> Result<(), DatabaseError> {
         let conn = self.conn.lock().unwrap();
         let now = chrono::Utc::now().timestamp();
         conn.execute(
@@ -1227,11 +1240,13 @@ impl Database {
     pub fn get_secret(&self, id: &str) -> Result<Option<(Vec<u8>, Vec<u8>)>, DatabaseError> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare("SELECT nonce, ciphertext FROM secrets WHERE id = ?1")?;
-        let res = stmt.query_row(params![id], |row| {
-            let nonce: Vec<u8> = row.get(0)?;
-            let ciphertext: Vec<u8> = row.get(1)?;
-            Ok((nonce, ciphertext))
-        }).optional()?;
+        let res = stmt
+            .query_row(params![id], |row| {
+                let nonce: Vec<u8> = row.get(0)?;
+                let ciphertext: Vec<u8> = row.get(1)?;
+                Ok((nonce, ciphertext))
+            })
+            .optional()?;
         Ok(res)
     }
 
@@ -1243,7 +1258,11 @@ impl Database {
     }
 
     /// Upsert a list of achievements for a game
-    pub fn upsert_achievements(&self, game_id: Uuid, achievements: &[Achievement]) -> Result<(), DatabaseError> {
+    pub fn upsert_achievements(
+        &self,
+        game_id: Uuid,
+        achievements: &[Achievement],
+    ) -> Result<(), DatabaseError> {
         let mut conn = self.conn.lock().unwrap();
         let tx = conn.transaction()?;
         let now = Utc::now().to_rfc3339();
@@ -1300,7 +1319,10 @@ impl Database {
     }
 
     /// Retrieve all achievements and summary for a given game
-    pub fn get_game_achievements(&self, game_id: Uuid) -> Result<GameAchievementsSummary, DatabaseError> {
+    pub fn get_game_achievements(
+        &self,
+        game_id: Uuid,
+    ) -> Result<GameAchievementsSummary, DatabaseError> {
         let conn = self.conn.lock().unwrap();
         let game_id_str = game_id.to_string();
 
@@ -1326,7 +1348,9 @@ impl Database {
             let is_unlocked: bool = row.get::<_, i64>(8)? != 0;
             let unlock_time_str: Option<String> = row.get(9)?;
             let unlock_time = unlock_time_str.and_then(|s| {
-                DateTime::parse_from_rfc3339(&s).map(|dt| dt.with_timezone(&Utc)).ok()
+                DateTime::parse_from_rfc3339(&s)
+                    .map(|dt| dt.with_timezone(&Utc))
+                    .ok()
             });
             let rarity_percentage: Option<f32> = row.get(10)?;
             let points: Option<u32> = row.get(11)?;
@@ -1387,7 +1411,11 @@ impl Database {
     }
 
     /// Update the local icon path for a specific achievement
-    pub fn update_achievement_local_icon(&self, id: &str, local_icon_path: &str) -> Result<(), DatabaseError> {
+    pub fn update_achievement_local_icon(
+        &self,
+        id: &str,
+        local_icon_path: &str,
+    ) -> Result<(), DatabaseError> {
         let conn = self.conn.lock().unwrap();
         conn.execute(
             "UPDATE game_achievements SET local_icon_path = ?1 WHERE id = ?2",
@@ -1413,4 +1441,3 @@ pub struct LibraryCounts {
     pub strategy: usize,
     pub indie: usize,
 }
-

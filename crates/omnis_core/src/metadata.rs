@@ -1,8 +1,6 @@
 use crate::db::Database;
 use crate::dynamic_loader::{find_shared_library_in_dir, DynamicPluginLoader};
-use omnis_sdk::{
-    GameMetadataPatch, MetadataField, MetadataProvider, MetadataSearchRequest,
-};
+use omnis_sdk::{GameMetadataPatch, MetadataField, MetadataProvider, MetadataSearchRequest};
 use serde_json::{Map, Value};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -30,7 +28,7 @@ pub use types::*;
 pub use utils::*;
 
 // ============================================================================
-// 4. Diamond Metadata Pipeline & Engine Manager
+// 4. Metadata Pipeline & Engine Manager
 // ============================================================================
 pub struct MetadataDownloader {
     client: reqwest::Client,
@@ -235,7 +233,8 @@ impl MetadataDownloader {
                     p.set_plugin_dir(path.clone());
                     providers_guard.insert(id, Box::new(p));
                 } else if id != "steam" && id != "gog" {
-                    let provider = ExternalMetadataProvider::new(manifest, path, self.client.clone());
+                    let provider =
+                        ExternalMetadataProvider::new(manifest, path, self.client.clone());
                     providers_guard.insert(id, Box::new(provider));
                 }
             }
@@ -262,14 +261,29 @@ impl MetadataDownloader {
                 library_id: "all".to_string(),
             };
             let settings_guard = self.settings_cache.read().await;
-            let settings = settings_guard.get("howlongtobeat").cloned().unwrap_or_default();
+            let settings = settings_guard
+                .get("howlongtobeat")
+                .cloned()
+                .unwrap_or_default();
             if let Ok(patch) = prov.fetch_metadata(&request, &settings).await {
                 if let Some(extra_str) = patch.extra_metadata {
                     if let Ok(v) = serde_json::from_str::<serde_json::Value>(&extra_str) {
                         if let Some(hltb) = v.get("howlongtobeat") {
-                            let main_s = hltb.get("main_story").and_then(|x| x.as_str()).unwrap_or("N/D").to_string();
-                            let extra_s = hltb.get("main_extra").and_then(|x| x.as_str()).unwrap_or("N/D").to_string();
-                            let comp_s = hltb.get("completionist").and_then(|x| x.as_str()).unwrap_or("N/D").to_string();
+                            let main_s = hltb
+                                .get("main_story")
+                                .and_then(|x| x.as_str())
+                                .unwrap_or("N/D")
+                                .to_string();
+                            let extra_s = hltb
+                                .get("main_extra")
+                                .and_then(|x| x.as_str())
+                                .unwrap_or("N/D")
+                                .to_string();
+                            let comp_s = hltb
+                                .get("completionist")
+                                .and_then(|x| x.as_str())
+                                .unwrap_or("N/D")
+                                .to_string();
                             return (main_s, extra_s, comp_s);
                         }
                     }
@@ -280,13 +294,19 @@ impl MetadataDownloader {
     }
 
     /// Dynamically load and hot-register a native or manifest-based plugin from a library or directory
-    pub async fn load_and_register_dynamic_plugin(&self, path: &Path) -> Result<ProviderInfo, String> {
+    pub async fn load_and_register_dynamic_plugin(
+        &self,
+        path: &Path,
+    ) -> Result<ProviderInfo, String> {
         let library_path = if path.is_file() {
             Some(path.to_path_buf())
         } else if path.is_dir() {
             find_shared_library_in_dir(path)
         } else {
-            return Err(format!("Il percorso specificato non esiste: {}", path.display()));
+            return Err(format!(
+                "Il percorso specificato non esiste: {}",
+                path.display()
+            ));
         };
 
         if let Some(ref lib_path) = library_path {
@@ -352,7 +372,11 @@ impl MetadataDownloader {
                     return Ok(info);
                 }
                 Err(e) => {
-                    tracing::warn!("Errore nel caricamento nativo da {}: {}", lib_path.display(), e);
+                    tracing::warn!(
+                        "Errore nel caricamento nativo da {}: {}",
+                        lib_path.display(),
+                        e
+                    );
                 }
             }
         }
@@ -370,11 +394,32 @@ impl MetadataDownloader {
                 serde_json::from_str::<PluginManifest>(&c).ok().or_else(|| {
                     if let Ok(val) = serde_json::from_str::<Value>(&c) {
                         let id = val.get("id").and_then(|v| v.as_str())?.to_string();
-                        let name = val.get("name").and_then(|v| v.as_str()).unwrap_or(&id).to_string();
-                        let version = val.get("version").and_then(|v| v.as_str()).unwrap_or("1.0.0").to_string();
-                        let author = val.get("author").and_then(|v| v.as_str()).unwrap_or("Omnis Community").to_string();
-                        let description = val.get("description").and_then(|v| v.as_str()).unwrap_or("").to_string();
-                        let plugin_type = val.get("plugin_type").or_else(|| val.get("type")).and_then(|v| v.as_str()).unwrap_or("metadata").to_string();
+                        let name = val
+                            .get("name")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or(&id)
+                            .to_string();
+                        let version = val
+                            .get("version")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("1.0.0")
+                            .to_string();
+                        let author = val
+                            .get("author")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("Omnis Community")
+                            .to_string();
+                        let description = val
+                            .get("description")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("")
+                            .to_string();
+                        let plugin_type = val
+                            .get("plugin_type")
+                            .or_else(|| val.get("type"))
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("metadata")
+                            .to_string();
                         Some(PluginManifest {
                             id,
                             name,
@@ -382,9 +427,18 @@ impl MetadataDownloader {
                             author,
                             description,
                             plugin_type,
-                            website: val.get("website").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                            key_help_url: val.get("key_help_url").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                            requires_api_key: val.get("requires_api_key").and_then(|v| v.as_bool()).unwrap_or(false),
+                            website: val
+                                .get("website")
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.to_string()),
+                            key_help_url: val
+                                .get("key_help_url")
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.to_string()),
+                            requires_api_key: val
+                                .get("requires_api_key")
+                                .and_then(|v| v.as_bool())
+                                .unwrap_or(false),
                             supported_fields: vec![
                                 MetadataField::CriticScore,
                                 MetadataField::CommunityScore,
@@ -392,11 +446,17 @@ impl MetadataDownloader {
                             ],
                             entry_point: None,
                             settings_schema: None,
-                            permissions: val.get("permissions")
+                            permissions: val
+                                .get("permissions")
                                 .and_then(|p| p.as_array())
-                                .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
+                                .map(|arr| {
+                                    arr.iter()
+                                        .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                                        .collect()
+                                })
                                 .unwrap_or_default(),
-                            ui_slots: val.get("ui_slots")
+                            ui_slots: val
+                                .get("ui_slots")
                                 .and_then(|u| serde_json::from_value(u.clone()).ok())
                                 .unwrap_or_default(),
                         })
@@ -410,11 +470,32 @@ impl MetadataDownloader {
                 serde_json::from_str::<PluginManifest>(&c).ok().or_else(|| {
                     if let Ok(val) = serde_json::from_str::<Value>(&c) {
                         let id = val.get("id").and_then(|v| v.as_str())?.to_string();
-                        let name = val.get("name").and_then(|v| v.as_str()).unwrap_or(&id).to_string();
-                        let version = val.get("version").and_then(|v| v.as_str()).unwrap_or("1.0.0").to_string();
-                        let author = val.get("author").and_then(|v| v.as_str()).unwrap_or("Omnis Community").to_string();
-                        let description = val.get("description").and_then(|v| v.as_str()).unwrap_or("").to_string();
-                        let plugin_type = val.get("plugin_type").or_else(|| val.get("type")).and_then(|v| v.as_str()).unwrap_or("metadata").to_string();
+                        let name = val
+                            .get("name")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or(&id)
+                            .to_string();
+                        let version = val
+                            .get("version")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("1.0.0")
+                            .to_string();
+                        let author = val
+                            .get("author")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("Omnis Community")
+                            .to_string();
+                        let description = val
+                            .get("description")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("")
+                            .to_string();
+                        let plugin_type = val
+                            .get("plugin_type")
+                            .or_else(|| val.get("type"))
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("metadata")
+                            .to_string();
                         Some(PluginManifest {
                             id,
                             name,
@@ -422,9 +503,18 @@ impl MetadataDownloader {
                             author,
                             description,
                             plugin_type,
-                            website: val.get("website").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                            key_help_url: val.get("key_help_url").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                            requires_api_key: val.get("requires_api_key").and_then(|v| v.as_bool()).unwrap_or(false),
+                            website: val
+                                .get("website")
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.to_string()),
+                            key_help_url: val
+                                .get("key_help_url")
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.to_string()),
+                            requires_api_key: val
+                                .get("requires_api_key")
+                                .and_then(|v| v.as_bool())
+                                .unwrap_or(false),
                             supported_fields: vec![
                                 MetadataField::CriticScore,
                                 MetadataField::CommunityScore,
@@ -432,11 +522,17 @@ impl MetadataDownloader {
                             ],
                             entry_point: None,
                             settings_schema: None,
-                            permissions: val.get("permissions")
+                            permissions: val
+                                .get("permissions")
                                 .and_then(|p| p.as_array())
-                                .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
+                                .map(|arr| {
+                                    arr.iter()
+                                        .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                                        .collect()
+                                })
                                 .unwrap_or_default(),
-                            ui_slots: val.get("ui_slots")
+                            ui_slots: val
+                                .get("ui_slots")
                                 .and_then(|u| serde_json::from_value(u.clone()).ok())
                                 .unwrap_or_default(),
                         })
@@ -491,7 +587,11 @@ impl MetadataDownloader {
                 p.set_plugin_dir(dir.to_path_buf());
                 Box::new(p)
             } else {
-                Box::new(ExternalMetadataProvider::new(manifest, dir.to_path_buf(), self.client.clone()))
+                Box::new(ExternalMetadataProvider::new(
+                    manifest,
+                    dir.to_path_buf(),
+                    self.client.clone(),
+                ))
             };
 
             let info = ProviderInfo {
@@ -614,7 +714,11 @@ impl MetadataDownloader {
         }
 
         // Built-in providers first, then alphabetical
-        list.sort_by(|a, b| b.is_builtin.cmp(&a.is_builtin).then_with(|| a.name.cmp(&b.name)));
+        list.sort_by(|a, b| {
+            b.is_builtin
+                .cmp(&a.is_builtin)
+                .then_with(|| a.name.cmp(&b.name))
+        });
         list
     }
 
@@ -744,33 +848,57 @@ impl MetadataDownloader {
                                     .await
                                     {
                                         if let Ok(d_json) = d_resp.json::<Value>().await {
-                                            if let Some(data) = d_json.get(&appid).and_then(|v| v.get("data")) {
-                                                if let Some(sd) = data.get("short_description").and_then(|v| v.as_str()) {
+                                            if let Some(data) =
+                                                d_json.get(&appid).and_then(|v| v.get("data"))
+                                            {
+                                                if let Some(sd) = data
+                                                    .get("short_description")
+                                                    .and_then(|v| v.as_str())
+                                                {
                                                     let plain = html_to_plain_text(sd);
                                                     if !plain.is_empty() {
                                                         desc = plain;
                                                     }
                                                 }
-                                                if let Some(rd) = data.get("release_date").and_then(|v| v.get("date")).and_then(|v| v.as_str()) {
+                                                if let Some(rd) = data
+                                                    .get("release_date")
+                                                    .and_then(|v| v.get("date"))
+                                                    .and_then(|v| v.as_str())
+                                                {
                                                     release_date = Some(rd.to_string());
                                                     release_year = extract_year(rd);
                                                 }
-                                                if let Some(meta) = data.get("metacritic").and_then(|v| v.get("score")).and_then(|v| v.as_u64()) {
+                                                if let Some(meta) = data
+                                                    .get("metacritic")
+                                                    .and_then(|v| v.get("score"))
+                                                    .and_then(|v| v.as_u64())
+                                                {
                                                     critic_score = Some(meta as u8);
                                                 }
-                                                if let Some(g_arr) = data.get("genres").and_then(|v| v.as_array()) {
+                                                if let Some(g_arr) =
+                                                    data.get("genres").and_then(|v| v.as_array())
+                                                {
                                                     let g_parsed: Vec<String> = g_arr
                                                         .iter()
-                                                        .filter_map(|g| g.get("description").and_then(|d| d.as_str()).map(|s| s.to_string()))
+                                                        .filter_map(|g| {
+                                                            g.get("description")
+                                                                .and_then(|d| d.as_str())
+                                                                .map(|s| s.to_string())
+                                                        })
                                                         .collect();
                                                     if !g_parsed.is_empty() {
                                                         genres = g_parsed;
                                                     }
                                                 }
-                                                if let Some(d_arr) = data.get("developers").and_then(|v| v.as_array()) {
+                                                if let Some(d_arr) = data
+                                                    .get("developers")
+                                                    .and_then(|v| v.as_array())
+                                                {
                                                     developers = d_arr
                                                         .iter()
-                                                        .filter_map(|d| d.as_str().map(|s| s.to_string()))
+                                                        .filter_map(|d| {
+                                                            d.as_str().map(|s| s.to_string())
+                                                        })
                                                         .collect();
                                                 }
                                             }
@@ -812,8 +940,7 @@ impl MetadataDownloader {
         }
 
         // 2. GOG Catalog Search (Official DRM-Free)
-        if (filter == "all" || filter == "gog")
-            && enabled_guard.get("gog").copied().unwrap_or(true)
+        if (filter == "all" || filter == "gog") && enabled_guard.get("gog").copied().unwrap_or(true)
         {
             if let Ok(gog_candidates) = self.gog_provider.search_candidates(title, 4).await {
                 candidates.extend(gog_candidates);
@@ -858,7 +985,8 @@ impl MetadataDownloader {
                                     .and_then(|v| v.as_str())
                                     .unwrap_or(title)
                                     .to_string();
-                                let release_date_ts = item.get("release_date").and_then(|v| v.as_i64());
+                                let release_date_ts =
+                                    item.get("release_date").and_then(|v| v.as_i64());
                                 let year = release_date_ts.and_then(|ts| {
                                     chrono::DateTime::from_timestamp(ts, 0).map(|dt| {
                                         use chrono::Datelike;
@@ -868,7 +996,8 @@ impl MetadataDownloader {
 
                                 // Fetch top grid
                                 let mut cover_url = None;
-                                let grid_url = format!("https://www.steamgriddb.com/api/v2/grids/game/{}", id);
+                                let grid_url =
+                                    format!("https://www.steamgriddb.com/api/v2/grids/game/{}", id);
                                 if let Ok(g_resp) = self
                                     .client
                                     .get(&grid_url)
@@ -889,7 +1018,10 @@ impl MetadataDownloader {
 
                                 // Fetch top hero
                                 let mut bg_url = None;
-                                let hero_url = format!("https://www.steamgriddb.com/api/v2/heroes/game/{}", id);
+                                let hero_url = format!(
+                                    "https://www.steamgriddb.com/api/v2/heroes/game/{}",
+                                    id
+                                );
                                 if let Ok(h_resp) = self
                                     .client
                                     .get(&hero_url)
@@ -908,7 +1040,8 @@ impl MetadataDownloader {
                                     }
                                 }
 
-                                let desc = format!("Artwork HD verificata da SteamGridDB per {}", name);
+                                let desc =
+                                    format!("Artwork HD verificata da SteamGridDB per {}", name);
                                 let raw_patch = GameMetadataPatch {
                                     description: Some(desc.clone()),
                                     cover_url: cover_url.clone(),
@@ -1017,7 +1150,11 @@ impl MetadataDownloader {
                 let settings_guard = self.settings_cache.read().await;
                 settings_guard.get("igdb").cloned().unwrap_or_default()
             };
-            if let Ok(igdb_candidates) = self.igdb_provider.search_candidates(title, &igdb_settings, 8).await {
+            if let Ok(igdb_candidates) = self
+                .igdb_provider
+                .search_candidates(title, &igdb_settings, 8)
+                .await
+            {
                 candidates.extend(igdb_candidates);
             }
         }
@@ -1034,8 +1171,13 @@ impl MetadataDownloader {
                 provider_game_id: format!("local_{}", Uuid::new_v4()),
                 title: title.to_string(),
                 release_year: Some(2023),
-                cover_url: Some("https://images.unsplash.com/photo-1542751371-adc38448a05e?w=600".to_string()),
-                background_url: Some("https://images.unsplash.com/photo-1511512578047-dfb367046420?w=1280".to_string()),
+                cover_url: Some(
+                    "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=600".to_string(),
+                ),
+                background_url: Some(
+                    "https://images.unsplash.com/photo-1511512578047-dfb367046420?w=1280"
+                        .to_string(),
+                ),
                 description: fallback.description.clone(),
                 raw_patch: fallback,
             });
@@ -1044,7 +1186,7 @@ impl MetadataDownloader {
         Ok(candidates)
     }
 
-    /// Primary Diamond enrichment routine combining multiple providers via the priority pipeline
+    /// Primary enrichment routine combining multiple providers via the priority pipeline
     pub async fn download_for_game(
         &self,
         db: &Database,
@@ -1057,7 +1199,7 @@ impl MetadataDownloader {
             .ok_or_else(|| format!("Game {} not found in database", game_id))?;
 
         info!(
-            "Avvio arricchimento Diamond per '{}' (ID: {})...",
+            "Avvio Scaricamento per '{}' (ID: {})...",
             game.title, game.id
         );
 
@@ -1112,6 +1254,14 @@ impl MetadataDownloader {
             }
         });
 
+        // If current background is a low-res Steam header banner (460x215) and we are preserving artwork,
+        // do not block high-res background retrieval from providers (IGDB / Steam Store hero).
+        let has_low_res_steam_banner_bg = game
+            .background_image_path
+            .as_ref()
+            .map(|p| p.ends_with("/header.jpg") || p.ends_with("\\header.jpg"))
+            .unwrap_or(false);
+
         let should_fetch_cover = if pipeline.preserve_existing_artwork {
             !has_existing_local_cover && remote_cover_to_cache.is_none()
         } else {
@@ -1119,7 +1269,7 @@ impl MetadataDownloader {
         };
 
         let should_fetch_background = if pipeline.preserve_existing_artwork {
-            !has_existing_local_bg && remote_bg_to_cache.is_none()
+            (!has_existing_local_bg && remote_bg_to_cache.is_none()) || has_low_res_steam_banner_bg
         } else {
             true
         };
@@ -1132,7 +1282,10 @@ impl MetadataDownloader {
             if !has_existing_local_cover && remote_cover_to_cache.is_some() {
                 final_patch.cover_url = remote_cover_to_cache.clone();
             }
-            if !has_existing_local_bg && remote_bg_to_cache.is_some() {
+            if !has_existing_local_bg
+                && remote_bg_to_cache.is_some()
+                && !has_low_res_steam_banner_bg
+            {
                 final_patch.background_url = remote_bg_to_cache.clone();
             }
         }
@@ -1185,7 +1338,11 @@ impl MetadataDownloader {
 
         // Fallback: If primary store had no match, try the alternative built-in store
         if details_patch.is_none() {
-            let alt_store = if effective_details_source == "steam" { "gog" } else { "steam" };
+            let alt_store = if effective_details_source == "steam" {
+                "gog"
+            } else {
+                "steam"
+            };
             if enabled_guard.get(alt_store).copied().unwrap_or(true) {
                 if let Some(prov) = providers_guard.get(alt_store) {
                     let settings = settings_guard.get(alt_store).cloned().unwrap_or_default();
@@ -1197,10 +1354,20 @@ impl MetadataDownloader {
         }
 
         if let Some(ref patch) = details_patch {
-            if game.description.as_ref().map(|d| d.trim().is_empty()).unwrap_or(true) {
+            if game
+                .description
+                .as_ref()
+                .map(|d| d.trim().is_empty())
+                .unwrap_or(true)
+            {
                 final_patch.description = patch.description.clone();
             }
-            if game.release_date.as_ref().map(|r| r.trim().is_empty()).unwrap_or(true) {
+            if game
+                .release_date
+                .as_ref()
+                .map(|r| r.trim().is_empty())
+                .unwrap_or(true)
+            {
                 final_patch.release_date = patch.release_date.clone();
             }
             if game.genres.is_empty() {
@@ -1223,7 +1390,9 @@ impl MetadataDownloader {
             }
 
             if should_fetch_cover {
-                if effective_cover_source == effective_details_source || effective_cover_source == store_native_id {
+                if effective_cover_source == effective_details_source
+                    || effective_cover_source == store_native_id
+                {
                     final_patch.cover_url = patch.cover_url.clone();
                 } else {
                     details_cover_fallback = patch.cover_url.clone();
@@ -1231,7 +1400,9 @@ impl MetadataDownloader {
             }
 
             if should_fetch_background {
-                if effective_background_source == effective_details_source || effective_background_source == store_native_id {
+                if effective_background_source == effective_details_source
+                    || effective_background_source == store_native_id
+                {
                     final_patch.background_url = patch.background_url.clone();
                 } else {
                     details_bg_fallback = patch.background_url.clone();
@@ -1242,7 +1413,10 @@ impl MetadataDownloader {
         // 2. Resolve High-Res Artwork if dedicated provider configured
         if should_fetch_cover && final_patch.cover_url.is_none() {
             if effective_cover_source != effective_details_source
-                && enabled_guard.get(effective_cover_source).copied().unwrap_or(false)
+                && enabled_guard
+                    .get(effective_cover_source)
+                    .copied()
+                    .unwrap_or(false)
             {
                 if let Some(prov) = providers_guard.get(effective_cover_source) {
                     let settings = settings_guard
@@ -1263,7 +1437,10 @@ impl MetadataDownloader {
 
         if should_fetch_background && final_patch.background_url.is_none() {
             if effective_background_source != effective_details_source
-                && enabled_guard.get(effective_background_source).copied().unwrap_or(false)
+                && enabled_guard
+                    .get(effective_background_source)
+                    .copied()
+                    .unwrap_or(false)
             {
                 if let Some(prov) = providers_guard.get(effective_background_source) {
                     let settings = settings_guard
@@ -1285,7 +1462,10 @@ impl MetadataDownloader {
         // 3. Resolve Critic & Community Scores if needed
         if game.critic_score.is_none() && final_patch.critic_score.is_none() {
             if effective_score_source != effective_details_source
-                && enabled_guard.get(effective_score_source).copied().unwrap_or(false)
+                && enabled_guard
+                    .get(effective_score_source)
+                    .copied()
+                    .unwrap_or(false)
             {
                 if let Some(prov) = providers_guard.get(effective_score_source) {
                     let settings = settings_guard
@@ -1309,16 +1489,21 @@ impl MetadataDownloader {
                     let settings = settings_guard.get(prov_id).cloned().unwrap_or_default();
                     if let Ok(p_patch) = prov.fetch_metadata(&request, &settings).await {
                         if let Some(extra) = p_patch.extra_metadata {
-                            let mut current_merged: serde_json::Map<String, serde_json::Value> = final_patch
-                                .extra_metadata
-                                .as_deref()
-                                .and_then(|s| serde_json::from_str(s).ok())
-                                .unwrap_or_default();
-                            if let Ok(incoming) = serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(&extra) {
+                            let mut current_merged: serde_json::Map<String, serde_json::Value> =
+                                final_patch
+                                    .extra_metadata
+                                    .as_deref()
+                                    .and_then(|s| serde_json::from_str(s).ok())
+                                    .unwrap_or_default();
+                            if let Ok(incoming) = serde_json::from_str::<
+                                serde_json::Map<String, serde_json::Value>,
+                            >(&extra)
+                            {
                                 for (k, v) in incoming {
                                     current_merged.insert(k, v);
                                 }
-                                final_patch.extra_metadata = Some(serde_json::to_string(&current_merged).unwrap_or(extra));
+                                final_patch.extra_metadata =
+                                    Some(serde_json::to_string(&current_merged).unwrap_or(extra));
                             } else {
                                 final_patch.extra_metadata = Some(extra);
                             }
@@ -1329,14 +1514,31 @@ impl MetadataDownloader {
         }
 
         // 4. Generate aesthetic fallback only if fields are still empty
-        let needs_fallback_desc = final_patch.description.is_none() && game.description.as_ref().map(|d| d.trim().is_empty()).unwrap_or(true);
-        let needs_fallback_rd = final_patch.release_date.is_none() && game.release_date.as_ref().map(|r| r.trim().is_empty()).unwrap_or(true);
+        let needs_fallback_desc = final_patch.description.is_none()
+            && game
+                .description
+                .as_ref()
+                .map(|d| d.trim().is_empty())
+                .unwrap_or(true);
+        let needs_fallback_rd = final_patch.release_date.is_none()
+            && game
+                .release_date
+                .as_ref()
+                .map(|r| r.trim().is_empty())
+                .unwrap_or(true);
         let needs_fallback_genres = final_patch.genres.is_empty() && game.genres.is_empty();
         let needs_fallback_devs = final_patch.developers.is_empty() && game.developers.is_empty();
         let needs_fallback_pubs = final_patch.publishers.is_empty() && game.publishers.is_empty();
-        let needs_fallback_scores = final_patch.critic_score.is_none() && game.critic_score.is_none();
+        let needs_fallback_scores =
+            final_patch.critic_score.is_none() && game.critic_score.is_none();
 
-        if needs_fallback_desc || needs_fallback_genres || needs_fallback_rd || needs_fallback_devs || needs_fallback_pubs || needs_fallback_scores {
+        if needs_fallback_desc
+            || needs_fallback_genres
+            || needs_fallback_rd
+            || needs_fallback_devs
+            || needs_fallback_pubs
+            || needs_fallback_scores
+        {
             let fallback = self.generate_fallback_metadata(&game.title, &game.library_id);
             if needs_fallback_desc {
                 final_patch.description = fallback.description;
@@ -1398,7 +1600,10 @@ impl MetadataDownloader {
             if curl_trim.is_empty() {
                 final_patch.cover_url = None;
             } else if curl_trim.starts_with("http://") || curl_trim.starts_with("https://") {
-                match self.download_image_with_fallbacks(curl_trim, appid_hint).await {
+                match self
+                    .download_image_with_fallbacks(curl_trim, appid_hint)
+                    .await
+                {
                     Ok(bytes) => {
                         if std::fs::write(&cover_dest, bytes).is_ok() {
                             final_patch.cover_url = Some(cover_dest.to_string_lossy().to_string());
@@ -1423,17 +1628,27 @@ impl MetadataDownloader {
             if burl_trim.is_empty() {
                 final_patch.background_url = None;
             } else if burl_trim.starts_with("http://") || burl_trim.starts_with("https://") {
-                match self.download_image_with_fallbacks(burl_trim, appid_hint).await {
+                match self
+                    .download_image_with_fallbacks(burl_trim, appid_hint)
+                    .await
+                {
                     Ok(bytes) => {
                         if std::fs::write(&bg_dest, bytes).is_ok() {
-                            final_patch.background_url = Some(bg_dest.to_string_lossy().to_string());
+                            final_patch.background_url =
+                                Some(bg_dest.to_string_lossy().to_string());
                         } else {
-                            warn!("Failed to write downloaded background image to {:?}", bg_dest);
+                            warn!(
+                                "Failed to write downloaded background image to {:?}",
+                                bg_dest
+                            );
                             final_patch.background_url = Some(burl_trim.to_string());
                         }
                     }
                     Err(e) => {
-                        warn!("Failed to download background image from {}: {}", burl_trim, e);
+                        warn!(
+                            "Failed to download background image from {}: {}",
+                            burl_trim, e
+                        );
                         final_patch.background_url = Some(burl_trim.to_string());
                     }
                 }
@@ -1455,7 +1670,7 @@ impl MetadataDownloader {
             return Err(format!("Failed to save metadata to SQLite: {}", e));
         }
 
-        info!("Arricchimento Diamond completato con successo per '{}'", game.title);
+        info!("Scaricamento completato con successo per '{}'", game.title);
         Ok(final_patch)
     }
 
@@ -1471,7 +1686,8 @@ impl MetadataDownloader {
     {
         let all_games = db.get_all_games().map_err(|e| e.to_string())?;
         let game_ids = all_games.into_iter().map(|g| g.id).collect();
-        self.download_for_games(db, game_ids, cache_dir, progress_cb).await
+        self.download_for_games(db, game_ids, cache_dir, progress_cb)
+            .await
     }
 
     /// Batch enrich a specific list of games by UUID, invoking progress callback on each completion
@@ -1638,7 +1854,10 @@ impl MetadataDownloader {
             }
         }
 
-        Err(format!("Failed to download image from {} and all fallbacks", trimmed_url))
+        Err(format!(
+            "Failed to download image from {} and all fallbacks",
+            trimmed_url
+        ))
     }
 
     pub fn generate_fallback_metadata(&self, title: &str, library: &str) -> GameMetadataPatch {
@@ -1731,23 +1950,39 @@ mod tests {
 
     #[tokio::test]
     async fn test_plugins_scaffolding_and_dynamic_discovery() {
-        let temp_plugins = std::env::temp_dir().join(format!("omnis_test_plugins_{}", uuid::Uuid::new_v4()));
+        let temp_plugins =
+            std::env::temp_dir().join(format!("omnis_test_plugins_{}", uuid::Uuid::new_v4()));
         let _ = std::fs::create_dir_all(&temp_plugins);
 
         let downloader = MetadataDownloader::new();
         downloader.set_plugins_dir(temp_plugins.clone()).await;
 
         // Verify scaffolding created README.txt and metacritic_provider
-        assert!(temp_plugins.join("README.txt").exists(), "README.txt was not scaffolded");
-        assert!(temp_plugins.join("metacritic_provider").join("manifest.json").exists(), "manifest.json was not scaffolded");
+        assert!(
+            temp_plugins.join("README.txt").exists(),
+            "README.txt was not scaffolded"
+        );
+        assert!(
+            temp_plugins
+                .join("metacritic_provider")
+                .join("manifest.json")
+                .exists(),
+            "manifest.json was not scaffolded"
+        );
 
         // Verify provider was dynamically loaded
         let providers = downloader.get_providers_info().await;
         let metacritic = providers.iter().find(|p| p.id == "metacritic_provider");
-        assert!(metacritic.is_some(), "metacritic_provider was not dynamically registered");
+        assert!(
+            metacritic.is_some(),
+            "metacritic_provider was not dynamically registered"
+        );
 
         let meta = metacritic.unwrap();
-        assert_eq!(meta.is_builtin, false, "metacritic_provider must have is_builtin = false");
+        assert_eq!(
+            meta.is_builtin, false,
+            "metacritic_provider must have is_builtin = false"
+        );
         assert_eq!(meta.name, "Metacritic Community Scraper");
         assert!(meta.version.is_some());
         assert!(meta.plugin_path.is_some());
@@ -1759,9 +1994,16 @@ mod tests {
     async fn test_metadata_candidate_search() {
         let downloader = MetadataDownloader::new();
         let candidates = downloader.search_candidates("Portal", Some("steam")).await;
-        assert!(candidates.is_ok(), "Candidate search returned error: {:?}", candidates.err());
+        assert!(
+            candidates.is_ok(),
+            "Candidate search returned error: {:?}",
+            candidates.err()
+        );
         let list = candidates.unwrap();
-        assert!(!list.is_empty(), "Should return at least one candidate for 'Portal'");
+        assert!(
+            !list.is_empty(),
+            "Should return at least one candidate for 'Portal'"
+        );
         let first = &list[0];
         assert_eq!(first.provider_id, "steam");
         assert!(!first.title.is_empty());
@@ -1770,7 +2012,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_igdb_provider_registration_and_settings() {
-        let temp_dir = std::env::temp_dir().join(format!("omnis_igdb_test_{}", uuid::Uuid::new_v4()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("omnis_igdb_test_{}", uuid::Uuid::new_v4()));
         let igdb_dir = temp_dir.join("igdb");
         std::fs::create_dir_all(&igdb_dir).unwrap();
         std::fs::write(
@@ -1788,23 +2031,41 @@ mod tests {
         let providers = downloader.get_providers_info().await;
 
         let igdb = providers.iter().find(|p| p.id == "igdb");
-        assert!(igdb.is_some(), "IGDB provider must be registered in MetadataDownloader");
+        assert!(
+            igdb.is_some(),
+            "IGDB provider must be registered in MetadataDownloader"
+        );
 
         let igdb_info = igdb.unwrap();
         assert_eq!(igdb_info.name, "IGDB (Internet Game Database)");
         assert!(!igdb_info.is_builtin);
         assert!(igdb_info.requires_api_key);
-        assert!(!igdb_info.has_configured_key, "Initially credentials should not be configured");
+        assert!(
+            !igdb_info.has_configured_key,
+            "Initially credentials should not be configured"
+        );
 
         // Save valid client_id and client_secret
         let mut settings = Map::new();
-        settings.insert("client_id".to_string(), Value::String("twitch_test_id".to_string()));
-        settings.insert("client_secret".to_string(), Value::String("twitch_test_secret".to_string()));
-        downloader.save_provider_settings("igdb", settings).await.expect("Failed to save settings");
+        settings.insert(
+            "client_id".to_string(),
+            Value::String("twitch_test_id".to_string()),
+        );
+        settings.insert(
+            "client_secret".to_string(),
+            Value::String("twitch_test_secret".to_string()),
+        );
+        downloader
+            .save_provider_settings("igdb", settings)
+            .await
+            .expect("Failed to save settings");
 
         let updated_providers = downloader.get_providers_info().await;
         let updated_igdb = updated_providers.iter().find(|p| p.id == "igdb").unwrap();
-        assert!(updated_igdb.has_configured_key, "has_configured_key should be true when both client_id and client_secret are provided");
+        assert!(
+            updated_igdb.has_configured_key,
+            "has_configured_key should be true when both client_id and client_secret are provided"
+        );
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
@@ -1814,9 +2075,13 @@ mod tests {
         let db = Database::open_in_memory().expect("Failed to open DB");
         db.seed_sample_games().expect("Failed to seed");
         let games = db.get_all_games().expect("Failed to get games");
-        let portal = games.iter().find(|g| g.title.contains("Portal")).expect("Portal not found");
+        let portal = games
+            .iter()
+            .find(|g| g.title.contains("Portal"))
+            .expect("Portal not found");
 
-        let temp_cache = std::env::temp_dir().join(format!("omnis_test_pipe_{}", uuid::Uuid::new_v4()));
+        let temp_cache =
+            std::env::temp_dir().join(format!("omnis_test_pipe_{}", uuid::Uuid::new_v4()));
         let _ = std::fs::create_dir_all(&temp_cache);
 
         let downloader = MetadataDownloader::new();
@@ -1825,7 +2090,9 @@ mod tests {
         cfg.score_source = "steam".to_string();
         downloader.save_pipeline_config(cfg).await.unwrap();
 
-        let patch_result = downloader.download_for_game(&db, portal.id, &temp_cache).await;
+        let patch_result = downloader
+            .download_for_game(&db, portal.id, &temp_cache)
+            .await;
         assert!(patch_result.is_ok());
         let patch = patch_result.unwrap();
         assert!(patch.critic_score.is_some(), "Steam score should be fetched when score_source is steam even if details_source != steam");
@@ -1838,7 +2105,10 @@ mod tests {
         let db = Database::open_in_memory().expect("Failed to open DB");
         db.seed_sample_games().expect("Failed to seed");
         let games = db.get_all_games().expect("Failed to get games");
-        let portal = games.iter().find(|g| g.title.contains("Portal")).expect("Portal not found");
+        let portal = games
+            .iter()
+            .find(|g| g.title.contains("Portal"))
+            .expect("Portal not found");
 
         let custom_cover = "C:\\existing_steam_cover.jpg".to_string();
         let custom_bg = "C:\\existing_steam_bg.jpg".to_string();
@@ -1847,25 +2117,46 @@ mod tests {
             background_url: Some(custom_bg.clone()),
             ..Default::default()
         };
-        db.apply_metadata_patch(portal.id, &manual_patch).expect("Failed to apply manual patch");
+        db.apply_metadata_patch(portal.id, &manual_patch)
+            .expect("Failed to apply manual patch");
 
         let saved = db.get_game_by_id(portal.id).unwrap().unwrap();
-        assert_eq!(saved.cover_image_path.as_deref(), Some("C:\\existing_steam_cover.jpg"));
-        assert_eq!(saved.background_image_path.as_deref(), Some("C:\\existing_steam_bg.jpg"));
+        assert_eq!(
+            saved.cover_image_path.as_deref(),
+            Some("C:\\existing_steam_cover.jpg")
+        );
+        assert_eq!(
+            saved.background_image_path.as_deref(),
+            Some("C:\\existing_steam_bg.jpg")
+        );
 
-        let temp_cache = std::env::temp_dir().join(format!("omnis_test_pipe_preserve_{}", uuid::Uuid::new_v4()));
+        let temp_cache =
+            std::env::temp_dir().join(format!("omnis_test_pipe_preserve_{}", uuid::Uuid::new_v4()));
         let _ = std::fs::create_dir_all(&temp_cache);
 
         let downloader = MetadataDownloader::new();
         let cfg = downloader.get_pipeline_config().await;
-        assert!(cfg.preserve_existing_artwork, "preserve_existing_artwork should default to true");
+        assert!(
+            cfg.preserve_existing_artwork,
+            "preserve_existing_artwork should default to true"
+        );
 
-        let patch_result = downloader.download_for_game(&db, portal.id, &temp_cache).await;
+        let patch_result = downloader
+            .download_for_game(&db, portal.id, &temp_cache)
+            .await;
         assert!(patch_result.is_ok());
 
         let reloaded = db.get_game_by_id(portal.id).unwrap().unwrap();
-        assert_eq!(reloaded.cover_image_path.as_deref(), Some("C:\\existing_steam_cover.jpg"), "Existing cover must be preserved");
-        assert_eq!(reloaded.background_image_path.as_deref(), Some("C:\\existing_steam_bg.jpg"), "Existing background must be preserved");
+        assert_eq!(
+            reloaded.cover_image_path.as_deref(),
+            Some("C:\\existing_steam_cover.jpg"),
+            "Existing cover must be preserved"
+        );
+        assert_eq!(
+            reloaded.background_image_path.as_deref(),
+            Some("C:\\existing_steam_bg.jpg"),
+            "Existing background must be preserved"
+        );
 
         let _ = std::fs::remove_dir_all(&temp_cache);
     }
@@ -1875,7 +2166,8 @@ mod tests {
         let db = Arc::new(Database::open_in_memory().expect("Failed to open DB"));
         db.seed_sample_games().expect("Failed to seed");
 
-        let temp_cache = std::env::temp_dir().join(format!("omnis_test_cancel_{}", uuid::Uuid::new_v4()));
+        let temp_cache =
+            std::env::temp_dir().join(format!("omnis_test_cancel_{}", uuid::Uuid::new_v4()));
         let _ = std::fs::create_dir_all(&temp_cache);
 
         let downloader = Arc::new(MetadataDownloader::new());
@@ -1886,7 +2178,9 @@ mod tests {
             downloader_clone.cancel_download();
         });
 
-        let total_enriched = downloader.download_for_all(db, &temp_cache, |_cur, _tot, _title| {}).await;
+        let total_enriched = downloader
+            .download_for_all(db, &temp_cache, |_cur, _tot, _title| {})
+            .await;
         assert!(total_enriched.is_ok());
         assert!(total_enriched.unwrap() < 4);
 
@@ -1902,7 +2196,8 @@ mod tests {
 
         let target_ids: Vec<uuid::Uuid> = all_games.iter().take(2).map(|g| g.id).collect();
 
-        let temp_cache = std::env::temp_dir().join(format!("omnis_test_batch_{}", uuid::Uuid::new_v4()));
+        let temp_cache =
+            std::env::temp_dir().join(format!("omnis_test_batch_{}", uuid::Uuid::new_v4()));
         let _ = std::fs::create_dir_all(&temp_cache);
 
         let downloader = Arc::new(MetadataDownloader::new());
@@ -1922,31 +2217,57 @@ mod tests {
         let db = Database::open_in_memory().expect("Failed to open DB");
         db.seed_sample_games().expect("Failed to seed");
         let games = db.get_all_games().expect("Failed to get games");
-        let portal = games.iter().find(|g| g.title.contains("Portal")).expect("Portal not found");
+        let portal = games
+            .iter()
+            .find(|g| g.title.contains("Portal"))
+            .expect("Portal not found");
 
-        let remote_url = "https://cdn.cloudflare.steamstatic.com/steam/apps/400/header.jpg".to_string();
+        let remote_url =
+            "https://cdn.cloudflare.steamstatic.com/steam/apps/400/header.jpg".to_string();
         let manual_patch = GameMetadataPatch {
             cover_url: Some(remote_url.clone()),
             ..Default::default()
         };
-        db.apply_metadata_patch(portal.id, &manual_patch).expect("Failed to apply remote URL patch");
+        db.apply_metadata_patch(portal.id, &manual_patch)
+            .expect("Failed to apply remote URL patch");
 
         let saved = db.get_game_by_id(portal.id).unwrap().unwrap();
         assert_eq!(saved.cover_image_path.as_deref(), Some(remote_url.as_str()));
 
-        let temp_cache = std::env::temp_dir().join(format!("omnis_test_nesting_{}", uuid::Uuid::new_v4()));
+        let temp_cache =
+            std::env::temp_dir().join(format!("omnis_test_nesting_{}", uuid::Uuid::new_v4()));
         let _ = std::fs::create_dir_all(&temp_cache);
 
         let downloader = MetadataDownloader::new();
         // Even with preserve_existing_artwork = true, remote URLs should be downloaded and cached locally!
-        let patch_result = downloader.download_for_game(&db, portal.id, &temp_cache).await;
-        assert!(patch_result.is_ok(), "Download failed: {:?}", patch_result.err());
+        let patch_result = downloader
+            .download_for_game(&db, portal.id, &temp_cache)
+            .await;
+        assert!(
+            patch_result.is_ok(),
+            "Download failed: {:?}",
+            patch_result.err()
+        );
 
         let reloaded = db.get_game_by_id(portal.id).unwrap().unwrap();
-        let cover_path = reloaded.cover_image_path.expect("Game must have a cover image path");
-        assert!(!cover_path.starts_with("http"), "Cover image path must be converted to local path: {}", cover_path);
-        assert!(!cover_path.contains("covers/covers") && !cover_path.contains("covers\\covers"), "Path must NOT be double-nested: {}", cover_path);
-        assert!(std::path::Path::new(&cover_path).exists(), "Downloaded local cover file must exist on disk: {}", cover_path);
+        let cover_path = reloaded
+            .cover_image_path
+            .expect("Game must have a cover image path");
+        assert!(
+            !cover_path.starts_with("http"),
+            "Cover image path must be converted to local path: {}",
+            cover_path
+        );
+        assert!(
+            !cover_path.contains("covers/covers") && !cover_path.contains("covers\\covers"),
+            "Path must NOT be double-nested: {}",
+            cover_path
+        );
+        assert!(
+            std::path::Path::new(&cover_path).exists(),
+            "Downloaded local cover file must exist on disk: {}",
+            cover_path
+        );
 
         let _ = std::fs::remove_dir_all(&temp_cache);
     }
@@ -1955,10 +2276,16 @@ mod tests {
     async fn test_steam_fallback_resolution() {
         let downloader = MetadataDownloader::new();
         // Test fallback for a non-existent 2x image that should fall back to header.jpg or capsule
-        let invalid_steam_2x = "https://steamcdn-a.akamaihd.net/steam/apps/400/library_600x900_2x.jpg";
-        let res = downloader.download_image_with_fallbacks(invalid_steam_2x, Some("400")).await;
-        assert!(res.is_ok(), "Fallback download for Steam app 400 must succeed: {:?}", res.err());
+        let invalid_steam_2x =
+            "https://steamcdn-a.akamaihd.net/steam/apps/400/library_600x900_2x.jpg";
+        let res = downloader
+            .download_image_with_fallbacks(invalid_steam_2x, Some("400"))
+            .await;
+        assert!(
+            res.is_ok(),
+            "Fallback download for Steam app 400 must succeed: {:?}",
+            res.err()
+        );
         assert!(!res.unwrap().is_empty());
     }
 }
-

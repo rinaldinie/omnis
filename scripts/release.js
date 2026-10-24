@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { bumpVersion, updateCargoToml, updateTauriConfig, updatePackageJson } from "./release-lib.js";
+import { bumpVersion, updateCargoToml, updateTauriConfig, updatePackageJson, updateCargoLock } from "./release-lib.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "..");
@@ -32,6 +32,7 @@ try {
 
 // 1. Read current version from root Cargo.toml
 const cargoPath = path.join(rootDir, "Cargo.toml");
+const cargoLockPath = path.join(rootDir, "Cargo.lock");
 const tauriConfigPath = path.join(rootDir, "crates", "omnis_tauri", "tauri.conf.json");
 const uiPkgPath = path.join(uiDir, "package.json");
 
@@ -67,11 +68,17 @@ fs.writeFileSync(cargoPath, updateCargoToml(cargoContent, newVersion), "utf-8");
 fs.writeFileSync(tauriConfigPath, updateTauriConfig(fs.readFileSync(tauriConfigPath, "utf-8"), newVersion), "utf-8");
 fs.writeFileSync(uiPkgPath, updatePackageJson(fs.readFileSync(uiPkgPath, "utf-8"), newVersion), "utf-8");
 
+if (fs.existsSync(cargoLockPath)) {
+  const currentLock = fs.readFileSync(cargoLockPath, "utf-8");
+  fs.writeFileSync(cargoLockPath, updateCargoLock(currentLock, newVersion), "utf-8");
+}
+
 console.log("✓ Updated Cargo.toml");
+console.log("✓ Updated Cargo.lock");
 console.log("✓ Updated crates/omnis_tauri/tauri.conf.json");
 console.log("✓ Updated crates/omnis_tauri/ui/package.json");
 
-// 3. Synchronize package-lock.json
+// 3. Synchronize lockfiles
 try {
   console.log("Synchronizing package-lock.json...");
   execSync("npm install --package-lock-only", { cwd: uiDir, stdio: "inherit" });
@@ -80,10 +87,22 @@ try {
   console.warn("⚠️ Warning: Failed to sync package-lock.json:", e.message);
 }
 
+// Optional cargo update if cargo binary is available
+const cargoCandidates = [
+  "cargo",
+  "/mnt/c/Users/rinal/.cargo/bin/cargo.exe",
+];
+for (const cmd of cargoCandidates) {
+  try {
+    execSync(`${cmd} check --package omnis_tauri`, { cwd: rootDir, stdio: "pipe" });
+    break;
+  } catch {}
+}
+
 // 4. Git commit & tag
 try {
   execSync(
-    `git add Cargo.toml crates/omnis_tauri/tauri.conf.json crates/omnis_tauri/ui/package.json crates/omnis_tauri/ui/package-lock.json`,
+    `git add Cargo.toml Cargo.lock crates/omnis_tauri/tauri.conf.json crates/omnis_tauri/ui/package.json crates/omnis_tauri/ui/package-lock.json`,
     { cwd: rootDir, stdio: "inherit" }
   );
   execSync(`git commit -m "chore(release): v${newVersion}"`, { cwd: rootDir, stdio: "inherit" });

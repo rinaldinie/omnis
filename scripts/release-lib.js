@@ -39,3 +39,22 @@ export function updatePackageJson(content, newVersion) {
   parsed.version = newVersion;
   return JSON.stringify(parsed, null, 2) + "\n";
 }
+
+export function updateCargoLock(content, newVersion) {
+  const workspacePackages = [
+    "omnis_cli",
+    "omnis_core",
+    "omnis_plugin_epic",
+    "omnis_plugin_gog",
+    "omnis_plugin_steam",
+    "omnis_sdk",
+    "omnis_tauri",
+  ];
+
+  let updated = content;
+  for (const pkg of workspacePackages) {
+    const regex = new RegExp(`(\\[\\[package\\]\\]\\s*name\\s*=\\s*"${pkg}"\\s*version\\s*=\\s*)"[^"]+"`, "g");
+    updated = updated.replace(regex, `$1"${newVersion}"`);
+  }
+  return updated;
+}

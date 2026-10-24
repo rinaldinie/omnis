@@ -183,7 +183,7 @@ fn test_steam_cloud_plugin_contract_and_normalization() {
     );
     assert_eq!(
         game.background_image_path,
-        Some("https://cdn.cloudflare.steamstatic.com/steam/apps/1091500/header.jpg".to_string()),
+        Some("https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1091500/library_hero.jpg".to_string()),
         "Background image must target Cloudflare Steam CDN header banner image"
     );
 }
@@ -256,7 +256,7 @@ fn test_database_non_destructive_cloud_merge_steam_and_epic() {
         play_count: 15,
         last_activity: None,
         cover_image_path: Some("https://cdn.cloudflare.steamstatic.com/steam/apps/730/library_600x900_2x.jpg".to_string()),
-        background_image_path: Some("https://cdn.cloudflare.steamstatic.com/steam/apps/730/header.jpg".to_string()),
+        background_image_path: Some("https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/730/library_hero.jpg".to_string()),
     };
 
     let epic_cloud_game = DiscoveredGame {
@@ -365,7 +365,7 @@ fn test_database_uninstalled_cloud_games_ingestion() {
         play_count: 5,
         last_activity: None,
         cover_image_path: Some("https://cdn.cloudflare.steamstatic.com/steam/apps/1091500/library_600x900_2x.jpg".to_string()),
-        background_image_path: Some("https://cdn.cloudflare.steamstatic.com/steam/apps/1091500/header.jpg".to_string()),
+        background_image_path: Some("https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1091500/library_hero.jpg".to_string()),
     };
 
     // Cloud-only uninstalled Epic game

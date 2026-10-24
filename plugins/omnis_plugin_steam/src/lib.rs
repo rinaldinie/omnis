@@ -410,7 +410,7 @@ mod tests {
         );
         assert_eq!(
             tf2.background_image_path,
-            Some("https://cdn.cloudflare.steamstatic.com/steam/apps/440/header.jpg".to_string())
+            Some("https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/440/library_hero.jpg".to_string())
         );
 
         let action = tf2.play_action.as_ref().expect("Play action should exist");
@@ -432,7 +432,7 @@ mod tests {
         );
         assert_eq!(
             cs2.background_image_path,
-            Some("https://cdn.cloudflare.steamstatic.com/steam/apps/730/header.jpg".to_string())
+            Some("https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/730/library_hero.jpg".to_string())
         );
     }
 
@@ -494,7 +494,7 @@ mod tests {
         );
         assert_eq!(
             discovered[0].background_image_path,
-            Some("https://cdn.cloudflare.steamstatic.com/steam/apps/220/header.jpg".to_string())
+            Some("https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/220/library_hero.jpg".to_string())
         );
     }
 

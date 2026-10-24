@@ -244,7 +244,7 @@ pub fn map_steam_games_to_discovered(games: Vec<SteamApiGameItem>) -> Vec<Discov
                     game.appid
                 )),
                 background_image_path: Some(format!(
-                    "https://cdn.cloudflare.steamstatic.com/steam/apps/{}/header.jpg",
+                    "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/{}/library_hero.jpg",
                     game.appid
                 )),
             }
