@@ -60,26 +60,36 @@ function renderWidgetIcon(iconName?: string) {
 // Global singleton listener for Slot event subscriptions across the app
 type SlotSubscriber = () => void;
 const slotSubscribers = new Set<SlotSubscriber>();
-let isGlobalSlotListening = false;
-let unlistenGame: (() => void) | undefined;
-let unlistenLib: (() => void) | undefined;
+let initPromise: Promise<void> | null = null;
+let unlisteners: Array<() => void> = [];
 
 async function ensureSlotGlobalListeners() {
-  if (isGlobalSlotListening || typeof window === "undefined" || !(window as any).__TAURI_INTERNALS__) {
+  if (initPromise || typeof window === "undefined" || !(window as any).__TAURI_INTERNALS__) {
     return;
   }
-  isGlobalSlotListening = true;
-  try {
-    const { listen } = await import("@tauri-apps/api/event");
-    unlistenGame = await listen("game-updated", () => {
-      slotSubscribers.forEach((cb) => cb());
-    });
-    unlistenLib = await listen("library-updated", () => {
-      slotSubscribers.forEach((cb) => cb());
-    });
-  } catch (err) {
-    console.debug("Slot global listener init failed:", err);
-  }
+  initPromise = (async () => {
+    try {
+      const { listen } = await import("@tauri-apps/api/event");
+      const u1 = await listen("game-updated", () => {
+        slotSubscribers.forEach((cb) => cb());
+      });
+      const u2 = await listen("library-updated", () => {
+        slotSubscribers.forEach((cb) => cb());
+      });
+
+      // Handle race condition where all subscribers unmounted while listeners were attaching
+      if (slotSubscribers.size === 0) {
+        u1();
+        u2();
+        initPromise = null;
+      } else {
+        unlisteners.push(u1, u2);
+      }
+    } catch (err) {
+      console.debug("Slot global listener init failed:", err);
+      initPromise = null;
+    }
+  })();
 }
 
 function subscribeSlotRefresh(cb: SlotSubscriber) {
@@ -88,15 +98,9 @@ function subscribeSlotRefresh(cb: SlotSubscriber) {
   return () => {
     slotSubscribers.delete(cb);
     if (slotSubscribers.size === 0) {
-      if (unlistenGame) {
-        unlistenGame();
-        unlistenGame = undefined;
-      }
-      if (unlistenLib) {
-        unlistenLib();
-        unlistenLib = undefined;
-      }
-      isGlobalSlotListening = false;
+      unlisteners.forEach((u) => u());
+      unlisteners = [];
+      initPromise = null;
     }
   };
 }

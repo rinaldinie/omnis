@@ -132,21 +132,23 @@ const FullscreenCardCover = React.memo(function FullscreenCardCover({ game }: { 
 
 interface FullscreenCarouselCardProps {
   game: GameDto;
+  index: number;
   isFocused: boolean;
-  onSelect: () => void;
+  onSelect: (index: number, game: GameDto, isFocused: boolean) => void;
   onOpenDetails: () => void;
 }
 
 const FullscreenCarouselCard = React.memo(
   function FullscreenCarouselCard({
     game,
+    index,
     isFocused,
     onSelect,
     onOpenDetails,
   }: FullscreenCarouselCardProps) {
     return (
       <div
-        onClick={onSelect}
+        onClick={() => onSelect(index, game, isFocused)}
         onDoubleClick={onOpenDetails}
         className={`relative flex-shrink-0 w-44 aspect-[2/3] rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 transform-gpu will-change-transform [backface-visibility:hidden] [transform:translateZ(0)] ${
           isFocused
@@ -176,7 +178,13 @@ const FullscreenCarouselCard = React.memo(
     );
   },
   (prev, next) => {
-    return prev.isFocused === next.isFocused && prev.game === next.game;
+    return (
+      prev.isFocused === next.isFocused &&
+      prev.index === next.index &&
+      prev.game === next.game &&
+      prev.onSelect === next.onSelect &&
+      prev.onOpenDetails === next.onOpenDetails
+    );
   }
 );
 
@@ -254,6 +262,24 @@ export default function FullscreenView({
   const [achievementsFocusedIndex, setAchievementsFocusedIndex] = React.useState<number>(-1);
   const [totalAchievements, setTotalAchievements] = React.useState<number>(0);
   const detailsScrollRef = React.useRef<HTMLDivElement>(null);
+
+  // Stable handlers for memoized FullscreenCarouselCard to avoid stale closures
+  const handleCardSelect = React.useCallback(
+    (idx: number, game: GameDto, isFocused: boolean) => {
+      soundEffects.playSelect();
+      setFocusedIndex(idx);
+      setSelectedGame(game);
+      if (isFocused) {
+        setShowFullscreenDetails(true);
+      }
+    },
+    [setFocusedIndex, setSelectedGame, setShowFullscreenDetails]
+  );
+
+  const handleCardOpenDetails = React.useCallback(() => {
+    soundEffects.playSelect();
+    setShowFullscreenDetails(true);
+  }, [setShowFullscreenDetails]);
 
   // Reset focus when details page opens
   React.useEffect(() => {
@@ -1050,19 +1076,10 @@ export default function FullscreenView({
                   <FullscreenCarouselCard
                     key={game.id}
                     game={game}
+                    index={idx}
                     isFocused={isFocused}
-                    onSelect={() => {
-                      soundEffects.playSelect();
-                      setFocusedIndex(idx);
-                      setSelectedGame(game);
-                      if (isFocused) {
-                        setShowFullscreenDetails(true);
-                      }
-                    }}
-                    onOpenDetails={() => {
-                      soundEffects.playSelect();
-                      setShowFullscreenDetails(true);
-                    }}
+                    onSelect={handleCardSelect}
+                    onOpenDetails={handleCardOpenDetails}
                   />
                 );
               })}
