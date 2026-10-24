@@ -53,6 +53,8 @@ pub struct SteamApiGameItem {
     pub name: Option<String>,
     #[serde(default)]
     pub playtime_forever: Option<u64>, // playtime in minutes
+    #[serde(default, alias = "rtime_last_played")]
+    pub rtime_last_played: Option<i64>,
     #[serde(default)]
     pub img_icon_url: Option<String>,
 }
@@ -213,29 +215,39 @@ pub fn extract_session_from_redirect(url: &str) -> Result<StoreAccountSession, P
 pub fn map_steam_games_to_discovered(games: Vec<SteamApiGameItem>) -> Vec<DiscoveredGame> {
     games
         .into_iter()
-        .map(|game| DiscoveredGame {
-            library_id: "steam".to_string(),
-            external_id: game.appid.to_string(),
-            title: game.name.unwrap_or_else(|| format!("Steam App {}", game.appid)),
-            install_dir: None,
-            is_installed: false,
-            play_action: Some(LaunchConfiguration {
-                executable: format!("steam://install/{}", game.appid),
-                arguments: vec![],
-                working_dir: None,
-                tracking_mode: ProcessTrackingMode::ProcessName("steam.exe".to_string()),
-            }),
-            playtime_seconds: game.playtime_forever.unwrap_or(0) * 60,
-            play_count: 0,
-            last_activity: None,
-            cover_image_path: Some(format!(
-                "https://cdn.cloudflare.steamstatic.com/steam/apps/{}/library_600x900_2x.jpg",
-                game.appid
-            )),
-            background_image_path: Some(format!(
-                "https://cdn.cloudflare.steamstatic.com/steam/apps/{}/header.jpg",
-                game.appid
-            )),
+        .map(|game| {
+            let last_activity = game.rtime_last_played.and_then(|ts| {
+                if ts > 0 {
+                    chrono::DateTime::from_timestamp(ts, 0)
+                } else {
+                    None
+                }
+            });
+
+            DiscoveredGame {
+                library_id: "steam".to_string(),
+                external_id: game.appid.to_string(),
+                title: game.name.unwrap_or_else(|| format!("Steam App {}", game.appid)),
+                install_dir: None,
+                is_installed: false,
+                play_action: Some(LaunchConfiguration {
+                    executable: format!("steam://install/{}", game.appid),
+                    arguments: vec![],
+                    working_dir: None,
+                    tracking_mode: ProcessTrackingMode::ProcessName("steam.exe".to_string()),
+                }),
+                playtime_seconds: game.playtime_forever.unwrap_or(0) * 60,
+                play_count: 0,
+                last_activity,
+                cover_image_path: Some(format!(
+                    "https://cdn.cloudflare.steamstatic.com/steam/apps/{}/library_600x900_2x.jpg",
+                    game.appid
+                )),
+                background_image_path: Some(format!(
+                    "https://cdn.cloudflare.steamstatic.com/steam/apps/{}/header.jpg",
+                    game.appid
+                )),
+            }
         })
         .collect()
 }
@@ -271,6 +283,7 @@ pub fn parse_steam_community_games_xml(xml: &str) -> Vec<SteamApiGameItem> {
                 appid,
                 name,
                 playtime_forever: hours,
+                rtime_last_played: None,
                 img_icon_url: None,
             });
         }

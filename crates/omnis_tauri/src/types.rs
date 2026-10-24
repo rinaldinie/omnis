@@ -33,6 +33,8 @@ pub struct GameDto {
     pub custom_links: Vec<omnis_sdk::CustomLink>,
     #[serde(default)]
     pub extra_metadata: Option<String>,
+    #[serde(default)]
+    pub last_activity: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -166,6 +168,7 @@ pub fn game_to_dto(g: Game, _cache: &ImageCache) -> GameDto {
         features: g.features,
         custom_links: g.custom_links,
         extra_metadata: g.extra_metadata,
+        last_activity: g.last_activity.map(|t| t.to_rfc3339()),
     }
 }
 

@@ -247,10 +247,10 @@ export function useLibraryFilters(games: GameDto[]) {
   }, [selectedStores, selectedStatuses, selectedFlags, selectedGenres]);
 
   const filteredGames = useMemo(() => {
-    return games.filter((g) => {
+    const list = games.filter((g) => {
       // 1. Quick Flags (AND)
       if (selectedFlags.includes("installed") && !g.is_installed) return false;
-      if (selectedFlags.includes("recent") && g.playtime_seconds === 0) return false;
+      if (selectedFlags.includes("recent") && !g.last_activity && g.playtime_seconds === 0) return false;
       if (selectedFlags.includes("favorites") && (g.critic_score || 0) < 90) return false;
 
       // 2. Stores Filter (OR within selected stores, AND with rest)
@@ -284,6 +284,20 @@ export function useLibraryFilters(games: GameDto[]) {
 
       return true;
     });
+
+    // When filtering by "recent", sort by last_activity descending (Steam / Playnite behavior)
+    if (selectedFlags.includes("recent")) {
+      return [...list].sort((a, b) => {
+        const timeA = a.last_activity ? new Date(a.last_activity).getTime() : 0;
+        const timeB = b.last_activity ? new Date(b.last_activity).getTime() : 0;
+        if (timeA !== timeB) {
+          return timeB - timeA;
+        }
+        return b.playtime_seconds - a.playtime_seconds;
+      });
+    }
+
+    return list;
   }, [games, selectedFlags, selectedStores, selectedStatuses, selectedGenres, searchQuery]);
 
   const groupedGames = useMemo<Record<string, GameDto[]>>(() => {

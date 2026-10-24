@@ -151,6 +151,7 @@ fn test_steam_cloud_plugin_contract_and_normalization() {
         appid: 1091500,
         name: Some("Cyberpunk 2077".to_string()),
         playtime_forever: Some(120),
+        rtime_last_played: None,
         img_icon_url: None,
     }];
 
