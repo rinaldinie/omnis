@@ -65,6 +65,8 @@ const GameCardItem = React.memo(
           isSelected ? "ring-2" : ""
         }`}
         style={{
+          contentVisibility: "auto",
+          containIntrinsicSize: "auto 240px",
           backgroundColor: "var(--bg-card)",
           borderColor: isRunning
             ? "#10b981"
