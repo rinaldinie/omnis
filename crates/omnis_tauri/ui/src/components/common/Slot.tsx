@@ -57,6 +57,50 @@ function renderWidgetIcon(iconName?: string) {
   }
 }
 
+// Global singleton listener for Slot event subscriptions across the app
+type SlotSubscriber = () => void;
+const slotSubscribers = new Set<SlotSubscriber>();
+let isGlobalSlotListening = false;
+let unlistenGame: (() => void) | undefined;
+let unlistenLib: (() => void) | undefined;
+
+async function ensureSlotGlobalListeners() {
+  if (isGlobalSlotListening || typeof window === "undefined" || !(window as any).__TAURI_INTERNALS__) {
+    return;
+  }
+  isGlobalSlotListening = true;
+  try {
+    const { listen } = await import("@tauri-apps/api/event");
+    unlistenGame = await listen("game-updated", () => {
+      slotSubscribers.forEach((cb) => cb());
+    });
+    unlistenLib = await listen("library-updated", () => {
+      slotSubscribers.forEach((cb) => cb());
+    });
+  } catch (err) {
+    console.debug("Slot global listener init failed:", err);
+  }
+}
+
+function subscribeSlotRefresh(cb: SlotSubscriber) {
+  slotSubscribers.add(cb);
+  ensureSlotGlobalListeners();
+  return () => {
+    slotSubscribers.delete(cb);
+    if (slotSubscribers.size === 0) {
+      if (unlistenGame) {
+        unlistenGame();
+        unlistenGame = undefined;
+      }
+      if (unlistenLib) {
+        unlistenLib();
+        unlistenLib = undefined;
+      }
+      isGlobalSlotListening = false;
+    }
+  };
+}
+
 export const Slot: React.FC<SlotProps> = ({ name, gameId, className = "" }) => {
   const [widgets, setWidgets] = useState<SlotWidget[]>([]);
 
@@ -78,28 +122,13 @@ export const Slot: React.FC<SlotProps> = ({ name, gameId, className = "" }) => {
 
     fetchWidgets();
 
-    let unlistenGame: (() => void) | undefined;
-    let unlistenLib: (() => void) | undefined;
-    (async () => {
-      try {
-        const { listen } = await import("@tauri-apps/api/event");
-        const u1 = await listen("game-updated", () => {
-          if (isMounted) fetchWidgets();
-        });
-        const u2 = await listen("library-updated", () => {
-          if (isMounted) fetchWidgets();
-        });
-        unlistenGame = u1;
-        unlistenLib = u2;
-      } catch {
-        // Ignored when not running inside Tauri
-      }
-    })();
+    const unsubscribe = subscribeSlotRefresh(() => {
+      if (isMounted) fetchWidgets();
+    });
 
     return () => {
       isMounted = false;
-      if (unlistenGame) unlistenGame();
-      if (unlistenLib) unlistenLib();
+      unsubscribe();
     };
   }, [name, gameId]);
 

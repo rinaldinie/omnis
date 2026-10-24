@@ -28,6 +28,18 @@ pub async fn get_slot_widgets(
 
     // 1. If game_id is provided, resolve dynamic plugin widgets from game.extra_metadata
     if let Some(ref gid_str) = game_id {
+        // Fast-path: check registered & enabled providers first to verify if any provider declares this slot
+        let providers_info = state.downloader.get_providers_info().await;
+        let has_matching_slot = providers_info
+            .iter()
+            .filter(|p| p.is_enabled)
+            .any(|prov| prov.ui_slots.iter().any(|s| s.slot == slot_name));
+
+        if !has_matching_slot {
+            // Fast exit: no provider uses this slot, avoid querying SQLite completely
+            return Ok(Vec::new());
+        }
+
         if let Ok(gid) = Uuid::parse_str(gid_str) {
             if let Ok(Some(game)) = state.db.get_game_by_id(gid) {
                 let extra_json: Option<serde_json::Value> = game
@@ -35,8 +47,6 @@ pub async fn get_slot_widgets(
                     .as_deref()
                     .and_then(|s| serde_json::from_str(s).ok());
 
-                // Read all registered and enabled providers
-                let providers_info = state.downloader.get_providers_info().await;
                 for prov in providers_info {
                     if !prov.is_enabled {
                         continue;

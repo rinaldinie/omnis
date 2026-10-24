@@ -79,7 +79,7 @@ interface FullscreenViewProps {
   onSelectTheme?: (theme: ThemeConfig) => void;
 }
 
-function FullscreenCardCover({ game }: { game: GameDto }) {
+const FullscreenCardCover = React.memo(function FullscreenCardCover({ game }: { game: GameDto }) {
   const [imgSrc, setImgSrc] = React.useState<string | null>(game.cover_image || null);
   const [isFallback, setIsFallback] = React.useState(false);
   const [hasError, setHasError] = React.useState(!game.cover_image);
@@ -128,7 +128,57 @@ function FullscreenCardCover({ game }: { game: GameDto }) {
       onError={handleError}
     />
   );
+});
+
+interface FullscreenCarouselCardProps {
+  game: GameDto;
+  isFocused: boolean;
+  onSelect: () => void;
+  onOpenDetails: () => void;
 }
+
+const FullscreenCarouselCard = React.memo(
+  function FullscreenCarouselCard({
+    game,
+    isFocused,
+    onSelect,
+    onOpenDetails,
+  }: FullscreenCarouselCardProps) {
+    return (
+      <div
+        onClick={onSelect}
+        onDoubleClick={onOpenDetails}
+        className={`relative flex-shrink-0 w-44 aspect-[2/3] rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 transform-gpu will-change-transform [backface-visibility:hidden] [transform:translateZ(0)] ${
+          isFocused
+            ? "scale-110 z-20 shadow-2xl ring-4"
+            : "scale-95 opacity-60 hover:opacity-90 hover:scale-100"
+        }`}
+        style={{
+          contentVisibility: "auto",
+          containIntrinsicSize: "176px 264px",
+          backgroundColor: "var(--bg-card)",
+          borderColor: isFocused ? "var(--accent-primary)" : "var(--border-color)",
+          boxShadow: isFocused ? `0 0 30px var(--accent-glow)` : undefined,
+        }}
+      >
+        <FullscreenCardCover game={game} />
+
+        <div className="absolute top-2.5 right-2.5">
+          <StoreBadge library={game.library} />
+        </div>
+
+        {isFocused && (
+          <div className="absolute bottom-2.5 left-2.5 right-2.5 px-3 py-1 rounded-lg bg-black/90 text-center text-xs font-black text-white border border-white/20 truncate select-none [transform:translateZ(0)]">
+            {game.title}
+          </div>
+        )}
+      </div>
+    );
+  },
+  (prev, next) => {
+    return prev.isFocused === next.isFocused && prev.game === next.game;
+  }
+);
 
 export default function FullscreenView({
   focusedGame,
@@ -997,9 +1047,11 @@ export default function FullscreenView({
               {filteredGames.map((game, idx) => {
                 const isFocused = idx === focusedIndex;
                 return (
-                  <div
+                  <FullscreenCarouselCard
                     key={game.id}
-                    onClick={() => {
+                    game={game}
+                    isFocused={isFocused}
+                    onSelect={() => {
                       soundEffects.playSelect();
                       setFocusedIndex(idx);
                       setSelectedGame(game);
@@ -1007,33 +1059,11 @@ export default function FullscreenView({
                         setShowFullscreenDetails(true);
                       }
                     }}
-                    onDoubleClick={() => {
+                    onOpenDetails={() => {
                       soundEffects.playSelect();
                       setShowFullscreenDetails(true);
                     }}
-                    className={`relative flex-shrink-0 w-44 aspect-[2/3] rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 transform-gpu will-change-transform [backface-visibility:hidden] [transform:translateZ(0)] ${
-                      isFocused
-                        ? "scale-110 z-20 shadow-2xl ring-4"
-                        : "scale-95 opacity-60 hover:opacity-90 hover:scale-100"
-                    }`}
-                    style={{
-                      backgroundColor: "var(--bg-card)",
-                      borderColor: isFocused ? "var(--accent-primary)" : "var(--border-color)",
-                      boxShadow: isFocused ? `0 0 30px var(--accent-glow)` : undefined,
-                    }}
-                  >
-                    <FullscreenCardCover game={game} />
-
-                    <div className="absolute top-2.5 right-2.5">
-                      <StoreBadge library={game.library} />
-                    </div>
-
-                    {isFocused && (
-                      <div className="absolute bottom-2.5 left-2.5 right-2.5 px-3 py-1 rounded-lg bg-black/90 text-center text-xs font-black text-white border border-white/20 truncate select-none [transform:translateZ(0)]">
-                        {game.title}
-                      </div>
-                    )}
-                  </div>
+                  />
                 );
               })}
             </div>
