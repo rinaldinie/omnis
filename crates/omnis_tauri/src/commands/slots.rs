@@ -28,15 +28,19 @@ pub async fn get_slot_widgets(
 
     // 1. If game_id is provided, resolve dynamic plugin widgets from game.extra_metadata
     if let Some(ref gid_str) = game_id {
-        // Fast-path: check registered & enabled providers first to verify if any provider declares this slot
+        // Fast-path: check registered & enabled providers first to verify if any provider declares this slot,
+        // or if it's one of the built-in native slots supported natively by the app
+        const NATIVE_SLOTS: &[&str] = &["details.hero", "fullscreen.hero", "bigpicture.hero"];
+        let is_native_slot = NATIVE_SLOTS.contains(&slot_name.as_str());
+
         let providers_info = state.downloader.get_providers_info().await;
         let has_matching_slot = providers_info
             .iter()
             .filter(|p| p.is_enabled)
             .any(|prov| prov.ui_slots.iter().any(|s| s.slot == slot_name));
 
-        if !has_matching_slot {
-            // Fast exit: no provider uses this slot, avoid querying SQLite completely
+        if !is_native_slot && !has_matching_slot {
+            // Fast exit: no provider uses this slot and not a native slot, avoid querying SQLite completely
             return Ok(Vec::new());
         }
 
@@ -348,6 +352,16 @@ mod tests {
             icon: Some("award".to_string()),
         };
         assert!(stat.validate().is_ok());
+    }
+
+    #[test]
+    fn test_native_slot_whitelist() {
+        const NATIVE_SLOTS: &[&str] = &["details.hero", "fullscreen.hero", "bigpicture.hero"];
+        assert!(NATIVE_SLOTS.contains(&"details.hero"));
+        assert!(NATIVE_SLOTS.contains(&"fullscreen.hero"));
+        assert!(NATIVE_SLOTS.contains(&"bigpicture.hero"));
+        assert!(!NATIVE_SLOTS.contains(&"game-card.badges"));
+        assert!(!NATIVE_SLOTS.contains(&"random.unknown.slot"));
     }
 }
 

@@ -66,7 +66,7 @@ const GameCardItem = React.memo(
         }`}
         style={{
           contentVisibility: "auto",
-          containIntrinsicSize: "auto 240px",
+          containIntrinsicSize: "auto 180px auto 340px",
           backgroundColor: "var(--bg-card)",
           borderColor: isRunning
             ? "#10b981"
