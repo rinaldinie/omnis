@@ -433,12 +433,18 @@ export default function DetailsSplitView({
         </div>
 
         {/* Hero Background Full-Width with Ambient Gradient / Video Trailer */}
-        <section data-omnis="details.hero" className="relative min-h-[360px] h-auto w-full overflow-hidden flex items-end p-6 md:p-8 shrink-0">
+        <section
+          data-omnis="details.hero"
+          className="relative min-h-[460px] md:min-h-[500px] lg:min-h-[540px] h-auto w-full overflow-hidden flex items-end p-6 md:p-8 lg:p-10 shrink-0"
+        >
           {currentTheme ? (
             <VideoBackdrop
               game={selectedGame}
               theme={currentTheme}
-              blurLevel={currentTheme.enable_video_backdrop ? "none" : "subtle"}
+              blurLevel="none"
+              videoOpacity={1.0}
+              objectPosition="center 20%"
+              gradientOverlay="hero"
               isPaused={isGameRunning}
             />
           ) : (
@@ -448,14 +454,14 @@ export default function DetailsSplitView({
                   key={selectedGame.background_image}
                   src={formatImageUrl(selectedGame.background_image) || undefined}
                   alt="Hero"
-                  className="absolute inset-0 w-full h-full object-cover"
+                  className="absolute inset-0 w-full h-full object-cover object-[center_20%]"
                 />
               ) : selectedGame.cover_image ? (
                 <img
                   key={selectedGame.cover_image}
                   src={formatImageUrl(selectedGame.cover_image) || undefined}
                   alt="Hero"
-                  className="absolute inset-0 w-full h-full object-cover filter blur-md scale-110 opacity-40"
+                  className="absolute inset-0 w-full h-full object-cover object-[center_20%] filter blur-md scale-110 opacity-40"
                 />
               ) : (
                 <div
@@ -468,7 +474,7 @@ export default function DetailsSplitView({
               <div
                 className="absolute inset-0"
                 style={{
-                  background: `linear-gradient(to top, var(--bg-base) 0%, rgba(9, 12, 20, 0.6) 60%, transparent 100%)`,
+                  background: `linear-gradient(to top, var(--bg-base) 0%, rgba(9, 12, 20, 0.85) 16%, rgba(9, 12, 20, 0.25) 36%, transparent 60%)`,
                 }}
               />
             </>

@@ -10,6 +10,9 @@ interface VideoBackdropProps {
   blurLevel?: "none" | "subtle" | "ambient";
   forceEnable?: boolean;
   isPaused?: boolean;
+  videoOpacity?: number;
+  objectPosition?: string;
+  gradientOverlay?: "hero" | "ambient";
 }
 
 export const VideoBackdrop: React.FC<VideoBackdropProps> = ({
@@ -19,6 +22,9 @@ export const VideoBackdrop: React.FC<VideoBackdropProps> = ({
   blurLevel = "ambient",
   forceEnable = false,
   isPaused = false,
+  videoOpacity,
+  objectPosition = "center 20%",
+  gradientOverlay = "ambient",
 }) => {
   const [videoSrc, setVideoSrc] = useState<string | null>(null);
   const [isVideoPlaying, setIsVideoPlaying] = useState<boolean>(false);
@@ -27,8 +33,8 @@ export const VideoBackdrop: React.FC<VideoBackdropProps> = ({
   const prevGameIdRef = useRef<string | undefined>(game?.id);
 
   const isEnabled = forceEnable || !!theme.enable_video_backdrop;
-  const targetOpacity = theme.video_backdrop_opacity ?? 0.55;
-  const delayMs = theme.video_delay_ms ?? 800;
+  const effectiveVideoOpacity = videoOpacity ?? (theme.video_backdrop_opacity ?? 1.0);
+  const delayMs = theme.video_delay_ms ?? 600;
 
   // 1. Resolve Game Trailer URL with Debounce
   useEffect(() => {
@@ -216,13 +222,16 @@ export const VideoBackdrop: React.FC<VideoBackdropProps> = ({
           key={backdropUrl}
           src={backdropUrl}
           alt={game?.title || "Backdrop"}
-          className={`w-full h-full object-cover transition-opacity duration-500 ${
-            blurLevel === "none"
-              ? "opacity-90 filter-none scale-100"
+          className={`w-full h-full object-cover transition-opacity duration-700 ${
+            isVideoPlaying && !isPaused
+              ? "opacity-0 pointer-events-none"
+              : blurLevel === "none"
+              ? "opacity-95 filter-none scale-100"
               : blurLevel === "subtle"
-              ? "opacity-80 filter blur-[2px] scale-102"
-              : "opacity-70 filter blur-sm scale-105"
+              ? "opacity-85 filter blur-[2px] scale-102"
+              : "opacity-75 filter blur-sm scale-105"
           }`}
+          style={{ objectPosition }}
         />
       ) : (
         <div
@@ -233,7 +242,7 @@ export const VideoBackdrop: React.FC<VideoBackdropProps> = ({
         />
       )}
 
-      {/* 2. Dynamic Video Layer (crossfades in when trailer is playing) */}
+      {/* 2. Dynamic Video Layer (crossfades in cleanly over the hidden poster) */}
       {videoSrc && (
         <video
           ref={videoRef}
@@ -248,9 +257,12 @@ export const VideoBackdrop: React.FC<VideoBackdropProps> = ({
             setIsVideoPlaying(false);
             setVideoSrc(null);
           }}
-          className={`video-backdrop absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${blurClass}`}
+          className={`video-backdrop absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${
+            blurLevel === "none" ? "filter-none" : blurClass
+          }`}
           style={{
-            opacity: !isPaused && isVideoPlaying ? targetOpacity : 0,
+            objectPosition,
+            opacity: !isPaused && isVideoPlaying ? effectiveVideoOpacity : 0,
           }}
         />
       )}
@@ -259,10 +271,16 @@ export const VideoBackdrop: React.FC<VideoBackdropProps> = ({
       <div
         className="absolute inset-0 transition-colors duration-500"
         style={{
-          background: `
-            linear-gradient(to top, var(--bg-base) 0%, var(--bg-base) 18%, rgba(11, 14, 20, 0.65) 45%, rgba(11, 14, 20, 0.15) 75%, transparent 100%),
-            linear-gradient(to right, rgba(11, 14, 20, 0.85) 0%, rgba(11, 14, 20, 0.45) 40%, transparent 75%)
-          `,
+          background:
+            gradientOverlay === "hero"
+              ? `
+                linear-gradient(to top, var(--bg-base) 0%, rgba(11, 14, 20, 0.9) 14%, rgba(11, 14, 20, 0.25) 36%, transparent 60%),
+                linear-gradient(to right, rgba(11, 14, 20, 0.75) 0%, rgba(11, 14, 20, 0.2) 28%, transparent 50%)
+              `
+              : `
+                linear-gradient(to top, var(--bg-base) 0%, var(--bg-base) 18%, rgba(11, 14, 20, 0.65) 45%, rgba(11, 14, 20, 0.15) 75%, transparent 100%),
+                linear-gradient(to right, rgba(11, 14, 20, 0.85) 0%, rgba(11, 14, 20, 0.45) 40%, transparent 75%)
+              `,
         }}
       />
     </div>
