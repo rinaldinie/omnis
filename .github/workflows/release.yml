@@ -28,6 +28,34 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate Changelog from Commits
+        id: changelog
+        shell: bash
+        run: |
+          CURRENT_REF="${{ github.ref_name }}"
+          PREV_TAG=$(git describe --tags --abbrev=0 "${CURRENT_REF}^" 2>/dev/null || git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -n "$PREV_TAG" ] && [ "$PREV_TAG" != "$CURRENT_REF" ]; then
+            echo "Previous tag detected: $PREV_TAG"
+            COMMITS=$(git log "$PREV_TAG..$CURRENT_REF" --pretty=format:"- %s (%h)" --no-merges)
+          else
+            echo "No previous tag detected, using latest commits"
+            COMMITS=$(git log -n 25 --pretty=format:"- %s (%h)" --no-merges)
+          fi
+
+          if [ -z "$COMMITS" ]; then
+            COMMITS="- Aggiornamento e miglioramenti generali."
+          fi
+
+          {
+            echo "body<<EOF"
+            echo "## Novità in $CURRENT_REF"
+            echo ""
+            echo "$COMMITS"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -73,13 +101,7 @@ jobs:
           projectPath: './crates/omnis_tauri'
           tagName: ${{ github.ref_name }}
           releaseName: 'Omnis Game Library ${{ github.ref_name }}'
-          releaseBody: |
-            ## Omnis Game Library ${{ github.ref_name }}
-
-            ### Installers inclusi:
-            - **Windows**: Installer setup `.exe` (NSIS) e pacchetto `.msi`
-            - **Linux**: Pacchetto `.deb` (Debian/Ubuntu/Mint) e `.AppImage` (universale)
-            - **macOS**: Immagine disco `.dmg`
+          releaseBody: ${{ steps.changelog.outputs.body }}
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}

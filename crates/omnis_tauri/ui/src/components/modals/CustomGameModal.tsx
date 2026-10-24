@@ -214,21 +214,21 @@ export default function CustomGameModal({
             style={{ borderColor: "var(--border-color)" }}
           >
             <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 rounded-xl border text-xs font-medium text-slate-300 hover:bg-white/5 transition-colors"
-              style={{ borderColor: "var(--border-color)" }}
-            >
-              Annulla
-            </button>
-            <button
               type="submit"
               disabled={isAddingCustom}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium text-white shadow-lg transition-all hover:brightness-110 active:opacity-90"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium text-white shadow-lg transition-all hover:brightness-110 active:opacity-90 cursor-pointer disabled:opacity-50"
               style={{ backgroundColor: "var(--accent-primary)" }}
             >
               <PlusCircle className="w-4 h-4" />
               <span>{isAddingCustom ? "Importazione..." : "Aggiungi al Catalogo"}</span>
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 rounded-xl border text-xs font-medium text-slate-300 hover:bg-white/5 transition-colors cursor-pointer"
+              style={{ borderColor: "var(--border-color)" }}
+            >
+              Annulla
             </button>
           </div>
         </form>

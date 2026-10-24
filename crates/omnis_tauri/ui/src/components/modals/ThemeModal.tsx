@@ -464,8 +464,15 @@ export default function ThemeModal({
 
             <div className="flex justify-end gap-3 pt-3">
               <button
+                onClick={handleSave}
+                className="px-6 py-2.5 rounded-xl font-black text-xs text-white shadow-lg transition-all cursor-pointer hover:brightness-110 active:opacity-90"
+                style={{ backgroundColor: "var(--accent-primary)" }}
+              >
+                Crea, Salva & Applica Tema
+              </button>
+              <button
                 onClick={() => setThemeModalTab("list")}
-                className="px-5 py-2.5 rounded-xl text-xs font-bold border"
+                className="px-5 py-2.5 rounded-xl text-xs font-bold border cursor-pointer hover:bg-white/10 transition-colors"
                 style={{
                   backgroundColor: "var(--bg-surface)",
                   borderColor: "var(--border-color)",
@@ -473,13 +480,6 @@ export default function ThemeModal({
                 }}
               >
                 Annulla
-              </button>
-              <button
-                onClick={handleSave}
-                className="px-6 py-2.5 rounded-xl font-black text-xs text-white shadow-lg transition-all"
-                style={{ backgroundColor: "var(--accent-primary)" }}
-              >
-                Crea, Salva & Applica Tema
               </button>
             </div>
           </div>

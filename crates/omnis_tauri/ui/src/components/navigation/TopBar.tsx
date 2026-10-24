@@ -127,15 +127,18 @@ export default function TopBar({
       onMouseDown={handleStartDragging}
       onDoubleClick={handleToggleMaximize}
       data-tauri-drag-region
-      className="h-14 min-h-[56px] max-h-[56px] border-b flex items-center justify-between px-3 z-40 transition-colors duration-300 cursor-default select-none overflow-hidden"
+      className="h-14 min-h-[56px] max-h-[56px] border-b flex items-center z-40 transition-colors duration-300 cursor-default select-none overflow-hidden"
       style={{
         backgroundColor: "var(--bg-surface)",
         borderColor: "var(--border-color)",
       }}
     >
-      {/* Left: Brand Logo & Segmented Switcher */}
-      <div className="flex items-center gap-3 shrink-0">
-        <div className="flex items-center gap-2">
+      {/* Brand Column: Perfectly aligned with Sidebar (w-52 min-w-[208px] max-w-[208px] border-r) */}
+      <div
+        className="w-52 min-w-[208px] max-w-[208px] h-full flex items-center px-3 border-r shrink-0"
+        style={{ borderColor: "var(--border-color)" }}
+      >
+        <div className="flex items-center gap-2 min-w-0">
           <div
             className="w-8 h-8 rounded-lg flex items-center justify-center shadow-lg transition-all shrink-0"
             style={{
@@ -145,68 +148,70 @@ export default function TopBar({
           >
             <Zap className="w-4 h-4 text-white fill-white" />
           </div>
-          <div className="flex flex-col leading-none">
+          <div className="flex flex-col leading-none truncate">
             <span className="font-semibold text-sm tracking-wider text-white">OMNIS</span>
             <span
-              className="font-extrabold text-[8px] tracking-widest uppercase"
+              className="font-extrabold text-[8px] tracking-widest uppercase truncate"
               style={{ color: "var(--accent-primary)" }}
             >
               {currentTheme.name.split(" ")[0]} EDITION
             </span>
           </div>
         </div>
-
-        <div className="h-5 w-[1px]" style={{ backgroundColor: "var(--border-color)" }} />
-
-        {/* Segmented View Switcher */}
-        <div
-          className="p-1 rounded-lg border flex items-center gap-1 shrink-0"
-          style={{
-            backgroundColor: "var(--bg-card)",
-            borderColor: "var(--border-color)",
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => setViewMode("grid")}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold transition-all"
-            style={{
-              backgroundColor: viewMode === "grid" ? "var(--accent-primary)" : "transparent",
-              color: viewMode === "grid" ? "#ffffff" : "var(--text-muted)",
-            }}
-            title={t("views.grid")}
-          >
-            <LayoutGrid className="w-3.5 h-3.5" />
-            <span className="hidden md:inline">{t("views.grid")}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("details")}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold transition-all"
-            style={{
-              backgroundColor: viewMode === "details" ? "var(--accent-primary)" : "transparent",
-              color: viewMode === "details" ? "#ffffff" : "var(--text-muted)",
-            }}
-            title={t("views.details")}
-          >
-            <PanelLeft className="w-3.5 h-3.5" />
-            <span className="hidden md:inline">{t("views.details")}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("list")}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold transition-all"
-            style={{
-              backgroundColor: viewMode === "list" ? "var(--accent-primary)" : "transparent",
-              color: viewMode === "list" ? "#ffffff" : "var(--text-muted)",
-            }}
-            title={t("views.list")}
-          >
-            <TableProperties className="w-3.5 h-3.5" />
-            <span className="hidden md:inline">{t("views.list")}</span>
-          </button>
-        </div>
       </div>
+
+      {/* Main TopBar Area: Aligned with Catalog Main Area */}
+      <div className="flex-1 flex items-center justify-between px-3 h-full min-w-0">
+        {/* Left: Segmented Switcher */}
+        <div className="flex items-center gap-3 shrink-0">
+          <div
+            className="p-1 rounded-lg border flex items-center gap-1 shrink-0"
+            style={{
+              backgroundColor: "var(--bg-card)",
+              borderColor: "var(--border-color)",
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setViewMode("grid")}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold transition-all"
+              style={{
+                backgroundColor: viewMode === "grid" ? "var(--accent-primary)" : "transparent",
+                color: viewMode === "grid" ? "#ffffff" : "var(--text-muted)",
+              }}
+              title={t("views.grid")}
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+              <span className="hidden md:inline">{t("views.grid")}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("details")}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold transition-all"
+              style={{
+                backgroundColor: viewMode === "details" ? "var(--accent-primary)" : "transparent",
+                color: viewMode === "details" ? "#ffffff" : "var(--text-muted)",
+              }}
+              title={t("views.details")}
+            >
+              <PanelLeft className="w-3.5 h-3.5" />
+              <span className="hidden md:inline">{t("views.details")}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("list")}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold transition-all"
+              style={{
+                backgroundColor: viewMode === "list" ? "var(--accent-primary)" : "transparent",
+                color: viewMode === "list" ? "#ffffff" : "var(--text-muted)",
+              }}
+              title={t("views.list")}
+            >
+              <TableProperties className="w-3.5 h-3.5" />
+              <span className="hidden md:inline">{t("views.list")}</span>
+            </button>
+          </div>
+        </div>
 
       {/* Center: Search Bar */}
       <div className="flex-1 min-w-[100px] max-w-xs mx-2">
@@ -622,6 +627,7 @@ export default function TopBar({
           </button>
         </div>
       </div>
-    </header>
+    </div>
+  </header>
   );
 }

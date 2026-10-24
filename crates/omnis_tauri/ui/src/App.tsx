@@ -118,7 +118,7 @@ export default function App() {
   const [uiZoom, setUiZoom] = useState<number>(1.0);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
-  const [statusMessage, setStatusMessage] = useState<string>("Pronto (Motore Tauri 2.0 / Fullscreen)");
+  const [statusMessage, setStatusMessage] = useState<string>("Pronto");
   const [isGameRunning, setIsGameRunning] = useState<boolean>(false);
   const [activeGame, setActiveGame] = useState<ActiveGameSession | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
@@ -1638,18 +1638,20 @@ export default function App() {
             }}
           >
             <div className="flex items-center gap-3 truncate">
-              <div className="flex items-center gap-1.5 shrink-0">
-                <span
-                  className={`w-2 h-2 rounded-full ${
-                    activeGame
-                      ? "bg-emerald-400 animate-pulse shadow-emerald-400/50 shadow-sm"
-                      : "bg-emerald-400 shadow-sm"
-                  }`}
-                />
-                <span className="font-bold text-white">
-                  {gamepadConnected ? gamepadName : "Tauri 2.0"}
-                </span>
-              </div>
+              {gamepadConnected && (
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span
+                    className={`w-2 h-2 rounded-full ${
+                      activeGame
+                        ? "bg-emerald-400 animate-pulse shadow-emerald-400/50 shadow-sm"
+                        : "bg-emerald-400 shadow-sm"
+                    }`}
+                  />
+                  <span className="font-bold text-white">
+                    {gamepadName}
+                  </span>
+                </div>
+              )}
 
               {activeGame ? (
                 <div className="flex items-center gap-2 truncate">
@@ -1879,17 +1881,17 @@ export default function App() {
             </p>
             <div className="flex justify-end gap-3">
               <button
-                onClick={() => setShowKillConfirmModal(false)}
-                className="px-4 py-2 rounded-xl text-sm font-semibold bg-white/10 hover:bg-white/20 text-slate-200 transition-colors"
-              >
-                Annulla
-              </button>
-              <button
                 onClick={confirmKillRunningGame}
-                className="px-4 py-2 rounded-xl text-sm font-bold bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-600/30 transition-all flex items-center gap-2"
+                className="px-4 py-2 rounded-xl text-sm font-bold bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-600/30 transition-all flex items-center gap-2 cursor-pointer"
               >
                 <Square className="w-4 h-4 fill-white" />
                 Conferma e Termina
+              </button>
+              <button
+                onClick={() => setShowKillConfirmModal(false)}
+                className="px-4 py-2 rounded-xl text-sm font-semibold bg-white/10 hover:bg-white/20 text-slate-200 transition-colors cursor-pointer"
+              >
+                Annulla
               </button>
             </div>
           </div>
