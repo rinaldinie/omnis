@@ -259,10 +259,7 @@ pub async fn launch_game(
         prev_pos = window.outer_position().ok();
         // Concede autorizzazione foreground in anticipo (Requirement C1)
         omnis_core::launcher::allow_set_foreground_window();
-        // In fullscreen mode, don't minimize to desktop so the user stays in the immersive 10-foot launch screen (Playnite parity)
-        if !was_fullscreen {
-            let _ = window.minimize();
-        }
+        let _ = window.minimize();
     }
 
     // Emette l'evento Tauri "game-started" con session_id e stato launching (Requirement B3)
@@ -329,6 +326,16 @@ pub async fn launch_game(
                             "pid": pid,
                         }),
                     );
+
+                    // Ensure Omnis window is minimized when game process starts
+                    if let Some(window) = app.get_webview_window("main") {
+                        let _ = window.minimize();
+                    }
+
+                    // Actively bring the game's main window to the foreground
+                    if pid > 0 {
+                        omnis_core::launcher::bring_process_to_foreground_async(pid, 8).await;
+                    }
                 });
             },
         )
@@ -354,28 +361,30 @@ pub async fn launch_game(
         active_mgr.clear_running().await;
 
         // Ripristina la finestra principale al termine del gioco (Requirement C1 & C2)
-        // Breve ritardo per attendere che Windows completi il ripristino della modalità video / risoluzione (C2)
-        tokio::time::sleep(std::time::Duration::from_millis(350)).await;
+        // Se la durata è 0 (es. avvio non tracciabile o errore immediato), non forziamo unminimize immediato
+        if duration > 0 {
+            tokio::time::sleep(std::time::Duration::from_millis(350)).await;
 
-        if let Some(window) = app_handle_clone.get_webview_window("main") {
-            // Concede autorizzazione foreground per bypassare i blocchi di Windows (C1)
-            omnis_core::launcher::allow_set_foreground_window();
+            if let Some(window) = app_handle_clone.get_webview_window("main") {
+                // Concede autorizzazione foreground per bypassare i blocchi di Windows (C1)
+                omnis_core::launcher::allow_set_foreground_window();
 
-            // Sequenza di ripristino robusta: unminimize -> show -> set_focus
-            let _ = window.unminimize();
-            let _ = window.show();
-            let _ = window.set_focus();
+                // Sequenza di ripristino robusta: unminimize -> show -> set_focus
+                let _ = window.unminimize();
+                let _ = window.show();
+                let _ = window.set_focus();
 
-            // Gestione risoluzione e multi-monitor: se era fullscreen riapplica con breve ritardo (C2)
-            if was_fullscreen {
-                tokio::time::sleep(std::time::Duration::from_millis(150)).await;
-                let _ = window.set_fullscreen(true);
-            } else {
-                if let Some(pos) = prev_pos {
-                    let _ = window.set_position(tauri::Position::Physical(pos));
-                }
-                if let Some(sz) = prev_size {
-                    let _ = window.set_size(tauri::Size::Physical(sz));
+                // Gestione risoluzione e multi-monitor: se era fullscreen riapplica con breve ritardo (C2)
+                if was_fullscreen {
+                    tokio::time::sleep(std::time::Duration::from_millis(150)).await;
+                    let _ = window.set_fullscreen(true);
+                } else {
+                    if let Some(pos) = prev_pos {
+                        let _ = window.set_position(tauri::Position::Physical(pos));
+                    }
+                    if let Some(sz) = prev_size {
+                        let _ = window.set_size(tauri::Size::Physical(sz));
+                    }
                 }
             }
         }
