@@ -164,6 +164,45 @@ pub async fn kill_running_game(
     Ok(false)
 }
 
+fn validate_and_open_store_uri(uri: &str) -> Result<(), String> {
+    let allowed_schemes = [
+        "steam://",
+        "com.epicgames.launcher://",
+        "goggalaxy://",
+        "ms-windows-store://",
+    ];
+    if !allowed_schemes.iter().any(|scheme| uri.starts_with(scheme)) {
+        return Err("Protocollo URI non autorizzato".to_string());
+    }
+    if uri.chars().any(|c| c.is_control() || "&|<>^%\"' \r\n\t".contains(c)) {
+        return Err("URI contiene caratteri non consentiti".to_string());
+    }
+
+    #[cfg(windows)]
+    {
+        std::process::Command::new("rundll32.exe")
+            .args(["url.dll,FileProtocolHandler", uri])
+            .spawn()
+            .map_err(|e| format!("Impossibile aprire il protocollo: {}", e))?;
+    }
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg(uri)
+            .spawn()
+            .map_err(|e| format!("Impossibile aprire il protocollo: {}", e))?;
+    }
+    #[cfg(not(any(windows, target_os = "macos")))]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(uri)
+            .spawn()
+            .map_err(|e| format!("Impossibile aprire il protocollo: {}", e))?;
+    }
+
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn launch_game(
     game_id: String,
@@ -196,14 +235,7 @@ pub async fn launch_game(
             _ => format!("steam://install/{}", game.external_id),
         };
 
-        let mut cmd = tokio::process::Command::new(if cfg!(windows) { "cmd.exe" } else { "xdg-open" });
-        if cfg!(windows) {
-            cmd.args(["/c", "start", "", &install_uri]);
-        } else {
-            cmd.arg(&install_uri);
-        }
-
-        let _ = cmd.spawn().map_err(|e| e.to_string())?;
+        validate_and_open_store_uri(&install_uri)?;
         return Ok(0);
     }
 
@@ -221,12 +253,14 @@ pub async fn launch_game(
 
         LaunchConfiguration {
             executable: if cfg!(windows) {
-                "cmd.exe".to_string()
+                "rundll32.exe".to_string()
+            } else if cfg!(target_os = "macos") {
+                "open".to_string()
             } else {
                 "xdg-open".to_string()
             },
             arguments: if cfg!(windows) {
-                vec!["/c".to_string(), "start".to_string(), "".to_string(), play_uri]
+                vec!["url.dll,FileProtocolHandler".to_string(), play_uri]
             } else {
                 vec![play_uri]
             },
@@ -497,27 +531,11 @@ pub async fn uninstall_game(
     match library_id {
         "steam" => {
             let uri = format!("steam://uninstall/{}", external_id);
-            if cfg!(windows) {
-                let _ = tokio::process::Command::new("cmd.exe")
-                    .args(["/c", "start", &uri])
-                    .spawn();
-            } else {
-                let _ = tokio::process::Command::new("xdg-open")
-                    .arg(&uri)
-                    .spawn();
-            }
+            validate_and_open_store_uri(&uri)?;
         }
         "epic" => {
             let uri = format!("com.epicgames.launcher://apps/{}?action=uninstall", external_id);
-            if cfg!(windows) {
-                let _ = tokio::process::Command::new("cmd.exe")
-                    .args(["/c", "start", &uri])
-                    .spawn();
-            } else {
-                let _ = tokio::process::Command::new("xdg-open")
-                    .arg(&uri)
-                    .spawn();
-            }
+            validate_and_open_store_uri(&uri)?;
         }
         "gog" => {
             let mut launched_uninstaller = false;
@@ -530,15 +548,7 @@ pub async fn uninstall_game(
             }
             if !launched_uninstaller {
                 let uri = format!("goggalaxy://openGameView/{}", external_id);
-                if cfg!(windows) {
-                    let _ = tokio::process::Command::new("cmd.exe")
-                        .args(["/c", "start", &uri])
-                        .spawn();
-                } else {
-                    let _ = tokio::process::Command::new("xdg-open")
-                        .arg(&uri)
-                        .spawn();
-                }
+                validate_and_open_store_uri(&uri)?;
             }
         }
         _ => {
@@ -632,41 +642,17 @@ pub async fn verify_game_files(
     match game.library_id.as_str() {
         "steam" => {
             let uri = format!("steam://validate/{}", game.external_id);
-            if cfg!(windows) {
-                let _ = tokio::process::Command::new("cmd.exe")
-                    .args(["/c", "start", &uri])
-                    .spawn();
-            } else {
-                let _ = tokio::process::Command::new("xdg-open")
-                    .arg(&uri)
-                    .spawn();
-            }
+            validate_and_open_store_uri(&uri)?;
             Ok(())
         }
         "epic" => {
             let uri = format!("com.epicgames.launcher://apps/{}?action=verify", game.external_id);
-            if cfg!(windows) {
-                let _ = tokio::process::Command::new("cmd.exe")
-                    .args(["/c", "start", &uri])
-                    .spawn();
-            } else {
-                let _ = tokio::process::Command::new("xdg-open")
-                    .arg(&uri)
-                    .spawn();
-            }
+            validate_and_open_store_uri(&uri)?;
             Ok(())
         }
         "gog" => {
             let uri = format!("goggalaxy://openGameView/{}", game.external_id);
-            if cfg!(windows) {
-                let _ = tokio::process::Command::new("cmd.exe")
-                    .args(["/c", "start", &uri])
-                    .spawn();
-            } else {
-                let _ = tokio::process::Command::new("xdg-open")
-                    .arg(&uri)
-                    .spawn();
-            }
+            validate_and_open_store_uri(&uri)?;
             Ok(())
         }
         _ => Err("La verifica automatica dei file è supportata solo per Steam ed Epic Games.".to_string()),

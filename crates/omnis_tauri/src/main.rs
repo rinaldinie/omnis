@@ -59,8 +59,8 @@ fn main() {
     });
 
     let vault = Arc::new(omnis_core::SecretVault::new(&app_dir).unwrap_or_else(|e| {
-        tracing::warn!("SecretVault initialization warning: {}. Using fallback.", e);
-        omnis_core::SecretVault::from_key([0x42; 32])
+        tracing::error!("Inizializzazione SecretVault fallita: {}. Generazione chiave effimera casuale in memoria.", e);
+        omnis_core::SecretVault::ephemeral()
     }));
     let store_account_manager = Arc::new(store_manager::StoreAccountManager::new(
         db.clone(),

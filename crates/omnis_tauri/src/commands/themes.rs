@@ -191,6 +191,20 @@ pub fn get_themes(state: State<'_, AppState>) -> Result<Vec<ThemeConfig>, String
 
 #[tauri::command]
 pub fn save_custom_theme(mut theme: ThemeConfig, state: State<'_, AppState>) -> Result<bool, String> {
+    if theme.id.is_empty() {
+        return Err("ID tema non valido: non può essere vuoto".to_string());
+    }
+    if !theme.id.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-') {
+        return Err("ID tema non valido: sono ammessi solo caratteri alfanumerici, trattini e underscore".to_string());
+    }
+    if theme.id.contains("..") {
+        return Err("ID tema non valido: sequenza traversal vietata".to_string());
+    }
+
+    if let Some(ref css) = theme.custom_css {
+        omnis_core::validate_theme_css_security(css)?;
+    }
+
     theme.is_custom = true;
 
     // 1. Save in dedicated folder: themes/{id}/theme.json + style.css
