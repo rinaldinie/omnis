@@ -332,6 +332,128 @@ pub fn allow_set_foreground_window() {
     }
 }
 
+/// Brings the main visible window of a process (or its child process tree) to the foreground on Windows.
+/// Uses AttachThreadInput, AllowSetForegroundWindow, and SetForegroundWindow to reliably bypass Windows foreground lock.
+#[cfg(windows)]
+pub fn bring_process_to_foreground(pid: u32) -> bool {
+    use windows::Win32::Foundation::{BOOL, HWND, LPARAM};
+    use windows::Win32::System::Threading::{AttachThreadInput, GetCurrentThreadId};
+    use windows::Win32::UI::WindowsAndMessaging::{
+        AllowSetForegroundWindow, BringWindowToTop, EnumWindows, GetForegroundWindow,
+        GetWindowThreadProcessId, IsWindowVisible, SetForegroundWindow, ShowWindow,
+        ASFW_ANY, SW_RESTORE,
+    };
+
+    if pid == 0 {
+        return false;
+    }
+
+    // Collect all candidate PIDs: root PID and all children in process tree
+    let mut candidate_pids = std::collections::HashSet::new();
+    candidate_pids.insert(pid);
+
+    let mut sys = System::new();
+    sys.refresh_processes();
+    let mut added = true;
+    while added {
+        added = false;
+        for (p, proc) in sys.processes() {
+            let p_u32 = p.as_u32();
+            if !candidate_pids.contains(&p_u32) {
+                if let Some(parent) = proc.parent() {
+                    if candidate_pids.contains(&parent.as_u32()) {
+                        candidate_pids.insert(p_u32);
+                        added = true;
+                    }
+                }
+            }
+        }
+    }
+
+    struct WindowSearch {
+        candidate_pids: std::collections::HashSet<u32>,
+        found_hwnd: Option<HWND>,
+    }
+
+    unsafe extern "system" fn enum_proc(hwnd: HWND, lparam: LPARAM) -> BOOL {
+        let data = &mut *(lparam.0 as *mut WindowSearch);
+        let mut proc_id = 0u32;
+        GetWindowThreadProcessId(hwnd, Some(&mut proc_id));
+        if data.candidate_pids.contains(&proc_id) && IsWindowVisible(hwnd).as_bool() {
+            data.found_hwnd = Some(hwnd);
+            return BOOL(0); // Stop enumeration
+        }
+        BOOL(1)
+    }
+
+    let mut data = WindowSearch {
+        candidate_pids,
+        found_hwnd: None,
+    };
+
+    unsafe {
+        let _ = EnumWindows(Some(enum_proc), LPARAM(&mut data as *mut WindowSearch as isize));
+        if let Some(hwnd) = data.found_hwnd {
+            let _ = AllowSetForegroundWindow(ASFW_ANY);
+
+            let fg_hwnd = GetForegroundWindow();
+            let mut fg_proc_id = 0u32;
+            let fg_thread_id = GetWindowThreadProcessId(fg_hwnd, Some(&mut fg_proc_id));
+            let current_thread_id = GetCurrentThreadId();
+            let mut target_proc_id = 0u32;
+            let target_thread_id = GetWindowThreadProcessId(hwnd, Some(&mut target_proc_id));
+
+            let attached_fg = if fg_thread_id != current_thread_id && fg_thread_id != 0 {
+                AttachThreadInput(current_thread_id, fg_thread_id, BOOL(1)) == BOOL(1)
+            } else {
+                false
+            };
+
+            let attached_target = if target_thread_id != current_thread_id && target_thread_id != 0 {
+                AttachThreadInput(current_thread_id, target_thread_id, BOOL(1)) == BOOL(1)
+            } else {
+                false
+            };
+
+            let _ = ShowWindow(hwnd, SW_RESTORE);
+            let _ = BringWindowToTop(hwnd);
+            let _ = SetForegroundWindow(hwnd);
+
+            if attached_fg {
+                let _ = AttachThreadInput(current_thread_id, fg_thread_id, BOOL(0));
+            }
+            if attached_target {
+                let _ = AttachThreadInput(current_thread_id, target_thread_id, BOOL(0));
+            }
+
+            return true;
+        }
+    }
+    false
+}
+
+#[cfg(not(windows))]
+pub fn bring_process_to_foreground(_pid: u32) -> bool {
+    false
+}
+
+/// Asynchronously attempts to bring the process's main window to the foreground with polling retries.
+/// Since games often take 1 to 5 seconds to initialize graphics and display their window,
+/// this retries every 300ms for up to `timeout_secs` (default ~6-8s).
+pub async fn bring_process_to_foreground_async(pid: u32, timeout_secs: u64) -> bool {
+    if pid == 0 {
+        return false;
+    }
+    let deadline = Instant::now() + Duration::from_secs(timeout_secs.max(1));
+    while Instant::now() < deadline {
+        if bring_process_to_foreground(pid) {
+            return true;
+        }
+        tokio::time::sleep(Duration::from_millis(300)).await;
+    }
+    false
+}
+
 /// Helper to forcibly terminate a process by PID across platforms
 pub fn kill_process(pid: u32) -> Result<(), String> {
     if pid == 0 {
@@ -556,6 +678,51 @@ impl GameLauncher {
             let mut child = cmd.spawn()?;
             let _ = child.wait().await;
 
+            // Store-specific Steam AppID detection heuristic if target_dir is not known (Requirement A7)
+            let steam_appid: Option<u64> = config.arguments.iter().find_map(|arg| {
+                if let Some(pos) = arg.find("steam://rungameid/") {
+                    let id_part = &arg[pos + "steam://rungameid/".len()..];
+                    let clean_id: String = id_part.chars().take_while(|c| c.is_ascii_digit()).collect();
+                    clean_id.parse::<u64>().ok()
+                } else {
+                    None
+                }
+            });
+
+            #[cfg(windows)]
+            if let Some(appid) = steam_appid {
+                let wait_start = Instant::now();
+                let mut steam_detected = false;
+                while wait_start.elapsed() < Duration::from_secs(45) {
+                    if get_steam_running_appid() == Some(appid) {
+                        steam_detected = true;
+                        break;
+                    }
+                    tokio::time::sleep(Duration::from_millis(500)).await;
+                }
+
+                if steam_detected {
+                    let mut sys = System::new();
+                    sys.refresh_processes();
+                    let mut found_pid = 0u32;
+                    for (pid, proc) in sys.processes() {
+                        if matches_target(proc, target_name.as_deref(), target_dir.as_deref()) {
+                            found_pid = pid.as_u32();
+                            break;
+                        }
+                    }
+                    let detection_time = Instant::now();
+                    on_started(found_pid);
+
+                    while get_steam_running_appid() == Some(appid) {
+                        tokio::time::sleep(Duration::from_secs(1)).await;
+                    }
+
+                    let duration = detection_time.elapsed().as_secs();
+                    return Ok(duration);
+                }
+            }
+
             // If neither target name nor directory is specified, we cannot track a process
             if target_name.is_none() && target_dir.is_none() {
                 on_started(0);
@@ -692,6 +859,11 @@ impl GameLauncher {
     /// Allows background and child processes to set the foreground window on Windows (Requirement C1)
     pub fn allow_set_foreground_window() {
         allow_set_foreground_window();
+    }
+
+    /// Brings the process's main window to the foreground with async polling
+    pub async fn bring_process_to_foreground(pid: u32, timeout_secs: u64) -> bool {
+        bring_process_to_foreground_async(pid, timeout_secs).await
     }
 }
 
