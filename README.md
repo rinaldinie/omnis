@@ -13,7 +13,7 @@ Omnis aggregates your PC gaming library across platforms into a single, cohesive
 - **Robust Process Tracking**: Windows Kernel Job Objects track game processes and child trees accurately without relying solely on window handles.
 - **Embedded SQLite Engine**: Direct local SQLite database with automatic migrations, index optimizations, and WAL mode.
 - **Multi-View Interface**: Grid view with dynamic zoom slider, split details panel, and spreadsheet list view with sorting and dynamic grouping (by library, status, genre, developer, completion status).
-- **Big Picture Mode**: Controller-first fullscreen experience with synthesized Web Audio SFX and virtual gamepad keyboard.
+- **Fullscreen Mode**: Controller-first fullscreen experience with synthesized Web Audio SFX and virtual gamepad keyboard.
 - **Metadata Editor**: Manual editor with native file and folder pickers for executables, working directories, and artwork.
 
 ---
