@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   Layers,
   Filter,
@@ -52,6 +52,8 @@ import { useLibraryFilters } from "./hooks/useLibraryFilters";
 import { useGamepadNavigation } from "./hooks/useGamepadNavigation";
 import { useAppUpdater, UpdaterContext } from "./hooks/useAppUpdater";
 import FullscreenView from "./components/views/FullscreenView";
+import { ControllerTypeContext } from "./components/fullscreen/ConsoleChrome";
+import { GameSortMode, readSavedSortMode, saveSortMode, sortGames } from "./utils/sortGames";
 import DetailsSplitView from "./components/views/DetailsSplitView";
 import GridView from "./components/views/GridView";
 import TopBar from "./components/navigation/TopBar";
@@ -234,6 +236,10 @@ export default function App() {
   });
   const carouselRef = useRef<HTMLDivElement>(null);
   const [showVirtualKeyboard, setShowVirtualKeyboard] = useState<boolean>(false);
+  // Columns of the fullscreen grid view (0 = single shelf row), reported by FullscreenView
+  const [fullscreenGridColumns, setFullscreenGridColumns] = useState<number>(0);
+  // Whether the fullscreen home shows the "continue playing" row, reported by FullscreenView
+  const [fullscreenHasRecentRow, setFullscreenHasRecentRow] = useState<boolean>(false);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(soundEffects.enabled);
 
   // DETECT --fullscreen / --bigpicture CLI ARGUMENTS FROM TAURI & SINGLE-INSTANCE
@@ -334,6 +340,13 @@ export default function App() {
     detailsFilteredGames,
   } = useLibraryFilters(games);
 
+  // Fullscreen sort order; the sorted list drives gamepad navigation, launch and the fullscreen view
+  const [fullscreenSort, setFullscreenSort] = useState<GameSortMode>(readSavedSortMode);
+  const fullscreenGames = useMemo(
+    () => (isFullscreen ? sortGames(filteredGames, fullscreenSort) : filteredGames),
+    [isFullscreen, filteredGames, fullscreenSort]
+  );
+
   // WINDOW CONTROLS HOOK
   const { handleMinimize, handleToggleMaximize, handleClose } = useWindowControls();
 
@@ -383,6 +396,7 @@ export default function App() {
   const {
     gamepadConnected,
     gamepadName,
+    gamepadType,
     focusedIndex,
     setFocusedIndex,
     showFullscreenDetails,
@@ -394,19 +408,20 @@ export default function App() {
   } = useGamepadNavigation({
     isFullscreen,
     toggleFullscreen,
-    filteredGames,
+    filteredGames: fullscreenGames,
     selectedGame,
     showVirtualKeyboard,
     setShowVirtualKeyboard,
     setShowThemeModal,
     handleLaunch: (id) => handleLaunch(id),
     cycleFilter,
-    carouselRef,
     isSuspended: isGameRunning,
+    fullscreenGridColumns: isFullscreen ? fullscreenGridColumns : 0,
+    hasRecentRow: isFullscreen && fullscreenHasRecentRow,
   });
 
-  const focusedGame = filteredGames.length > 0
-    ? (filteredGames[focusedIndex] || filteredGames[0] || null)
+  const focusedGame = fullscreenGames.length > 0
+    ? (fullscreenGames[focusedIndex] || fullscreenGames[0] || null)
     : null;
 
   // CONTEXT MENU HANDLERS
@@ -1095,6 +1110,7 @@ export default function App() {
 
   return (
     <UpdaterContext.Provider value={updater}>
+    <ControllerTypeContext.Provider value={gamepadType}>
       <div
         className="flex flex-col h-screen w-screen select-none overflow-hidden transition-colors duration-300"
       style={{
@@ -1109,7 +1125,7 @@ export default function App() {
       {isFullscreen ? (
         <FullscreenView
           focusedGame={focusedGame}
-          filteredGames={filteredGames}
+          filteredGames={fullscreenGames}
           focusedIndex={focusedIndex}
           setFocusedIndex={setFocusedIndex}
           setSelectedGame={setSelectedGame}
@@ -1137,6 +1153,24 @@ export default function App() {
           showFullscreenDetails={showFullscreenDetails}
           setShowFullscreenDetails={setShowFullscreenDetails}
           carouselRef={carouselRef}
+          onGridColumnsChange={setFullscreenGridColumns}
+          onRecentRowChange={setFullscreenHasRecentRow}
+          onGameAction={(action, gameId) => {
+            if (action === "folder") handleOpenInstallDir(gameId);
+            else if (action === "verify") handleVerifyFiles(gameId);
+            else if (action === "shortcut") handleCreateShortcut(gameId);
+            else if (action === "uninstall") handleConfirmUninstall(gameId);
+          }}
+          sortMode={fullscreenSort}
+          onSortModeChange={(mode) => {
+            setFullscreenSort(mode);
+            saveSortMode(mode);
+            setFocusedIndex(0);
+          }}
+          onClearSearch={() => {
+            setSearchQuery("");
+            setFocusedIndex(0);
+          }}
           t={t}
           isGameRunning={isGameRunning}
           activeGame={activeGame}
@@ -1648,7 +1682,7 @@ export default function App() {
                     }`}
                   />
                   <span className="font-bold text-white">
-                    {gamepadName}
+                    {gamepadName || t("console_ui.controller_connected")}
                   </span>
                 </div>
               )}
@@ -1822,7 +1856,8 @@ export default function App() {
         onClose={() => {
           setShowVirtualKeyboard(false);
         }}
-        placeholder="Cerca nella libreria..."
+        placeholder={t("console_ui.search_library")}
+        resultCount={fullscreenGames.length}
       />
 
       {/* CUSTOM GAME IMPORT MODAL */}
@@ -1891,7 +1926,7 @@ export default function App() {
                 onClick={() => setShowKillConfirmModal(false)}
                 className="px-4 py-2 rounded-xl text-sm font-semibold bg-white/10 hover:bg-white/20 text-slate-200 transition-colors cursor-pointer"
               >
-                Annulla
+                {t("common.cancel")}
               </button>
             </div>
           </div>
@@ -2011,6 +2046,7 @@ export default function App() {
         </div>
       )}
     </div>
+    </ControllerTypeContext.Provider>
     </UpdaterContext.Provider>
   );
 }
