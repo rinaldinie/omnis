@@ -515,6 +515,55 @@ export interface TranslationSchema {
     installing: string;
     install: string;
   },
+  achievements_settings: {
+    tab_sources: string;
+    tab_view: string;
+    tab_misc: string;
+    tab_appearance: string;
+    tab_ignored: string;
+    stores_group: string;
+    enable_store: string;
+    store_info_title: string;
+    coming_soon: string;
+    provider_info: string;
+    info_steam: string;
+    info_gog: string;
+    info_epic: string;
+    info_xbox: string;
+    view_heading: string;
+    progress_bar: string;
+    progress_bar_desc: string;
+    points: string;
+    points_desc: string;
+    rarity_badges: string;
+    rarity_badges_desc: string;
+    icon_size: string;
+    icon_size_desc: string;
+    opt_md: string;
+    opt_lg: string;
+    cache_heading: string;
+    cache_enable: string;
+    cache_enable_desc: string;
+    concurrency: string;
+    concurrency_desc: string;
+    threads: string;
+    sounds: string;
+    sounds_desc: string;
+    rarity_heading: string;
+    ultra_rare_threshold: string;
+    ultra_rare_desc: string;
+    rare_threshold: string;
+    rare_desc: string;
+    golden_glow: string;
+    golden_glow_desc: string;
+    reveal_secrets: string;
+    reveal_secrets_desc: string;
+    ignored_heading: string;
+    ignored_desc: string;
+    ignored_empty: string;
+    reset: string;
+    saved: string;
+  },
   settings_modal: {
     title: string;
     subtitle: string;
