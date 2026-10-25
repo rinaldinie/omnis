@@ -627,6 +627,89 @@ export interface TranslationSchema {
     adding: string;
     add: string;
   },
+  play_actions: {
+    intro: string;
+    add: string;
+    empty_title: string;
+    empty_desc: string;
+    action_n: string;
+    remove: string;
+    executable: string;
+    executable_placeholder: string;
+    working_dir: string;
+    working_dir_placeholder: string;
+    pick_folder_title: string;
+    pick_folder: string;
+    arguments: string;
+    arguments_placeholder: string;
+    tracking: string;
+    tracking_kernel: string;
+    tracking_process: string;
+    tracking_directory: string;
+  },
+  editor_general: {
+    title: string;
+    title_placeholder: string;
+    sorting_title: string;
+    sorting_title_placeholder: string;
+    series: string;
+    series_placeholder: string;
+    age_rating: string;
+    age_rating_placeholder: string;
+    completion: string;
+    release_date: string;
+    release_date_placeholder: string;
+    user_score: string;
+    none: string;
+    critic_score: string;
+    critic_placeholder: string;
+    community_score: string;
+    community_placeholder: string;
+    genres: string;
+    genres_placeholder: string;
+    developers: string;
+    company_placeholder: string;
+    publishers: string;
+    tags: string;
+    tags_placeholder: string;
+  },
+  editor_media: {
+    cover: string;
+    remove_cover: string;
+    cover_preview: string;
+    no_cover: string;
+    path_label: string;
+    cover_placeholder: string;
+    pick_cover_title: string;
+    path_hint: string;
+    background: string;
+    remove_background: string;
+    background_preview: string;
+    no_background: string;
+    background_placeholder: string;
+    pick_background_title: string;
+    icon: string;
+    icon_preview: string;
+    icon_placeholder: string;
+    pick_icon_title: string;
+  },
+  editor_links: {
+    intro: string;
+    empty_desc: string;
+    add: string;
+    empty_title: string;
+    name_placeholder: string;
+    open_title: string;
+    remove_title: string;
+  },
+  editor_description: {
+    synopsis: string;
+    synopsis_placeholder: string;
+    features: string;
+    comma_separated: string;
+    features_placeholder: string;
+    suggestions: string;
+  },
   settings_modal: {
     title: string;
     subtitle: string;
@@ -826,5 +909,7 @@ export interface TranslationSchema {
     field_release_date: string;
     field_user_score: string;
     save_changes: string;
+    save_error: string;
+    saved: string;
   };
 }

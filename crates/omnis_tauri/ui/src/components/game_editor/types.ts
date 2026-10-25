@@ -40,11 +40,11 @@ export interface GameEditorFormData {
 }
 
 export const COMPLETION_STATUSES = [
-  { value: "NotPlayed", label: "Non giocato", color: "#94a3b8" },
-  { value: "Playing", label: "In corso", color: "#38bdf8" },
-  { value: "Beaten", label: "Finito", color: "#a855f7" },
-  { value: "Completed", label: "Completato al 100%", color: "#22c55e" },
-  { value: "Abandoned", label: "Abbandonato", color: "#ef4444" },
-  { value: "Backlog", label: "Backlog", color: "#f59e0b" },
-  { value: "PlanToPlay", label: "Da iniziare", color: "#6366f1" },
+  { value: "NotPlayed", key: "not_played", color: "#94a3b8" },
+  { value: "Playing", key: "playing", color: "#38bdf8" },
+  { value: "Beaten", key: "beaten", color: "#a855f7" },
+  { value: "Completed", key: "completed", color: "#22c55e" },
+  { value: "Abandoned", key: "abandoned", color: "#ef4444" },
+  { value: "Backlog", key: "backlog", color: "#f59e0b" },
+  { value: "PlanToPlay", key: "plan_to_play", color: "#6366f1" },
 ];

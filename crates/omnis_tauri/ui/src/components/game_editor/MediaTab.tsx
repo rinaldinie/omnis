@@ -1,6 +1,7 @@
 import React from "react";
 import { FolderOpen, Gamepad2 } from "lucide-react";
 import { GameEditorFormData } from "./types";
+import { useTranslation } from "../../i18n";
 
 interface MediaTabProps {
   formData: GameEditorFormData;
@@ -9,6 +10,7 @@ interface MediaTabProps {
 }
 
 export const MediaTab: React.FC<MediaTabProps> = ({ formData, onChange, onPickImage }) => {
+  const { t } = useTranslation();
   return (
     <div className="space-y-6">
       {/* Cover 2:3 */}
@@ -21,7 +23,7 @@ export const MediaTab: React.FC<MediaTabProps> = ({ formData, onChange, onPickIm
       >
         <div className="flex items-center justify-between">
           <span className="text-xs font-medium text-slate-200">
-            Copertina Verticale (Rapporto 2:3 - Standard 600x900)
+            {t("editor_media.cover")}
           </span>
           {formData.cover_image_path && (
             <button
@@ -29,7 +31,7 @@ export const MediaTab: React.FC<MediaTabProps> = ({ formData, onChange, onPickIm
               onClick={() => onChange({ cover_image_path: "" })}
               className="text-xs text-rose-400 hover:underline"
             >
-              Rimuovi Cover
+              {t("editor_media.remove_cover")}
             </button>
           )}
         </div>
@@ -39,7 +41,7 @@ export const MediaTab: React.FC<MediaTabProps> = ({ formData, onChange, onPickIm
             {formData.cover_image_path ? (
               <img
                 src={formData.cover_image_path}
-                alt="Preview Cover"
+                alt={t("editor_media.cover_preview")}
                 className="w-full h-full object-cover"
                 onError={(e) => {
                   (e.target as HTMLElement).style.display = "none";
@@ -47,14 +49,14 @@ export const MediaTab: React.FC<MediaTabProps> = ({ formData, onChange, onPickIm
               />
             ) : (
               <div className="text-center p-2 text-slate-500 text-xs">
-                Nessuna Cover
+                {t("editor_media.no_cover")}
               </div>
             )}
           </div>
 
           <div className="flex-1 space-y-2">
             <label className="text-xs font-medium text-slate-300">
-              Percorso file locale o URL remoto immagine
+              {t("editor_media.path_label")}
             </label>
             <div className="flex gap-2">
               <input
@@ -67,7 +69,7 @@ export const MediaTab: React.FC<MediaTabProps> = ({ formData, onChange, onPickIm
                   borderColor: "var(--border-color)",
                   color: "var(--text-primary)",
                 }}
-                placeholder="C:\percorso\cover.jpg oppure https://..."
+                placeholder={t("editor_media.cover_placeholder")}
               />
               <button
                 type="button"
@@ -78,14 +80,14 @@ export const MediaTab: React.FC<MediaTabProps> = ({ formData, onChange, onPickIm
                   borderColor: "var(--border-color)",
                   color: "var(--text-primary)",
                 }}
-                title="Seleziona file immagine dal computer..."
+                title={t("editor_media.pick_cover_title")}
               >
                 <FolderOpen className="w-4 h-4 text-indigo-400" />
-                <span>Sfoglia...</span>
+                <span>{t("custom_game.browse")}</span>
               </button>
             </div>
             <p className="text-[11px] text-slate-400">
-              Supporta percorsi assoluti locali su disco, data URLs base64 o link HTTPS diretti.
+              {t("editor_media.path_hint")}
             </p>
           </div>
         </div>
@@ -101,7 +103,7 @@ export const MediaTab: React.FC<MediaTabProps> = ({ formData, onChange, onPickIm
       >
         <div className="flex items-center justify-between">
           <span className="text-xs font-medium text-slate-200">
-            Sfondo Panoramico Hero (Rapporto 16:9 - 1920x1080)
+            {t("editor_media.background")}
           </span>
           {formData.background_image_path && (
             <button
@@ -109,7 +111,7 @@ export const MediaTab: React.FC<MediaTabProps> = ({ formData, onChange, onPickIm
               onClick={() => onChange({ background_image_path: "" })}
               className="text-xs text-rose-400 hover:underline"
             >
-              Rimuovi Sfondo
+              {t("editor_media.remove_background")}
             </button>
           )}
         </div>
@@ -119,7 +121,7 @@ export const MediaTab: React.FC<MediaTabProps> = ({ formData, onChange, onPickIm
             {formData.background_image_path ? (
               <img
                 src={formData.background_image_path}
-                alt="Preview Background"
+                alt={t("editor_media.background_preview")}
                 className="w-full h-full object-cover"
                 onError={(e) => {
                   (e.target as HTMLElement).style.display = "none";
@@ -127,7 +129,7 @@ export const MediaTab: React.FC<MediaTabProps> = ({ formData, onChange, onPickIm
               />
             ) : (
               <div className="text-center p-2 text-slate-500 text-xs">
-                Nessun Sfondo Panoramico
+                {t("editor_media.no_background")}
               </div>
             )}
           </div>
@@ -143,7 +145,7 @@ export const MediaTab: React.FC<MediaTabProps> = ({ formData, onChange, onPickIm
                 borderColor: "var(--border-color)",
                 color: "var(--text-primary)",
               }}
-              placeholder="C:\percorso\background.jpg oppure https://..."
+              placeholder={t("editor_media.background_placeholder")}
             />
             <button
               type="button"
@@ -154,10 +156,10 @@ export const MediaTab: React.FC<MediaTabProps> = ({ formData, onChange, onPickIm
                 borderColor: "var(--border-color)",
                 color: "var(--text-primary)",
               }}
-              title="Seleziona file sfondo dal computer..."
+              title={t("editor_media.pick_background_title")}
             >
               <FolderOpen className="w-4 h-4 text-indigo-400" />
-              <span>Sfoglia...</span>
+              <span>{t("custom_game.browse")}</span>
             </button>
           </div>
         </div>
@@ -172,7 +174,7 @@ export const MediaTab: React.FC<MediaTabProps> = ({ formData, onChange, onPickIm
         }}
       >
         <span className="text-xs font-medium text-slate-200">
-          Icona Titolo (Rapporto 1:1)
+          {t("editor_media.icon")}
         </span>
 
         <div className="flex gap-4 items-center">
@@ -180,7 +182,7 @@ export const MediaTab: React.FC<MediaTabProps> = ({ formData, onChange, onPickIm
             {formData.icon_image_path ? (
               <img
                 src={formData.icon_image_path}
-                alt="Preview Icon"
+                alt={t("editor_media.icon_preview")}
                 className="w-full h-full object-cover"
               />
             ) : (
@@ -199,7 +201,7 @@ export const MediaTab: React.FC<MediaTabProps> = ({ formData, onChange, onPickIm
                 borderColor: "var(--border-color)",
                 color: "var(--text-primary)",
               }}
-              placeholder="Percorso icona locale o URL .ico/.png"
+              placeholder={t("editor_media.icon_placeholder")}
             />
             <button
               type="button"
@@ -210,10 +212,10 @@ export const MediaTab: React.FC<MediaTabProps> = ({ formData, onChange, onPickIm
                 borderColor: "var(--border-color)",
                 color: "var(--text-primary)",
               }}
-              title="Seleziona icona dal computer..."
+              title={t("editor_media.pick_icon_title")}
             >
               <FolderOpen className="w-4 h-4 text-indigo-400" />
-              <span>Sfoglia...</span>
+              <span>{t("custom_game.browse")}</span>
             </button>
           </div>
         </div>
