@@ -647,6 +647,41 @@ export interface TranslationSchema {
     tracking_process: string;
     tracking_directory: string;
   },
+  theme_modal: {
+    draft_name: string;
+    draft_description: string;
+    draft_author: string;
+    custom_name: string;
+    created_in_editor: string;
+    tab_list: string;
+    tab_create: string;
+    list_hint: string;
+    open_folder: string;
+    active_badge: string;
+    custom_badge: string;
+    color_base_title: string;
+    color_surface_title: string;
+    color_accent_title: string;
+    in_use: string;
+    apply: string;
+    editor_title: string;
+    editor_desc: string;
+    field_name: string;
+    field_id: string;
+    field_base: string;
+    field_surface: string;
+    field_accent: string;
+    trailers: string;
+    trailers_desc: string;
+    save_apply: string;
+    desc_cyberpunk: string;
+    desc_steam_deck: string;
+    desc_playnite_dark: string;
+    desc_epic_dark: string;
+    desc_synthwave: string;
+    desc_nordic_frost: string;
+    desc_cinema_trailer: string;
+  },
   editor_general: {
     title: string;
     title_placeholder: string;
