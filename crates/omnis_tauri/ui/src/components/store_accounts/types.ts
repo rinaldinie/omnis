@@ -52,12 +52,12 @@ export async function listenTauri<T>(event: string, handler: (payload: T) => voi
   return null;
 }
 
-export function formatLastSync(isoStr: string | null | undefined): string {
-  if (!isoStr) return "Mai sincronizzato";
+export function formatLastSync(isoStr: string | null | undefined, locale: string, neverLabel: string): string {
+  if (!isoStr) return neverLabel;
   try {
     const d = new Date(isoStr);
     if (isNaN(d.getTime())) return isoStr;
-    return d.toLocaleString("it-IT", {
+    return d.toLocaleString(locale, {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",

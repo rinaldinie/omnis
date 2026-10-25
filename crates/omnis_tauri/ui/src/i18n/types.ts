@@ -801,6 +801,27 @@ export interface TranslationSchema {
     troubleshoot_step3_title: string;
     troubleshoot_step3_desc: string;
     troubleshoot_got_it: string;
+    connected_badge: string;
+    not_connected: string;
+    user_fallback: string;
+    steam_api_key_label: string;
+    key_configured: string;
+    key_required_cloud: string;
+    key_active: string;
+    key_needed: string;
+    edit_key: string;
+    enter_key: string;
+    key_paste_placeholder: string;
+    request_free_key: string;
+    connect_hint: string;
+    sync_done_default: string;
+    sync_error_default: string;
+    syncing_short: string;
+    disconnect_title: string;
+    never_synced: string;
+    detected: string;
+    not_found: string;
+    coming_soon: string;
   };
   general_settings: {
     tab_language: string;
