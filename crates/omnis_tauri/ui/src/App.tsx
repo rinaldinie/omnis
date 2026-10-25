@@ -678,7 +678,7 @@ export default function App() {
   const handleRunMassivePipeline = async () => {
     try {
       setIsPipelineEnriching(true);
-      setPipelineProgress("Avvio download dati e copertine per tutta la libreria...");
+      setPipelineProgress(t("app_misc.pipeline_starting"));
       const count = await invokeTauri<number>("download_all_metadata");
       setPipelineProgress(`Completato! ${count || 0} titoli aggiornati.`);
       await refreshLibrary();
@@ -691,7 +691,7 @@ export default function App() {
 
   const handleCancelPipeline = async () => {
     try {
-      setPipelineProgress("Interruzione del download dati in corso...");
+      setPipelineProgress(t("app_misc.pipeline_stopping"));
       await invokeTauri("cancel_metadata_download");
       setStatusMessage(statusText("download_cancel_requested"));
     } catch (err: any) {
@@ -1097,8 +1097,8 @@ export default function App() {
 
   const handleRemoveFromLibrary = async (gameId: string) => {
     const g = games.find((x) => x.id === gameId);
-    const title = g?.title || "questo gioco";
-    if (!window.confirm(`Sei sicuro di voler rimuovere "${title}" dalla libreria Omnis?`)) {
+    const title = g?.title || t("app_misc.this_game");
+    if (!window.confirm(t("app_misc.confirm_remove", { title }))) {
       return;
     }
     try {
@@ -1274,11 +1274,11 @@ export default function App() {
                   {/* Quick Filter Pills */}
                   <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 shrink min-w-0">
                     {[
-                      { id: "all", label: t("common.all") || "Tutti" },
-                      { id: "installed", label: t("sidebar.installed") || "Installati" },
-                      { id: "completion:Playing", label: "In corso" },
-                      { id: "completion:Completed", label: "Completati" },
-                      { id: "favorites", label: t("sidebar.favorites") || "Preferiti" },
+                      { id: "all", label: t("common.all") },
+                      { id: "installed", label: t("sidebar.installed") },
+                      { id: "completion:Playing", label: t("completion_status.playing") },
+                      { id: "completion:Completed", label: t("completion_status.completed") },
+                      { id: "favorites", label: t("sidebar.favorites") },
                     ].map((f) => {
                       const isActive = isFilterActive(f.id);
                       return (
@@ -1314,7 +1314,7 @@ export default function App() {
                           ? "bg-indigo-600/30 border-indigo-500 text-indigo-200"
                           : "bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white border-white/[0.08]"
                       }`}
-                      title="Apri filtri avanzati"
+                      title={t("app_misc.open_filters")}
                     >
                       <Filter className="w-3 h-3 text-indigo-400" />
                       <span>{t("common.filter")}</span>
@@ -1373,12 +1373,12 @@ export default function App() {
                           </span>
                           <div className="grid grid-cols-2 gap-1 text-xs">
                             {[
-                              { id: "Playing", label: "In corso" },
-                              { id: "Completed", label: "Completati 100%" },
-                              { id: "Beaten", label: "Finiti" },
-                              { id: "PlanToPlay", label: "Da iniziare" },
-                              { id: "Backlog", label: "Backlog" },
-                              { id: "Abandoned", label: "Abbandonati" },
+                              { id: "Playing", label: t("completion_status.playing") },
+                              { id: "Completed", label: t("completion_status.completed") },
+                              { id: "Beaten", label: t("completion_status.beaten") },
+                              { id: "PlanToPlay", label: t("completion_status.plan_to_play") },
+                              { id: "Backlog", label: t("completion_status.backlog") },
+                              { id: "Abandoned", label: t("completion_status.abandoned") },
                             ].map((st) => {
                               const isSelected = selectedStatuses.some((s) => s.toLowerCase() === st.id.toLowerCase());
                               return (
@@ -1410,7 +1410,7 @@ export default function App() {
                               }}
                               className="w-full py-1.5 rounded-lg text-xs font-bold text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition-colors cursor-pointer"
                             >
-                              Azzera tutti i filtri ({totalActiveFilters})
+                              {t("app_misc.clear_all_filters_count", { count: totalActiveFilters })}
                             </button>
                           </div>
                         )}
@@ -1429,7 +1429,7 @@ export default function App() {
                         type="button"
                         onClick={() => removeFilterChip(chip.id)}
                         className="hover:text-white transition-colors p-0.5 rounded cursor-pointer"
-                        title={`Rimuovi filtro: ${chip.label}`}
+                        title={t("filter_chips.remove", { label: chip.label })}
                       >
                         <X className="w-3 h-3" />
                       </button>
@@ -1441,9 +1441,9 @@ export default function App() {
                       type="button"
                       onClick={clearAllFilters}
                       className="text-[11px] font-semibold text-rose-300 hover:text-rose-200 underline transition-colors cursor-pointer shrink-0"
-                      title="Rimuovi tutti i filtri attivi"
+                      title={t("app_misc.clear_filters")}
                     >
-                      Azzera tutti
+                      {t("app_misc.clear_all")}
                     </button>
                   )}
 
@@ -1462,7 +1462,7 @@ export default function App() {
                       onClick={() => setGridCardWidth((w) => Math.max(140, w - 20))}
                       className="p-1 hover:text-white transition-colors"
                       style={{ color: "var(--text-muted)" }}
-                      title="Riduci dimensione locandine"
+                      title={t("tooltips.poster_smaller")}
                     >
                       <ZoomOut className="w-3.5 h-3.5" />
                     </button>
@@ -1475,13 +1475,13 @@ export default function App() {
                       onChange={(e) => setGridCardWidth(Number(e.target.value))}
                       className="w-28 h-1.5 rounded-lg cursor-pointer accent-indigo-500"
                       style={{ backgroundColor: "var(--bg-card)" }}
-                      title={`Larghezza locandine: ${gridCardWidth}px`}
+                      title={t("tooltips.poster_width", { width: gridCardWidth })}
                     />
                     <button
                       onClick={() => setGridCardWidth((w) => Math.min(320, w + 20))}
                       className="p-1 hover:text-white transition-colors"
                       style={{ color: "var(--text-muted)" }}
-                      title="Aumenta dimensione locandine"
+                      title={t("tooltips.poster_larger")}
                     >
                       <ZoomIn className="w-3.5 h-3.5" />
                     </button>
@@ -1697,23 +1697,23 @@ export default function App() {
                   <span className="text-emerald-300 font-bold flex items-center gap-1.5 truncate">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping shrink-0" />
                     <span className="truncate">
-                      🎮 Gioco in esecuzione: <strong className="text-white">{activeGame.title}</strong> ({formatDuration(elapsedSeconds)})
+                      🎮 {t("app_misc.now_playing")} <strong className="text-white">{activeGame.title}</strong> ({formatDuration(elapsedSeconds)})
                     </span>
                   </span>
                   <button
                     type="button"
                     onClick={handleKillRunningGame}
                     className="px-2 py-0.5 rounded text-[10px] font-black bg-rose-600 hover:bg-rose-500 text-white transition-colors shrink-0 shadow-sm cursor-pointer"
-                    title="Termina forzatamente il gioco in esecuzione"
+                    title={t("app_misc.kill_title")}
                   >
-                    Termina
+                    {t("app_misc.kill_short")}
                   </button>
                 </div>
               ) : isSyncing ? (
                 <div className="flex items-center gap-2 truncate">
                   <span className="text-sky-300 font-bold flex items-center gap-1.5 truncate">
                     <RefreshCw className="w-3.5 h-3.5 animate-spin text-sky-400 shrink-0" />
-                    <span className="truncate">{statusMessage || "Sincronizzazione in corso..."}</span>
+                    <span className="truncate">{statusMessage || t("store_accounts.syncing")}</span>
                   </span>
                 </div>
               ) : (
@@ -1722,9 +1722,9 @@ export default function App() {
             </div>
 
             <div className="flex items-center gap-4 shrink-0">
-              <span>F11: Attiva Modalità Fullscreen</span>
+              <span>{t("app_misc.fullscreen_hint")}</span>
               <span>
-                Tema Attivo: <strong className="text-white">{currentTheme.name}</strong>
+                {t("app_misc.active_theme")} <strong className="text-white">{currentTheme.name}</strong>
               </span>
             </div>
           </footer>
@@ -1908,15 +1908,15 @@ export default function App() {
                 <AlertTriangle className="w-6 h-6 text-rose-400" />
               </div>
               <div>
-                <h3 className="font-bold text-lg text-white">Termina Gioco</h3>
-                <p className="text-xs text-rose-300">Richiesta di chiusura del processo</p>
+                <h3 className="font-bold text-lg text-white">{t("app_misc.kill_dialog_title")}</h3>
+                <p className="text-xs text-rose-300">{t("app_misc.kill_dialog_subtitle")}</p>
               </div>
             </div>
             <p className="text-sm text-slate-300 mb-6">
-              Sei sicuro di voler chiudere <strong className="text-white">{activeGame?.title || "il gioco attivo"}</strong>?
+              {t("app_misc.kill_question", { title: activeGame?.title || t("app_misc.active_game") })}
               <br /><br />
               <span className="text-xs text-slate-400">
-                Omnis tenterà prima una chiusura controllata (WM_CLOSE) per consentire il salvataggio dei dati, e terminerà forzatamente il processo solo se non risponde entro pochi secondi.
+                {t("app_misc.kill_desc")}
               </span>
             </p>
             <div className="flex justify-end gap-3">
@@ -1925,7 +1925,7 @@ export default function App() {
                 className="px-4 py-2 rounded-xl text-sm font-bold bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-600/30 transition-all flex items-center gap-2 cursor-pointer"
               >
                 <Square className="w-4 h-4 fill-white" />
-                Conferma e Termina
+                {t("app_misc.kill_confirm")}
               </button>
               <button
                 onClick={() => setShowKillConfirmModal(false)}
@@ -2003,7 +2003,7 @@ export default function App() {
               setIsSyncing(false);
             }}
             className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-            title="Chiudi notifica"
+            title={t("app_misc.close_notification")}
           >
             <X className="w-4 h-4" />
           </button>
@@ -2018,17 +2018,17 @@ export default function App() {
           </div>
           <div className="flex-1 min-w-0">
             <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400">
-              Sessione di Gioco Terminata
+              {t("app_misc.session_ended")}
             </span>
             <h4 className="text-xs font-bold text-white truncate">{sessionToast.title}</h4>
             <p className="text-[11px] text-slate-300 font-medium">
-              Tempo giocato: +{Math.max(1, Math.round(sessionToast.durationSeconds / 60))} minuti ({formatDuration(sessionToast.durationSeconds)})
+              {t("app_misc.played_time", { minutes: Math.max(1, Math.round(sessionToast.durationSeconds / 60)), duration: formatDuration(sessionToast.durationSeconds) })}
             </p>
           </div>
           <button
             onClick={() => setSessionToast(null)}
             className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-            title="Chiudi notifica"
+            title={t("app_misc.close_notification")}
           >
             <X className="w-4 h-4" />
           </button>

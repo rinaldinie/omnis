@@ -57,6 +57,9 @@ export interface TranslationSchema {
     folder_covers: string;
     folder_themes: string;
     folder_plugins: string;
+    short_covers: string;
+    short_themes: string;
+    short_plugins: string;
   };
   status: {
     running: string;
@@ -95,6 +98,7 @@ export interface TranslationSchema {
     zoom_in: string;
     zoom_out: string;
     close_app: string;
+    more_tools: string;
   };
   views: {
     grid: string;
@@ -682,6 +686,14 @@ export interface TranslationSchema {
     desc_nordic_frost: string;
     desc_cinema_trailer: string;
   },
+  store_badge: {
+    available_on: string;
+  },
+  filter_chips: {
+    status: string;
+    genre: string;
+    remove: string;
+  },
   editor_general: {
     title: string;
     title_placeholder: string;
@@ -744,6 +756,55 @@ export interface TranslationSchema {
     comma_separated: string;
     features_placeholder: string;
     suggestions: string;
+  },
+  app_misc: {
+    pipeline_starting: string;
+    pipeline_stopping: string;
+    launch_error_default: string;
+    this_game: string;
+    confirm_remove: string;
+    open_filters: string;
+    clear_filters: string;
+    kill_title: string;
+    fullscreen_hint: string;
+    active_theme: string;
+    kill_dialog_title: string;
+    kill_dialog_subtitle: string;
+    kill_question: string;
+    active_game: string;
+    kill_desc: string;
+    kill_confirm: string;
+    close_notification: string;
+    session_ended: string;
+    played_time: string;
+    clear_all_filters_count: string;
+    clear_all: string;
+    now_playing: string;
+    kill_short: string;
+  },
+  updater: {
+    check_failed: string;
+    download_failed: string;
+  },
+  list_table: {
+    row_hint: string;
+  },
+  library_groups: {
+    other: string;
+    downloadable: string;
+    no_genre: string;
+    unknown: string;
+    unknown_date: string;
+  },
+  tooltips: {
+    poster_smaller: string;
+    poster_larger: string;
+    poster_width: string;
+    minimize: string;
+    maximize: string;
+    reset_filters: string;
+    filter_status: string;
+    filter_genre: string;
   },
   settings_modal: {
     title: string;
@@ -928,6 +989,16 @@ export interface TranslationSchema {
     select_all: string;
     deselect_all: string;
     search_placeholder: string;
+    data_types: string;
+    type_metadata_desc: string;
+    type_hltb_desc: string;
+    type_achievements_desc: string;
+    cover_present: string;
+    cover_missing: string;
+    hltb_present: string;
+    hltb_missing: string;
+    achievements_synced: string;
+    achievements_missing: string;
   };
   uninstall_modal: {
     title: string;

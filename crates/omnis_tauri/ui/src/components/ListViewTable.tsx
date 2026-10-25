@@ -432,7 +432,7 @@ export default function ListViewTable({
                     contentVisibility: "auto",
                     containIntrinsicSize: "0 34px",
                   }}
-                  title="Fai doppio clic per avviare o aprire la scheda"
+                  title={t("list_table.row_hint")}
                 >
                   {/* 1. Icon / Thumbnail (24x24 rounded with fallback) */}
                   <td className="py-1 px-2.5 text-center">
