@@ -1,0 +1,43 @@
+name: "🔌 Plugin Request"
+description: "Request support for a new game platform or launcher"
+labels: ["enhancement", "plugin"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Want Omnis to support a new game platform? Let us know which one and any technical details you can share.
+
+  - type: input
+    id: platform
+    attributes:
+      label: Platform / Launcher
+      description: "Name of the game platform or launcher."
+      placeholder: "e.g. GOG Galaxy, Ubisoft Connect, itch.io, Amazon Games"
+    validations:
+      required: true
+
+  - type: textarea
+    id: details
+    attributes:
+      label: Technical Details
+      description: "Any known details about how this platform stores its library data (file paths, manifest formats, APIs, etc.)."
+      placeholder: "e.g. GOG Galaxy uses a SQLite database at %ProgramData%/GOG.com/Galaxy/storage/galaxy-2.0.db"
+    validations:
+      required: false
+
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Use Case
+      description: "Why is this platform important to you? How many games do you have on it?"
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: willingness
+    attributes:
+      label: Contribution
+      description: "Would you be willing to help?"
+      options:
+        - label: I'd be willing to help test a plugin for this platform
+        - label: I'd be willing to contribute code for this plugin
