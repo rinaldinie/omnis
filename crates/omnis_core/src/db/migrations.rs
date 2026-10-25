@@ -177,6 +177,19 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
         [],
     );
 
+    // Fix legacy absolute paths in games table after data directory consolidation
+    // Updates %LOCALAPPDATA%\OmnisGameLibrary -> %LOCALAPPDATA%\Omnis Game Library
+    let _ = conn.execute(
+        "UPDATE games SET
+            cover_image_path = REPLACE(cover_image_path, 'OmnisGameLibrary', 'Omnis Game Library'),
+            background_image_path = REPLACE(background_image_path, 'OmnisGameLibrary', 'Omnis Game Library'),
+            icon_image_path = REPLACE(icon_image_path, 'OmnisGameLibrary', 'Omnis Game Library')
+         WHERE cover_image_path LIKE '%OmnisGameLibrary%'
+            OR background_image_path LIKE '%OmnisGameLibrary%'
+            OR icon_image_path LIKE '%OmnisGameLibrary%';",
+        [],
+    );
+
     Ok(())
 }
 
