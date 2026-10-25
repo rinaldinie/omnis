@@ -83,7 +83,7 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
   onSyncComplete,
   onClose,
 }) => {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const [selectedStoreId, setSelectedStoreId] = useState<string>("steam");
   const [accounts, setAccounts] = useState<StoreAccount[]>(DEFAULT_ACCOUNTS);
   const [settingsMap, setSettingsMap] = useState<Record<string, StoreIntegrationSettings>>({});
@@ -654,7 +654,7 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
                     </span>
                     {currentAccount.last_sync && (
                       <span className="text-[11px] text-slate-400">
-                        {t("store_accounts.last_sync")}: {formatLastSync(currentAccount.last_sync)}
+                        {t("store_accounts.last_sync", { time: formatLastSync(currentAccount.last_sync, locale, t("store_accounts.never_synced")) })}
                       </span>
                     )}
                   </div>

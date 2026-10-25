@@ -203,7 +203,7 @@ export default function DetailsSplitView({
     switch (status) {
       case "Playing":
         return {
-          label: "In corso",
+          label: t("completion_status.playing"),
           color: "text-sky-300",
           bg: "bg-sky-500/15",
           border: "border-sky-500/30",
@@ -211,7 +211,7 @@ export default function DetailsSplitView({
         };
       case "Completed":
         return {
-          label: "Completato 100%",
+          label: t("completion_status.completed"),
           color: "text-emerald-300",
           bg: "bg-emerald-500/15",
           border: "border-emerald-500/30",
@@ -219,7 +219,7 @@ export default function DetailsSplitView({
         };
       case "Beaten":
         return {
-          label: "Finito",
+          label: t("completion_status.beaten"),
           color: "text-purple-300",
           bg: "bg-purple-500/15",
           border: "border-purple-500/30",
@@ -227,7 +227,7 @@ export default function DetailsSplitView({
         };
       case "Backlog":
         return {
-          label: "Backlog",
+          label: t("completion_status.backlog"),
           color: "text-amber-300",
           bg: "bg-amber-500/15",
           border: "border-amber-500/30",
@@ -235,7 +235,7 @@ export default function DetailsSplitView({
         };
       case "PlanToPlay":
         return {
-          label: "Da iniziare",
+          label: t("completion_status.plan_to_play"),
           color: "text-indigo-300",
           bg: "bg-indigo-500/15",
           border: "border-indigo-500/30",
@@ -243,7 +243,7 @@ export default function DetailsSplitView({
         };
       case "Abandoned":
         return {
-          label: "Abbandonato",
+          label: t("completion_status.abandoned"),
           color: "text-rose-300",
           bg: "bg-rose-500/15",
           border: "border-rose-500/30",
@@ -252,7 +252,7 @@ export default function DetailsSplitView({
       case "NotPlayed":
       default:
         return {
-          label: t("game_details.not_played") || "Non giocato",
+          label: t("completion_status.not_played"),
           color: "text-slate-300",
           bg: "bg-slate-500/15",
           border: "border-slate-500/30",
@@ -332,7 +332,7 @@ export default function DetailsSplitView({
             <button
               onClick={() => setActiveFilter && setActiveFilter("all")}
               className="p-0.5 hover:text-white transition-colors cursor-pointer"
-              title="Azzera filtri"
+              title={t("tooltips.reset_filters")}
             >
               <X className="w-3 h-3" />
             </button>
@@ -544,7 +544,7 @@ export default function DetailsSplitView({
                           ? "ring-2 ring-indigo-400 " + statusInfo.bg + " " + statusInfo.border + " " + statusInfo.color
                           : statusInfo.bg + " " + statusInfo.border + " " + statusInfo.color
                       }`}
-                      title={`Filtra per stato: ${statusInfo.label}`}
+                      title={t("tooltips.filter_status", { status: statusInfo.label })}
                     >
                       <span className={`w-1.5 h-1.5 rounded-full ${statusInfo.dot}`} />
                       <span>{statusInfo.label}</span>
@@ -584,7 +584,7 @@ export default function DetailsSplitView({
                             ? "bg-indigo-600 border-indigo-400 text-white shadow-indigo-500/30"
                             : "bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white border-white/[0.08] hover:border-indigo-400/50"
                         }`}
-                        title={`Filtra per genere: ${genre}`}
+                        title={t("tooltips.filter_genre", { genre })}
                       >
                         <span className={`w-1.5 h-1.5 rounded-full ${active ? "bg-white" : "bg-indigo-400"}`} />
                         <span>{genre}</span>
@@ -892,7 +892,7 @@ export default function DetailsSplitView({
                               ? "bg-indigo-600/30 border-indigo-500 text-indigo-200 shadow-xs shadow-indigo-500/20"
                               : "bg-white/[0.03] hover:bg-white/[0.08] border-white/[0.06] hover:border-indigo-500/30 text-slate-200 hover:text-white"
                           }`}
-                          title={`Filtra per genere: ${genre}`}
+                          title={t("tooltips.filter_genre", { genre })}
                         >
                           <span
                             className={`w-1.5 h-1.5 rounded-full ${
@@ -942,7 +942,7 @@ export default function DetailsSplitView({
                         className={`px-2.5 py-1 rounded-xl text-xs font-semibold border flex items-center gap-1.5 cursor-pointer transition-all active:scale-95 ${
                           isFiltered ? "ring-2 ring-indigo-400 " : ""
                         } ${statusInfo.bg} ${statusInfo.border} ${statusInfo.color}`}
-                        title={`Filtra per stato: ${statusInfo.label}`}
+                        title={t("tooltips.filter_status", { status: statusInfo.label })}
                       >
                         <span className={`w-1.5 h-1.5 rounded-full ${statusInfo.dot}`} />
                         <span>{statusInfo.label}</span>

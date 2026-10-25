@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect, createContext, useContext } from "react";
+import { useTranslation } from "../i18n";
 
 export type UpdateStatus =
   | "idle"
@@ -30,6 +31,10 @@ function formatErrorMessage(err: unknown, fallback: string): string {
 }
 
 export function useAppUpdater(defaultAppVersion: string = "0.2.0") {
+  // Latest translator for the long-lived callbacks below
+  const { t } = useTranslation();
+  const tRef = useRef(t);
+  tRef.current = t;
   const [currentVersion, setCurrentVersion] = useState<string>(defaultAppVersion);
   const [status, setStatus] = useState<UpdateStatus>("idle");
   const [availableVersion, setAvailableVersion] = useState<string | null>(null);
@@ -69,7 +74,7 @@ export function useAppUpdater(defaultAppVersion: string = "0.2.0") {
       console.error("Update check error:", err);
       updateRef.current = null;
       if (!silent) {
-        setErrorMessage(formatErrorMessage(err, "Impossibile verificare gli aggiornamenti"));
+        setErrorMessage(formatErrorMessage(err, tRef.current("updater.check_failed")));
         setStatus("error");
       } else {
         // In silent mode (at startup), fail gracefully without alerting
@@ -106,7 +111,7 @@ export function useAppUpdater(defaultAppVersion: string = "0.2.0") {
       setStatus("readyToInstall");
     } catch (err: any) {
       console.error("Update download/install error:", err);
-      setErrorMessage(formatErrorMessage(err, "Download dell'aggiornamento fallito"));
+      setErrorMessage(formatErrorMessage(err, tRef.current("updater.download_failed")));
       setStatus("error");
     }
   }, []);

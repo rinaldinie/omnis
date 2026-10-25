@@ -1,5 +1,6 @@
 import React from "react";
 import { Gamepad2 } from "lucide-react";
+import { useTranslation } from "../../i18n";
 
 interface FutureStoreCardProps {
   name: string;
@@ -8,6 +9,7 @@ interface FutureStoreCardProps {
 }
 
 export const FutureStoreCard: React.FC<FutureStoreCardProps> = ({ name, publisher, color }) => {
+  const { t } = useTranslation();
   return (
     <div
       className="p-3 rounded-2xl border flex items-center justify-between gap-2.5 opacity-75 hover:opacity-100 transition-all"
@@ -33,7 +35,7 @@ export const FutureStoreCard: React.FC<FutureStoreCardProps> = ({ name, publishe
         </div>
       </div>
       <span className="shrink-0 px-2 py-0.5 rounded-full text-[9px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
-        Prossimamente
+        {t("store_accounts.coming_soon")}
       </span>
     </div>
   );

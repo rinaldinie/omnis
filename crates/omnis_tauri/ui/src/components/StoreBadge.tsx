@@ -1,5 +1,6 @@
 import React from "react";
 import { Gamepad2 } from "lucide-react";
+import { useTranslation } from "../i18n";
 
 export function SteamIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
@@ -34,6 +35,7 @@ export function XboxIcon({ className = "w-4 h-4" }: { className?: string }) {
 }
 
 export function StoreIcon({ library, className = "w-3.5 h-3.5" }: { library: string; className?: string }) {
+  const { t } = useTranslation();
   const lib = library.toLowerCase();
   if (lib.includes("steam")) {
     return <SteamIcon className={className} />;
@@ -59,6 +61,7 @@ export function StoreBadge({
   showName?: boolean;
   className?: string;
 }) {
+  const { t } = useTranslation();
   const lib = library.toLowerCase();
 
   if (lib.includes("steam")) {
@@ -70,7 +73,7 @@ export function StoreBadge({
           borderColor: "rgba(102, 192, 244, 0.4)",
           color: "#66c0f4",
         }}
-        title="Disponibile su Steam"
+        title={t("store_badge.available_on", { store: "Steam" })}
       >
         <SteamIcon className="w-3.5 h-3.5 text-[#66c0f4] shrink-0" />
         {showName && <span className="font-bold">Steam</span>}
@@ -87,7 +90,7 @@ export function StoreBadge({
           borderColor: "rgba(255, 255, 255, 0.3)",
           color: "#ffffff",
         }}
-        title="Disponibile su Epic Games"
+        title={t("store_badge.available_on", { store: "Epic Games" })}
       >
         <EpicIcon className="w-3.5 h-3.5 text-white shrink-0" />
         {showName && <span className="font-bold">Epic</span>}
@@ -104,7 +107,7 @@ export function StoreBadge({
           borderColor: "rgba(226, 138, 255, 0.45)",
           color: "#e28aff",
         }}
-        title="Disponibile su GOG Galaxy"
+        title={t("store_badge.available_on", { store: "GOG Galaxy" })}
       >
         <GogIcon className="w-3.5 h-3.5 text-[#e28aff] shrink-0" />
         {showName && <span className="font-bold">GOG</span>}
@@ -121,7 +124,7 @@ export function StoreBadge({
           borderColor: "rgba(50, 205, 50, 0.45)",
           color: "#4ade80",
         }}
-        title="Disponibile su Xbox / Game Pass"
+        title={t("store_badge.available_on", { store: "Xbox / Game Pass" })}
       >
         <XboxIcon className="w-3.5 h-3.5 text-[#4ade80] shrink-0" />
         {showName && <span className="font-bold">Xbox</span>}

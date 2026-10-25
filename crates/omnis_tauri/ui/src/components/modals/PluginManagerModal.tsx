@@ -68,10 +68,10 @@ const BUILTIN_LIBRARIES: ProviderInfo[] = [
   {
     id: "steam_library",
     name: "Steam Library Scanner",
-    description: "Rileva e scansiona automaticamente tutti i giochi Steam installati tramite manifest VDF locali e sincronizzazione cloud.",
+    description: "plugin_manager.lib_steam_desc",
     author: "Omnis Core Team",
     requires_api_key: false,
-    supported_fields: ["Giochi Installati", "Tempo di Gioco", "Cloud Sync"],
+    supported_fields: ["plugin_manager.field_installed_games", "plugin_manager.field_playtime", "Cloud Sync"],
     is_enabled: true,
     is_builtin: true,
     version: "1.0.0",
@@ -82,10 +82,10 @@ const BUILTIN_LIBRARIES: ProviderInfo[] = [
   {
     id: "epic_library",
     name: "Epic Games Launcher Scanner",
-    description: "Scansione dei manifest .item su disco e sincronizzazione automatica del catalogo con account Epic Games.",
+    description: "plugin_manager.lib_epic_desc",
     author: "Omnis Core Team",
     requires_api_key: false,
-    supported_fields: ["Giochi Installati", "Manifest .item", "Cloud OAuth"],
+    supported_fields: ["plugin_manager.field_installed_games", "Manifest .item", "Cloud OAuth"],
     is_enabled: true,
     is_builtin: true,
     version: "1.0.0",
@@ -96,10 +96,10 @@ const BUILTIN_LIBRARIES: ProviderInfo[] = [
   {
     id: "gog_library",
     name: "GOG Galaxy Scanner",
-    description: "Rilevamento delle installazioni DRM-Free dal registro di Windows e integrazione cloud GOG.",
+    description: "plugin_manager.lib_gog_desc",
     author: "Omnis Core Team",
     requires_api_key: false,
-    supported_fields: ["DRM-Free", "Registro Windows", "Cloud Galaxy"],
+    supported_fields: ["DRM-Free", "plugin_manager.field_windows_registry", "Cloud Galaxy"],
     is_enabled: true,
     is_builtin: true,
     version: "1.0.0",
@@ -110,7 +110,7 @@ const BUILTIN_LIBRARIES: ProviderInfo[] = [
   {
     id: "xbox_library",
     name: "Xbox / PC Game Pass Scanner",
-    description: "Rileva i pacchetti MSIX/UWP dei giochi scaricati dal Microsoft Store e l'abbonamento PC Game Pass.",
+    description: "plugin_manager.lib_xbox_desc",
     author: "Omnis Core Team",
     requires_api_key: false,
     supported_fields: ["MSIX Packages", "Microsoft Store", "Xbox Cloud"],
@@ -187,32 +187,32 @@ const PROVIDER_METAS: Record<string, PriorityProviderMeta> = {
   steam: {
     id: "steam",
     name: "Steam Store Engine",
-    description: "Locandine verticali CDN, sinossi ufficiale in italiano, generi, sviluppatori e voti Metacritic.",
-    badges: ["Locandine", "Sfondi", "Sinossi & Tag", "Voti Metacritic"],
+    description: "plugin_manager.meta_steam_desc",
+    badges: ["plugin_manager.badge_posters", "plugin_manager.badge_backgrounds", "plugin_manager.badge_synopsis_tags", "plugin_manager.badge_metacritic"],
   },
   gog: {
     id: "gog",
     name: "GOG.com Catalog",
-    description: "Catalogo DRM-free ufficiale con artwork verticali, sfondi hero e descrizioni.",
-    badges: ["Locandine", "Sfondi Hero", "Sinossi DRM-Free"],
+    description: "plugin_manager.meta_gog_desc",
+    badges: ["plugin_manager.badge_posters", "plugin_manager.badge_hero_backgrounds", "plugin_manager.badge_drm_free_synopsis"],
   },
   steamgriddb: {
     id: "steamgriddb",
     name: "SteamGridDB",
-    description: "Database di artwork curato dalla community: locandine verticali 600x900 HD e sfondi 4K.",
-    badges: ["Locandine 600x900 HD", "Sfondi Hero 4K", "Community Art"],
+    description: "plugin_manager.meta_sgdb_desc",
+    badges: ["plugin_manager.badge_posters_hd", "plugin_manager.badge_hero_4k", "Community Art"],
   },
   opencritic: {
     id: "opencritic",
     name: "OpenCritic",
-    description: "Punteggi aggregati della critica globale, % di raccomandazione e recensioni certificate.",
-    badges: ["Top Critic Score", "% Raccomandazione", "Recensioni Stampa"],
+    description: "plugin_manager.meta_opencritic_desc",
+    badges: ["Top Critic Score", "plugin_manager.badge_recommendation", "plugin_manager.badge_press_reviews"],
   },
   igdb: {
     id: "igdb",
     name: "IGDB (Internet Game Database)",
-    description: "Database globale Twitch con metadati esaustivi, storyline, screenshot e rating utente/critica.",
-    badges: ["Database Globale", "Screenshot HD", "Total Rating"],
+    description: "plugin_manager.meta_igdb_desc",
+    badges: ["plugin_manager.badge_global_db", "Screenshot HD", "Total Rating"],
   },
 };
 
@@ -244,6 +244,8 @@ export default function PluginManagerModal({
   onPluginInstalled,
 }: PluginManagerModalProps) {
   const { t } = useTranslation();
+  // Built-in descriptions and badges hold translation keys; external plugin text is shown as-is
+  const tr = (text: string) => (text.startsWith("plugin_manager.") ? t(text) : text);
   const [pluginModalTab, setPluginModalTab] = useState<
     "providers" | "pipeline" | "enrich" | "marketplace"
   >("providers");
@@ -332,6 +334,8 @@ export default function PluginManagerModal({
   BUILTIN_LIBRARIES.forEach((item) => {
     libraryMap.set(item.id, {
       ...item,
+      description: tr(item.description),
+      supported_fields: item.supported_fields?.map(tr),
       is_enabled: libraryToggles[item.id] ?? true,
     });
   });
@@ -431,7 +435,7 @@ export default function PluginManagerModal({
               <div className="flex items-center gap-2">
                 <h4 className="text-sm font-bold text-slate-300 truncate">{prov.name}</h4>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700/50">
-                  Disattivato
+                  {t("plugin_manager.disabled")}
                 </span>
                 {prov.version && (
                   <span className="text-[10px] font-mono text-slate-500">v{prov.version}</span>
@@ -453,10 +457,10 @@ export default function PluginManagerModal({
                   backgroundColor: "var(--bg-card)",
                   borderColor: "var(--border-color)",
                 }}
-                title="Disinstalla plugin e rimuovi da disco"
+                title={t("plugin_manager.uninstall_title")}
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                <span>Disinstalla</span>
+                <span>{t("plugin_manager.uninstall")}</span>
               </button>
             )}
             <button
@@ -469,7 +473,7 @@ export default function PluginManagerModal({
               }}
             >
               <Power className="w-3 h-3 text-emerald-400" />
-              <span>Attiva</span>
+              <span>{t("plugin_manager.enable")}</span>
             </button>
           </div>
         </div>
@@ -506,28 +510,28 @@ export default function PluginManagerModal({
               <div className="flex flex-wrap items-center gap-2">
                 <h4 className="text-sm font-black text-white">{prov.name}</h4>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                  Attivo
+                  {t("plugin_manager.active")}
                 </span>
                 {prov.is_builtin !== false ? (
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                    Integrato (Core)
+                    {t("plugin_manager.builtin")}
                   </span>
                 ) : (
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30 flex items-center gap-1">
                     <Folder className="w-3 h-3 text-purple-400" />
-                    <span>Esterno v{prov.version || "1.0"}</span>
+                    <span>{t("plugin_manager.external", { version: prov.version || "1.0" })}</span>
                   </span>
                 )}
                 {prov.requires_api_key ? (
                   prov.has_configured_key ? (
                     <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                       <CheckCircle2 className="w-3 h-3" />
-                      <span>Autenticato</span>
+                      <span>{t("plugin_manager.authenticated")}</span>
                     </span>
                   ) : (
                     <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
                       <Key className="w-3 h-3" />
-                      <span>Richiede API Key</span>
+                      <span>{t("plugin_manager.requires_key")}</span>
                     </span>
                   )
                 ) : (
@@ -562,10 +566,10 @@ export default function PluginManagerModal({
                   backgroundColor: "var(--bg-card)",
                   borderColor: "var(--border-color)",
                 }}
-                title="Disinstalla plugin e rimuovi da disco"
+                title={t("plugin_manager.uninstall_title")}
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                <span>Disinstalla</span>
+                <span>{t("plugin_manager.uninstall")}</span>
               </button>
             )}
             <button
@@ -573,7 +577,7 @@ export default function PluginManagerModal({
               onClick={() => onToggle(prov.id, false)}
               className="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all border bg-emerald-500/15 text-emerald-400 border-emerald-500/30 hover:bg-amber-500/20 hover:text-amber-300 hover:border-amber-500/40"
             >
-              Disattiva
+              {t("plugin_manager.disable")}
             </button>
           </div>
         </div>
@@ -585,7 +589,7 @@ export default function PluginManagerModal({
               className="text-[10px] font-bold uppercase tracking-wider"
               style={{ color: "var(--text-muted)" }}
             >
-              Campi forniti:
+              {t("plugin_manager.fields_provided")}
             </span>
             {prov.supported_fields.map((f) => (
               <span
@@ -629,7 +633,7 @@ export default function PluginManagerModal({
                           className="text-[10px] font-bold flex items-center gap-1 hover:underline"
                           style={{ color: "var(--accent-primary)" }}
                         >
-                          <span>Ottieni API Key gratuita</span>
+                          <span>{t("plugin_manager.get_free_key")}</span>
                           <ExternalLink className="w-2.5 h-2.5" />
                         </a>
                       )}
@@ -685,7 +689,7 @@ export default function PluginManagerModal({
                           placeholder={
                             (field as any).placeholder ||
                             field.field_type?.placeholder ||
-                            "Inserisci valore..."
+                            t("plugin_manager.enter_value")
                           }
                           value={settings[field.key] || ""}
                           onChange={(e) => {
@@ -745,7 +749,7 @@ export default function PluginManagerModal({
                 {testInfo?.loading && (
                   <div className="flex items-center gap-2 text-xs text-indigo-400 animate-pulse">
                     <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    <span>Verifica connessione con le API in corso...</span>
+                    <span>{t("plugin_manager.testing")}</span>
                   </div>
                 )}
                 {!testInfo?.loading && testInfo?.message && (
@@ -777,7 +781,7 @@ export default function PluginManagerModal({
                   }}
                 >
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Test Connessione</span>
+                  <span>{t("plugins_modal.test_connection")}</span>
                 </button>
                 <button
                   type="button"
@@ -785,7 +789,7 @@ export default function PluginManagerModal({
                   className="px-4 py-1.5 rounded-lg text-xs font-black text-white shadow-md transition-all hover:brightness-110 active:opacity-90"
                   style={{ backgroundColor: "var(--accent-primary)" }}
                 >
-                  Salva
+                  {t("common.save")}
                 </button>
               </div>
             </div>
@@ -839,7 +843,7 @@ export default function PluginManagerModal({
                 borderColor: "var(--border-color)",
                 color: isRefreshingPlugins ? "var(--accent-primary)" : "var(--text-muted)",
               }}
-              title="Esegui scansione della cartella per scoprire nuovi plugin esterni"
+              title={t("plugin_manager.scan_title")}
             >
               <RefreshCw
                 className={`w-3.5 h-3.5 ${
@@ -856,7 +860,7 @@ export default function PluginManagerModal({
                 borderColor: "var(--border-color)",
                 color: "var(--text-muted)",
               }}
-              title="Apri Cartella Plugins in Esplora Risorse"
+              title={t("plugin_manager.open_folder_title")}
             >
               <Folder className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">{t("plugins_modal.plugins_folder")}</span>
@@ -894,7 +898,7 @@ export default function PluginManagerModal({
               }}
             >
               <Puzzle className="w-3.5 h-3.5" />
-              <span>Plugin Installati ({allCombined.length})</span>
+              <span>{t("plugin_manager.tab_installed", { count: allCombined.length })}</span>
             </button>
             <button
               onClick={() => setPluginModalTab("pipeline")}
@@ -906,7 +910,7 @@ export default function PluginManagerModal({
               }}
             >
               <Sliders className="w-3.5 h-3.5" />
-              <span>Priorità Pipeline</span>
+              <span>{t("plugin_manager.tab_pipeline")}</span>
             </button>
             <button
               onClick={() => setPluginModalTab("enrich")}
@@ -918,7 +922,7 @@ export default function PluginManagerModal({
               }}
             >
               <Sparkles className="w-3.5 h-3.5" />
-              <span>Download Dati Catalogo</span>
+              <span>{t("plugin_manager.tab_enrich")}</span>
             </button>
             <button
               onClick={() => setPluginModalTab("marketplace")}
@@ -930,7 +934,7 @@ export default function PluginManagerModal({
               }}
             >
               <Store className="w-3.5 h-3.5" />
-              <span>Marketplace (Hub)</span>
+              <span>{t("plugin_manager.tab_marketplace")}</span>
             </button>
           </div>
         </div>
@@ -952,7 +956,7 @@ export default function PluginManagerModal({
                   }`}
                 >
                   <Layers className="w-3.5 h-3.5" />
-                  <span>Tutti ({allCombined.length})</span>
+                  <span>{t("plugin_manager.filter_all", { count: allCombined.length })}</span>
                 </button>
                 <button
                   type="button"
@@ -964,7 +968,7 @@ export default function PluginManagerModal({
                   }`}
                 >
                   <Library className="w-3.5 h-3.5" />
-                  <span>Plugin di Librerie ({libraryList.length})</span>
+                  <span>{t("plugin_manager.libraries", { count: libraryList.length })}</span>
                 </button>
                 <button
                   type="button"
@@ -976,7 +980,7 @@ export default function PluginManagerModal({
                   }`}
                 >
                   <Database className="w-3.5 h-3.5" />
-                  <span>Fonti Metadati ({metadataList.length})</span>
+                  <span>{t("plugin_manager.metadata_sources", { count: metadataList.length })}</span>
                 </button>
                 <button
                   type="button"
@@ -988,7 +992,7 @@ export default function PluginManagerModal({
                   }`}
                 >
                   <Puzzle className="w-3.5 h-3.5" />
-                  <span>Generici ({genericList.length})</span>
+                  <span>{t("plugin_manager.generic_short", { count: genericList.length })}</span>
                 </button>
               </div>
 
@@ -998,7 +1002,7 @@ export default function PluginManagerModal({
                   <div className="flex items-center gap-2 px-1">
                     <Library className="w-4 h-4 text-blue-400" />
                     <h4 className="text-xs font-black uppercase tracking-wider text-blue-300">
-                      Plugin di Librerie ({libraryList.length})
+                      {t("plugin_manager.libraries", { count: libraryList.length })}
                     </h4>
                   </div>
                   <div className="space-y-2.5">
@@ -1012,7 +1016,7 @@ export default function PluginManagerModal({
                   <div className="flex items-center gap-2 px-1">
                     <Database className="w-4 h-4 text-purple-400" />
                     <h4 className="text-xs font-black uppercase tracking-wider text-purple-300">
-                      Fonti Metadati ({metadataList.length})
+                      {t("plugin_manager.metadata_sources", { count: metadataList.length })}
                     </h4>
                   </div>
                   <div className="space-y-2.5">
@@ -1026,7 +1030,7 @@ export default function PluginManagerModal({
                   <div className="flex items-center gap-2 px-1">
                     <Puzzle className="w-4 h-4 text-emerald-400" />
                     <h4 className="text-xs font-black uppercase tracking-wider text-emerald-300">
-                      Plugin Generici & Estensioni ({genericList.length})
+                      {t("plugin_manager.generic_section", { count: genericList.length })}
                     </h4>
                   </div>
                   {genericList.length > 0 ? (
@@ -1043,11 +1047,10 @@ export default function PluginManagerModal({
                     >
                       <Puzzle className="w-7 h-7 text-slate-500 mx-auto" />
                       <p className="text-xs font-bold text-slate-400">
-                        Nessun plugin generico esterno installato al momento
+                        {t("plugin_manager.no_generic")}
                       </p>
                       <p className="text-[11px] text-slate-500 max-w-sm mx-auto">
-                        Puoi installare nuove estensioni direttamente dal Community Hub oppure
-                        posizionando file nativi o manifest nella cartella plugins.
+                        {t("plugin_manager.no_generic_hint")}
                       </p>
                       <div className="pt-2 flex justify-center gap-2">
                         <button
@@ -1056,7 +1059,7 @@ export default function PluginManagerModal({
                           className="px-4 py-1.5 rounded-xl text-xs font-bold text-white shadow-md transition-all"
                           style={{ backgroundColor: "var(--accent-primary)" }}
                         >
-                          Esplora Community Hub
+                          {t("plugin_manager.explore_hub")}
                         </button>
                       </div>
                     </div>
@@ -1075,10 +1078,10 @@ export default function PluginManagerModal({
                   <div>
                     <h4 className="text-xs font-black uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
                       <Sliders className="w-3.5 h-3.5" />
-                      <span>Ordine di Priorità delle Fonti (Fallback a Cascata)</span>
+                      <span>{t("plugin_manager.priority_title")}</span>
                     </h4>
                     <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
-                      Omnis interroga le fonti attive in sequenza (dall'1° in giù). Usa le frecce per modificare l'ordine di priorità.
+                      {t("plugin_manager.priority_desc")}
                     </p>
                   </div>
                 </div>
@@ -1090,8 +1093,8 @@ export default function PluginManagerModal({
                       name: providers.find((p) => p.id === provId)?.name || provId,
                       description:
                         providers.find((p) => p.id === provId)?.description ||
-                        "Plugin fornitore metadati esterno",
-                      badges: ["Plugin Esterno"],
+                        t("plugin_manager.external_provider_desc"),
+                      badges: [t("plugin_manager.external_badge")],
                     };
                     const isFirst = idx === 0;
                     const isLast = idx === priorityOrder.length - 1;
@@ -1135,12 +1138,12 @@ export default function PluginManagerModal({
                               </h4>
                               {isFirst && (
                                 <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                                  Priorità Massima
+                                  {t("plugin_manager.top_priority")}
                                 </span>
                               )}
                             </div>
                             <p className="text-xs text-slate-400 truncate mt-0.5 max-w-lg">
-                              {meta.description}
+                              {tr(meta.description)}
                             </p>
                             <div className="flex flex-wrap gap-1.5 mt-1">
                               {meta.badges.map((b) => (
@@ -1148,7 +1151,7 @@ export default function PluginManagerModal({
                                   key={b}
                                   className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-black/30 border border-white/5 text-slate-300"
                                 >
-                                  {b}
+                                  {tr(b)}
                                 </span>
                               ))}
                             </div>
@@ -1161,7 +1164,7 @@ export default function PluginManagerModal({
                             type="button"
                             disabled={isFirst}
                             onClick={() => movePriority(idx, "up")}
-                            title="Sposta in alto (aumenta priorità)"
+                            title={t("plugin_manager.move_up")}
                             className="w-8 h-8 rounded-xl border flex items-center justify-center transition-all disabled:opacity-20 disabled:cursor-not-allowed hover:bg-white/10 active:scale-95"
                             style={{
                               backgroundColor: "var(--bg-card)",
@@ -1175,7 +1178,7 @@ export default function PluginManagerModal({
                             type="button"
                             disabled={isLast}
                             onClick={() => movePriority(idx, "down")}
-                            title="Sposta in basso (diminuisce priorità)"
+                            title={t("plugin_manager.move_down")}
                             className="w-8 h-8 rounded-xl border flex items-center justify-center transition-all disabled:opacity-20 disabled:cursor-not-allowed hover:bg-white/10 active:scale-95"
                             style={{
                               backgroundColor: "var(--bg-card)",
@@ -1196,10 +1199,10 @@ export default function PluginManagerModal({
               <div className="space-y-3 pt-1">
                 <div className="px-1">
                   <h4 className="text-xs font-bold text-slate-300">
-                    Sorgenti Preferite per Singolo Campo
+                    {t("plugin_manager.per_field_title")}
                   </h4>
                   <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>
-                    Personalizza ulteriormente quale fonte consultare prioritariamente per ciascun tipo di asset
+                    {t("plugin_manager.per_field_desc")}
                   </p>
                 </div>
 
@@ -1214,7 +1217,7 @@ export default function PluginManagerModal({
                   >
                     <label className="text-xs font-bold text-white flex items-center gap-1.5">
                       <Folder className="w-3.5 h-3.5 text-cyan-400" />
-                      <span>Copertine Verticali (600x900)</span>
+                      <span>{t("plugin_manager.covers")}</span>
                     </label>
                     <select
                       value={pipelineConfig.cover_source}
@@ -1228,8 +1231,8 @@ export default function PluginManagerModal({
                         color: "var(--text-primary)",
                       }}
                     >
-                      <option value="steam">Steam Store CDN (Zero-Config Ufficiale)</option>
-                      <option value="gog">GOG Catalog (Zero-Config Ufficiale)</option>
+                      <option value="steam">Steam Store CDN ({t("plugin_manager.opt_official_zero_config")})</option>
+                      <option value="gog">GOG Catalog ({t("plugin_manager.opt_official_zero_config")})</option>
                       <option value="steamgriddb">SteamGridDB (Artwork HD 600x900)</option>
                       <option value="igdb">IGDB (Twitch Database)</option>
                     </select>
@@ -1245,7 +1248,7 @@ export default function PluginManagerModal({
                   >
                     <label className="text-xs font-bold text-white flex items-center gap-1.5">
                       <Folder className="w-3.5 h-3.5 text-purple-400" />
-                      <span>Sfondi Hero Panoramici (4K)</span>
+                      <span>{t("plugin_manager.backgrounds")}</span>
                     </label>
                     <select
                       value={pipelineConfig.background_source}
@@ -1262,8 +1265,8 @@ export default function PluginManagerModal({
                         color: "var(--text-primary)",
                       }}
                     >
-                      <option value="steam">Steam Store CDN (Ufficiale)</option>
-                      <option value="gog">GOG Catalog (Artwork Ufficiale)</option>
+                      <option value="steam">Steam Store CDN ({t("plugin_manager.opt_official")})</option>
+                      <option value="gog">GOG Catalog ({t("plugin_manager.opt_official_artwork")})</option>
                       <option value="steamgriddb">SteamGridDB (Hero 1920x1080 / 4K)</option>
                       <option value="igdb">IGDB (Screenshot HD)</option>
                     </select>
@@ -1279,7 +1282,7 @@ export default function PluginManagerModal({
                   >
                     <label className="text-xs font-bold text-white flex items-center gap-1.5">
                       <Star className="w-3.5 h-3.5 text-amber-400" />
-                      <span>Voti della Critica</span>
+                      <span>{t("plugin_manager.critic_scores")}</span>
                     </label>
                     <select
                       value={pipelineConfig.score_source}
@@ -1293,7 +1296,7 @@ export default function PluginManagerModal({
                         color: "var(--text-primary)",
                       }}
                     >
-                      <option value="steam">Steam Metacritic (Punteggio Metacritic di Steam)</option>
+                      <option value="steam">Steam Metacritic ({t("plugin_manager.opt_steam_metacritic")})</option>
                       <option value="opencritic">OpenCritic (Top Critic Score)</option>
                       <option value="igdb">IGDB (Total Rating / Critic Score)</option>
                     </select>
@@ -1309,7 +1312,7 @@ export default function PluginManagerModal({
                   >
                     <label className="text-xs font-bold text-white flex items-center gap-1.5">
                       <Scroll className="w-3.5 h-3.5 text-emerald-400" />
-                      <span>Sinossi, Generi & Sviluppatori</span>
+                      <span>{t("plugin_manager.details")}</span>
                     </label>
                     <select
                       value={pipelineConfig.details_source}
@@ -1323,9 +1326,9 @@ export default function PluginManagerModal({
                         color: "var(--text-primary)",
                       }}
                     >
-                      <option value="steam">Steam Store Engine (Localizzato in Italiano)</option>
-                      <option value="gog">GOG Catalog (Catalogo DRM-Free)</option>
-                      <option value="igdb">IGDB (Twitch / Database Globale)</option>
+                      <option value="steam">Steam Store Engine ({t("plugin_manager.opt_localized")})</option>
+                      <option value="gog">GOG Catalog ({t("plugin_manager.opt_drm_free_catalog")})</option>
+                      <option value="igdb">IGDB (Twitch / {t("plugin_manager.badge_global_db")})</option>
                     </select>
                   </div>
                 </div>
@@ -1342,10 +1345,10 @@ export default function PluginManagerModal({
                 <div className="space-y-0.5 max-w-[80%]">
                   <div className="text-xs font-bold text-white flex items-center gap-1.5">
                     <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                    <span>Preserva locandine e sfondi già esistenti (Consigliato)</span>
+                    <span>{t("plugin_manager.preserve_title")}</span>
                   </div>
                   <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>
-                    Quando attivo, il download dati catalogo scarica descrizioni, generi e voti senza sovrascrivere o corrompere le immagini già salvate su disco.
+                    {t("plugin_manager.preserve_desc")}
                   </p>
                 </div>
                 <button
@@ -1379,7 +1382,7 @@ export default function PluginManagerModal({
                   className="px-6 py-2.5 rounded-xl font-black text-xs text-white shadow-lg transition-all hover:brightness-110 active:opacity-90"
                   style={{ backgroundColor: "var(--accent-primary)" }}
                 >
-                  Salva Configurazione Pipeline
+                  {t("plugin_manager.save_pipeline")}
                 </button>
               </div>
             </div>
@@ -1404,10 +1407,10 @@ export default function PluginManagerModal({
                   </div>
                   <div>
                     <h4 className="text-sm font-black text-white">
-                      Download Dati e Copertine per la Libreria
+                      {t("plugin_manager.enrich_title")}
                     </h4>
                     <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                      Scarica automaticamente locandine HD, sfondi, voti e tempi di gioco per tutti i {gamesCount} giochi
+                      {t("plugin_manager.enrich_desc", { count: gamesCount })}
                     </p>
                   </div>
                 </div>
@@ -1415,13 +1418,13 @@ export default function PluginManagerModal({
                 <div className="grid grid-cols-3 gap-3 pt-2">
                   <div className="p-3 rounded-lg bg-black/20 border border-white/5">
                     <span className="text-[10px] uppercase font-bold text-slate-400">
-                      Totale Giochi
+                      {t("plugin_manager.total_games")}
                     </span>
                     <p className="text-lg font-black text-white mt-0.5">{gamesCount}</p>
                   </div>
                   <div className="p-3 rounded-lg bg-black/20 border border-white/5">
                     <span className="text-[10px] uppercase font-bold text-slate-400">
-                      Cover Presenti
+                      {t("plugin_manager.covers_present")}
                     </span>
                     <p className="text-lg font-black text-emerald-400 mt-0.5">
                       {gamesWithCoverCount}
@@ -1429,7 +1432,7 @@ export default function PluginManagerModal({
                   </div>
                   <div className="p-3 rounded-lg bg-black/20 border border-white/5">
                     <span className="text-[10px] uppercase font-bold text-slate-400">
-                      Voti Critica
+                      {t("plugin_manager.critic_scores")}
                     </span>
                     <p className="text-lg font-black text-amber-400 mt-0.5">
                       {gamesWithScoreCount}
@@ -1448,12 +1451,12 @@ export default function PluginManagerModal({
                   <span style={{ color: "var(--text-muted)" }}>
                     {pipelineConfig.preserve_existing_artwork !== false ? (
                       <>
-                        <strong className="text-emerald-400 font-bold">Protezione attiva:</strong>{" "}
-                        Le copertine e gli sfondi già scaricati da Steam o configurati localmente non verranno sovrascritti.
+                        <strong className="text-emerald-400 font-bold">{t("plugin_manager.protection_on")}</strong>{" "}
+                        {t("plugin_manager.protection_on_desc")}
                       </>
                     ) : (
                       <>
-                        <strong className="text-amber-400 font-bold">Attenzione:</strong> Le copertine e gli sfondi esistenti verranno sostituiti dai provider impostati nella pipeline.
+                        <strong className="text-amber-400 font-bold">{t("plugin_manager.warning")}</strong> {t("plugin_manager.warning_desc")}
                       </>
                     )}
                   </span>
@@ -1464,7 +1467,7 @@ export default function PluginManagerModal({
                   <div className="p-4 rounded-xl border border-indigo-500/40 bg-indigo-500/10 space-y-2.5 animate-in fade-in">
                     <div className="flex items-center justify-between text-xs">
                       <span className="font-semibold text-indigo-300 truncate max-w-[320px]">
-                        Scaricamento per: "{liveProgress.title}"
+                        {t("plugin_manager.downloading_for", { title: liveProgress.title })}
                       </span>
                       <span className="font-bold text-white">
                         {liveProgress.current} / {liveProgress.total} ({liveProgress.total > 0 ? Math.round((liveProgress.current / liveProgress.total) * 100) : 0}%)
@@ -1511,8 +1514,8 @@ export default function PluginManagerModal({
                     />
                     <span>
                       {isPipelineEnriching
-                        ? "Scaricamento Dati in Corso..."
-                        : "Scarica Dati per Tutti i Giochi"}
+                        ? t("plugin_manager.downloading")
+                        : t("plugin_manager.download_all")}
                     </span>
                   </button>
 
@@ -1521,10 +1524,10 @@ export default function PluginManagerModal({
                       type="button"
                       onClick={handleCancelPipeline}
                       className="px-5 py-3 rounded-xl font-black text-xs text-white bg-red-600 hover:bg-red-500 shadow-lg shadow-red-500/25 transition-all flex items-center justify-center gap-2 active:scale-95 animate-pulse"
-                      title="Interrompi l'operazione in corso"
+                      title={t("plugin_manager.stop_title")}
                     >
                       <Square className="w-3.5 h-3.5 fill-current" />
-                      <span>Ferma</span>
+                      <span>{t("plugin_manager.stop")}</span>
                     </button>
                   )}
                 </div>

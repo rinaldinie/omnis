@@ -261,7 +261,7 @@ export default function Sidebar({
             title={t("sidebar.folder_covers")}
           >
             <Folder className="w-3 h-3" />
-            <span>Cover</span>
+            <span>{t("sidebar.short_covers")}</span>
           </button>
           <button
             type="button"
@@ -270,7 +270,7 @@ export default function Sidebar({
             title={t("sidebar.folder_themes")}
           >
             <Palette className="w-3 h-3" />
-            <span>Temi</span>
+            <span>{t("sidebar.short_themes")}</span>
           </button>
           <button
             type="button"
@@ -279,7 +279,7 @@ export default function Sidebar({
             title={t("sidebar.folder_plugins")}
           >
             <Folder className="w-3 h-3" />
-            <span>Plug</span>
+            <span>{t("sidebar.short_plugins")}</span>
           </button>
         </div>
       </div>

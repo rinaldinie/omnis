@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { RefreshCw, LogIn, LogOut, Loader2, Clock, CheckCircle2, AlertCircle, Key } from "lucide-react";
 import { StoreAccount, StoreSyncProgress, formatLastSync } from "./types";
+import { useTranslation } from "../../i18n";
 
 interface CloudStoreCardProps {
   account: StoreAccount;
@@ -35,6 +36,7 @@ export const CloudStoreCard: React.FC<CloudStoreCardProps> = ({
   onSync,
   onSaveApiKey,
 }) => {
+  const { t, locale } = useTranslation();
   const [showKeyInput, setShowKeyInput] = useState<boolean>(false);
   const [apiKey, setApiKey] = useState<string>("");
   const [isSavingKey, setIsSavingKey] = useState<boolean>(false);
@@ -93,11 +95,11 @@ export const CloudStoreCard: React.FC<CloudStoreCardProps> = ({
             {account.is_connected ? (
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 whitespace-nowrap">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                Connesso
+                {t("store_accounts.connected_badge")}
               </span>
             ) : (
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-500/20 text-slate-400 border border-slate-500/30 whitespace-nowrap">
-                Non connesso
+                {t("store_accounts.not_connected")}
               </span>
             )}
           </div>
@@ -129,11 +131,11 @@ export const CloudStoreCard: React.FC<CloudStoreCardProps> = ({
                 )}
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-bold text-white truncate">
-                    {account.username || `Utente ${account.name}`}
+                    {account.username || t("store_accounts.user_fallback", { name: account.name })}
                   </div>
                   <div className="flex items-center gap-1 text-[11px] text-slate-400">
                     <Clock className="w-3 h-3 text-slate-500" />
-                    <span>Ultimo sync: {formatLastSync(account.last_sync)}</span>
+                    <span>{t("store_accounts.last_sync", { time: formatLastSync(account.last_sync, locale, t("store_accounts.never_synced")) })}</span>
                   </div>
                 </div>
               </div>
@@ -144,15 +146,15 @@ export const CloudStoreCard: React.FC<CloudStoreCardProps> = ({
                   <div className="flex items-center justify-between text-[11px]">
                     <span className="flex items-center gap-1.5 text-slate-300 font-medium">
                       <Key className="w-3.5 h-3.5 text-sky-400" />
-                      Steam Web API Key:
+                      {t("store_accounts.steam_api_key_label")}
                     </span>
                     {account.has_api_key ? (
                       <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">
-                        <CheckCircle2 className="w-3 h-3" /> Configurato
+                        <CheckCircle2 className="w-3 h-3" /> {t("store_accounts.key_configured")}
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1 text-[10px] text-amber-400 font-bold bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30">
-                        <AlertCircle className="w-3 h-3" /> Richiesto per Cloud
+                        <AlertCircle className="w-3 h-3" /> {t("store_accounts.key_required_cloud")}
                       </span>
                     )}
                   </div>
@@ -161,15 +163,15 @@ export const CloudStoreCard: React.FC<CloudStoreCardProps> = ({
                     <div className="flex items-center justify-between">
                       <p className="text-[10px] text-slate-400 leading-tight">
                         {account.has_api_key
-                          ? "API Key attiva nel vault"
-                          : "Necessaria per scaricare tutti i giochi non installati."}
+                          ? t("store_accounts.key_active")
+                          : t("store_accounts.key_needed")}
                       </p>
                       <button
                         type="button"
                         onClick={() => setShowKeyInput(true)}
                         className="text-[10px] font-bold text-sky-400 hover:text-sky-300 underline underline-offset-2 shrink-0 ml-2"
                       >
-                        {account.has_api_key ? "Modifica" : "Inserisci Chiave"}
+                        {account.has_api_key ? t("store_accounts.edit_key") : t("store_accounts.enter_key")}
                       </button>
                     </div>
                   )}
@@ -181,7 +183,7 @@ export const CloudStoreCard: React.FC<CloudStoreCardProps> = ({
                           type="password"
                           value={apiKey}
                           onChange={(e) => setApiKey(e.target.value)}
-                          placeholder="Incolla chiave 32 caratteri"
+                          placeholder={t("store_accounts.key_paste_placeholder")}
                           className="flex-1 min-w-0 bg-black/60 border border-white/20 rounded-lg px-2 py-1 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-400 font-mono"
                         />
                         <button
@@ -201,7 +203,7 @@ export const CloudStoreCard: React.FC<CloudStoreCardProps> = ({
                           }}
                           className="px-3 py-1 bg-sky-500 hover:bg-sky-400 disabled:opacity-50 text-slate-950 font-bold rounded-lg text-xs transition-colors shrink-0 flex items-center gap-1"
                         >
-                          {isSavingKey ? <Loader2 className="w-3 h-3 animate-spin" /> : "Salva"}
+                          {isSavingKey ? <Loader2 className="w-3 h-3 animate-spin" /> : t("common.save")}
                         </button>
                         <button
                           type="button"
@@ -215,7 +217,7 @@ export const CloudStoreCard: React.FC<CloudStoreCardProps> = ({
                         </button>
                       </div>
                       <div className="text-[10px] text-slate-400 flex items-center justify-between">
-                        <span>Richiedi la tua chiave gratuita:</span>
+                        <span>{t("store_accounts.request_free_key")}</span>
                         <a
                           href="https://steamcommunity.com/dev/apikey"
                           target="_blank"
@@ -232,7 +234,7 @@ export const CloudStoreCard: React.FC<CloudStoreCardProps> = ({
             </>
           ) : (
             <p className="text-xs text-slate-300 leading-relaxed">
-              Autenticati per sincronizzare la libreria cloud e i giochi non installati.
+              {t("store_accounts.connect_hint")}
             </p>
           )}
 
@@ -242,7 +244,7 @@ export const CloudStoreCard: React.FC<CloudStoreCardProps> = ({
               <div className="flex items-center justify-between text-[11px] text-indigo-300 font-medium">
                 <span className="flex items-center gap-1.5">
                   <Loader2 className="w-3 h-3 animate-spin text-indigo-400" />
-                  {syncProgress.message || "Sincronizzazione in corso..."}
+                  {syncProgress.message || t("store_accounts.syncing")}
                 </span>
                 {syncProgress.total > 0 && (
                   <span className="font-mono text-xs">{syncProgress.current}/{syncProgress.total}</span>
@@ -260,14 +262,14 @@ export const CloudStoreCard: React.FC<CloudStoreCardProps> = ({
           {syncProgress && syncProgress.status === "completed" && (
             <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-300 flex items-center gap-1.5">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-              <span>{syncProgress.message || "Sincronizzazione completata!"}</span>
+              <span>{syncProgress.message || t("store_accounts.sync_done_default")}</span>
             </div>
           )}
 
           {syncProgress && syncProgress.status === "error" && (
             <div className="p-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-[11px] text-rose-300 flex items-center gap-1.5">
               <AlertCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
-              <span>{syncProgress.message || "Errore di sincronizzazione."}</span>
+              <span>{syncProgress.message || t("store_accounts.sync_error_default")}</span>
             </div>
           )}
         </div>
@@ -284,17 +286,17 @@ export const CloudStoreCard: React.FC<CloudStoreCardProps> = ({
               className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/15 text-white transition-all disabled:opacity-50"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? "animate-spin" : ""}`} />
-              <span>{isSyncing ? "Sincronizzazione..." : "Sincronizza Ora"}</span>
+              <span>{isSyncing ? t("store_accounts.syncing_short") : t("store_accounts.sync_now")}</span>
             </button>
             <button
               type="button"
               disabled={actionLoading || isSyncing}
               onClick={() => onDisconnect(account.store_id)}
               className="flex items-center justify-center gap-1 py-1.5 px-3 rounded-xl text-xs font-medium text-rose-400 hover:bg-rose-500/20 border border-rose-500/30 transition-all disabled:opacity-50"
-              title="Disconnetti account"
+              title={t("store_accounts.disconnect_title")}
             >
               <LogOut className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Disconnetti</span>
+              <span className="hidden sm:inline">{t("store_accounts.disconnect")}</span>
             </button>
           </>
         ) : (
@@ -314,7 +316,7 @@ export const CloudStoreCard: React.FC<CloudStoreCardProps> = ({
             ) : (
               <LogIn className={`w-4 h-4 ${isLightAccent ? "text-slate-950" : "text-white"}`} />
             )}
-            <span>Connetti Account</span>
+            <span>{t("store_accounts.connect_account")}</span>
           </button>
         )}
       </div>

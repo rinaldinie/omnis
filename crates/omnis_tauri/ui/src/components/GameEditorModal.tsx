@@ -202,7 +202,7 @@ export default function GameEditorModal({
         onClose();
       }, 400);
     } catch (err: any) {
-      setSaveError(typeof err === "string" ? err : err.message || "Errore salvataggio metadati");
+      setSaveError(typeof err === "string" ? err : err.message || t("editor_modal.save_error"));
     } finally {
       setIsSaving(false);
     }
@@ -492,7 +492,7 @@ export default function GameEditorModal({
         {saveSuccess && (
           <div className="px-6 py-2.5 bg-emerald-500/20 border-t border-emerald-500/40 text-emerald-300 text-xs font-bold flex items-center gap-2">
             <Check className="w-4 h-4 shrink-0" />
-            <span>Modifiche salvate con successo nel database!</span>
+            <span>{t("editor_modal.saved")}</span>
           </div>
         )}
 

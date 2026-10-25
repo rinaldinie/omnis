@@ -1,6 +1,7 @@
 import React from "react";
 import { Sparkles } from "lucide-react";
 import { GameEditorFormData } from "./types";
+import { useTranslation } from "../../i18n";
 
 interface DescriptionTabProps {
   formData: GameEditorFormData;
@@ -21,6 +22,7 @@ const COMMON_KEY_FEATURES = [
 ];
 
 export const DescriptionTab: React.FC<DescriptionTabProps> = ({ formData, onChange }) => {
+  const { t } = useTranslation();
   const currentFeatures = (formData.featuresText || "")
     .split(",")
     .map((s) => s.trim())
@@ -41,7 +43,7 @@ export const DescriptionTab: React.FC<DescriptionTabProps> = ({ formData, onChan
     <div className="space-y-6">
       <div>
         <label className="block text-xs font-medium mb-1.5 text-slate-300">
-          Sinossi / Descrizione Ufficiale
+          {t("editor_description.synopsis")}
         </label>
         <textarea
           rows={7}
@@ -53,7 +55,7 @@ export const DescriptionTab: React.FC<DescriptionTabProps> = ({ formData, onChan
             borderColor: "var(--border-color)",
             color: "var(--text-primary)",
           }}
-          placeholder="Inserisci qui la sinossi o descrizione del gioco..."
+          placeholder={t("editor_description.synopsis_placeholder")}
         />
       </div>
 
@@ -61,9 +63,9 @@ export const DescriptionTab: React.FC<DescriptionTabProps> = ({ formData, onChan
         <div className="flex items-center justify-between">
           <label className="flex items-center gap-2 text-xs font-medium text-slate-300">
             <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-            <span>Caratteristiche Principali / Key Features (Playnite Parity)</span>
+            <span>{t("editor_description.features")}</span>
           </label>
-          <span className="text-[10px] text-slate-500">Valori separati da virgola</span>
+          <span className="text-[10px] text-slate-500">{t("editor_description.comma_separated")}</span>
         </div>
 
         <input
@@ -76,12 +78,12 @@ export const DescriptionTab: React.FC<DescriptionTabProps> = ({ formData, onChan
             borderColor: "var(--border-color)",
             color: "var(--text-primary)",
           }}
-          placeholder="es. Single-player, Full controller support, Cloud Saves, Ray Tracing"
+          placeholder={t("editor_description.features_placeholder")}
         />
 
         {/* Quick Suggestion Chips */}
         <div className="space-y-1.5 pt-1">
-          <span className="text-[11px] font-semibold text-slate-400">Suggeriti rapidi:</span>
+          <span className="text-[11px] font-semibold text-slate-400">{t("editor_description.suggestions")}</span>
           <div className="flex flex-wrap gap-1.5">
             {COMMON_KEY_FEATURES.map((feature) => {
               const isSelected = currentFeatures.some(

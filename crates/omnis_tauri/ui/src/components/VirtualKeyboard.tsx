@@ -1,16 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
-import {
-  Keyboard as KeyboardIcon,
-  Search,
-  X,
-  CornerDownLeft,
-  Delete,
-  Space,
-  Trash2,
-  Gamepad2,
-} from "lucide-react";
+import { Search, CornerDownLeft, Delete, Space, Trash2 } from "lucide-react";
 import soundEffects from "../utils/soundEffects";
 import { useTranslation } from "../i18n";
+import { Glyph } from "./fullscreen/ConsoleChrome";
 
 export interface VirtualKeyboardProps {
   isOpen: boolean;
@@ -19,100 +11,48 @@ export interface VirtualKeyboardProps {
   onSubmit: () => void;
   onClose: () => void;
   placeholder?: string;
+  /** Number of games matching the current text, shown next to the field */
+  resultCount?: number;
 }
 
 interface KeyDef {
   label: string;
-  action: "char" | "backspace" | "enter" | "space" | "clear" | "close";
+  action: "char" | "backspace" | "enter" | "space" | "clear";
   char?: string;
-  icon?: React.ReactNode;
-  widthClass?: string;
+  /** Relative width inside its row (flex-grow) */
+  grow?: number;
 }
 
-const ROW_0: KeyDef[] = [
-  { label: "1", char: "1", action: "char" },
-  { label: "2", char: "2", action: "char" },
-  { label: "3", char: "3", action: "char" },
-  { label: "4", char: "4", action: "char" },
-  { label: "5", char: "5", action: "char" },
-  { label: "6", char: "6", action: "char" },
-  { label: "7", char: "7", action: "char" },
-  { label: "8", char: "8", action: "char" },
-  { label: "9", char: "9", action: "char" },
-  { label: "0", char: "0", action: "char" },
-  {
-    label: "Canc",
-    action: "backspace",
-    icon: <Delete className="w-4 h-4" />,
-    widthClass: "flex-[1.4]",
-  },
+const charKeys = (chars: string): KeyDef[] =>
+  chars.split("").map((c) => ({ label: c, char: c, action: "char" as const }));
+
+const KEY_ROWS: KeyDef[][] = [
+  [...charKeys("1234567890"), { label: "backspace", action: "backspace", grow: 1.6 }],
+  charKeys("QWERTYUIOP"),
+  charKeys("ASDFGHJKL"),
+  charKeys("ZXCVBNM-."),
+  [
+    { label: "space", action: "space", grow: 4 },
+    { label: "clear", action: "clear", grow: 1.5 },
+    { label: "enter", action: "enter", grow: 2 },
+  ],
 ];
 
-const ROW_1: KeyDef[] = [
-  { label: "Q", char: "Q", action: "char" },
-  { label: "W", char: "W", action: "char" },
-  { label: "E", char: "E", action: "char" },
-  { label: "R", char: "R", action: "char" },
-  { label: "T", char: "T", action: "char" },
-  { label: "Y", char: "Y", action: "char" },
-  { label: "U", char: "U", action: "char" },
-  { label: "I", char: "I", action: "char" },
-  { label: "O", char: "O", action: "char" },
-  { label: "P", char: "P", action: "char" },
-];
+const NAV_INITIAL_DELAY = 300;
+const NAV_REPEAT_INTERVAL = 110;
 
-const ROW_2: KeyDef[] = [
-  { label: "A", char: "A", action: "char" },
-  { label: "S", char: "S", action: "char" },
-  { label: "D", char: "D", action: "char" },
-  { label: "F", char: "F", action: "char" },
-  { label: "G", char: "G", action: "char" },
-  { label: "H", char: "H", action: "char" },
-  { label: "J", char: "J", action: "char" },
-  { label: "K", char: "K", action: "char" },
-  { label: "L", char: "L", action: "char" },
-];
-
-const ROW_3: KeyDef[] = [
-  { label: "Z", char: "Z", action: "char" },
-  { label: "X", char: "X", action: "char" },
-  { label: "C", char: "C", action: "char" },
-  { label: "V", char: "V", action: "char" },
-  { label: "B", char: "B", action: "char" },
-  { label: "N", char: "N", action: "char" },
-  { label: "M", char: "M", action: "char" },
-  { label: "-", char: "-", action: "char" },
-  { label: ".", char: ".", action: "char" },
-];
-
-const ROW_4: KeyDef[] = [
-  {
-    label: "Spazio",
-    action: "space",
-    icon: <Space className="w-4 h-4" />,
-    widthClass: "flex-[3]",
-  },
-  {
-    label: "Cancella",
-    action: "clear",
-    icon: <Trash2 className="w-4 h-4" />,
-    widthClass: "flex-[1.5]",
-  },
-  {
-    label: "Cerca",
-    action: "enter",
-    icon: <CornerDownLeft className="w-4 h-4" />,
-    widthClass: "flex-[1.8]",
-  },
-  {
-    label: "Chiudi (B)",
-    action: "close",
-    icon: <X className="w-4 h-4" />,
-    widthClass: "flex-[1.5]",
-  },
-];
-
-const KEY_ROWS: KeyDef[][] = [ROW_0, ROW_1, ROW_2, ROW_3, ROW_4];
+/** Moves the cursor, keeping the column proportional when rows have a different length. */
+function moveCursor([row, col]: [number, number], dRow: number, dCol: number): [number, number] {
+  if (dCol !== 0) {
+    return [row, Math.max(0, Math.min(KEY_ROWS[row].length - 1, col + dCol))];
+  }
+  const nextRow = Math.max(0, Math.min(KEY_ROWS.length - 1, row + dRow));
+  if (nextRow === row) return [row, col];
+  const currCols = KEY_ROWS[row].length;
+  const targetCols = KEY_ROWS[nextRow].length;
+  const scaled = Math.round((col / Math.max(1, currCols - 1)) * (targetCols - 1));
+  return [nextRow, Math.min(targetCols - 1, scaled)];
+}
 
 export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
   isOpen,
@@ -121,13 +61,11 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
   onSubmit,
   onClose,
   placeholder,
+  resultCount,
 }) => {
   const { t } = useTranslation();
-  const effectivePlaceholder = placeholder || t('topbar.search_placeholder');
-  // Cursor position in [row, col]
+  const effectivePlaceholder = placeholder || t("topbar.search_placeholder");
   const [cursor, setCursor] = useState<[number, number]>([1, 0]); // Start on 'Q'
-  const lastGamepadNav = useRef<number>(0);
-  const lastGamepadAction = useRef<number>(0);
 
   // References to keep current callback values without re-subscribing loops
   const valueRef = useRef(value);
@@ -141,14 +79,42 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
   const cursorRef = useRef(cursor);
   cursorRef.current = cursor;
 
+  const keyLabel = (key: KeyDef) => {
+    switch (key.action) {
+      case "backspace":
+        return t("console_ui.kb_delete");
+      case "space":
+        return t("console_ui.kb_space");
+      case "clear":
+        return t("console_ui.kb_clear");
+      case "enter":
+        return t("console_ui.kb_done");
+      default:
+        return key.label;
+    }
+  };
+
+  const keyIcon = (key: KeyDef) => {
+    switch (key.action) {
+      case "backspace":
+        return <Delete className="w-5 h-5" />;
+      case "space":
+        return <Space className="w-5 h-5" />;
+      case "clear":
+        return <Trash2 className="w-5 h-5" />;
+      case "enter":
+        return <CornerDownLeft className="w-5 h-5" />;
+      default:
+        return null;
+    }
+  };
+
   // Execute a key action
   const executeKey = (key: KeyDef) => {
     soundEffects.playSelect();
     switch (key.action) {
       case "char":
-        if (key.char) {
-          onChangeRef.current(valueRef.current + key.char);
-        }
+        if (key.char) onChangeRef.current(valueRef.current + key.char);
         break;
       case "space":
         onChangeRef.current(valueRef.current + " ");
@@ -162,119 +128,83 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
       case "enter":
         onSubmitRef.current();
         break;
-      case "close":
-        onCloseRef.current();
-        break;
     }
   };
+  const executeKeyRef = useRef(executeKey);
+  executeKeyRef.current = executeKey;
 
-  // Gamepad Polling Loop
+  // Gamepad polling loop: edge-triggered buttons, hold-to-repeat navigation
   useEffect(() => {
     if (!isOpen) return;
 
     let animId: number;
+    // Ignore the button that opened the keyboard until everything is released once
+    let awaitingNeutral = true;
+    let prevButtons: boolean[] = [];
+    let navKey = "";
+    let navStart = 0;
+    let lastNav = 0;
 
     const pollGamepad = () => {
       const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
-      let activeGamepad: Gamepad | null = null;
-      for (const gp of gamepads) {
-        if (gp && gp.connected) {
-          activeGamepad = gp;
-          break;
-        }
-      }
+      const gp = Array.from(gamepads).find((g): g is Gamepad => !!g && g.connected);
 
-      if (activeGamepad) {
+      if (gp) {
         const now = Date.now();
-        const b = activeGamepad.buttons;
-        const a = activeGamepad.axes;
+        const isDown = (i: number) => !!(gp.buttons[i] && (gp.buttons[i].pressed || gp.buttons[i].value > 0.5));
+        const ax = gp.axes;
+
+        if (awaitingNeutral) {
+          const anyActive = gp.buttons.some((_, i) => isDown(i)) || ax.some((v) => Math.abs(v) > 0.3);
+          if (!anyActive) awaitingNeutral = false;
+          animId = requestAnimationFrame(pollGamepad);
+          return;
+        }
+
+        const isEdge = (i: number) => isDown(i) && !prevButtons[i];
 
         // Navigation (D-Pad or Left Stick)
-        if (now - lastGamepadNav.current > 170) {
-          const isLeft = b[14]?.pressed || (a[0] && a[0] < -0.45);
-          const isRight = b[15]?.pressed || (a[0] && a[0] > 0.45);
-          const isUp = b[12]?.pressed || (a[1] && a[1] < -0.45);
-          const isDown = b[13]?.pressed || (a[1] && a[1] > 0.45);
+        let dRow = 0;
+        let dCol = 0;
+        if (isDown(14) || (ax[0] ?? 0) < -0.45) dCol = -1;
+        else if (isDown(15) || (ax[0] ?? 0) > 0.45) dCol = 1;
+        else if (isDown(12) || (ax[1] ?? 0) < -0.45) dRow = -1;
+        else if (isDown(13) || (ax[1] ?? 0) > 0.45) dRow = 1;
 
-          const [currRow, currCol] = cursorRef.current;
-
-          if (isLeft) {
-            const nextCol = Math.max(0, currCol - 1);
-            if (nextCol !== currCol) {
-              setCursor([currRow, nextCol]);
-              soundEffects.playNav();
-            }
-            lastGamepadNav.current = now;
-          } else if (isRight) {
-            const maxCol = KEY_ROWS[currRow].length - 1;
-            const nextCol = Math.min(maxCol, currCol + 1);
-            if (nextCol !== currCol) {
-              setCursor([currRow, nextCol]);
-              soundEffects.playNav();
-            }
-            lastGamepadNav.current = now;
-          } else if (isUp) {
-            const nextRow = Math.max(0, currRow - 1);
-            if (nextRow !== currRow) {
-              const targetCols = KEY_ROWS[nextRow].length;
-              const currCols = KEY_ROWS[currRow].length;
-              const scaledCol = Math.min(
-                targetCols - 1,
-                Math.round((currCol / Math.max(1, currCols - 1)) * (targetCols - 1))
-              );
-              setCursor([nextRow, scaledCol]);
-              soundEffects.playNav();
-            }
-            lastGamepadNav.current = now;
-          } else if (isDown) {
-            const nextRow = Math.min(KEY_ROWS.length - 1, currRow + 1);
-            if (nextRow !== currRow) {
-              const targetCols = KEY_ROWS[nextRow].length;
-              const currCols = KEY_ROWS[currRow].length;
-              const scaledCol = Math.min(
-                targetCols - 1,
-                Math.round((currCol / Math.max(1, currCols - 1)) * (targetCols - 1))
-              );
-              setCursor([nextRow, scaledCol]);
-              soundEffects.playNav();
-            }
-            lastGamepadNav.current = now;
+        const key = `${dRow},${dCol}`;
+        if (dRow === 0 && dCol === 0) {
+          navKey = "";
+        } else if (key !== navKey || (now - navStart >= NAV_INITIAL_DELAY && now - lastNav >= NAV_REPEAT_INTERVAL)) {
+          if (key !== navKey) {
+            navKey = key;
+            navStart = now;
+          }
+          lastNav = now;
+          const current = cursorRef.current;
+          const next = moveCursor(current, dRow, dCol);
+          if (next[0] !== current[0] || next[1] !== current[1]) {
+            setCursor(next);
+            soundEffects.playNav();
           }
         }
 
-        // Action Buttons
-        if (now - lastGamepadAction.current > 220) {
-          const btnA = b[0]?.pressed; // Confirm / Type active key
-          const btnB = b[1]?.pressed; // Close
-          const btnX = b[2]?.pressed; // Backspace shortcut
-          const btnY = b[3]?.pressed; // Space shortcut
-          const btnStart = b[9]?.pressed; // Submit / Enter
-
-          if (btnA) {
-            const [r, c] = cursorRef.current;
-            const key = KEY_ROWS[r]?.[c];
-            if (key) {
-              executeKey(key);
-            }
-            lastGamepadAction.current = now + 50;
-          } else if (btnB) {
-            soundEffects.playSelect();
-            onCloseRef.current();
-            lastGamepadAction.current = now + 150;
-          } else if (btnX) {
-            soundEffects.playSelect();
-            onChangeRef.current(valueRef.current.slice(0, -1));
-            lastGamepadAction.current = now;
-          } else if (btnY) {
-            soundEffects.playSelect();
-            onChangeRef.current(valueRef.current + " ");
-            lastGamepadAction.current = now;
-          } else if (btnStart) {
-            soundEffects.playSelect();
-            onSubmitRef.current();
-            lastGamepadAction.current = now + 150;
-          }
+        // Action buttons
+        if (isEdge(0)) {
+          const [r, c] = cursorRef.current;
+          const k = KEY_ROWS[r]?.[c];
+          if (k) executeKeyRef.current(k);
+        } else if (isEdge(1)) {
+          soundEffects.playSelect();
+          onCloseRef.current();
+        } else if (isEdge(2)) {
+          executeKeyRef.current({ label: "backspace", action: "backspace" });
+        } else if (isEdge(3)) {
+          executeKeyRef.current({ label: "space", action: "space" });
+        } else if (isEdge(9)) {
+          executeKeyRef.current({ label: "enter", action: "enter" });
         }
+
+        prevButtons = gp.buttons.map((_, i) => isDown(i));
       }
 
       animId = requestAnimationFrame(pollGamepad);
@@ -284,105 +214,47 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
     return () => cancelAnimationFrame(animId);
   }, [isOpen]);
 
-  // Physical Keyboard Listener
+  // Physical keyboard listener
   useEffect(() => {
     if (!isOpen) return;
 
+    const arrows: Record<string, [number, number]> = {
+      ArrowLeft: [0, -1],
+      ArrowRight: [0, 1],
+      ArrowUp: [-1, 0],
+      ArrowDown: [1, 0],
+    };
+
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      const handled = () => {
         e.preventDefault();
         e.stopPropagation();
+      };
+
+      if (e.key === "Escape") {
+        handled();
         soundEffects.playSelect();
         onClose();
-        return;
-      }
-
-      if (e.key === "Enter") {
-        e.preventDefault();
-        e.stopPropagation();
+      } else if (e.key === "Enter") {
+        handled();
         soundEffects.playSelect();
         onSubmit();
-        return;
-      }
-
-      if (e.key === "ArrowLeft") {
-        e.preventDefault();
-        e.stopPropagation();
-        setCursor(([r, c]) => {
-          const next = Math.max(0, c - 1);
-          if (next !== c) soundEffects.playNav();
-          return [r, next];
+      } else if (arrows[e.key]) {
+        handled();
+        const [dRow, dCol] = arrows[e.key];
+        setCursor((current) => {
+          const next = moveCursor(current, dRow, dCol);
+          if (next[0] !== current[0] || next[1] !== current[1]) soundEffects.playNav();
+          return next;
         });
-        return;
-      }
-
-      if (e.key === "ArrowRight") {
-        e.preventDefault();
-        e.stopPropagation();
-        setCursor(([r, c]) => {
-          const max = KEY_ROWS[r].length - 1;
-          const next = Math.min(max, c + 1);
-          if (next !== c) soundEffects.playNav();
-          return [r, next];
-        });
-        return;
-      }
-
-      if (e.key === "ArrowUp") {
-        e.preventDefault();
-        e.stopPropagation();
-        setCursor(([r, c]) => {
-          const nextR = Math.max(0, r - 1);
-          if (nextR !== r) {
-            soundEffects.playNav();
-            const targetCols = KEY_ROWS[nextR].length;
-            const currCols = KEY_ROWS[r].length;
-            const scaled = Math.min(
-              targetCols - 1,
-              Math.round((c / Math.max(1, currCols - 1)) * (targetCols - 1))
-            );
-            return [nextR, scaled];
-          }
-          return [r, c];
-        });
-        return;
-      }
-
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        e.stopPropagation();
-        setCursor(([r, c]) => {
-          const nextR = Math.min(KEY_ROWS.length - 1, r + 1);
-          if (nextR !== r) {
-            soundEffects.playNav();
-            const targetCols = KEY_ROWS[nextR].length;
-            const currCols = KEY_ROWS[r].length;
-            const scaled = Math.min(
-              targetCols - 1,
-              Math.round((c / Math.max(1, currCols - 1)) * (targetCols - 1))
-            );
-            return [nextR, scaled];
-          }
-          return [r, c];
-        });
-        return;
-      }
-
-      if (e.key === "Backspace") {
-        e.preventDefault();
-        e.stopPropagation();
+      } else if (e.key === "Backspace") {
+        handled();
         soundEffects.playSelect();
         onChange(value.slice(0, -1));
-        return;
-      }
-
-      // Typing printable character
-      if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
-        e.preventDefault();
-        e.stopPropagation();
+      } else if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        handled();
         soundEffects.playSelect();
         onChange(value + e.key.toUpperCase());
-        return;
       }
     };
 
@@ -394,127 +266,66 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col items-center justify-end pb-8 px-6 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
+      className="fixed inset-0 z-[60] flex flex-col items-center px-6 pt-8 omnis-fade-in"
+      style={{
+        // Dims only the top of the screen, so live search results stay visible below
+        background: "linear-gradient(to bottom, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.55) 55%, rgba(0, 0, 0, 0.1) 100%)",
+      }}
       onClick={(e) => {
-        if (e.target === e.currentTarget) {
-          onClose();
-        }
+        if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
-        className="relative max-w-4xl w-full rounded-3xl border p-6 md:p-8 space-y-6 shadow-2xl backdrop-blur-xl"
-        style={{
-          backgroundColor: "var(--bg-surface)",
-          borderColor: "var(--border-color)",
-          boxShadow: `0 20px 50px rgba(0,0,0,0.8), 0 0 40px var(--accent-glow)`,
-        }}
+        className="w-full max-w-[52rem] rounded-xl p-6 flex flex-col gap-5 shadow-2xl omnis-rise-in"
+        style={{ backgroundColor: "var(--bg-surface)", color: "var(--text-primary)" }}
       >
-        {/* TOP HEADER: TITLE & SEARCH INPUT PREVIEW */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between text-xs font-bold text-white/80">
-            <div className="flex items-center gap-2.5">
-              <div
-                className="w-7 h-7 rounded-lg flex items-center justify-center text-white shadow-md"
-                style={{ backgroundColor: "var(--accent-primary)" }}
-              >
-                <KeyboardIcon className="w-4 h-4" />
-              </div>
-              <span className="tracking-wider uppercase font-black text-sm text-white">
-                Tastiera a Schermo Fullscreen
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2 text-[11px] text-slate-400">
-              <Gamepad2 className="w-4 h-4 text-emerald-400 animate-pulse" />
-              <span>Controller Attivo</span>
-            </div>
-          </div>
-
-          {/* TEXT PREVIEW BAR */}
-          <div
-            className="flex items-center gap-3 px-5 py-4 rounded-2xl border text-lg md:text-xl font-bold text-white transition-all shadow-inner"
-            style={{
-              backgroundColor: "var(--bg-base)",
-              borderColor: "var(--border-color)",
-            }}
-          >
-            <Search className="w-6 h-6 shrink-0" style={{ color: "var(--accent-primary)" }} />
-            <div className="flex-1 flex items-center overflow-x-auto whitespace-nowrap scrollbar-none">
-              {value.length > 0 ? (
-                <>
-                  <span className="tracking-wider">{value}</span>
-                  <span
-                    className="inline-block w-0.5 h-6 ml-1 animate-pulse"
-                    style={{ backgroundColor: "var(--accent-primary)" }}
-                  />
-                </>
-              ) : (
-                <span className="text-slate-500 font-normal italic select-none">
-                  {effectivePlaceholder}
-                </span>
-              )}
-            </div>
-
-            {value.length > 0 && (
-              <button
-                onClick={() => {
-                  soundEffects.playSelect();
-                  onChange("");
-                }}
-                className="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
-                title="Cancella tutto"
-              >
-                <X className="w-5 h-5" />
-              </button>
+        {/* Search field */}
+        <div className="flex items-center gap-4 h-14 px-5 rounded-md bg-black/35">
+          <Search className="w-6 h-6 shrink-0 text-white/60" />
+          <div className="flex-1 min-w-0 flex items-center overflow-hidden whitespace-nowrap text-xl font-medium">
+            {value.length > 0 ? (
+              <>
+                <span className="truncate tracking-wide text-white">{value}</span>
+                <span className="inline-block w-0.5 h-6 ml-1 bg-white animate-pulse shrink-0" />
+              </>
+            ) : (
+              <span className="truncate text-white/40">{effectivePlaceholder}</span>
             )}
           </div>
+          {resultCount !== undefined && value.length > 0 && (
+            <span className="shrink-0 text-sm font-semibold uppercase tracking-wider text-white/55">
+              {t("console_ui.results", { count: resultCount })}
+            </span>
+          )}
         </div>
 
-        {/* 2D VIRTUAL KEYBOARD MATRIX */}
-        <div className="space-y-2.5 select-none">
+        {/* Keys */}
+        <div className="flex flex-col gap-2">
           {KEY_ROWS.map((row, rIdx) => (
-            <div key={rIdx} className="flex items-center gap-2 md:gap-2.5 w-full">
+            <div key={rIdx} className="flex gap-2">
               {row.map((key, cIdx) => {
                 const isSelected = cursor[0] === rIdx && cursor[1] === cIdx;
-                let displayLabel = key.label;
-                if (key.action === "backspace") displayLabel = t('common.delete');
-                else if (key.action === "clear") displayLabel = t('common.delete');
-                else if (key.action === "close") displayLabel = `${t('common.close')} (B)`;
-
+                const icon = keyIcon(key);
                 return (
                   <button
+                    type="button"
                     key={`${rIdx}-${cIdx}`}
                     onClick={() => {
                       setCursor([rIdx, cIdx]);
                       executeKey(key);
                     }}
-                    onMouseEnter={() => {
-                      if (cursor[0] !== rIdx || cursor[1] !== cIdx) {
-                        setCursor([rIdx, cIdx]);
-                        soundEffects.playNav();
-                      }
-                    }}
-                    className={`flex-1 min-h-[50px] md:min-h-[56px] rounded-xl flex items-center justify-center gap-2 text-sm md:text-base font-extrabold transition-all duration-150 transform ${
-                      key.widthClass || ""
-                    } ${
-                      isSelected
-                        ? "scale-105 z-20 text-white shadow-2xl ring-4 ring-white/30"
-                        : "text-slate-200 hover:text-white hover:bg-white/20 hover:border-white/40 border opacity-90 hover:opacity-100"
-                    }`}
+                    onMouseEnter={() => setCursor([rIdx, cIdx])}
+                    className="h-12 min-w-0 rounded-md flex items-center justify-center gap-2 text-base font-semibold transition-[transform,background-color,color] duration-100"
                     style={{
-                      backgroundColor: isSelected
-                        ? "var(--accent-primary)"
-                        : "var(--bg-card)",
-                      borderColor: isSelected
-                        ? "var(--accent-primary)"
-                        : "var(--border-color)",
-                      boxShadow: isSelected
-                        ? `0 0 25px var(--accent-glow), inset 0 1px 1px rgba(255,255,255,0.4)`
-                        : undefined,
+                      flexGrow: key.grow ?? 1,
+                      flexBasis: 0,
+                      backgroundColor: isSelected ? "#ffffff" : "rgba(255, 255, 255, 0.07)",
+                      color: isSelected ? "#0b0f19" : "rgba(255, 255, 255, 0.9)",
+                      transform: isSelected ? "scale(1.06)" : "none",
                     }}
                   >
-                    {key.icon}
-                    <span>{displayLabel}</span>
+                    {icon}
+                    {icon ? <span className="truncate text-sm uppercase tracking-wider">{keyLabel(key)}</span> : keyLabel(key)}
                   </button>
                 );
               })}
@@ -522,75 +333,28 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
           ))}
         </div>
 
-        {/* CONTROLLER ACTION HINTS FOOTER */}
-        <div
-          className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t text-xs font-bold"
-          style={{
-            borderColor: "var(--border-color)",
-            color: "var(--text-muted)",
-          }}
-        >
-          <div className="flex items-center gap-4 flex-wrap">
-            <span className="flex items-center gap-1.5">
-              <kbd className="w-5 h-5 rounded-full bg-black/40 border border-white/20 flex items-center justify-center text-[10px] text-white">
-                A
-              </kbd>
-              <span>Digita</span>
-            </span>
-            <span className="flex items-center gap-1.5">
-              <kbd className="w-5 h-5 rounded-full bg-black/40 border border-white/20 flex items-center justify-center text-[10px] text-white">
-                X
-              </kbd>
-              <span>Cancella</span>
-            </span>
-            <span className="flex items-center gap-1.5">
-              <kbd className="w-5 h-5 rounded-full bg-black/40 border border-white/20 flex items-center justify-center text-[10px] text-white">
-                Y
-              </kbd>
-              <span>Spazio</span>
-            </span>
-            <span className="flex items-center gap-1.5">
-              <kbd className="px-1.5 h-5 rounded bg-black/40 border border-white/20 flex items-center justify-center text-[10px] text-white font-mono">
-                Start
-              </kbd>
-              <span>Conferma</span>
-            </span>
-            <span className="flex items-center gap-1.5">
-              <kbd className="w-5 h-5 rounded-full bg-black/40 border border-white/20 flex items-center justify-center text-[10px] text-white">
-                B
-              </kbd>
-              <span>{t('common.close')}</span>
-            </span>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => {
-                soundEffects.playSelect();
-                onClose();
-              }}
-              className="px-4 py-2 rounded-xl border text-xs font-bold hover:bg-white/10 transition-colors"
-              style={{
-                borderColor: "var(--border-color)",
-                color: "var(--text-primary)",
-              }}
-            >
-              {t('common.cancel')} (Esc)
-            </button>
-            <button
-              onClick={() => {
-                soundEffects.playSelect();
-                onSubmit();
-              }}
-              className="px-6 py-2 rounded-xl text-xs font-black text-white shadow-lg transition-all hover:brightness-110 active:opacity-90"
-              style={{
-                backgroundColor: "var(--accent-primary)",
-                boxShadow: `0 0 15px var(--accent-glow)`,
-              }}
-            >
-              {t('common.search')} (↵)
-            </button>
-          </div>
+        {/* Controller hints */}
+        <div className="flex items-center justify-end gap-6 text-sm font-semibold uppercase tracking-wider text-white/85">
+          <span className="flex items-center gap-2">
+            <Glyph kind="a" />
+            {t("console_ui.kb_type")}
+          </span>
+          <span className="flex items-center gap-2">
+            <Glyph kind="x" />
+            {t("console_ui.kb_delete")}
+          </span>
+          <span className="flex items-center gap-2">
+            <Glyph kind="y" />
+            {t("console_ui.kb_space")}
+          </span>
+          <span className="flex items-center gap-2">
+            <Glyph kind="menu" />
+            {t("console_ui.kb_done")}
+          </span>
+          <span className="flex items-center gap-2">
+            <Glyph kind="b" />
+            {t("console_ui.back")}
+          </span>
         </div>
       </div>
     </div>

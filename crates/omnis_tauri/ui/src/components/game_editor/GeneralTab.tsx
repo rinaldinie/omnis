@@ -1,6 +1,7 @@
 import React from "react";
 import { Calendar, Star } from "lucide-react";
 import { GameEditorFormData, COMPLETION_STATUSES } from "./types";
+import { useTranslation } from "../../i18n";
 
 interface GeneralTabProps {
   formData: GameEditorFormData;
@@ -8,12 +9,13 @@ interface GeneralTabProps {
 }
 
 export const GeneralTab: React.FC<GeneralTabProps> = ({ formData, onChange }) => {
+  const { t } = useTranslation();
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-xs font-medium mb-1.5 text-slate-300">
-            Titolo Gioco *
+            {t("editor_general.title")} *
           </label>
           <input
             type="text"
@@ -25,13 +27,13 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({ formData, onChange }) =>
               borderColor: "var(--border-color)",
               color: "var(--text-primary)",
             }}
-            placeholder="es. Cyberpunk 2077"
+            placeholder={t("editor_general.title_placeholder")}
           />
         </div>
 
         <div>
           <label className="block text-xs font-medium mb-1.5 text-slate-300">
-            Titolo Ordinamento (Sorting Title)
+            {t("editor_general.sorting_title")}
           </label>
           <input
             type="text"
@@ -43,7 +45,7 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({ formData, onChange }) =>
               borderColor: "var(--border-color)",
               color: "var(--text-primary)",
             }}
-            placeholder="es. cyberpunk 2077"
+            placeholder={t("editor_general.sorting_title_placeholder")}
           />
         </div>
       </div>
@@ -51,7 +53,7 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({ formData, onChange }) =>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <label className="block text-xs font-medium mb-1.5 text-slate-300">
-            Serie / Franchise
+            {t("editor_general.series")}
           </label>
           <input
             type="text"
@@ -63,13 +65,13 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({ formData, onChange }) =>
               borderColor: "var(--border-color)",
               color: "var(--text-primary)",
             }}
-            placeholder="es. The Witcher, Half-Life"
+            placeholder={t("editor_general.series_placeholder")}
           />
         </div>
 
         <div>
           <label className="block text-xs font-medium mb-1.5 text-slate-300">
-            Classificazione Età (Rating)
+            {t("editor_general.age_rating")}
           </label>
           <input
             type="text"
@@ -81,13 +83,13 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({ formData, onChange }) =>
               borderColor: "var(--border-color)",
               color: "var(--text-primary)",
             }}
-            placeholder="es. PEGI 18, ESRB M"
+            placeholder={t("editor_general.age_rating_placeholder")}
           />
         </div>
 
         <div>
           <label className="block text-xs font-medium mb-1.5 text-slate-300">
-            Stato Completamento
+            {t("editor_general.completion")}
           </label>
           <select
             value={formData.completion_status}
@@ -101,7 +103,7 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({ formData, onChange }) =>
           >
             {COMPLETION_STATUSES.map((status) => (
               <option key={status.value} value={status.value}>
-                {status.label}
+                {t(`completion_status.${status.key}`)}
               </option>
             ))}
           </select>
@@ -111,7 +113,7 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({ formData, onChange }) =>
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div>
           <label className="block text-xs font-medium mb-1.5 text-slate-300">
-            Data di Rilascio
+            {t("editor_general.release_date")}
           </label>
           <div className="relative">
             <input
@@ -124,7 +126,7 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({ formData, onChange }) =>
                 borderColor: "var(--border-color)",
                 color: "var(--text-primary)",
               }}
-              placeholder="es. 10 Dic 2020"
+              placeholder={t("editor_general.release_date_placeholder")}
             />
             <Calendar className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
           </div>
@@ -132,7 +134,7 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({ formData, onChange }) =>
 
         <div>
           <label className="block text-xs font-medium mb-1.5 text-slate-300">
-            Voto Utente (0-100)
+            {t("editor_general.user_score")}
           </label>
           <div className="relative">
             <input
@@ -150,7 +152,7 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({ formData, onChange }) =>
                 backgroundColor: "var(--bg-card)",
                 borderColor: "var(--border-color)",
               }}
-              placeholder="Nessuno"
+              placeholder={t("editor_general.none")}
             />
             <Star className="w-4 h-4 absolute left-3 top-3 text-emerald-400" />
           </div>
@@ -158,7 +160,7 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({ formData, onChange }) =>
 
         <div>
           <label className="block text-xs font-medium mb-1.5 text-slate-300">
-            Voto Critica (Metacritic)
+            {t("editor_general.critic_score")}
           </label>
           <input
             type="number"
@@ -175,13 +177,13 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({ formData, onChange }) =>
               backgroundColor: "var(--bg-card)",
               borderColor: "var(--border-color)",
             }}
-            placeholder="es. 86"
+            placeholder={t("editor_general.critic_placeholder")}
           />
         </div>
 
         <div>
           <label className="block text-xs font-medium mb-1.5 text-slate-300">
-            Voto Community (%)
+            {t("editor_general.community_score")}
           </label>
           <input
             type="number"
@@ -198,7 +200,7 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({ formData, onChange }) =>
               backgroundColor: "var(--bg-card)",
               borderColor: "var(--border-color)",
             }}
-            placeholder="es. 92"
+            placeholder={t("editor_general.community_placeholder")}
           />
         </div>
       </div>
@@ -207,7 +209,7 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({ formData, onChange }) =>
       <div className="space-y-4 pt-2">
         <div>
           <label className="block text-xs font-medium mb-1.5 text-slate-300">
-            Generi (separati da virgola)
+            {t("editor_general.genres")}
           </label>
           <input
             type="text"
@@ -219,14 +221,14 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({ formData, onChange }) =>
               borderColor: "var(--border-color)",
               color: "var(--text-primary)",
             }}
-            placeholder="Azione, GDR, Open World, Cyberpunk"
+            placeholder={t("editor_general.genres_placeholder")}
           />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-medium mb-1.5 text-slate-300">
-              Sviluppatori (separati da virgola)
+              {t("editor_general.developers")}
             </label>
             <input
               type="text"
@@ -238,13 +240,13 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({ formData, onChange }) =>
                 borderColor: "var(--border-color)",
                 color: "var(--text-primary)",
               }}
-              placeholder="es. CD PROJEKT RED"
+              placeholder={t("editor_general.company_placeholder")}
             />
           </div>
 
           <div>
             <label className="block text-xs font-medium mb-1.5 text-slate-300">
-              Editori / Publishers (separati da virgola)
+              {t("editor_general.publishers")}
             </label>
             <input
               type="text"
@@ -256,14 +258,14 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({ formData, onChange }) =>
                 borderColor: "var(--border-color)",
                 color: "var(--text-primary)",
               }}
-              placeholder="es. CD PROJEKT RED"
+              placeholder={t("editor_general.company_placeholder")}
             />
           </div>
         </div>
 
         <div>
           <label className="block text-xs font-medium mb-1.5 text-slate-300">
-            Tag Personali (separati da virgola)
+            {t("editor_general.tags")}
           </label>
           <input
             type="text"
@@ -275,7 +277,7 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({ formData, onChange }) =>
               borderColor: "var(--border-color)",
               color: "var(--text-primary)",
             }}
-            placeholder="Preferiti, Da Finire, Capolavoro, RayTracing"
+            placeholder={t("editor_general.tags_placeholder")}
           />
         </div>
       </div>

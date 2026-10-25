@@ -1,5 +1,6 @@
 import React from "react";
 import { Check, XCircle } from "lucide-react";
+import { useTranslation } from "../../i18n";
 
 interface LocalStoreCardProps {
   name: string;
@@ -24,6 +25,7 @@ export const LocalStoreCard: React.FC<LocalStoreCardProps> = ({
   badgeColor,
   isDetected,
 }) => {
+  const { t } = useTranslation();
   return (
     <div
       className="p-4 rounded-2xl border flex items-center justify-between gap-3 transition-all"
@@ -60,12 +62,12 @@ export const LocalStoreCard: React.FC<LocalStoreCardProps> = ({
       {isDetected ? (
         <span className={`shrink-0 flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${badgeColor.bg} ${badgeColor.text} border ${badgeColor.border} whitespace-nowrap`}>
           <Check className="w-3 h-3" />
-          Rilevato
+          {t("store_accounts.detected")}
         </span>
       ) : (
         <span className="shrink-0 flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-500/10 text-slate-400 border border-slate-500/20 whitespace-nowrap">
           <XCircle className="w-3 h-3 text-slate-500" />
-          Non trovato
+          {t("store_accounts.not_found")}
         </span>
       )}
     </div>

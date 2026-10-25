@@ -1,6 +1,7 @@
 import React from "react";
 import { Plus, Trash2, ExternalLink, Link as LinkIcon } from "lucide-react";
 import { CustomLink } from "./types";
+import { useTranslation } from "../../i18n";
 
 interface CustomLinksTabProps {
   customLinks: CustomLink[];
@@ -15,11 +16,12 @@ export const CustomLinksTab: React.FC<CustomLinksTabProps> = ({
   onRemoveLink,
   onUpdateLink,
 }) => {
+  const { t } = useTranslation();
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between pb-2">
         <span className="text-xs font-normal text-slate-400">
-          Aggiungi link a wiki, forum, pagine di mod o guide ufficiali per questo gioco.
+          {t("editor_links.intro")}
         </span>
         <button
           type="button"
@@ -30,7 +32,7 @@ export const CustomLinksTab: React.FC<CustomLinksTabProps> = ({
           }}
         >
           <Plus className="w-3.5 h-3.5" />
-          <span>Aggiungi Link</span>
+          <span>{t("editor_links.add")}</span>
         </button>
       </div>
 
@@ -43,9 +45,9 @@ export const CustomLinksTab: React.FC<CustomLinksTabProps> = ({
           }}
         >
           <LinkIcon className="w-10 h-10 text-slate-500 mx-auto" />
-          <p className="text-sm font-medium text-white">Nessun collegamento personalizzato</p>
+          <p className="text-sm font-medium text-white">{t("editor_links.empty_title")}</p>
           <p className="text-xs text-slate-400">
-            Fai click su "Aggiungi Link" per salvare siti web e guide utili.
+            {t("editor_links.empty_desc")}
           </p>
         </div>
       ) : (
@@ -69,7 +71,7 @@ export const CustomLinksTab: React.FC<CustomLinksTabProps> = ({
                   borderColor: "var(--border-color)",
                   color: "var(--text-primary)",
                 }}
-                placeholder="Nome Link (es. Wiki Fandom)"
+                placeholder={t("editor_links.name_placeholder")}
               />
             </div>
 
@@ -94,7 +96,7 @@ export const CustomLinksTab: React.FC<CustomLinksTabProps> = ({
                 target="_blank"
                 rel="noreferrer"
                 className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10"
-                title="Apri nel browser predefinito"
+                title={t("editor_links.open_title")}
               >
                 <ExternalLink className="w-4 h-4" />
               </a>
@@ -104,7 +106,7 @@ export const CustomLinksTab: React.FC<CustomLinksTabProps> = ({
               type="button"
               onClick={() => onRemoveLink(idx)}
               className="p-2 rounded-xl text-rose-400 hover:text-rose-300 hover:bg-rose-500/10"
-              title="Rimuovi questo link"
+              title={t("editor_links.remove_title")}
             >
               <Trash2 className="w-4 h-4" />
             </button>
