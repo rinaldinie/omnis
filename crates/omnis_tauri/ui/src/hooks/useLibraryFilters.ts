@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useTranslation } from "../i18n";
 import { GameDto, GroupBy, FILTER_ORDER } from "../types";
 
 export interface FilterChip {
@@ -30,6 +31,7 @@ function matchesGenre(g: GameDto, targetGenre: string): boolean {
 }
 
 export function useLibraryFilters(games: GameDto[]) {
+  const { t } = useTranslation();
   // Dimension 1: Selected Stores (e.g. ["steam", "gog"]) - OR within dimension
   const [selectedStores, setSelectedStores] = useState<string[]>([]);
 
@@ -203,28 +205,30 @@ export function useLibraryFilters(games: GameDto[]) {
     });
 
     // Statuses
-    const statusLabels: Record<string, string> = {
-      playing: "In corso",
-      completed: "Completati 100%",
-      beaten: "Finiti",
-      plantoplay: "Da iniziare",
-      backlog: "Backlog",
-      abandoned: "Abbandonati",
-      notplayed: "Non giocati",
+    const statusKeys: Record<string, string> = {
+      playing: "playing",
+      completed: "completed",
+      beaten: "beaten",
+      plantoplay: "plan_to_play",
+      backlog: "backlog",
+      abandoned: "abandoned",
+      notplayed: "not_played",
     };
     selectedStatuses.forEach((st) => {
       chips.push({
         id: `status:${st}`,
-        label: `Stato: ${statusLabels[st.toLowerCase()] || st}`,
+        label: t("filter_chips.status", {
+          status: statusKeys[st.toLowerCase()] ? t(`completion_status.${statusKeys[st.toLowerCase()]}`) : st,
+        }),
         type: "status",
       });
     });
 
     // Flags
     const flagLabels: Record<string, string> = {
-      installed: "Installati",
-      favorites: "Preferiti",
-      recent: "Recenti",
+      installed: t("sidebar.installed"),
+      favorites: t("sidebar.favorites"),
+      recent: t("sidebar.recent"),
     };
     selectedFlags.forEach((f) => {
       chips.push({
@@ -238,13 +242,13 @@ export function useLibraryFilters(games: GameDto[]) {
     selectedGenres.forEach((g) => {
       chips.push({
         id: `genre:${g}`,
-        label: `Genere: ${g}`,
+        label: t("filter_chips.genre", { genre: g }),
         type: "genre",
       });
     });
 
     return chips;
-  }, [selectedStores, selectedStatuses, selectedFlags, selectedGenres]);
+  }, [selectedStores, selectedStatuses, selectedFlags, selectedGenres, t]);
 
   const filteredGames = useMemo(() => {
     const list = games.filter((g) => {
@@ -302,50 +306,51 @@ export function useLibraryFilters(games: GameDto[]) {
 
   const groupedGames = useMemo<Record<string, GameDto[]>>(() => {
     if (groupBy === "none") {
-      return { "Tutti i Giochi": filteredGames };
+      return { [t("sidebar.all_games")]: filteredGames };
     }
 
     const groups: Record<string, GameDto[]> = {};
 
     filteredGames.forEach((game) => {
-      let key = "Altro";
+      let key = t("library_groups.other");
       switch (groupBy) {
         case "library":
-          key = game.library ? game.library.toUpperCase() : "ALTRO";
+          key = game.library ? game.library.toUpperCase() : t("library_groups.other").toUpperCase();
           break;
         case "is_installed":
-          key = game.is_installed ? "Installati" : "Disponibili per il download";
+          key = game.is_installed ? t("sidebar.installed") : t("library_groups.downloadable");
           break;
         case "genre":
-          key = game.genres && game.genres.length > 0 ? game.genres[0] : "Senza Genere";
+          key = game.genres && game.genres.length > 0 ? game.genres[0] : t("library_groups.no_genre");
           break;
         case "developer":
-          key = game.developers && game.developers.length > 0 ? game.developers[0] : "Sconosciuto";
+          key = game.developers && game.developers.length > 0 ? game.developers[0] : t("library_groups.unknown");
           break;
         case "release_year": {
           if (game.release_date) {
             const match = game.release_date.match(/\b(19\d\d|20\d\d)\b/);
-            key = match ? match[1] : "Data Sconosciuta";
+            key = match ? match[1] : t("library_groups.unknown_date");
           } else {
-            key = "Data Sconosciuta";
+            key = t("library_groups.unknown_date");
           }
           break;
         }
         case "completion_status": {
-          const statusMap: Record<string, string> = {
-            NotPlayed: "Non giocato",
-            Playing: "In corso",
-            Beaten: "Finito",
-            Completed: "Completato 100%",
-            Abandoned: "Abbandonato",
-            Backlog: "Backlog",
-            PlanToPlay: "Da iniziare",
+          const statusKeys: Record<string, string> = {
+            NotPlayed: "not_played",
+            Playing: "playing",
+            Beaten: "beaten",
+            Completed: "completed",
+            Abandoned: "abandoned",
+            Backlog: "backlog",
+            PlanToPlay: "plan_to_play",
           };
-          key = statusMap[game.completion_status || "NotPlayed"] || game.completion_status || "Non giocato";
+          const statusKey = statusKeys[game.completion_status || "NotPlayed"];
+          key = statusKey ? t(`completion_status.${statusKey}`) : game.completion_status || t("completion_status.not_played");
           break;
         }
         default:
-          key = "Tutti i Giochi";
+          key = t("sidebar.all_games");
       }
 
       if (!groups[key]) {
@@ -355,7 +360,7 @@ export function useLibraryFilters(games: GameDto[]) {
     });
 
     return groups;
-  }, [filteredGames, groupBy]);
+  }, [filteredGames, groupBy, t]);
 
   const toggleGroup = (groupKey: string) => {
     setCollapsedGroups((prev) => ({

@@ -13,6 +13,9 @@ interface ThemeModalProps {
   onOpenThemesFolder: () => void;
 }
 
+// Bundled themes whose description is translated in the UI (their JSON text is in one language)
+const BUILTIN_THEME_IDS = ["cyberpunk", "steam_deck", "playnite_dark", "epic_dark", "synthwave", "nordic_frost", "cinema_trailer"];
+
 export default function ThemeModal({
   isOpen,
   onClose,
@@ -26,9 +29,9 @@ export default function ThemeModal({
   const [themeModalTab, setThemeModalTab] = useState<"list" | "create">("list");
   const [newThemeDraft, setNewThemeDraft] = useState<Partial<ThemeConfig>>({
     id: "mio_tema_custom",
-    name: "Mio Nuovo Tema",
-    description: "Tema personalizzato con colori custom",
-    author: "Utente",
+    name: t("theme_modal.draft_name"),
+    description: t("theme_modal.draft_description"),
+    author: t("theme_modal.draft_author"),
     bg_base: "#0c0d14",
     bg_surface: "#141724",
     bg_card: "#1e2235",
@@ -47,9 +50,9 @@ export default function ThemeModal({
     if (!newThemeDraft.name || !newThemeDraft.id) return;
     const fullTheme: ThemeConfig = {
       id: newThemeDraft.id.toLowerCase().replace(/[^a-z0-9_-]/g, "_"),
-      name: newThemeDraft.name || "Tema Personalizzato",
-      description: newThemeDraft.description || "Creato dall'editor integrato",
-      author: newThemeDraft.author || "Utente",
+      name: newThemeDraft.name || t("theme_modal.custom_name"),
+      description: newThemeDraft.description || t("theme_modal.created_in_editor"),
+      author: newThemeDraft.author || t("theme_modal.draft_author"),
       is_custom: true,
       bg_base: newThemeDraft.bg_base || "#0b0e14",
       bg_surface: newThemeDraft.bg_surface || "#131822",
@@ -119,7 +122,7 @@ export default function ThemeModal({
                 color: themeModalTab === "list" ? "#ffffff" : "var(--text-muted)",
               }}
             >
-              Temi Disponibili ({themes.length})
+              {t("theme_modal.tab_list", { count: themes.length })}
             </button>
             <button
               onClick={() => {
@@ -127,9 +130,9 @@ export default function ThemeModal({
                 // Initialize draft with currently selected theme colors
                 setNewThemeDraft({
                   id: "custom_" + Date.now(),
-                  name: "Tema Personalizzato",
-                  description: "Tema creato con colori custom",
-                  author: "Utente",
+                  name: t("theme_modal.custom_name"),
+                  description: t("theme_modal.draft_description"),
+                  author: t("theme_modal.draft_author"),
                   bg_base: currentTheme.bg_base,
                   bg_surface: currentTheme.bg_surface,
                   bg_card: currentTheme.bg_card,
@@ -153,7 +156,7 @@ export default function ThemeModal({
               }}
             >
               <PlusCircle className="w-3.5 h-3.5" />
-              <span>Crea Nuovo Tema</span>
+              <span>{t("theme_modal.tab_create")}</span>
             </button>
           </div>
         </div>
@@ -168,7 +171,7 @@ export default function ThemeModal({
                 className="text-xs font-black tracking-widest uppercase"
                 style={{ color: "var(--text-muted)" }}
               >
-                Scegli un tema da applicare all'istante
+                {t("theme_modal.list_hint")}
               </span>
               <button
                 onClick={onOpenThemesFolder}
@@ -176,52 +179,52 @@ export default function ThemeModal({
                 style={{ color: "var(--accent-primary)" }}
               >
                 <Folder className="w-3.5 h-3.5" />
-                <span>Apri Cartella Temi JSON</span>
+                <span>{t("theme_modal.open_folder")}</span>
               </button>
             </div>
 
             <div className="grid grid-cols-2 gap-3.5">
-              {themes.map((t) => {
-                const isCurrent = currentTheme.id === t.id;
+              {themes.map((theme) => {
+                const isCurrent = currentTheme.id === theme.id;
                 return (
                   <div
-                    key={t.id}
-                    onClick={() => onSelectTheme(t)}
+                    key={theme.id}
+                    onClick={() => onSelectTheme(theme)}
                     className={`p-4 rounded-2xl border cursor-pointer transition-all flex flex-col justify-between gap-3 shadow-md ${
                       isCurrent ? "ring-2" : "hover:border-slate-500"
                     }`}
                     style={{
-                      backgroundColor: t.bg_card,
-                      borderColor: isCurrent ? t.accent_primary : "var(--border-color)",
-                      boxShadow: isCurrent ? `0 0 20px ${t.accent_glow}` : undefined,
+                      backgroundColor: theme.bg_card,
+                      borderColor: isCurrent ? theme.accent_primary : "var(--border-color)",
+                      boxShadow: isCurrent ? `0 0 20px ${theme.accent_glow}` : undefined,
                     }}
                   >
                     <div>
                       <div className="flex justify-between items-start gap-2">
                         <div className="min-w-0">
-                          <span className="font-extrabold text-sm text-white block truncate">{t.name}</span>
+                          <span className="font-extrabold text-sm text-white block truncate">{theme.name}</span>
                           <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                            {t.enable_video_backdrop && (
+                            {theme.enable_video_backdrop && (
                               <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/30">
                                 <Film className="w-2.5 h-2.5" />
                                 TRAILER
                               </span>
                             )}
-                            {(t.target_mode === "fullscreen" || t.target_mode === "bigpicture") && (
+                            {(theme.target_mode === "fullscreen" || theme.target_mode === "bigpicture") && (
                               <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-black bg-sky-500/20 text-sky-300 border border-sky-500/30">
                                 <Tv className="w-2.5 h-2.5" />
                                 FULLSCREEN
                               </span>
                             )}
-                            {t.target_mode === "desktop" && (
+                            {theme.target_mode === "desktop" && (
                               <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-black bg-slate-500/20 text-slate-300 border border-slate-500/30">
                                 <Monitor className="w-2.5 h-2.5" />
                                 DESKTOP
                               </span>
                             )}
-                            {t.is_custom && (
+                            {theme.is_custom && (
                               <span className="px-1.5 py-0.5 rounded text-[8px] font-black bg-indigo-500/20 text-indigo-300">
-                                CUSTOM
+                                {t("theme_modal.custom_badge")}
                               </span>
                             )}
                           </div>
@@ -229,55 +232,57 @@ export default function ThemeModal({
                         {isCurrent && (
                           <span
                             className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black text-white shrink-0"
-                            style={{ backgroundColor: t.accent_primary }}
+                            style={{ backgroundColor: theme.accent_primary }}
                           >
                             <Check className="w-3 h-3" />
-                            ATTIVO
+                            {t("theme_modal.active_badge")}
                           </span>
                         )}
                       </div>
                       <p
                         className="text-[11px] mt-1.5 line-clamp-2 leading-relaxed"
-                        style={{ color: t.text_muted }}
+                        style={{ color: theme.text_muted }}
                       >
-                        {t.description}
+                        {!theme.is_custom && BUILTIN_THEME_IDS.includes(theme.id)
+                          ? t(`theme_modal.desc_${theme.id}`)
+                          : theme.description}
                       </p>
                     </div>
 
                     {/* Swatches preview bar */}
                     <div
                       className="flex items-center justify-between pt-2 border-t"
-                      style={{ borderColor: t.border_color }}
+                      style={{ borderColor: theme.border_color }}
                     >
                       <div className="flex items-center gap-1.5">
                         <span
                           className="w-5 h-5 rounded-full border border-white/20 shadow-sm"
-                          style={{ backgroundColor: t.bg_base }}
-                          title="Colore Sfondo Base"
+                          style={{ backgroundColor: theme.bg_base }}
+                          title={t("theme_modal.color_base_title")}
                         />
                         <span
                           className="w-5 h-5 rounded-full border border-white/20 shadow-sm"
-                          style={{ backgroundColor: t.bg_surface }}
-                          title="Colore Superficie"
+                          style={{ backgroundColor: theme.bg_surface }}
+                          title={t("theme_modal.color_surface_title")}
                         />
                         <span
                           className="w-5 h-5 rounded-full border border-white/20 shadow-sm"
-                          style={{ backgroundColor: t.accent_primary }}
-                          title="Colore Accento Primario"
+                          style={{ backgroundColor: theme.accent_primary }}
+                          title={t("theme_modal.color_accent_title")}
                         />
                       </div>
 
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          onSelectTheme(t);
+                          onSelectTheme(theme);
                         }}
                         className="px-3 py-1 rounded-lg text-xs font-bold text-white transition-all shadow"
                         style={{
-                          backgroundColor: isCurrent ? "rgba(255,255,255,0.15)" : t.accent_primary,
+                          backgroundColor: isCurrent ? "rgba(255,255,255,0.15)" : theme.accent_primary,
                         }}
                       >
-                        {isCurrent ? "In Uso" : "Attiva"}
+                        {isCurrent ? t("theme_modal.in_use") : t("theme_modal.apply")}
                       </button>
                     </div>
                   </div>
@@ -298,10 +303,10 @@ export default function ThemeModal({
           >
             <div className="space-y-1">
               <span className="text-xs font-black tracking-widest uppercase text-white">
-                Editor Tema Personalizzato (Power User)
+                {t("theme_modal.editor_title")}
               </span>
               <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>
-                I temi creati vengono salvati come file JSON standard in %LOCALAPPDATA%\OmnisGameLibrary\themes.
+                {t("theme_modal.editor_desc")}
               </p>
             </div>
 
@@ -311,7 +316,7 @@ export default function ThemeModal({
                   className="text-[10px] font-bold uppercase"
                   style={{ color: "var(--text-muted)" }}
                 >
-                  Nome del Tema
+                  {t("theme_modal.field_name")}
                 </label>
                 <input
                   type="text"
@@ -329,7 +334,7 @@ export default function ThemeModal({
                   className="text-[10px] font-bold uppercase"
                   style={{ color: "var(--text-muted)" }}
                 >
-                  Identificativo ID univoco
+                  {t("theme_modal.field_id")}
                 </label>
                 <input
                   type="text"
@@ -357,7 +362,7 @@ export default function ThemeModal({
                   className="text-[10px] font-bold uppercase"
                   style={{ color: "var(--text-muted)" }}
                 >
-                  Sfondo Base
+                  {t("theme_modal.field_base")}
                 </label>
                 <div className="flex items-center gap-2">
                   <input
@@ -383,7 +388,7 @@ export default function ThemeModal({
                   className="text-[10px] font-bold uppercase"
                   style={{ color: "var(--text-muted)" }}
                 >
-                  Superficie Menu
+                  {t("theme_modal.field_surface")}
                 </label>
                 <div className="flex items-center gap-2">
                   <input
@@ -411,7 +416,7 @@ export default function ThemeModal({
                   className="text-[10px] font-bold uppercase"
                   style={{ color: "var(--text-muted)" }}
                 >
-                  Accento Primario
+                  {t("theme_modal.field_accent")}
                 </label>
                 <div className="flex items-center gap-2">
                   <input
@@ -444,10 +449,10 @@ export default function ThemeModal({
                   <Film className="w-4 h-4 text-amber-400 shrink-0" />
                   <div>
                     <label className="text-xs font-bold text-white block">
-                      Abilita Video Trailer di Sfondo
+                      {t("theme_modal.trailers")}
                     </label>
                     <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>
-                      Riproduce i trailer dinamici dei giochi in loop e muti durante la selezione
+                      {t("theme_modal.trailers_desc")}
                     </p>
                   </div>
                 </div>
@@ -468,7 +473,7 @@ export default function ThemeModal({
                 className="px-6 py-2.5 rounded-xl font-black text-xs text-white shadow-lg transition-all cursor-pointer hover:brightness-110 active:opacity-90"
                 style={{ backgroundColor: "var(--accent-primary)" }}
               >
-                Crea, Salva & Applica Tema
+                {t("theme_modal.save_apply")}
               </button>
               <button
                 onClick={() => setThemeModalTab("list")}
@@ -479,7 +484,7 @@ export default function ThemeModal({
                   color: "var(--text-muted)",
                 }}
               >
-                Annulla
+                {t("common.cancel")}
               </button>
             </div>
           </div>

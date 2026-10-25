@@ -483,7 +483,7 @@ export default function TopBar({
               backgroundColor: "var(--bg-card)",
               borderColor: "var(--border-color)",
             }}
-            title="Altri strumenti e opzioni"
+            title={t("topbar.more_tools")}
           >
             <MoreHorizontal className="w-4 h-4" />
           </button>
@@ -602,7 +602,7 @@ export default function TopBar({
             type="button"
             onClick={handleMinimize}
             className="w-8 h-8 rounded-lg hover:bg-white/10 active:bg-white/20 flex items-center justify-center transition-all cursor-pointer text-slate-400 hover:text-white"
-            title="Riduci a icona"
+            title={t("tooltips.minimize")}
             data-no-drag="true"
           >
             <Minus className="w-3.5 h-3.5" />
@@ -611,7 +611,7 @@ export default function TopBar({
             type="button"
             onClick={handleToggleMaximize}
             className="w-8 h-8 rounded-lg hover:bg-white/10 active:bg-white/20 flex items-center justify-center transition-all cursor-pointer text-slate-400 hover:text-white"
-            title="Ingrandisci / Ripristina finestra"
+            title={t("tooltips.maximize")}
             data-no-drag="true"
           >
             <Square className="w-3 h-3" />

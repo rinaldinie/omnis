@@ -372,7 +372,7 @@ export default function BatchEnrichModal({
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="text-xs font-black uppercase tracking-wider text-slate-300">
-                Tipologia di Dati da Scaricare
+                {t("batch_enrich.data_types")}
               </label>
               <button
                 type="button"
@@ -415,7 +415,7 @@ export default function BatchEnrichModal({
                     )}
                   </div>
                   <div className="text-[10px] text-slate-400 truncate">
-                    Descrizioni, generi, copertine e sfondi
+                    {t("batch_enrich.type_metadata_desc")}
                   </div>
                 </div>
               </button>
@@ -448,7 +448,7 @@ export default function BatchEnrichModal({
                     )}
                   </div>
                   <div className="text-[10px] text-slate-400 truncate">
-                    Tempi completamento storia e 100%
+                    {t("batch_enrich.type_hltb_desc")}
                   </div>
                 </div>
               </button>
@@ -481,7 +481,7 @@ export default function BatchEnrichModal({
                     )}
                   </div>
                   <div className="text-[10px] text-slate-400 truncate">
-                    Sincronizzazione obiettivi e icone
+                    {t("batch_enrich.type_achievements_desc")}
                   </div>
                 </div>
               </button>
@@ -720,8 +720,8 @@ export default function BatchEnrichModal({
                         <span
                           title={
                             hasCover
-                              ? "Copertina presente"
-                              : "Copertina mancante"
+                              ? t("batch_enrich.cover_present")
+                              : t("batch_enrich.cover_missing")
                           }
                           className={`p-1 rounded-md border text-[10px] flex items-center gap-1 ${
                             hasCover
@@ -734,7 +734,7 @@ export default function BatchEnrichModal({
 
                         <span
                           title={
-                            hasHltb ? "Dati HLTB presenti" : "Dati HLTB mancanti"
+                            hasHltb ? t("batch_enrich.hltb_present") : t("batch_enrich.hltb_missing")
                           }
                           className={`p-1 rounded-md border text-[10px] flex items-center gap-1 ${
                             hasHltb
@@ -748,8 +748,8 @@ export default function BatchEnrichModal({
                         <span
                           title={
                             hasAchievements
-                              ? "Obiettivi sincronizzati"
-                              : "Obiettivi non presenti"
+                              ? t("batch_enrich.achievements_synced")
+                              : t("batch_enrich.achievements_missing")
                           }
                           className={`p-1 rounded-md border text-[10px] flex items-center gap-1 ${
                             hasAchievements

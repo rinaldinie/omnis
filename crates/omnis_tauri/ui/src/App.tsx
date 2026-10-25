@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   Layers,
   Filter,
@@ -52,6 +52,8 @@ import { useLibraryFilters } from "./hooks/useLibraryFilters";
 import { useGamepadNavigation } from "./hooks/useGamepadNavigation";
 import { useAppUpdater, UpdaterContext } from "./hooks/useAppUpdater";
 import FullscreenView from "./components/views/FullscreenView";
+import { ControllerTypeContext } from "./components/fullscreen/ConsoleChrome";
+import { GameSortMode, readSavedSortMode, saveSortMode, sortGames } from "./utils/sortGames";
 import DetailsSplitView from "./components/views/DetailsSplitView";
 import GridView from "./components/views/GridView";
 import TopBar from "./components/navigation/TopBar";
@@ -118,7 +120,7 @@ export default function App() {
   const [uiZoom, setUiZoom] = useState<number>(1.0);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
-  const [statusMessage, setStatusMessage] = useState<string>("Pronto");
+  const [statusMessage, setStatusMessage] = useState<string>("");
   const [isGameRunning, setIsGameRunning] = useState<boolean>(false);
   const [activeGame, setActiveGame] = useState<ActiveGameSession | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
@@ -172,6 +174,11 @@ export default function App() {
 
   // I18N
   const { t, currentLocaleInfo } = useTranslation();
+  // Status-bar text; reads the latest translator so long-lived event listeners follow language changes
+  const tRef = useRef(t);
+  tRef.current = t;
+  const statusText = (key: string, params?: Record<string, string | number>) =>
+    tRef.current(`app_status.${key}`, params);
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
   const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTab>("general");
 
@@ -234,6 +241,10 @@ export default function App() {
   });
   const carouselRef = useRef<HTMLDivElement>(null);
   const [showVirtualKeyboard, setShowVirtualKeyboard] = useState<boolean>(false);
+  // Columns of the fullscreen grid view (0 = single shelf row), reported by FullscreenView
+  const [fullscreenGridColumns, setFullscreenGridColumns] = useState<number>(0);
+  // Whether the fullscreen home shows the "continue playing" row, reported by FullscreenView
+  const [fullscreenHasRecentRow, setFullscreenHasRecentRow] = useState<boolean>(false);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(soundEffects.enabled);
 
   // DETECT --fullscreen / --bigpicture CLI ARGUMENTS FROM TAURI & SINGLE-INSTANCE
@@ -334,6 +345,13 @@ export default function App() {
     detailsFilteredGames,
   } = useLibraryFilters(games);
 
+  // Fullscreen sort order; the sorted list drives gamepad navigation, launch and the fullscreen view
+  const [fullscreenSort, setFullscreenSort] = useState<GameSortMode>(readSavedSortMode);
+  const fullscreenGames = useMemo(
+    () => (isFullscreen ? sortGames(filteredGames, fullscreenSort) : filteredGames),
+    [isFullscreen, filteredGames, fullscreenSort]
+  );
+
   // WINDOW CONTROLS HOOK
   const { handleMinimize, handleToggleMaximize, handleClose } = useWindowControls();
 
@@ -383,6 +401,7 @@ export default function App() {
   const {
     gamepadConnected,
     gamepadName,
+    gamepadType,
     focusedIndex,
     setFocusedIndex,
     showFullscreenDetails,
@@ -394,19 +413,20 @@ export default function App() {
   } = useGamepadNavigation({
     isFullscreen,
     toggleFullscreen,
-    filteredGames,
+    filteredGames: fullscreenGames,
     selectedGame,
     showVirtualKeyboard,
     setShowVirtualKeyboard,
     setShowThemeModal,
     handleLaunch: (id) => handleLaunch(id),
     cycleFilter,
-    carouselRef,
     isSuspended: isGameRunning,
+    fullscreenGridColumns: isFullscreen ? fullscreenGridColumns : 0,
+    hasRecentRow: isFullscreen && fullscreenHasRecentRow,
   });
 
-  const focusedGame = filteredGames.length > 0
-    ? (filteredGames[focusedIndex] || filteredGames[0] || null)
+  const focusedGame = fullscreenGames.length > 0
+    ? (fullscreenGames[focusedIndex] || fullscreenGames[0] || null)
     : null;
 
   // CONTEXT MENU HANDLERS
@@ -511,14 +531,14 @@ export default function App() {
   const selectTheme = (theme: ThemeConfig) => {
     setCurrentTheme(theme);
     localStorage.setItem("omnis_selected_theme_id", theme.id);
-    setStatusMessage(`Tema '${theme.name}' attivato!`);
+    setStatusMessage(statusText("theme_activated", { name: theme.name }));
   };
 
   const handleSaveCustomTheme = async (fullTheme: ThemeConfig) => {
     await invokeTauri("save_custom_theme", { theme: fullTheme });
     await loadThemes();
     selectTheme(fullTheme);
-    setStatusMessage(`Nuovo tema '${fullTheme.name}' salvato e applicato!`);
+    setStatusMessage(statusText("theme_saved", { name: fullTheme.name }));
   };
 
   // PLUGIN MANAGEMENT STATES
@@ -561,13 +581,13 @@ export default function App() {
   const handleSaveProviderSettings = async (providerId: string) => {
     const s = editingSettings[providerId] || {};
     await invokeTauri("save_provider_settings", { providerId, settings: s });
-    setStatusMessage(`Impostazioni per '${providerId}' salvate!`);
+    setStatusMessage(statusText("provider_saved", { provider: providerId }));
     await loadProvidersAndConfig();
   };
 
   const handleToggleProvider = async (providerId: string, enabled: boolean) => {
     await invokeTauri("toggle_provider", { providerId, enabled });
-    setStatusMessage(`Provider '${providerId}' ${enabled ? "abilitato" : "disabilitato"}.`);
+    setStatusMessage(statusText(enabled ? "provider_enabled" : "provider_disabled", { provider: providerId }));
     await loadProvidersAndConfig();
   };
 
@@ -593,7 +613,7 @@ export default function App() {
 
   const handleRefreshPlugins = async () => {
     setIsRefreshingPlugins(true);
-    setStatusMessage("Scansione cartella plugin su disco in corso...");
+    setStatusMessage(statusText("plugins_scanning"));
     try {
       const updated = await invokeTauri<ProviderInfo[]>("refresh_metadata_providers");
       if (updated) {
@@ -603,10 +623,10 @@ export default function App() {
           settingsMap[p.id] = { ...(p.settings_values || {}) };
         });
         setEditingSettings(settingsMap);
-        setStatusMessage(`Scansione completata: ${updated.length} plugin caricati con successo!`);
+        setStatusMessage(statusText("plugins_scanned", { count: updated.length }));
       }
     } catch (err: any) {
-      setStatusMessage(`Errore scansione plugin: ${err}`);
+      setStatusMessage(statusText("plugins_scan_error", { error: String(err) }));
     } finally {
       setIsRefreshingPlugins(false);
     }
@@ -614,23 +634,23 @@ export default function App() {
 
   const handleSavePipelineConfig = async () => {
     await invokeTauri("save_metadata_pipeline_config", { config: pipelineConfig });
-    setStatusMessage("Priorità della pipeline salvate con successo!");
+    setStatusMessage(statusText("pipeline_saved"));
     await loadProvidersAndConfig();
   };
 
   const handleEnrichSingleGame = async (gameId: string) => {
     try {
       setIsEnrichingSingle(true);
-      setStatusMessage("Scaricamento dati e copertine HD in corso...");
+      setStatusMessage(statusText("metadata_downloading_game"));
       const updated = await invokeTauri<GameDto>("enrich_single_game", { gameId });
       if (updated) {
         const normalized = normalizeGame(updated);
         setSelectedGame(normalized);
         setGames((prev) => prev.map((g) => (g.id === normalized.id ? normalized : g)));
-        setStatusMessage(`Dati e copertine per '${normalized.title}' aggiornati con successo!`);
+        setStatusMessage(statusText("metadata_updated_game", { title: normalized.title }));
       }
     } catch (err: any) {
-      setStatusMessage(`Errore scaricamento dati: ${err}`);
+      setStatusMessage(statusText("metadata_download_error", { error: String(err) }));
     } finally {
       setIsEnrichingSingle(false);
     }
@@ -639,13 +659,13 @@ export default function App() {
   const handleRefreshHltb = async (gameId: string) => {
     try {
       setIsEnrichingSingle(true);
-      setStatusMessage("Aggiornamento dati HowLongToBeat dalla fonte...");
+      setStatusMessage(statusText("hltb_refreshing"));
       const updated = await invokeTauri<GameDto>("refresh_game_howlongtobeat", { gameId });
       if (updated) {
         const normalized = normalizeGame(updated);
         setSelectedGame(normalized);
         setGames((prev) => prev.map((g) => (g.id === normalized.id ? normalized : g)));
-        setStatusMessage(`Dati HowLongToBeat per '${normalized.title}' aggiornati dalla fonte!`);
+        setStatusMessage(statusText("hltb_updated", { title: normalized.title }));
       }
     } catch (err: any) {
       console.warn("Direct HLTB refresh error, falling back to full enrichment:", err);
@@ -658,7 +678,7 @@ export default function App() {
   const handleRunMassivePipeline = async () => {
     try {
       setIsPipelineEnriching(true);
-      setPipelineProgress("Avvio download dati e copertine per tutta la libreria...");
+      setPipelineProgress(t("app_misc.pipeline_starting"));
       const count = await invokeTauri<number>("download_all_metadata");
       setPipelineProgress(`Completato! ${count || 0} titoli aggiornati.`);
       await refreshLibrary();
@@ -671,9 +691,9 @@ export default function App() {
 
   const handleCancelPipeline = async () => {
     try {
-      setPipelineProgress("Interruzione del download dati in corso...");
+      setPipelineProgress(t("app_misc.pipeline_stopping"));
       await invokeTauri("cancel_metadata_download");
-      setStatusMessage("Richiesta di interruzione download inviata.");
+      setStatusMessage(statusText("download_cancel_requested"));
     } catch (err: any) {
       console.warn("Failed to cancel metadata download:", err);
     }
@@ -748,26 +768,26 @@ export default function App() {
             setSyncBanner({
               storeId: p.store_id,
               storeName,
-              message: p.message || `Sincronizzazione in corso per ${storeName}...`,
+              message: p.message || statusText("store_syncing", { store: storeName }),
               current: p.current,
               total: p.total,
               status: "syncing",
             });
             setStatusMessage(
-              p.message || `Sincronizzazione in corso per ${storeName}... (${p.current}/${p.total})`
+              p.message || statusText("store_syncing_progress", { store: storeName, current: p.current, total: p.total })
             );
           } else if (p.status === "completed") {
             setIsSyncing(false);
             setSyncBanner({
               storeId: p.store_id,
               storeName,
-              message: p.message || `Sincronizzazione completata per ${storeName}: ${p.total} giochi!`,
+              message: p.message || statusText("store_sync_done", { store: storeName, total: p.total }),
               current: p.current,
               total: p.total,
               status: "completed",
             });
             setStatusMessage(
-              p.message || `Sincronizzazione completata per ${storeName}: ${p.total} giochi!`
+              p.message || statusText("store_sync_done", { store: storeName, total: p.total })
             );
             loadGames();
             if (syncBannerTimeoutRef.current) clearTimeout(syncBannerTimeoutRef.current);
@@ -779,12 +799,12 @@ export default function App() {
             setSyncBanner({
               storeId: p.store_id,
               storeName,
-              message: p.message || `Errore sincronizzazione per ${storeName}`,
+              message: p.message || statusText("store_sync_error", { store: storeName }),
               current: 0,
               total: 0,
               status: "error",
             });
-            setStatusMessage(p.message || `Errore sincronizzazione per ${storeName}`);
+            setStatusMessage(p.message || statusText("store_sync_error", { store: storeName }));
             if (syncBannerTimeoutRef.current) clearTimeout(syncBannerTimeoutRef.current);
             syncBannerTimeoutRef.current = setTimeout(() => {
               setSyncBanner(null);
@@ -815,7 +835,7 @@ export default function App() {
             process_detected_at: null,
           });
           soundEffects.suspendAudio();
-          setStatusMessage(`Avvio di '${event.payload.title}' in corso...`);
+          setStatusMessage(statusText("game_launching", { title: event.payload.title }));
         });
         if (!isMounted) { hStarted(); } else { unlistenGameStarted = hStarted; }
 
@@ -834,7 +854,7 @@ export default function App() {
               process_detected_at: newState === "running" ? (prev.process_detected_at || new Date().toISOString()) : prev.process_detected_at,
             } : null);
             if (newState === "running") {
-              setStatusMessage(`Gioco '${activeGameRef.current.title}' in esecuzione (PID: ${event.payload.pid})`);
+              setStatusMessage(statusText("game_running_pid", { title: activeGameRef.current.title, pid: event.payload.pid ?? "?" }));
             }
           }
         });
@@ -865,7 +885,7 @@ export default function App() {
           const stoppedTitle = found?.title || activeGameRef.current?.title || "Gioco";
           const mins = Math.max(1, Math.round(durationSec / 60));
 
-          setStatusMessage(`Sessione terminata: ${stoppedTitle} (+${mins} minuti)`);
+          setStatusMessage(statusText("session_ended", { title: stoppedTitle, minutes: mins }));
 
           if (toastTimeoutRef.current) {
             clearTimeout(toastTimeoutRef.current);
@@ -890,7 +910,7 @@ export default function App() {
         }>("metadata-progress", (event) => {
           const { current, total, title } = event.payload;
           setPipelineProgress(`Download dati (${current}/${total}): "${title}"...`);
-          setStatusMessage(`Scaricamento dati e copertine (${current}/${total}): ${title}`);
+          setStatusMessage(statusText("metadata_batch_progress", { current, total, title }));
         });
         if (!isMounted) { hMetaProgress(); } else { unlistenMetaProgress = hMetaProgress; }
 
@@ -950,17 +970,17 @@ export default function App() {
   const handleSync = async () => {
     try {
       setIsSyncing(true);
-      setStatusMessage("Scansione e sincronizzazione librerie in corso (Steam, Epic, Store collegati)...");
+      setStatusMessage(statusText("library_scanning"));
       const count = await invokeTauri<number>("sync_library");
       await refreshLibrary();
       setStatusMessage(
         count !== null && count !== undefined
-          ? `Scansione completata! ${count} giochi nel catalogo.`
-          : "Scansione libreria completata con successo!"
+          ? statusText("library_scanned_count", { count })
+          : statusText("library_scanned")
       );
     } catch (err: any) {
       console.warn("Sync error:", err);
-      setStatusMessage(`Errore durante la scansione: ${err}`);
+      setStatusMessage(statusText("library_scan_error", { error: String(err) }));
     } finally {
       setIsSyncing(false);
     }
@@ -968,14 +988,14 @@ export default function App() {
 
   const handleDownloadAll = async () => {
     setIsDownloading(true);
-    setStatusMessage("Download metadati e locandine HD in corso da Steam Store...");
+    setStatusMessage(statusText("metadata_downloading"));
     try {
       await invokeTauri("download_all_metadata");
       await refreshLibrary();
-      setStatusMessage("Metadati e locandine aggiornati!");
+      setStatusMessage(statusText("metadata_updated"));
     } catch (err: any) {
       console.warn("Download metadata error:", err);
-      setStatusMessage(`Errore durante il download dei metadati: ${err}`);
+      setStatusMessage(statusText("metadata_error", { error: String(err) }));
     } finally {
       setIsDownloading(false);
     }
@@ -985,21 +1005,21 @@ export default function App() {
     soundEffects.playLaunch();
     const g = games.find((x) => x.id === gameId);
     if (g && !g.is_installed) {
-      setStatusMessage(`Apertura installazione per "${g.title}" nel client ${g.library.toUpperCase()}...`);
+      setStatusMessage(statusText("install_opening", { title: g.title, store: g.library.toUpperCase() }));
     } else {
-      setStatusMessage("Avvio del gioco in corso...");
+      setStatusMessage(statusText("game_starting"));
     }
     try {
       await invokeTauri("launch_game", { gameId });
       if (g && !g.is_installed) {
-        setStatusMessage(`Procedura di installazione avviata nel client nativo!`);
+        setStatusMessage(statusText("install_started"));
       } else {
-        setStatusMessage("Gioco in esecuzione (Tracking kernel zero-CPU)");
+        setStatusMessage(statusText("game_running"));
       }
     } catch (err: any) {
       console.error("Launch game error:", err);
-      const errMsg = typeof err === "string" ? err : err?.message || "Errore durante l'avvio del gioco";
-      setStatusMessage(`Errore avvio: ${errMsg}`);
+      const errMsg = typeof err === "string" ? err : err?.message || t("app_misc.launch_error_default");
+      setStatusMessage(statusText("launch_error", { error: String(errMsg) }));
       setIsGameRunning(false);
       setActiveGame(null);
     }
@@ -1012,16 +1032,16 @@ export default function App() {
   const confirmKillRunningGame = async () => {
     setShowKillConfirmModal(false);
     try {
-      setStatusMessage("Terminazione graduale del processo di gioco in corso (WM_CLOSE)...");
+      setStatusMessage(statusText("game_stopping"));
       const killed = await invokeTauri<boolean>("kill_running_game");
       if (killed) {
         soundEffects.playSelect();
-        setStatusMessage("Processo di gioco terminato con successo.");
+        setStatusMessage(statusText("game_stopped"));
       } else {
-        setStatusMessage("Nessun processo di gioco attivo da terminare.");
+        setStatusMessage(statusText("no_game_running"));
       }
     } catch (err: any) {
-      setStatusMessage(`Errore durante la terminazione: ${err}`);
+      setStatusMessage(statusText("stop_error", { error: String(err) }));
     }
   };
 
@@ -1036,27 +1056,27 @@ export default function App() {
   const handleOpenInstallDir = async (gameId: string) => {
     try {
       await invokeTauri("open_game_install_dir", { gameId });
-      setStatusMessage("Apertura cartella di installazione in corso...");
+      setStatusMessage(statusText("folder_opening"));
     } catch (err: any) {
-      setStatusMessage(`Errore apertura cartella: ${err?.message || err}`);
+      setStatusMessage(statusText("folder_error", { error: String(err?.message || err) }));
     }
   };
 
   const handleCreateShortcut = async (gameId: string) => {
     try {
       const path = await invokeTauri<string>("create_desktop_shortcut", { gameId });
-      setStatusMessage(`Collegamento desktop creato: ${path}`);
+      setStatusMessage(statusText("shortcut_created", { path: String(path) }));
     } catch (err: any) {
-      setStatusMessage(`Errore creazione collegamento: ${err?.message || err}`);
+      setStatusMessage(statusText("shortcut_error", { error: String(err?.message || err) }));
     }
   };
 
   const handleVerifyFiles = async (gameId: string) => {
     try {
       await invokeTauri("verify_game_files", { gameId });
-      setStatusMessage("Avvio verifica integrità file nel client nativo...");
+      setStatusMessage(statusText("verify_started"));
     } catch (err: any) {
-      setStatusMessage(`Errore verifica file: ${err?.message || err}`);
+      setStatusMessage(statusText("verify_error", { error: String(err?.message || err) }));
     }
   };
 
@@ -1068,33 +1088,34 @@ export default function App() {
   const handleConfirmUninstall = async (gameId: string) => {
     try {
       await invokeTauri("uninstall_game", { gameId });
-      setStatusMessage("Procedura di disinstallazione avviata nel client nativo.");
+      setStatusMessage(statusText("uninstall_started"));
       await refreshLibrary();
     } catch (err: any) {
-      setStatusMessage(`Errore disinstallazione: ${err?.message || err}`);
+      setStatusMessage(statusText("uninstall_error", { error: String(err?.message || err) }));
     }
   };
 
   const handleRemoveFromLibrary = async (gameId: string) => {
     const g = games.find((x) => x.id === gameId);
-    const title = g?.title || "questo gioco";
-    if (!window.confirm(`Sei sicuro di voler rimuovere "${title}" dalla libreria Omnis?`)) {
+    const title = g?.title || t("app_misc.this_game");
+    if (!window.confirm(t("app_misc.confirm_remove", { title }))) {
       return;
     }
     try {
       await invokeTauri("remove_game_from_library", { gameId });
-      setStatusMessage(`"${title}" rimosso dalla libreria`);
+      setStatusMessage(statusText("game_removed", { title }));
       await refreshLibrary();
       if (selectedGame?.id === gameId) {
         setSelectedGame(null);
       }
     } catch (err: any) {
-      setStatusMessage(`Errore rimozione gioco: ${err?.message || err}`);
+      setStatusMessage(statusText("remove_error", { error: String(err?.message || err) }));
     }
   };
 
   return (
     <UpdaterContext.Provider value={updater}>
+    <ControllerTypeContext.Provider value={gamepadType}>
       <div
         className="flex flex-col h-screen w-screen select-none overflow-hidden transition-colors duration-300"
       style={{
@@ -1109,7 +1130,7 @@ export default function App() {
       {isFullscreen ? (
         <FullscreenView
           focusedGame={focusedGame}
-          filteredGames={filteredGames}
+          filteredGames={fullscreenGames}
           focusedIndex={focusedIndex}
           setFocusedIndex={setFocusedIndex}
           setSelectedGame={setSelectedGame}
@@ -1137,6 +1158,24 @@ export default function App() {
           showFullscreenDetails={showFullscreenDetails}
           setShowFullscreenDetails={setShowFullscreenDetails}
           carouselRef={carouselRef}
+          onGridColumnsChange={setFullscreenGridColumns}
+          onRecentRowChange={setFullscreenHasRecentRow}
+          onGameAction={(action, gameId) => {
+            if (action === "folder") handleOpenInstallDir(gameId);
+            else if (action === "verify") handleVerifyFiles(gameId);
+            else if (action === "shortcut") handleCreateShortcut(gameId);
+            else if (action === "uninstall") handleConfirmUninstall(gameId);
+          }}
+          sortMode={fullscreenSort}
+          onSortModeChange={(mode) => {
+            setFullscreenSort(mode);
+            saveSortMode(mode);
+            setFocusedIndex(0);
+          }}
+          onClearSearch={() => {
+            setSearchQuery("");
+            setFocusedIndex(0);
+          }}
           t={t}
           isGameRunning={isGameRunning}
           activeGame={activeGame}
@@ -1235,11 +1274,11 @@ export default function App() {
                   {/* Quick Filter Pills */}
                   <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 shrink min-w-0">
                     {[
-                      { id: "all", label: t("common.all") || "Tutti" },
-                      { id: "installed", label: t("sidebar.installed") || "Installati" },
-                      { id: "completion:Playing", label: "In corso" },
-                      { id: "completion:Completed", label: "Completati" },
-                      { id: "favorites", label: t("sidebar.favorites") || "Preferiti" },
+                      { id: "all", label: t("common.all") },
+                      { id: "installed", label: t("sidebar.installed") },
+                      { id: "completion:Playing", label: t("completion_status.playing") },
+                      { id: "completion:Completed", label: t("completion_status.completed") },
+                      { id: "favorites", label: t("sidebar.favorites") },
                     ].map((f) => {
                       const isActive = isFilterActive(f.id);
                       return (
@@ -1275,7 +1314,7 @@ export default function App() {
                           ? "bg-indigo-600/30 border-indigo-500 text-indigo-200"
                           : "bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white border-white/[0.08]"
                       }`}
-                      title="Apri filtri avanzati"
+                      title={t("app_misc.open_filters")}
                     >
                       <Filter className="w-3 h-3 text-indigo-400" />
                       <span>{t("common.filter")}</span>
@@ -1334,12 +1373,12 @@ export default function App() {
                           </span>
                           <div className="grid grid-cols-2 gap-1 text-xs">
                             {[
-                              { id: "Playing", label: "In corso" },
-                              { id: "Completed", label: "Completati 100%" },
-                              { id: "Beaten", label: "Finiti" },
-                              { id: "PlanToPlay", label: "Da iniziare" },
-                              { id: "Backlog", label: "Backlog" },
-                              { id: "Abandoned", label: "Abbandonati" },
+                              { id: "Playing", label: t("completion_status.playing") },
+                              { id: "Completed", label: t("completion_status.completed") },
+                              { id: "Beaten", label: t("completion_status.beaten") },
+                              { id: "PlanToPlay", label: t("completion_status.plan_to_play") },
+                              { id: "Backlog", label: t("completion_status.backlog") },
+                              { id: "Abandoned", label: t("completion_status.abandoned") },
                             ].map((st) => {
                               const isSelected = selectedStatuses.some((s) => s.toLowerCase() === st.id.toLowerCase());
                               return (
@@ -1371,7 +1410,7 @@ export default function App() {
                               }}
                               className="w-full py-1.5 rounded-lg text-xs font-bold text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition-colors cursor-pointer"
                             >
-                              Azzera tutti i filtri ({totalActiveFilters})
+                              {t("app_misc.clear_all_filters_count", { count: totalActiveFilters })}
                             </button>
                           </div>
                         )}
@@ -1390,7 +1429,7 @@ export default function App() {
                         type="button"
                         onClick={() => removeFilterChip(chip.id)}
                         className="hover:text-white transition-colors p-0.5 rounded cursor-pointer"
-                        title={`Rimuovi filtro: ${chip.label}`}
+                        title={t("filter_chips.remove", { label: chip.label })}
                       >
                         <X className="w-3 h-3" />
                       </button>
@@ -1402,9 +1441,9 @@ export default function App() {
                       type="button"
                       onClick={clearAllFilters}
                       className="text-[11px] font-semibold text-rose-300 hover:text-rose-200 underline transition-colors cursor-pointer shrink-0"
-                      title="Rimuovi tutti i filtri attivi"
+                      title={t("app_misc.clear_filters")}
                     >
-                      Azzera tutti
+                      {t("app_misc.clear_all")}
                     </button>
                   )}
 
@@ -1412,7 +1451,7 @@ export default function App() {
 
                   {/* Filtered Counter */}
                   <span className="text-[11px] font-semibold shrink-0" style={{ color: "var(--text-muted)" }}>
-                    {filteredGames.length} {filteredGames.length === 1 ? "gioco" : "giochi"}
+                    {t(filteredGames.length === 1 ? "app_status.games_count_one" : "app_status.games_count_other", { count: filteredGames.length })}
                   </span>
                 </div>
 
@@ -1423,7 +1462,7 @@ export default function App() {
                       onClick={() => setGridCardWidth((w) => Math.max(140, w - 20))}
                       className="p-1 hover:text-white transition-colors"
                       style={{ color: "var(--text-muted)" }}
-                      title="Riduci dimensione locandine"
+                      title={t("tooltips.poster_smaller")}
                     >
                       <ZoomOut className="w-3.5 h-3.5" />
                     </button>
@@ -1436,13 +1475,13 @@ export default function App() {
                       onChange={(e) => setGridCardWidth(Number(e.target.value))}
                       className="w-28 h-1.5 rounded-lg cursor-pointer accent-indigo-500"
                       style={{ backgroundColor: "var(--bg-card)" }}
-                      title={`Larghezza locandine: ${gridCardWidth}px`}
+                      title={t("tooltips.poster_width", { width: gridCardWidth })}
                     />
                     <button
                       onClick={() => setGridCardWidth((w) => Math.min(320, w + 20))}
                       className="p-1 hover:text-white transition-colors"
                       style={{ color: "var(--text-muted)" }}
-                      title="Aumenta dimensione locandine"
+                      title={t("tooltips.poster_larger")}
                     >
                       <ZoomIn className="w-3.5 h-3.5" />
                     </button>
@@ -1648,7 +1687,7 @@ export default function App() {
                     }`}
                   />
                   <span className="font-bold text-white">
-                    {gamepadName}
+                    {gamepadName || t("console_ui.controller_connected")}
                   </span>
                 </div>
               )}
@@ -1658,34 +1697,34 @@ export default function App() {
                   <span className="text-emerald-300 font-bold flex items-center gap-1.5 truncate">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping shrink-0" />
                     <span className="truncate">
-                      🎮 Gioco in esecuzione: <strong className="text-white">{activeGame.title}</strong> ({formatDuration(elapsedSeconds)})
+                      🎮 {t("app_misc.now_playing")} <strong className="text-white">{activeGame.title}</strong> ({formatDuration(elapsedSeconds)})
                     </span>
                   </span>
                   <button
                     type="button"
                     onClick={handleKillRunningGame}
                     className="px-2 py-0.5 rounded text-[10px] font-black bg-rose-600 hover:bg-rose-500 text-white transition-colors shrink-0 shadow-sm cursor-pointer"
-                    title="Termina forzatamente il gioco in esecuzione"
+                    title={t("app_misc.kill_title")}
                   >
-                    Termina
+                    {t("app_misc.kill_short")}
                   </button>
                 </div>
               ) : isSyncing ? (
                 <div className="flex items-center gap-2 truncate">
                   <span className="text-sky-300 font-bold flex items-center gap-1.5 truncate">
                     <RefreshCw className="w-3.5 h-3.5 animate-spin text-sky-400 shrink-0" />
-                    <span className="truncate">{statusMessage || "Sincronizzazione in corso..."}</span>
+                    <span className="truncate">{statusMessage || t("store_accounts.syncing")}</span>
                   </span>
                 </div>
               ) : (
-                <span className="truncate">{statusMessage}</span>
+                <span className="truncate">{statusMessage || t("app_status.ready")}</span>
               )}
             </div>
 
             <div className="flex items-center gap-4 shrink-0">
-              <span>F11: Attiva Modalità Fullscreen</span>
+              <span>{t("app_misc.fullscreen_hint")}</span>
               <span>
-                Tema Attivo: <strong className="text-white">{currentTheme.name}</strong>
+                {t("app_misc.active_theme")} <strong className="text-white">{currentTheme.name}</strong>
               </span>
             </div>
           </footer>
@@ -1770,7 +1809,7 @@ export default function App() {
             setSelectedGame((prev) => (prev && prev.id === normalized.id ? { ...prev, ...normalized } : prev));
             setGames((prev) => prev.map((g) => (g.id === normalized.id ? { ...g, ...normalized } : g)));
             refreshLibrary();
-            setStatusMessage(`Modifiche a '${normalized.title}' salvate con successo!`);
+            setStatusMessage(statusText("edits_saved", { title: normalized.title }));
           }}
         />
       )}
@@ -1789,7 +1828,7 @@ export default function App() {
             setSelectedGame((prev) => (prev && prev.id === normalized.id ? { ...prev, ...normalized } : prev));
             setGames((prev) => prev.map((g) => (g.id === normalized.id ? { ...g, ...normalized } : g)));
             refreshLibrary();
-            setStatusMessage(`Metadati risolti per '${normalized.title}' con successo!`);
+            setStatusMessage(statusText("metadata_resolved", { title: normalized.title }));
           }}
         />
       )}
@@ -1803,7 +1842,7 @@ export default function App() {
           filteredGames={filteredGames}
           onComplete={async () => {
             await refreshLibrary();
-            setStatusMessage("Download dati completato e libreria aggiornata!");
+            setStatusMessage(statusText("batch_done"));
           }}
         />
       )}
@@ -1822,7 +1861,8 @@ export default function App() {
         onClose={() => {
           setShowVirtualKeyboard(false);
         }}
-        placeholder="Cerca nella libreria..."
+        placeholder={t("console_ui.search_library")}
+        resultCount={fullscreenGames.length}
       />
 
       {/* CUSTOM GAME IMPORT MODAL */}
@@ -1832,7 +1872,7 @@ export default function App() {
         onSuccess={(title) => {
           refreshLibrary();
           setShowAddCustomModal(false);
-          setStatusMessage(`Gioco personalizzato '${title}' aggiunto con successo!`);
+          setStatusMessage(statusText("custom_game_added", { title }));
         }}
       />
 
@@ -1868,15 +1908,15 @@ export default function App() {
                 <AlertTriangle className="w-6 h-6 text-rose-400" />
               </div>
               <div>
-                <h3 className="font-bold text-lg text-white">Termina Gioco</h3>
-                <p className="text-xs text-rose-300">Richiesta di chiusura del processo</p>
+                <h3 className="font-bold text-lg text-white">{t("app_misc.kill_dialog_title")}</h3>
+                <p className="text-xs text-rose-300">{t("app_misc.kill_dialog_subtitle")}</p>
               </div>
             </div>
             <p className="text-sm text-slate-300 mb-6">
-              Sei sicuro di voler chiudere <strong className="text-white">{activeGame?.title || "il gioco attivo"}</strong>?
+              {t("app_misc.kill_question", { title: activeGame?.title || t("app_misc.active_game") })}
               <br /><br />
               <span className="text-xs text-slate-400">
-                Omnis tenterà prima una chiusura controllata (WM_CLOSE) per consentire il salvataggio dei dati, e terminerà forzatamente il processo solo se non risponde entro pochi secondi.
+                {t("app_misc.kill_desc")}
               </span>
             </p>
             <div className="flex justify-end gap-3">
@@ -1885,13 +1925,13 @@ export default function App() {
                 className="px-4 py-2 rounded-xl text-sm font-bold bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-600/30 transition-all flex items-center gap-2 cursor-pointer"
               >
                 <Square className="w-4 h-4 fill-white" />
-                Conferma e Termina
+                {t("app_misc.kill_confirm")}
               </button>
               <button
                 onClick={() => setShowKillConfirmModal(false)}
                 className="px-4 py-2 rounded-xl text-sm font-semibold bg-white/10 hover:bg-white/20 text-slate-200 transition-colors cursor-pointer"
               >
-                Annulla
+                {t("common.cancel")}
               </button>
             </div>
           </div>
@@ -1963,7 +2003,7 @@ export default function App() {
               setIsSyncing(false);
             }}
             className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-            title="Chiudi notifica"
+            title={t("app_misc.close_notification")}
           >
             <X className="w-4 h-4" />
           </button>
@@ -1978,17 +2018,17 @@ export default function App() {
           </div>
           <div className="flex-1 min-w-0">
             <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400">
-              Sessione di Gioco Terminata
+              {t("app_misc.session_ended")}
             </span>
             <h4 className="text-xs font-bold text-white truncate">{sessionToast.title}</h4>
             <p className="text-[11px] text-slate-300 font-medium">
-              Tempo giocato: +{Math.max(1, Math.round(sessionToast.durationSeconds / 60))} minuti ({formatDuration(sessionToast.durationSeconds)})
+              {t("app_misc.played_time", { minutes: Math.max(1, Math.round(sessionToast.durationSeconds / 60)), duration: formatDuration(sessionToast.durationSeconds) })}
             </p>
           </div>
           <button
             onClick={() => setSessionToast(null)}
             className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-            title="Chiudi notifica"
+            title={t("app_misc.close_notification")}
           >
             <X className="w-4 h-4" />
           </button>
@@ -2011,6 +2051,7 @@ export default function App() {
         </div>
       )}
     </div>
+    </ControllerTypeContext.Provider>
     </UpdaterContext.Provider>
   );
 }

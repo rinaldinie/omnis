@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { PlusCircle, X, FolderOpen, Folder } from "lucide-react";
 import { invokeTauri } from "../../types";
+import { useTranslation } from "../../i18n";
 
 interface CustomGameModalProps {
   isOpen: boolean;
@@ -13,6 +14,7 @@ export default function CustomGameModal({
   onClose,
   onSuccess,
 }: CustomGameModalProps) {
+  const { t } = useTranslation();
   const [customTitle, setCustomTitle] = useState<string>("");
   const [customExePath, setCustomExePath] = useState<string>("");
   const [customCoverPath, setCustomCoverPath] = useState<string>("");
@@ -117,7 +119,7 @@ export default function CustomGameModal({
           <div className="flex items-center gap-2">
             <PlusCircle className="w-5 h-5 text-emerald-400" />
             <h3 className="text-base font-semibold tracking-wide">
-              Aggiungi Gioco (.exe o Cartella)
+              {t("custom_game.title")}
             </h3>
           </div>
           <button
@@ -131,14 +133,14 @@ export default function CustomGameModal({
         <form onSubmit={handleAddCustomGame} className="mt-4 space-y-4">
           <div>
             <label className="block text-xs font-medium mb-1.5 text-slate-300">
-              Titolo Gioco *
+              {t("custom_game.field_title")} *
             </label>
             <input
               type="text"
               required
               value={customTitle}
               onChange={(e) => setCustomTitle(e.target.value)}
-              placeholder="Es. Dark Souls Remastered"
+              placeholder={t("custom_game.title_placeholder")}
               className="w-full px-3 py-2 rounded-xl border bg-black/30 text-sm font-normal focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
               style={{ borderColor: "var(--border-color)" }}
             />
@@ -146,7 +148,7 @@ export default function CustomGameModal({
 
           <div>
             <label className="block text-xs font-medium mb-1.5 text-slate-300">
-              Eseguibile o Cartella Gioco *
+              {t("custom_game.field_exe")} *
             </label>
             <div className="flex flex-col sm:flex-row gap-2">
               <input
@@ -154,7 +156,7 @@ export default function CustomGameModal({
                 required
                 value={customExePath}
                 onChange={(e) => setCustomExePath(e.target.value)}
-                placeholder="C:\Games\MyGame\game.exe o cartella"
+                placeholder={t("custom_game.exe_placeholder")}
                 className="flex-1 px-3 py-2 rounded-xl border bg-black/30 text-xs font-mono font-normal focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
                 style={{ borderColor: "var(--border-color)" }}
               />
@@ -164,20 +166,20 @@ export default function CustomGameModal({
                   onClick={handlePickCustomExe}
                   className="flex items-center gap-1.5 px-3 py-2 rounded-xl border bg-white/5 hover:bg-white/10 text-xs font-medium text-slate-200 transition-colors"
                   style={{ borderColor: "var(--border-color)" }}
-                  title="Sfoglia file eseguibile (.exe)..."
+                  title={t("custom_game.browse_exe_title")}
                 >
                   <FolderOpen className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Sfoglia .exe</span>
+                  <span>{t("custom_game.browse_exe")}</span>
                 </button>
                 <button
                   type="button"
                   onClick={handlePickCustomFolder}
                   className="flex items-center gap-1.5 px-3 py-2 rounded-xl border bg-white/5 hover:bg-white/10 text-xs font-medium text-slate-200 transition-colors"
                   style={{ borderColor: "var(--border-color)" }}
-                  title="Sfoglia cartella di installazione del gioco..."
+                  title={t("custom_game.browse_folder_title")}
                 >
                   <Folder className="w-3.5 h-3.5 text-sky-400" />
-                  <span>Cartella</span>
+                  <span>{t("custom_game.browse_folder")}</span>
                 </button>
               </div>
             </div>
@@ -185,14 +187,14 @@ export default function CustomGameModal({
 
           <div>
             <label className="block text-xs font-medium mb-1.5 text-slate-300">
-              Percorso Locandina (Opzionale)
+              {t("custom_game.field_cover")}
             </label>
             <div className="flex gap-2">
               <input
                 type="text"
                 value={customCoverPath}
                 onChange={(e) => setCustomCoverPath(e.target.value)}
-                placeholder="C:\Images\cover.jpg oppure https://..."
+                placeholder={t("custom_game.cover_placeholder")}
                 className="flex-1 px-3 py-2 rounded-xl border bg-black/30 text-xs font-mono font-normal focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
                 style={{ borderColor: "var(--border-color)" }}
               />
@@ -201,10 +203,10 @@ export default function CustomGameModal({
                 onClick={handlePickCustomCover}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-xl border bg-white/5 hover:bg-white/10 text-xs font-medium text-slate-200 transition-colors shrink-0"
                 style={{ borderColor: "var(--border-color)" }}
-                title="Sfoglia immagine copertina..."
+                title={t("custom_game.browse_cover_title")}
               >
                 <FolderOpen className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Sfoglia...</span>
+                <span>{t("custom_game.browse")}</span>
               </button>
             </div>
           </div>
@@ -220,7 +222,7 @@ export default function CustomGameModal({
               style={{ backgroundColor: "var(--accent-primary)" }}
             >
               <PlusCircle className="w-4 h-4" />
-              <span>{isAddingCustom ? "Importazione..." : "Aggiungi al Catalogo"}</span>
+              <span>{isAddingCustom ? t("custom_game.adding") : t("custom_game.add")}</span>
             </button>
             <button
               type="button"
@@ -228,7 +230,7 @@ export default function CustomGameModal({
               className="px-4 py-2 rounded-xl border text-xs font-medium text-slate-300 hover:bg-white/5 transition-colors cursor-pointer"
               style={{ borderColor: "var(--border-color)" }}
             >
-              Annulla
+              {t("common.cancel")}
             </button>
           </div>
         </form>

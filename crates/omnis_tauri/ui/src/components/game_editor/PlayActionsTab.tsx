@@ -1,6 +1,7 @@
 import React from "react";
 import { Plus, Trash2, FolderOpen, Folder, Terminal } from "lucide-react";
 import { LaunchConfiguration } from "./types";
+import { useTranslation } from "../../i18n";
 
 interface PlayActionsTabProps {
   playActions: LaunchConfiguration[];
@@ -19,11 +20,12 @@ export const PlayActionsTab: React.FC<PlayActionsTabProps> = ({
   onPickExe,
   onPickDir,
 }) => {
+  const { t } = useTranslation();
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between pb-2">
         <span className="text-xs font-normal text-slate-400">
-          Configura gli eseguibili, parametri di lancio e modalità di monitoraggio del gioco.
+          {t("play_actions.intro")}
         </span>
         <button
           type="button"
@@ -34,7 +36,7 @@ export const PlayActionsTab: React.FC<PlayActionsTabProps> = ({
           }}
         >
           <Plus className="w-3.5 h-3.5" />
-          <span>Aggiungi Azione</span>
+          <span>{t("play_actions.add")}</span>
         </button>
       </div>
 
@@ -47,9 +49,9 @@ export const PlayActionsTab: React.FC<PlayActionsTabProps> = ({
           }}
         >
           <Terminal className="w-10 h-10 text-slate-500 mx-auto" />
-          <p className="text-sm font-medium text-white">Nessuna azione di avvio configurata</p>
+          <p className="text-sm font-medium text-white">{t("play_actions.empty_title")}</p>
           <p className="text-xs text-slate-400">
-            Fai click su "Aggiungi Azione" per impostare un percorso eseguibile custom o selezionare una cartella.
+            {t("play_actions.empty_desc")}
           </p>
         </div>
       ) : (
@@ -67,7 +69,7 @@ export const PlayActionsTab: React.FC<PlayActionsTabProps> = ({
               style={{ borderColor: "var(--border-color)" }}
             >
               <span className="text-xs font-medium text-indigo-400">
-                Azione #{idx + 1}
+                {t("play_actions.action_n", { n: idx + 1 })}
               </span>
               <button
                 type="button"
@@ -75,14 +77,14 @@ export const PlayActionsTab: React.FC<PlayActionsTabProps> = ({
                 className="flex items-center gap-1 text-xs text-rose-400 hover:text-rose-300"
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                <span>Rimuovi</span>
+                <span>{t("play_actions.remove")}</span>
               </button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium mb-1 text-slate-300">
-                  Eseguibile (File .exe o Comando) *
+                  {t("play_actions.executable")} *
                 </label>
                 <div className="flex gap-2">
                   <input
@@ -95,7 +97,7 @@ export const PlayActionsTab: React.FC<PlayActionsTabProps> = ({
                       borderColor: "var(--border-color)",
                       color: "var(--text-primary)",
                     }}
-                    placeholder="es. C:\Games\Titolo\game.exe"
+                    placeholder={t("play_actions.executable_placeholder")}
                   />
                   <button
                     type="button"
@@ -106,17 +108,17 @@ export const PlayActionsTab: React.FC<PlayActionsTabProps> = ({
                       borderColor: "var(--border-color)",
                       color: "var(--text-primary)",
                     }}
-                    title="Sfoglia file eseguibile (.exe)..."
+                    title={t("custom_game.browse_exe_title")}
                   >
                     <FolderOpen className="w-4 h-4 text-emerald-400" />
-                    <span>Sfoglia...</span>
+                    <span>{t("custom_game.browse")}</span>
                   </button>
                 </div>
               </div>
 
               <div>
                 <label className="block text-xs font-medium mb-1 text-slate-300">
-                  Working Directory (Cartella di lavoro)
+                  {t("play_actions.working_dir")}
                 </label>
                 <div className="flex gap-2">
                   <input
@@ -129,7 +131,7 @@ export const PlayActionsTab: React.FC<PlayActionsTabProps> = ({
                       borderColor: "var(--border-color)",
                       color: "var(--text-primary)",
                     }}
-                    placeholder="es. C:\Games\Titolo"
+                    placeholder={t("play_actions.working_dir_placeholder")}
                   />
                   <button
                     type="button"
@@ -140,10 +142,10 @@ export const PlayActionsTab: React.FC<PlayActionsTabProps> = ({
                       borderColor: "var(--border-color)",
                       color: "var(--text-primary)",
                     }}
-                    title="Seleziona cartella dal computer..."
+                    title={t("play_actions.pick_folder_title")}
                   >
                     <Folder className="w-4 h-4 text-sky-400" />
-                    <span>Cartella...</span>
+                    <span>{t("play_actions.pick_folder")}</span>
                   </button>
                 </div>
               </div>
@@ -151,7 +153,7 @@ export const PlayActionsTab: React.FC<PlayActionsTabProps> = ({
 
             <div>
               <label className="block text-xs font-medium mb-1 text-slate-300">
-                Argomenti CLI (separati da spazio)
+                {t("play_actions.arguments")}
               </label>
               <input
                 type="text"
@@ -169,13 +171,13 @@ export const PlayActionsTab: React.FC<PlayActionsTabProps> = ({
                   borderColor: "var(--border-color)",
                   color: "var(--text-primary)",
                 }}
-                placeholder="es. -windowed -novid -fullscreen"
+                placeholder={t("play_actions.arguments_placeholder")}
               />
             </div>
 
             <div>
               <label className="block text-xs font-medium mb-1 text-slate-300">
-                Tracking Mode (Rilevamento Sessione)
+                {t("play_actions.tracking")}
               </label>
               <select
                 value={action.tracking_mode?.type || "KernelJobObject"}
@@ -202,9 +204,9 @@ export const PlayActionsTab: React.FC<PlayActionsTabProps> = ({
                   color: "var(--text-primary)",
                 }}
               >
-                <option value="KernelJobObject">Kernel Job Object (Zero CPU, Windows nativo)</option>
-                <option value="ProcessName">Nome Processo Eseguibile</option>
-                <option value="WatchDirectory">Cartella di Installazione</option>
+                <option value="KernelJobObject">{t("play_actions.tracking_kernel")}</option>
+                <option value="ProcessName">{t("play_actions.tracking_process")}</option>
+                <option value="WatchDirectory">{t("play_actions.tracking_directory")}</option>
               </select>
             </div>
           </div>
