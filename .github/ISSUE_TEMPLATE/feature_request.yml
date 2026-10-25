@@ -1,0 +1,61 @@
+name: "✨ Feature Request"
+description: "Suggest a new feature or improvement for Omnis"
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to suggest a feature! Please fill out the sections below.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / Motivation
+      description: "What problem does this feature solve? What need does it address?"
+      placeholder: "I'm always frustrated when..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: "Describe the solution you'd like to see implemented."
+      placeholder: "A clear description of what you want to happen."
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: "Describe any alternative solutions or features you've considered."
+      placeholder: "Other approaches you thought about and why they don't fit."
+    validations:
+      required: false
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: "Which part of Omnis does this feature relate to?"
+      options:
+        - UI / UX
+        - Fullscreen / Gamepad Mode
+        - Library Scanning
+        - Metadata Pipeline
+        - Process Tracking
+        - Plugins
+        - Core Engine
+        - CLI
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: "Add any screenshots, mockups, links, or extra context here."
+    validations:
+      required: false
