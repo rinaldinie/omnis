@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { useTranslation } from "../i18n";
 import {
   Search,
   Download,
@@ -61,6 +62,7 @@ async function invokeTauri<T>(cmd: string, args?: Record<string, unknown>): Prom
 }
 
 export const MarketplaceTab: React.FC<MarketplaceTabProps> = ({ onPluginInstalled }) => {
+  const { t } = useTranslation();
   const [catalog, setCatalog] = useState<MarketplaceCatalog | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -82,7 +84,7 @@ export const MarketplaceTab: React.FC<MarketplaceTabProps> = ({ onPluginInstalle
       console.error("Errore recupero catalogo marketplace:", err);
       setStatusNotification({
         type: "error",
-        text: `Impossibile caricare il catalogo: ${err?.message || err}`,
+        text: t("marketplace.load_error", { error: String(err?.message || err) }),
       });
     } finally {
       setLoading(false);
@@ -97,14 +99,14 @@ export const MarketplaceTab: React.FC<MarketplaceTabProps> = ({ onPluginInstalle
     setOperatingPluginId(plugin.id);
     setStatusNotification({
       type: "info",
-      text: `Download e installazione a caldo di "${plugin.name}" in corso...`,
+      text: t("marketplace.installing_status", { name: plugin.name }),
     });
 
     try {
       await invokeTauri("install_marketplace_plugin", { pluginId: plugin.id });
       setStatusNotification({
         type: "success",
-        text: `"${plugin.name}" installato e attivato a caldo con successo!`,
+        text: t("marketplace.installed_status", { name: plugin.name }),
       });
       await loadCatalog();
       if (onPluginInstalled) {
@@ -114,7 +116,7 @@ export const MarketplaceTab: React.FC<MarketplaceTabProps> = ({ onPluginInstalle
       console.error("Installazione fallita:", err);
       setStatusNotification({
         type: "error",
-        text: `Errore installazione per ${plugin.name}: ${err?.message || err}`,
+        text: t("marketplace.install_error", { name: plugin.name, error: String(err?.message || err) }),
       });
     } finally {
       setOperatingPluginId(null);
@@ -125,14 +127,14 @@ export const MarketplaceTab: React.FC<MarketplaceTabProps> = ({ onPluginInstalle
     setOperatingPluginId(plugin.id);
     setStatusNotification({
       type: "info",
-      text: `Disattivazione e rimozione di "${plugin.name}" in corso...`,
+      text: t("marketplace.uninstalling_status", { name: plugin.name }),
     });
 
     try {
       await invokeTauri("uninstall_marketplace_plugin", { pluginId: plugin.id });
       setStatusNotification({
         type: "success",
-        text: `"${plugin.name}" disinstallato con successo.`,
+        text: t("marketplace.uninstalled_status", { name: plugin.name }),
       });
       await loadCatalog();
       if (onPluginInstalled) {
@@ -142,7 +144,7 @@ export const MarketplaceTab: React.FC<MarketplaceTabProps> = ({ onPluginInstalle
       console.error("Disinstallazione fallita:", err);
       setStatusNotification({
         type: "error",
-        text: `Errore disinstallazione per ${plugin.name}: ${err?.message || err}`,
+        text: t("marketplace.uninstall_error", { name: plugin.name, error: String(err?.message || err) }),
       });
     } finally {
       setOperatingPluginId(null);
@@ -198,7 +200,7 @@ export const MarketplaceTab: React.FC<MarketplaceTabProps> = ({ onPluginInstalle
               </span>
             </h4>
             <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-              Estendi Omnis con provider di metadati nativi (.dll / .so) e scanner di libreria con 1-click. Nessun riavvio richiesto!
+              {t("marketplace.intro")}
             </p>
           </div>
         </div>
@@ -212,10 +214,10 @@ export const MarketplaceTab: React.FC<MarketplaceTabProps> = ({ onPluginInstalle
             borderColor: "var(--border-color)",
             color: "var(--text-primary)",
           }}
-          title="Aggiorna catalogo marketplace"
+          title={t("marketplace.refresh_title")}
         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin text-cyan-400" : ""}`} />
-          <span className="hidden sm:inline">Aggiorna Catalogo</span>
+          <span className="hidden sm:inline">{t("marketplace.refresh")}</span>
         </button>
       </div>
 
@@ -258,7 +260,7 @@ export const MarketplaceTab: React.FC<MarketplaceTabProps> = ({ onPluginInstalle
           <Search className="w-3.5 h-3.5 mr-2" style={{ color: "var(--text-muted)" }} />
           <input
             type="text"
-            placeholder="Cerca plugin community per nome, autore o descrizione..."
+            placeholder={t("marketplace.search_placeholder")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-transparent border-none outline-none text-white text-xs placeholder:text-gray-500"
@@ -289,7 +291,7 @@ export const MarketplaceTab: React.FC<MarketplaceTabProps> = ({ onPluginInstalle
               color: categoryFilter === "all" ? "#fff" : "var(--text-muted)",
             }}
           >
-            Tutti ({catalog?.plugins.length || 0})
+            {t("marketplace.filter_all", { count: catalog?.plugins.length || 0 })}
           </button>
           <button
             onClick={() => setCategoryFilter("metadata")}
@@ -299,7 +301,7 @@ export const MarketplaceTab: React.FC<MarketplaceTabProps> = ({ onPluginInstalle
               color: categoryFilter === "metadata" ? "#fff" : "var(--text-muted)",
             }}
           >
-            Metadati
+            {t("marketplace.filter_metadata")}
           </button>
           <button
             onClick={() => setCategoryFilter("library")}
@@ -309,7 +311,7 @@ export const MarketplaceTab: React.FC<MarketplaceTabProps> = ({ onPluginInstalle
               color: categoryFilter === "library" ? "#fff" : "var(--text-muted)",
             }}
           >
-            Librerie
+            {t("marketplace.filter_libraries")}
           </button>
           <button
             onClick={() => setCategoryFilter("installed")}
@@ -319,7 +321,7 @@ export const MarketplaceTab: React.FC<MarketplaceTabProps> = ({ onPluginInstalle
               color: categoryFilter === "installed" ? "#fff" : "var(--text-muted)",
             }}
           >
-            Installati ({catalog?.plugins.filter((p) => p.is_installed).length || 0})
+            {t("marketplace.filter_installed", { count: catalog?.plugins.filter((p) => p.is_installed).length || 0 })}
           </button>
         </div>
       </div>
@@ -329,7 +331,7 @@ export const MarketplaceTab: React.FC<MarketplaceTabProps> = ({ onPluginInstalle
         <div className="py-12 flex flex-col items-center justify-center space-y-3">
           <RefreshCw className="w-7 h-7 text-indigo-400 animate-spin" />
           <p className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-            Caricamento catalogo community in corso...
+            {t("marketplace.loading")}
           </p>
         </div>
       ) : filteredPlugins.length === 0 ? (
@@ -341,9 +343,9 @@ export const MarketplaceTab: React.FC<MarketplaceTabProps> = ({ onPluginInstalle
           }}
         >
           <Package className="w-8 h-8 opacity-30 text-gray-400 mb-1" />
-          <p className="text-sm font-bold text-white">Nessun plugin trovato</p>
+          <p className="text-sm font-bold text-white">{t("marketplace.empty_title")}</p>
           <p className="text-xs max-w-sm" style={{ color: "var(--text-muted)" }}>
-            Nessun plugin corrisponde ai criteri di ricerca o filtro selezionati. Prova a modificare i termini.
+            {t("marketplace.empty_desc")}
           </p>
         </div>
       ) : (
@@ -391,7 +393,7 @@ export const MarketplaceTab: React.FC<MarketplaceTabProps> = ({ onPluginInstalle
                           {plugin.name}
                         </h4>
                         <div className="flex items-center gap-2 text-[10px]" style={{ color: "var(--text-muted)" }}>
-                          <span>di {plugin.author}</span>
+                          <span>{t("marketplace.by_author", { author: plugin.author })}</span>
                           <span>•</span>
                           <span className="font-mono">v{plugin.version}</span>
                         </div>
@@ -411,23 +413,23 @@ export const MarketplaceTab: React.FC<MarketplaceTabProps> = ({ onPluginInstalle
                             plugin.plugin_type === "metadata" ? "#c084fc" : "#60a5fa",
                         }}
                       >
-                        {plugin.plugin_type === "metadata" ? "Metadati" : "Libreria"}
+                        {plugin.plugin_type === "metadata" ? t("marketplace.type_metadata") : t("marketplace.type_library")}
                       </span>
 
                       {plugin.is_installed ? (
                         <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-400">
                           <CheckCircle2 className="w-3 h-3" />
-                          Installato
+                          {t("marketplace.installed")}
                         </span>
                       ) : (
                         <span className="text-[10px] font-medium" style={{ color: "var(--text-muted)" }}>
-                          Disponibile
+                          {t("marketplace.available")}
                         </span>
                       )}
 
                       {plugin.requires_api_key ? (
                         <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                          Richiede API Key
+                          {t("plugin_manager.requires_key")}
                         </span>
                       ) : (
                         <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
@@ -455,7 +457,7 @@ export const MarketplaceTab: React.FC<MarketplaceTabProps> = ({ onPluginInstalle
                     {plugin.is_installed && plugin.has_update && (
                       <span className="flex items-center gap-1 text-[10px] font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
                         <ArrowUpCircle className="w-3 h-3" />
-                        Aggiornamento
+                        {t("marketplace.update_available")}
                       </span>
                     )}
                     {plugin.is_installed && (
@@ -475,17 +477,17 @@ export const MarketplaceTab: React.FC<MarketplaceTabProps> = ({ onPluginInstalle
                             className="px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all bg-amber-500 text-black hover:bg-amber-400 shadow-md disabled:opacity-50"
                           >
                             <RefreshCw className={`w-3 h-3 ${isOperating ? "animate-spin" : ""}`} />
-                            <span>Aggiorna</span>
+                            <span>{t("marketplace.update")}</span>
                           </button>
                         )}
                         <button
                           onClick={() => handleUninstall(plugin)}
                           disabled={isOperating}
                           className="px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all border text-rose-400 hover:bg-rose-500/15 border-rose-500/30 disabled:opacity-50"
-                          title="Disinstalla plugin e rimuovi dalla memoria a caldo"
+                          title={t("marketplace.uninstall_title")}
                         >
                           <Trash2 className="w-3 h-3" />
-                          <span>Disinstalla</span>
+                          <span>{t("plugin_manager.uninstall")}</span>
                         </button>
                       </>
                     ) : (
@@ -500,12 +502,12 @@ export const MarketplaceTab: React.FC<MarketplaceTabProps> = ({ onPluginInstalle
                         {isOperating ? (
                           <>
                             <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                            <span>Installazione...</span>
+                            <span>{t("marketplace.installing")}</span>
                           </>
                         ) : (
                           <>
                             <Download className="w-3.5 h-3.5" />
-                            <span>Installa Plugin</span>
+                            <span>{t("marketplace.install")}</span>
                           </>
                         )}
                       </button>
