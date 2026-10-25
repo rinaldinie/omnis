@@ -152,7 +152,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 fn dirs_or_local() -> PathBuf {
     if let Ok(local_app_data) = env::var("LOCALAPPDATA") {
-        PathBuf::from(local_app_data).join("OmnisGameLibrary")
+        let tauri_path = PathBuf::from(&local_app_data).join("Omnis Game Library");
+        let legacy_path = PathBuf::from(&local_app_data).join("OmnisGameLibrary");
+        if tauri_path.exists() || !legacy_path.exists() {
+            tauri_path
+        } else {
+            legacy_path
+        }
     } else {
         PathBuf::from("./data")
     }

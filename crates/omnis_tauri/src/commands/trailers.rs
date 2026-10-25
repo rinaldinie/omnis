@@ -44,7 +44,7 @@ pub async fn get_game_trailer_url(
         }
     }
 
-    // 2. Check local trailer files in %LOCALAPPDATA%/OmnisGameLibrary/trailers/
+    // 2. Check local trailer files in trailers/ directory inside app_dir
     let trailers_dir = state.app_dir.join("trailers");
     let candidates = [
         trailers_dir.join(format!("{}.mp4", game_id)),

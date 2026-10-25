@@ -3,7 +3,6 @@ use omnis_core::{Database, MarketplaceManager, MetadataDownloader, PluginHost};
 use omnis_sdk::Game;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::env;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -169,14 +168,6 @@ pub fn game_to_dto(g: Game, _cache: &ImageCache) -> GameDto {
         custom_links: g.custom_links,
         extra_metadata: g.extra_metadata,
         last_activity: g.last_activity.map(|t| t.to_rfc3339()),
-    }
-}
-
-pub fn get_app_dir() -> PathBuf {
-    if let Ok(local) = env::var("LOCALAPPDATA") {
-        PathBuf::from(local).join("OmnisGameLibrary")
-    } else {
-        PathBuf::from("./data")
     }
 }
 
