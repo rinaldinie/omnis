@@ -58,50 +58,50 @@ interface FieldOption {
 const AVAILABLE_FIELDS: FieldOption[] = [
   {
     key: "cover_image",
-    label: "Copertina Verticale",
-    description: "Cover 2:3 ufficiale o artwork HD SteamGridDB",
+    label: "metadata_resolution.field_cover",
+    description: "metadata_resolution.field_cover_desc",
     icon: <ImageIcon className="w-3.5 h-3.5 text-indigo-400" />,
   },
   {
     key: "background_image",
-    label: "Sfondo Panoramico Hero",
-    description: "Banner panoramico 16:9 ad alta risoluzione",
+    label: "metadata_resolution.field_background",
+    description: "metadata_resolution.field_background_desc",
     icon: <Layers className="w-3.5 h-3.5 text-sky-400" />,
   },
   {
     key: "description",
-    label: "Descrizione & Sinossi",
-    description: "Trama e riassunto ufficiale localizzato",
+    label: "metadata_resolution.field_description",
+    description: "metadata_resolution.field_description_desc",
     icon: <FileText className="w-3.5 h-3.5 text-slate-300" />,
   },
   {
     key: "critic_score",
-    label: "Voto Critica (Metacritic/OpenCritic)",
-    description: "Punteggio globale da 0 a 100",
+    label: "metadata_resolution.field_critic",
+    description: "metadata_resolution.field_critic_desc",
     icon: <Star className="w-3.5 h-3.5 text-amber-400" />,
   },
   {
     key: "community_score",
-    label: "Voto Community (%)",
-    description: "Raccomandazione e gradimento della community",
+    label: "metadata_resolution.field_community",
+    description: "metadata_resolution.field_community_desc",
     icon: <Star className="w-3.5 h-3.5 text-emerald-400" />,
   },
   {
     key: "genres",
-    label: "Generi Ufficiali",
-    description: "Categorizzazione e generi videoludici",
+    label: "metadata_resolution.field_genres",
+    description: "metadata_resolution.field_genres_desc",
     icon: <Gamepad2 className="w-3.5 h-3.5 text-purple-400" />,
   },
   {
     key: "release_date",
-    label: "Data di Uscita",
-    description: "Giorno e anno di pubblicazione",
+    label: "metadata_resolution.field_release",
+    description: "metadata_resolution.field_release_desc",
     icon: <Calendar className="w-3.5 h-3.5 text-rose-400" />,
   },
   {
     key: "developers",
-    label: "Sviluppatori & Editori",
-    description: "Team di sviluppo e publisher accreditati",
+    label: "metadata_resolution.field_developers",
+    description: "metadata_resolution.field_developers_desc",
     icon: <FileText className="w-3.5 h-3.5 text-teal-400" />,
   },
 ];
@@ -212,11 +212,11 @@ export default function MetadataResolutionModal({
         setSelectedCandidate(result[0]); // Auto-select top match
       } else {
         setCandidates([]);
-        setSearchError("Nessun candidato trovato per questo titolo.");
+        setSearchError(t("metadata_resolution.no_candidates"));
       }
     } catch (err: any) {
       setSearchError(
-        typeof err === "string" ? err : err.message || "Errore durante la ricerca dei candidati"
+        typeof err === "string" ? err : err.message || t("metadata_resolution.search_error")
       );
       setCandidates([]);
     } finally {
@@ -260,7 +260,7 @@ export default function MetadataResolutionModal({
       });
 
       if (!updated) {
-        throw new Error("Salvataggio dei metadati non riuscito dal backend.");
+        throw new Error(t("metadata_resolution.save_failed"));
       }
 
       setApplySuccess(true);
@@ -270,7 +270,7 @@ export default function MetadataResolutionModal({
       }, 500);
     } catch (err: any) {
       setApplyError(
-        typeof err === "string" ? err : err.message || "Errore nell'applicazione dei metadati"
+        typeof err === "string" ? err : err.message || t("metadata_resolution.apply_error")
       );
     } finally {
       setIsApplying(false);
@@ -327,7 +327,7 @@ export default function MetadataResolutionModal({
                 {t('game_details.identify_metadata')}
               </h2>
               <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                Titolo attuale: <span className="font-medium text-white">{game.title}</span> ({game.library})
+                {t("metadata_resolution.current_title")} <span className="font-medium text-white">{game.title}</span> ({game.library})
               </p>
             </div>
           </div>
@@ -357,7 +357,7 @@ export default function MetadataResolutionModal({
               onKeyDown={(e) => {
                 if (e.key === "Enter") handleSearch(searchTerm, providerId);
               }}
-              placeholder="Cerca per titolo videogioco..."
+              placeholder={t("metadata_resolution.search_placeholder")}
               className="w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm font-normal outline-none transition-all focus:ring-1 focus:ring-indigo-500"
               style={{
                 backgroundColor: "var(--bg-card)",
@@ -380,8 +380,8 @@ export default function MetadataResolutionModal({
               color: "var(--text-primary)",
             }}
           >
-            <option value="all">Tutti gli Store (Steam & GOG)</option>
-            <option value="steam">Steam Store (Ufficiale)</option>
+            <option value="all">{t("metadata_resolution.opt_all")}</option>
+            <option value="steam">Steam Store ({t("plugin_manager.opt_official")})</option>
             <option value="gog">GOG Store (DRM-Free)</option>
           </select>
 
@@ -412,11 +412,11 @@ export default function MetadataResolutionModal({
           >
             <div className="flex items-center justify-between pb-1">
               <span className="text-xs font-medium tracking-wider uppercase text-slate-400">
-                Risultati Trovati ({candidates.length})
+                {t("metadata_resolution.results", { count: candidates.length })}
               </span>
               {candidates.length > 0 && (
                 <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>
-                  Seleziona il candidato da associare
+                  {t("metadata_resolution.select_hint")}
                 </span>
               )}
             </div>
@@ -425,7 +425,7 @@ export default function MetadataResolutionModal({
               <div className="py-20 flex flex-col items-center justify-center gap-3">
                 <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
                 <span className="text-xs font-normal text-slate-300">
-                  Interrogazione store e database metadati in corso...
+                  {t("metadata_resolution.searching")}
                 </span>
               </div>
             ) : searchError ? (
@@ -439,7 +439,7 @@ export default function MetadataResolutionModal({
                 <AlertCircle className="w-8 h-8 text-amber-400 mx-auto" />
                 <p className="text-sm font-semibold text-white">{searchError}</p>
                 <p className="text-xs text-slate-400">
-                  Prova a modificare i termini di ricerca o selezionare "Tutti i Provider".
+                  {t("metadata_resolution.search_tips")}
                 </p>
               </div>
             ) : (
@@ -478,7 +478,7 @@ export default function MetadataResolutionModal({
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-xs font-medium text-slate-500">
-                            No Cover
+                            {t("metadata_resolution.no_cover")}
                           </div>
                         )}
                       </div>
@@ -513,7 +513,7 @@ export default function MetadataResolutionModal({
                         <h4 className="text-sm font-semibold text-white truncate">{cand.title}</h4>
 
                         <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">
-                          {cand.description || "Nessuna descrizione disponibile."}
+                          {cand.description || t("metadata_resolution.no_description")}
                         </p>
 
                         {cand.raw_patch.genres && cand.raw_patch.genres.length > 0 && (
@@ -544,28 +544,28 @@ export default function MetadataResolutionModal({
             <div>
               <div className="flex items-center justify-between pb-2">
                 <span className="text-xs font-medium tracking-wider uppercase text-slate-300">
-                  Campi da Importare
+                  {t("metadata_resolution.fields_title")}
                 </span>
                 <div className="flex items-center gap-2 text-[11px]">
                   <button
                     onClick={selectAllFields}
                     className="text-indigo-400 hover:underline font-medium"
                   >
-                    Tutti
+                    {t("metadata_resolution.select_all")}
                   </button>
                   <span className="text-slate-600">•</span>
                   <button
                     onClick={selectMissingFields}
                     className="text-amber-400 hover:underline font-medium"
                   >
-                    Solo Mancanti
+                    {t("metadata_resolution.select_missing")}
                   </button>
                   <span className="text-slate-600">•</span>
                   <button
                     onClick={deselectAllFields}
                     className="text-slate-400 hover:underline font-medium"
                   >
-                    Nessuno
+                    {t("metadata_resolution.select_none")}
                   </button>
                 </div>
               </div>
@@ -588,18 +588,18 @@ export default function MetadataResolutionModal({
                         <div className="shrink-0">{field.icon}</div>
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
-                            <p className="text-xs font-medium truncate">{field.label}</p>
+                            <p className="text-xs font-medium truncate">{t(field.label)}</p>
                             {alreadyPresent ? (
                               <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shrink-0 font-medium">
-                                Già presente
+                                {t("metadata_resolution.present")}
                               </span>
                             ) : (
                               <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300/80 border border-amber-500/20 shrink-0">
-                                Mancante
+                                {t("metadata_resolution.missing")}
                               </span>
                             )}
                           </div>
-                          <p className="text-[10px] text-slate-400 truncate">{field.description}</p>
+                          <p className="text-[10px] text-slate-400 truncate">{t(field.description)}</p>
                         </div>
                       </div>
 
@@ -626,7 +626,7 @@ export default function MetadataResolutionModal({
                 }}
               >
                 <span className="text-[11px] font-medium uppercase text-slate-400 tracking-wider">
-                  Anteprima Selezionata
+                  {t("metadata_resolution.preview")}
                 </span>
 
                 <div className="space-y-2">
@@ -634,7 +634,7 @@ export default function MetadataResolutionModal({
                     <div className="w-full h-24 rounded-lg overflow-hidden border border-white/10 bg-black/40">
                       <img
                         src={selectedCandidate.background_url}
-                        alt="Hero Preview"
+                        alt={t("metadata_resolution.hero_preview")}
                         className="w-full h-full object-cover"
                       />
                     </div>
@@ -645,7 +645,7 @@ export default function MetadataResolutionModal({
                       <div className="w-12 aspect-[2/3] rounded-lg overflow-hidden border border-white/10 shrink-0">
                         <img
                           src={selectedCandidate.cover_url}
-                          alt="Cover Preview"
+                          alt={t("metadata_resolution.cover_preview")}
                           className="w-full h-full object-cover"
                         />
                       </div>
@@ -655,7 +655,7 @@ export default function MetadataResolutionModal({
                         {selectedCandidate.title}
                       </p>
                       <p className="text-[11px] text-indigo-400 font-medium">
-                        {selectedFields.length} campi selezionati
+                        {t("metadata_resolution.fields_selected", { count: selectedFields.length })}
                       </p>
                     </div>
                   </div>
@@ -675,7 +675,7 @@ export default function MetadataResolutionModal({
         {applySuccess && (
           <div className="px-6 py-2.5 bg-emerald-500/20 border-t border-emerald-500/40 text-emerald-300 text-xs font-medium flex items-center gap-2">
             <Check className="w-4 h-4 shrink-0" />
-            <span>Metadati e immagini applicati con successo al gioco!</span>
+            <span>{t("metadata_resolution.applied")}</span>
           </div>
         )}
 
@@ -690,10 +690,10 @@ export default function MetadataResolutionModal({
           <span className="text-xs text-slate-400">
             {selectedCandidate ? (
               <span>
-                Pronto per applicare <strong className="font-semibold text-white">{selectedCandidate.title}</strong>
+                {t("metadata_resolution.ready")} <strong className="font-semibold text-white">{selectedCandidate.title}</strong>
               </span>
             ) : (
-              <span>Seleziona un candidato per procedere</span>
+              <span>{t("metadata_resolution.select_to_continue")}</span>
             )}
           </span>
 
@@ -712,7 +712,7 @@ export default function MetadataResolutionModal({
               ) : (
                 <Check className="w-4 h-4" />
               )}
-              <span>{isApplying ? "Download & Applicazione..." : "Applica Metadati Selezionati"}</span>
+              <span>{isApplying ? t("metadata_resolution.applying") : t("metadata_resolution.apply")}</span>
             </button>
 
             <button

@@ -564,6 +564,69 @@ export interface TranslationSchema {
     reset: string;
     saved: string;
   },
+  metadata_resolution: {
+    field_cover: string;
+    field_cover_desc: string;
+    field_background: string;
+    field_background_desc: string;
+    field_description: string;
+    field_description_desc: string;
+    field_critic: string;
+    field_critic_desc: string;
+    field_community: string;
+    field_community_desc: string;
+    field_genres: string;
+    field_genres_desc: string;
+    field_release: string;
+    field_release_desc: string;
+    field_developers: string;
+    field_developers_desc: string;
+    no_candidates: string;
+    search_error: string;
+    save_failed: string;
+    apply_error: string;
+    current_title: string;
+    search_placeholder: string;
+    opt_all: string;
+    results: string;
+    select_hint: string;
+    searching: string;
+    search_tips: string;
+    no_cover: string;
+    no_description: string;
+    fields_title: string;
+    select_all: string;
+    select_missing: string;
+    select_none: string;
+    present: string;
+    missing: string;
+    preview: string;
+    hero_preview: string;
+    cover_preview: string;
+    fields_selected: string;
+    applied: string;
+    ready: string;
+    select_to_continue: string;
+    applying: string;
+    apply: string;
+  },
+  custom_game: {
+    title: string;
+    field_title: string;
+    title_placeholder: string;
+    field_exe: string;
+    exe_placeholder: string;
+    browse_exe_title: string;
+    browse_exe: string;
+    browse_folder_title: string;
+    browse_folder: string;
+    field_cover: string;
+    cover_placeholder: string;
+    browse_cover_title: string;
+    browse: string;
+    adding: string;
+    add: string;
+  },
   settings_modal: {
     title: string;
     subtitle: string;
