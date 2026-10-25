@@ -16,6 +16,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import soundEffects from "../../utils/soundEffects";
+import { useTranslation } from "../../i18n";
 
 export interface AchievementsConfig {
   // Provider sources
@@ -113,6 +114,7 @@ interface AchievementsSettingsTabProps {
 export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = ({
   onClose,
 }) => {
+  const { t } = useTranslation();
   const [activeSubTab, setActiveSubTab] = useState<SubTab>("sources");
   const [config, setConfig] = useState<AchievementsConfig>(loadAchievementsConfig);
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -166,7 +168,7 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
             : "text-slate-400 hover:text-white hover:bg-white/5"
             }`}
         >
-          <span>Achievements</span>
+          <span>{t("achievements_settings.tab_sources")}</span>
           {activeSubTab === "sources" && (
             <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-sky-400 rounded-full" />
           )}
@@ -183,7 +185,7 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
             : "text-slate-400 hover:text-white hover:bg-white/5"
             }`}
         >
-          <span>Extension view</span>
+          <span>{t("achievements_settings.tab_view")}</span>
           {activeSubTab === "view" && (
             <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-sky-400 rounded-full" />
           )}
@@ -200,7 +202,7 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
             : "text-slate-400 hover:text-white hover:bg-white/5"
             }`}
         >
-          <span>Misc</span>
+          <span>{t("achievements_settings.tab_misc")}</span>
           {activeSubTab === "misc" && (
             <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-sky-400 rounded-full" />
           )}
@@ -217,7 +219,7 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
             : "text-slate-400 hover:text-white hover:bg-white/5"
             }`}
         >
-          <span>Appearance</span>
+          <span>{t("achievements_settings.tab_appearance")}</span>
           {activeSubTab === "appearance" && (
             <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-sky-400 rounded-full" />
           )}
@@ -234,7 +236,7 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
             : "text-slate-400 hover:text-white hover:bg-white/5"
             }`}
         >
-          <span>Ignored games</span>
+          <span>{t("achievements_settings.tab_ignored")}</span>
           {activeSubTab === "ignored" && (
             <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-sky-400 rounded-full" />
           )}
@@ -257,7 +259,7 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                 ) : (
                   <ChevronDown className="w-4 h-4 text-sky-400" />
                 )}
-                <span>Store Ufficiali & Piattaforme PC</span>
+                <span>{t("achievements_settings.stores_group")}</span>
               </div>
 
               {openSections.stores && (
@@ -272,7 +274,7 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                         className="w-4 h-4 rounded border-white/20 bg-slate-900 text-sky-500 focus:ring-sky-400"
                       />
                       <span className="text-xs text-slate-200 font-medium group-hover:text-white">
-                        Enable Steam achievements
+                        {t("achievements_settings.enable_store", { store: "Steam" })}
                       </span>
                     </label>
                     <div className="flex items-center gap-4">
@@ -285,7 +287,7 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                           )
                         }
                         className="text-slate-500 hover:text-sky-400 transition-colors"
-                        title="Dettagli integrazione Steam"
+                        title={t("achievements_settings.store_info_title", { store: "Steam" })}
                       >
                         <HelpCircle className="w-4 h-4" />
                       </button>
@@ -302,7 +304,7 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                         className="w-4 h-4 rounded border-white/20 bg-slate-900 text-sky-500 focus:ring-sky-400"
                       />
                       <span className="text-xs text-slate-200 font-medium group-hover:text-white">
-                        Enable GOG achievements
+                        {t("achievements_settings.enable_store", { store: "GOG" })}
                       </span>
                     </label>
                     <div className="flex items-center gap-4">
@@ -313,7 +315,7 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                           setActiveTooltip(activeTooltip === "gog" ? null : "gog")
                         }
                         className="text-slate-500 hover:text-sky-400 transition-colors"
-                        title="Dettagli integrazione GOG"
+                        title={t("achievements_settings.store_info_title", { store: "GOG" })}
                       >
                         <HelpCircle className="w-4 h-4" />
                       </button>
@@ -330,7 +332,7 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                         className="w-4 h-4 rounded border-white/20 bg-slate-900 text-sky-500 focus:ring-sky-400"
                       />
                       <span className="text-xs text-slate-200 font-medium group-hover:text-white">
-                        Enable Epic Games achievements
+                        {t("achievements_settings.enable_store", { store: "Epic Games" })}
                       </span>
                     </label>
                     <div className="flex items-center gap-4">
@@ -341,7 +343,7 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                           setActiveTooltip(activeTooltip === "epic" ? null : "epic")
                         }
                         className="text-slate-500 hover:text-sky-400 transition-colors"
-                        title="Dettagli integrazione Epic Games"
+                        title={t("achievements_settings.store_info_title", { store: "Epic Games" })}
                       >
                         <HelpCircle className="w-4 h-4" />
                       </button>
@@ -358,7 +360,7 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                         className="w-4 h-4 rounded border-white/20 bg-slate-900 text-sky-500 focus:ring-sky-400"
                       />
                       <span className="text-xs text-slate-200 font-medium group-hover:text-white">
-                        Enable Xbox achievements
+                        {t("achievements_settings.enable_store", { store: "Xbox" })}
                       </span>
                     </label>
                     <div className="flex items-center gap-4">
@@ -369,7 +371,7 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                           setActiveTooltip(activeTooltip === "xbox" ? null : "xbox")
                         }
                         className="text-slate-500 hover:text-sky-400 transition-colors"
-                        title="Dettagli integrazione Xbox Live"
+                        title={t("achievements_settings.store_info_title", { store: "Xbox Live" })}
                       >
                         <HelpCircle className="w-4 h-4" />
                       </button>
@@ -386,13 +388,13 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                         className="w-4 h-4 rounded border-white/20 bg-slate-900 text-sky-500 focus:ring-sky-400"
                       />
                       <span className="text-xs text-slate-200 font-medium group-hover:text-white">
-                        Enable Origin / EA achievements
+                        {t("achievements_settings.enable_store", { store: "Origin / EA" })}
                       </span>
                     </label>
                     <div className="flex items-center gap-4">
                       <span className="text-xs font-mono text-slate-400">0/0</span>
                       <span className="text-[10px] text-amber-400/80 font-bold px-2 py-0.5 rounded-full bg-amber-400/10">
-                        In Arrivo
+                        {t("achievements_settings.coming_soon")}
                       </span>
                     </div>
                   </div>
@@ -405,7 +407,7 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
               <div className="p-4 rounded-xl bg-slate-900/90 border border-sky-500/30 text-xs text-slate-300 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-sky-300 uppercase tracking-wider text-[11px]">
-                    Informazioni Provider
+                    {t("achievements_settings.provider_info")}
                   </span>
                   <button
                     onClick={() => setActiveTooltip(null)}
@@ -416,26 +418,22 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                 </div>
                 {activeTooltip === "steam" && (
                   <p>
-                    Gli obiettivi di Steam vengono sincronizzati in background utilizzando la Steam Web API.
-                    Le icone vengono scaricate e memorizzate in locale per rendering istantaneo a 120 FPS.
+                    {t("achievements_settings.info_steam")}
                   </p>
                 )}
                 {activeTooltip === "gog" && (
                   <p>
-                    Gli achievement di GOG Galaxy vengono interrogati tramite gli endpoint ufficiali di gameplay.gog.com
-                    sfruttando il token di accesso OAuth memorizzato in modo sicuro.
+                    {t("achievements_settings.info_gog")}
                   </p>
                 )}
                 {activeTooltip === "epic" && (
                   <p>
-                    Gli obiettivi di Epic Games Store utilizzano la GraphQL API di Epic Games per estrarre le definizioni dei set,
-                    valori di XP e la rarità globale del gioco.
+                    {t("achievements_settings.info_epic")}
                   </p>
                 )}
                 {activeTooltip === "xbox" && (
                   <p>
-                    Gli achievement di Xbox Live / Game Pass includono il punteggio Gamerscore (G) e il timestamp esatto di sblocco
-                    tramite token XSTS crittografato.
+                    {t("achievements_settings.info_xbox")}
                   </p>
                 )}
               </div>
@@ -447,14 +445,14 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
         {activeSubTab === "view" && (
           <div className="space-y-5 text-xs font-sans">
             <h4 className="font-bold text-slate-300 uppercase tracking-wider text-[11px]">
-              Visualizzazione nella Scheda Gioco
+              {t("achievements_settings.view_heading")}
             </h4>
 
             <div className="space-y-4">
               <label className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] cursor-pointer hover:bg-white/[0.04]">
                 <div>
-                  <span className="font-bold text-white block">Barra di Progresso Globale</span>
-                  <span className="text-slate-400">Mostra la barra di avanzamento e percentuale nella testata</span>
+                  <span className="font-bold text-white block">{t("achievements_settings.progress_bar")}</span>
+                  <span className="text-slate-400">{t("achievements_settings.progress_bar_desc")}</span>
                 </div>
                 <input
                   type="checkbox"
@@ -466,8 +464,8 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
 
               <label className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] cursor-pointer hover:bg-white/[0.04]">
                 <div>
-                  <span className="font-bold text-white block">Punti Gamerscore & XP</span>
-                  <span className="text-slate-400">Mostra i punti guadagnati su Xbox (G) ed Epic Games (XP)</span>
+                  <span className="font-bold text-white block">{t("achievements_settings.points")}</span>
+                  <span className="text-slate-400">{t("achievements_settings.points_desc")}</span>
                 </div>
                 <input
                   type="checkbox"
@@ -479,8 +477,8 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
 
               <label className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] cursor-pointer hover:bg-white/[0.04]">
                 <div>
-                  <span className="font-bold text-white block">Badge & Pillole di Rarità</span>
-                  <span className="text-slate-400">Mostra i contatori Ultra-Rari (&lt;10%) e Rari</span>
+                  <span className="font-bold text-white block">{t("achievements_settings.rarity_badges")}</span>
+                  <span className="text-slate-400">{t("achievements_settings.rarity_badges_desc")}</span>
                 </div>
                 <input
                   type="checkbox"
@@ -492,16 +490,16 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
 
               <div className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/[0.06]">
                 <div>
-                  <span className="font-bold text-white block">Dimensione Icone Griglia</span>
-                  <span className="text-slate-400">Seleziona la dimensione base dei badge</span>
+                  <span className="font-bold text-white block">{t("achievements_settings.icon_size")}</span>
+                  <span className="text-slate-400">{t("achievements_settings.icon_size_desc")}</span>
                 </div>
                 <select
                   value={config.badgeSize}
                   onChange={(e) => update("badgeSize", e.target.value as "md" | "lg")}
                   className="px-3 py-1.5 rounded-lg bg-slate-900 border border-white/10 text-white font-medium"
                 >
-                  <option value="md">56 x 56 px (Standard Desktop)</option>
-                  <option value="lg">72 x 72 px (Grande / Fullscreen)</option>
+                  <option value="md">{t("achievements_settings.opt_md")}</option>
+                  <option value="lg">{t("achievements_settings.opt_lg")}</option>
                 </select>
               </div>
             </div>
@@ -512,15 +510,15 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
         {activeSubTab === "misc" && (
           <div className="space-y-5 text-xs font-sans">
             <h4 className="font-bold text-slate-300 uppercase tracking-wider text-[11px]">
-              Motore di Caching Locale Icone
+              {t("achievements_settings.cache_heading")}
             </h4>
 
             <div className="space-y-4">
               <label className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] cursor-pointer hover:bg-white/[0.04]">
                 <div>
-                  <span className="font-bold text-white block">Abilita Caching Locale Icone</span>
+                  <span className="font-bold text-white block">{t("achievements_settings.cache_enable")}</span>
                   <span className="text-slate-400">
-                    Salva tutte le icone in %APPDATA%/omnis/cache/achievements/ per rendering istantaneo offline
+                    {t("achievements_settings.cache_enable_desc")}
                   </span>
                 </div>
                 <input
@@ -534,13 +532,13 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
               <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] space-y-2">
                 <div className="flex items-center justify-between">
                   <div>
-                    <span className="font-bold text-white block">Concorrenza Download Paralleli</span>
+                    <span className="font-bold text-white block">{t("achievements_settings.concurrency")}</span>
                     <span className="text-slate-400">
-                      Numero massimo di connessioni simultanee con semaforo Tokio
+                      {t("achievements_settings.concurrency_desc")}
                     </span>
                   </div>
                   <span className="font-mono font-bold text-sky-400 text-sm">
-                    {config.concurrencyLimit} thread
+                    {t("achievements_settings.threads", { count: config.concurrencyLimit })}
                   </span>
                 </div>
                 <input
@@ -555,8 +553,8 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
 
               <label className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] cursor-pointer hover:bg-white/[0.04]">
                 <div>
-                  <span className="font-bold text-white block">Effetti Sonori di Navigazione</span>
-                  <span className="text-slate-400">Riproduci toni sintetizzati allo spostamento focus e selezione badge</span>
+                  <span className="font-bold text-white block">{t("achievements_settings.sounds")}</span>
+                  <span className="text-slate-400">{t("achievements_settings.sounds_desc")}</span>
                 </div>
                 <input
                   type="checkbox"
@@ -573,7 +571,7 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
         {activeSubTab === "appearance" && (
           <div className="space-y-5 text-xs font-sans">
             <h4 className="font-bold text-slate-300 uppercase tracking-wider text-[11px]">
-              Soglie Rarità & Stile Visuale
+              {t("achievements_settings.rarity_heading")}
             </h4>
 
             <div className="space-y-4">
@@ -582,10 +580,10 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                   <div>
                     <span className="font-bold text-amber-400 block flex items-center gap-1.5">
                       <Sparkles className="w-3.5 h-3.5" />
-                      <span>Soglia Ultra-Raro (%)</span>
+                      <span>{t("achievements_settings.ultra_rare_threshold")}</span>
                     </span>
                     <span className="text-slate-400">
-                      Percentuale globale massima per considerare un trofeo "Ultra-Raro"
+                      {t("achievements_settings.ultra_rare_desc")}
                     </span>
                   </div>
                   <span className="font-mono font-bold text-amber-400 text-sm">
@@ -606,9 +604,9 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
               <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] space-y-2">
                 <div className="flex items-center justify-between">
                   <div>
-                    <span className="font-bold text-cyan-400 block">Soglia Raro (%)</span>
+                    <span className="font-bold text-cyan-400 block">{t("achievements_settings.rare_threshold")}</span>
                     <span className="text-slate-400">
-                      Percentuale globale per considerare un trofeo "Raro"
+                      {t("achievements_settings.rare_desc")}
                     </span>
                   </div>
                   <span className="font-mono font-bold text-cyan-400 text-sm">
@@ -628,8 +626,8 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
 
               <label className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] cursor-pointer hover:bg-white/[0.04]">
                 <div>
-                  <span className="font-bold text-white block">Glow Dorato per Ultra-Rari</span>
-                  <span className="text-slate-400">Applica un alone dorato ai trofei sbloccati ad altissima rarità</span>
+                  <span className="font-bold text-white block">{t("achievements_settings.golden_glow")}</span>
+                  <span className="text-slate-400">{t("achievements_settings.golden_glow_desc")}</span>
                 </div>
                 <input
                   type="checkbox"
@@ -641,9 +639,9 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
 
               <label className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] cursor-pointer hover:bg-white/[0.04]">
                 <div>
-                  <span className="font-bold text-white block">Rivela Segreti di Default</span>
+                  <span className="font-bold text-white block">{t("achievements_settings.reveal_secrets")}</span>
                   <span className="text-slate-400">
-                    Se disattivato, gli obiettivi segreti non sbloccati rimangono nascosti fino al click
+                    {t("achievements_settings.reveal_secrets_desc")}
                   </span>
                 </div>
                 <input
@@ -661,15 +659,15 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
         {activeSubTab === "ignored" && (
           <div className="space-y-4 text-xs font-sans">
             <h4 className="font-bold text-slate-300 uppercase tracking-wider text-[11px]">
-              Giochi Esclusi dal Tracciamento
+              {t("achievements_settings.ignored_heading")}
             </h4>
             <p className="text-slate-400 leading-relaxed">
-              I giochi inseriti in questa lista non sincronizzeranno gli obiettivi e non mostreranno notifiche di sblocco.
+              {t("achievements_settings.ignored_desc")}
             </p>
 
             {config.ignoredGameIds.length === 0 ? (
               <div className="py-8 text-center text-slate-500 bg-white/[0.02] border border-dashed border-white/10 rounded-2xl">
-                Nessun gioco attualmente escluso.
+                {t("achievements_settings.ignored_empty")}
               </div>
             ) : (
               <div className="space-y-2">
@@ -709,14 +707,14 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
           className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200 transition-colors"
         >
           <RotateCcw className="w-3.5 h-3.5" />
-          <span>Ripristina Default</span>
+          <span>{t("achievements_settings.reset")}</span>
         </button>
 
         <div className="flex items-center gap-3">
           {savedSuccess && (
             <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-400 animate-in fade-in duration-200">
               <Check className="w-3.5 h-3.5" />
-              <span>Impostazioni Salvate!</span>
+              <span>{t("achievements_settings.saved")}</span>
             </span>
           )}
 
@@ -727,7 +725,7 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
             style={{ backgroundColor: "var(--accent-primary)" }}
           >
             <Save className="w-3.5 h-3.5" />
-            <span>Salva</span>
+            <span>{t("common.save")}</span>
           </button>
 
           {onClose && (
@@ -741,7 +739,7 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                 color: "var(--text-primary)",
               }}
             >
-              Annulla
+              {t("common.cancel")}
             </button>
           )}
         </div>
