@@ -325,6 +325,8 @@ export const de: TranslationSchema = {
     notice_uninstall: 'Deinstallation im Client gestartet',
     continue_playing: 'Weiterspielen',
     controller_connected: 'Controller verbunden',
+    controller_glyphs: 'Controller-Stil',
+    controller_keyboard: 'Tastatur',
     live: 'Live',
   },
   app_status: {

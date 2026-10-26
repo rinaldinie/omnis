@@ -341,6 +341,8 @@ export interface TranslationSchema {
     notice_uninstall: string;
     continue_playing: string;
     controller_connected: string;
+    controller_glyphs: string;
+    controller_keyboard: string;
     live: string;
   };
   app_status: {

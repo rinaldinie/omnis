@@ -1,5 +1,7 @@
 import React from "react";
-import type { ControllerType } from "../../hooks/useGamepadNavigation";
+import type { ControllerType, InputDevice, ControllerStyleSetting } from "../../hooks/useGamepadNavigation";
+
+export type { ControllerType, InputDevice, ControllerStyleSetting };
 
 /**
  * Glyph kinds refer to the Standard Gamepad layout by position:
@@ -7,6 +9,24 @@ import type { ControllerType } from "../../hooks/useGamepadNavigation";
  */
 export type GlyphKind = "a" | "b" | "x" | "y" | "lb" | "rb" | "bumpers" | "r3" | "menu" | "key";
 type FaceKind = "a" | "b" | "x" | "y";
+
+export interface InputPromptContextValue {
+  activeDevice: InputDevice;
+  controllerType: ControllerType;
+  effectiveFamily: ControllerType;
+  styleSetting: ControllerStyleSetting;
+  setStyleSetting: (style: ControllerStyleSetting) => void;
+}
+
+export const InputPromptContext = React.createContext<InputPromptContextValue>({
+  activeDevice: "keyboard",
+  controllerType: "xbox",
+  effectiveFamily: "xbox",
+  styleSetting: "auto",
+  setStyleSetting: () => {},
+});
+
+export const useInputPrompt = () => React.useContext(InputPromptContext);
 
 /** Family of the connected controller, so glyphs match the buttons in the player's hands. */
 export const ControllerTypeContext = React.createContext<ControllerType>("xbox");
@@ -39,15 +59,48 @@ const SHOULDER_LABELS: Record<ControllerType, Record<"lb" | "rb" | "bumpers" | "
   nintendo: { lb: "L", rb: "R", bumpers: "L R", r3: "RS" },
 };
 
-/** Controller button glyph, sized in em so it follows the surrounding text and UI scale. */
-export function Glyph({ kind, label }: { kind: GlyphKind; label?: string }) {
-  const controller = React.useContext(ControllerTypeContext);
+const KEYBOARD_KEYCAPS: Record<GlyphKind, string> = {
+  lb: "Q",
+  rb: "E",
+  bumpers: "Q / E",
+  a: "↵",
+  b: "Esc",
+  x: "X",
+  y: "S",
+  menu: "M",
+  r3: "Tab",
+  key: "",
+};
 
-  if (kind === "a" || kind === "b" || kind === "x" || kind === "y") {
-    const c = FACE_GLYPHS[controller][kind];
+/** Controller or keyboard keycap button glyph, sized in em so it follows the surrounding text and UI scale. */
+export function Glyph({ kind, label }: { kind: GlyphKind; label?: string }) {
+  const { activeDevice, effectiveFamily: promptFamily, styleSetting } = useInputPrompt();
+  const legacyController = React.useContext(ControllerTypeContext);
+  const effectiveFamily: ControllerType = promptFamily || legacyController || "xbox";
+
+  const isKeyboard =
+    styleSetting === "keyboard" ||
+    (styleSetting === "auto" && activeDevice === "keyboard");
+
+  if (isKeyboard) {
+    const keycapText = label ?? KEYBOARD_KEYCAPS[kind] ?? kind.toUpperCase();
     return (
       <span
-        className="inline-flex items-center justify-center w-[1.6em] h-[1.6em] rounded-full font-bold text-[0.85em] leading-none shrink-0"
+        className="inline-flex items-center justify-center min-w-[1.6em] h-[1.6em] px-[0.45em] rounded-[0.35em] border border-white/40 bg-white/10 text-[0.8em] font-mono font-bold text-white shadow-sm leading-none shrink-0"
+        title={kind === "a" ? "Enter" : keycapText}
+      >
+        {keycapText}
+      </span>
+    );
+  }
+
+  // Controller mode (Xbox / PlayStation / Nintendo)
+  if (kind === "a" || kind === "b" || kind === "x" || kind === "y") {
+    const familyFace = FACE_GLYPHS[effectiveFamily] || FACE_GLYPHS.xbox;
+    const c = familyFace[kind];
+    return (
+      <span
+        className="inline-flex items-center justify-center w-[1.6em] h-[1.6em] rounded-full font-bold text-[0.85em] leading-none shrink-0 shadow-sm"
         style={{ backgroundColor: c.bg, color: c.fg }}
       >
         {c.text}
@@ -56,7 +109,8 @@ export function Glyph({ kind, label }: { kind: GlyphKind; label?: string }) {
   }
 
   if (kind === "lb" || kind === "rb" || kind === "bumpers" || kind === "r3") {
-    label = SHOULDER_LABELS[controller][kind];
+    const familyShoulder = SHOULDER_LABELS[effectiveFamily] || SHOULDER_LABELS.xbox;
+    label = familyShoulder[kind];
   }
 
   if (kind === "menu") {

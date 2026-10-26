@@ -325,6 +325,8 @@ export const ja: TranslationSchema = {
     notice_uninstall: 'クライアントでアンインストールを開始しました',
     continue_playing: 'プレイを続ける',
     controller_connected: 'コントローラー接続済み',
+    controller_glyphs: 'コントローラースタイル',
+    controller_keyboard: 'キーボード',
     live: 'プレイ中',
   },
   app_status: {

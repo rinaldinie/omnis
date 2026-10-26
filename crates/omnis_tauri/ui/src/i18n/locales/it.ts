@@ -293,6 +293,8 @@ export const it: TranslationSchema = {
     notice_uninstall: 'Disinstallazione avviata nel client',
     continue_playing: 'Continua a giocare',
     controller_connected: 'Controller connesso',
+    controller_glyphs: 'Stile Comandi',
+    controller_keyboard: 'Tastiera',
     live: 'In gioco',
   },
   app_status: {
