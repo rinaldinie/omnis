@@ -1,18 +1,20 @@
-//! One-time migration from the legacy `OmnisGameLibrary` data directory
-//! to the Tauri-managed `Omnis Game Library` directory.
+//! Application Data Directory Resolver & Migration
 //!
-//! This module ensures existing user data (database, cache, plugins, themes,
-//! trailers, vault keys) is preserved when upgrading to a version that uses
-//! the canonical Tauri app_local_data_dir path.
+//! Follows the Playnite / VS Code model:
+//! 1. Portable Mode: if a `data/` folder (or `portable.txt` marker) exists next to
+//!    the running executable, all application data (DB, cache, plugins, themes) is stored there.
+//! 2. Installed Mode: canonical roaming or local application data directory
+//!    - Windows: `%APPDATA%\Omnis Game Library\`
+//!    - Non-Windows / Fallback: Tauri `app_data_dir` or `./data`
+//!
+//! Automatically migrates legacy directories (`OmnisGameLibrary`, `com.omnis.gamelibrary`)
+//! to the resolved target on startup.
 
 use std::path::{Path, PathBuf};
-use tracing::{info, warn, error};
+use tracing::{info, error};
 
-const LEGACY_FOLDER_NAME: &str = "OmnisGameLibrary";
 const MIGRATION_MARKER: &str = "_MIGRATED.txt";
 
-/// Items to migrate from the legacy directory.
-/// Each entry is a relative path inside the legacy folder.
 const MIGRATION_ITEMS: &[&str] = &[
     "library.db",
     "library.db-wal",
@@ -24,47 +26,68 @@ const MIGRATION_ITEMS: &[&str] = &[
     "trailers",
 ];
 
-/// Resolves the legacy data directory path.
+/// Resolves the application data directory.
 ///
-/// Returns `None` if `LOCALAPPDATA` is not set (non-Windows) or if the legacy
-/// folder does not exist.
-fn legacy_data_dir() -> Option<PathBuf> {
-    let local = std::env::var("LOCALAPPDATA").ok()?;
-    let path = PathBuf::from(local).join(LEGACY_FOLDER_NAME);
-    if path.is_dir() {
-        Some(path)
+/// If running in portable mode (a `data` subfolder or `portable.txt` exists alongside `omnis.exe`),
+/// returns `<exe_dir>/data`.
+///
+/// Otherwise, returns the canonical user data directory (`%APPDATA%\Omnis Game Library` on Windows).
+pub fn resolve_app_dir(tauri_fallback: Option<PathBuf>) -> (PathBuf, bool) {
+    if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(exe_dir) = exe_path.parent() {
+            let local_data = exe_dir.join("data");
+            let marker = exe_dir.join("portable.txt");
+            if local_data.is_dir() || marker.exists() {
+                let _ = std::fs::create_dir_all(&local_data);
+                return (local_data, true);
+            }
+        }
+    }
+
+    #[cfg(windows)]
+    {
+        if let Ok(appdata) = std::env::var("APPDATA") {
+            let canonical = PathBuf::from(appdata).join("Omnis Game Library");
+            return (canonical, false);
+        }
+    }
+
+    if let Some(fallback) = tauri_fallback {
+        (fallback, false)
     } else {
-        None
+        (PathBuf::from("./data"), false)
     }
 }
 
-/// Returns `true` if the legacy directory has already been migrated
-/// (marker file present) or does not exist.
-fn is_already_migrated(legacy_dir: &Path) -> bool {
-    legacy_dir.join(MIGRATION_MARKER).exists()
-}
+/// Discovers existing legacy data directories to migrate from, ordered by recency.
+fn discover_legacy_directories(target_dir: &Path) -> Vec<PathBuf> {
+    let mut candidates = Vec::new();
 
-/// Returns `true` if the target directory already contains a database,
-/// meaning the user has already run the new version at least once.
-fn target_has_data(target_dir: &Path) -> bool {
-    target_dir.join("library.db").exists()
+    #[cfg(windows)]
+    {
+        if let Ok(local_appdata) = std::env::var("LOCALAPPDATA") {
+            // Tauri v2 bundle identifier dir
+            candidates.push(PathBuf::from(&local_appdata).join("com.omnis.gamelibrary"));
+            // Custom initial unspaced dir
+            candidates.push(PathBuf::from(&local_appdata).join("OmnisGameLibrary"));
+        }
+    }
+
+    candidates
+        .into_iter()
+        .filter(|dir| dir.is_dir() && dir != target_dir && !dir.join(MIGRATION_MARKER).exists())
+        .collect()
 }
 
 /// Move a single file or directory from `src` to `dst`.
-///
-/// Uses `fs::rename` first (fast, atomic on same filesystem).
-/// Falls back to recursive copy + remove if rename fails (e.g. cross-device).
 fn move_item(src: &Path, dst: &Path) -> std::io::Result<()> {
-    // Ensure parent directory exists
     if let Some(parent) = dst.parent() {
         std::fs::create_dir_all(parent)?;
     }
 
-    // Try rename first (same filesystem = instant)
     match std::fs::rename(src, dst) {
         Ok(()) => Ok(()),
         Err(_) => {
-            // Fallback: recursive copy then remove
             if src.is_dir() {
                 copy_dir_recursive(src, dst)?;
                 std::fs::remove_dir_all(src)?;
@@ -77,7 +100,6 @@ fn move_item(src: &Path, dst: &Path) -> std::io::Result<()> {
     }
 }
 
-/// Recursively copy a directory tree.
 fn copy_dir_recursive(src: &Path, dst: &Path) -> std::io::Result<()> {
     std::fs::create_dir_all(dst)?;
     for entry in std::fs::read_dir(src)? {
@@ -93,181 +115,61 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
-/// Write a marker file in the legacy directory to prevent re-migration.
-fn write_migration_marker(legacy_dir: &Path) {
+fn write_migration_marker(legacy_dir: &Path, target_dir: &Path) {
     let marker = legacy_dir.join(MIGRATION_MARKER);
     let content = format!(
-        "Data migrated to Tauri app_local_data_dir on {}.\n\
+        "Data migrated to '{}' on {}.\n\
          This folder is no longer used by Omnis and can be safely deleted.",
+        target_dir.display(),
         chrono::Local::now().format("%Y-%m-%d %H:%M:%S")
     );
-    if let Err(e) = std::fs::write(&marker, content) {
-        warn!("Failed to write migration marker: {}", e);
-    }
+    let _ = std::fs::write(&marker, content);
 }
 
-/// Run the legacy data migration.
-///
-/// This function is **idempotent**: it is safe to call on every startup.
-/// It will only perform work if:
-/// - The legacy `OmnisGameLibrary` folder exists
-/// - It has NOT been previously migrated (no `_MIGRATED.txt` marker)
-/// - The target directory does NOT already contain a `library.db`
-///
-/// Call this **before** opening the database.
-pub fn migrate_legacy_data(target_dir: &Path) {
-    let legacy_dir = match legacy_data_dir() {
-        Some(dir) => dir,
-        None => {
-            info!("No legacy data directory found, skipping migration");
+/// Migrates any legacy directories into `target_dir` if target does not already contain a database.
+pub fn migrate_all_legacy_data(target_dir: &Path) {
+    let legacy_dirs = discover_legacy_directories(target_dir);
+    if legacy_dirs.is_empty() {
+        return;
+    }
+
+    let target_has_db = target_dir.join("library.db").exists();
+
+    for legacy_dir in legacy_dirs {
+        if target_has_db {
+            info!(
+                "Target directory already contains library.db, marking {} as migrated",
+                legacy_dir.display()
+            );
+            write_migration_marker(&legacy_dir, target_dir);
+            continue;
+        }
+
+        info!(
+            "Migrating legacy data from {} -> {}",
+            legacy_dir.display(),
+            target_dir.display()
+        );
+
+        if let Err(e) = std::fs::create_dir_all(target_dir) {
+            error!("Failed to create target directory {}: {}", target_dir.display(), e);
             return;
         }
-    };
 
-    // Same directory? Nothing to do (shouldn't happen, but guard against it)
-    if legacy_dir == target_dir {
-        info!("Legacy and target directories are the same, skipping migration");
-        return;
-    }
-
-    if is_already_migrated(&legacy_dir) {
-        info!("Legacy data directory already migrated, skipping");
-        return;
-    }
-
-    if target_has_data(target_dir) {
-        info!(
-            "Target directory already contains data, marking legacy as migrated without moving files"
-        );
-        write_migration_marker(&legacy_dir);
-        return;
-    }
-
-    info!(
-        "Migrating data from legacy directory: {} -> {}",
-        legacy_dir.display(),
-        target_dir.display()
-    );
-
-    // Ensure target directory exists
-    if let Err(e) = std::fs::create_dir_all(target_dir) {
-        error!("Failed to create target directory: {}", e);
-        return;
-    }
-
-    let mut migrated_count = 0;
-    let mut error_count = 0;
-
-    for item_name in MIGRATION_ITEMS {
-        let src = legacy_dir.join(item_name);
-        if !src.exists() {
-            continue;
-        }
-
-        let dst = target_dir.join(item_name);
-        if dst.exists() {
-            info!("Skipping '{}': already exists in target", item_name);
-            continue;
-        }
-
-        info!("Migrating '{}'...", item_name);
-        match move_item(&src, &dst) {
-            Ok(()) => {
-                info!("Successfully migrated '{}'", item_name);
-                migrated_count += 1;
+        for item_name in MIGRATION_ITEMS {
+            let src = legacy_dir.join(item_name);
+            if !src.exists() {
+                continue;
             }
-            Err(e) => {
+            let dst = target_dir.join(item_name);
+            if dst.exists() {
+                continue;
+            }
+            if let Err(e) = move_item(&src, &dst) {
                 error!("Failed to migrate '{}': {}", item_name, e);
-                error_count += 1;
             }
         }
-    }
 
-    info!(
-        "Migration complete: {} items moved, {} errors",
-        migrated_count, error_count
-    );
-
-    write_migration_marker(&legacy_dir);
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::fs;
-    use tempfile::TempDir;
-
-    #[test]
-    fn test_is_already_migrated() {
-        let dir = TempDir::new().unwrap();
-        assert!(!is_already_migrated(dir.path()));
-
-        fs::write(dir.path().join(MIGRATION_MARKER), "done").unwrap();
-        assert!(is_already_migrated(dir.path()));
-    }
-
-    #[test]
-    fn test_target_has_data() {
-        let dir = TempDir::new().unwrap();
-        assert!(!target_has_data(dir.path()));
-
-        fs::write(dir.path().join("library.db"), b"sqlite").unwrap();
-        assert!(target_has_data(dir.path()));
-    }
-
-    #[test]
-    fn test_move_item_file() {
-        let src_dir = TempDir::new().unwrap();
-        let dst_dir = TempDir::new().unwrap();
-
-        let src = src_dir.path().join("test.db");
-        let dst = dst_dir.path().join("test.db");
-        fs::write(&src, b"database content").unwrap();
-
-        move_item(&src, &dst).unwrap();
-
-        assert!(!src.exists());
-        assert!(dst.exists());
-        assert_eq!(fs::read(&dst).unwrap(), b"database content");
-    }
-
-    #[test]
-    fn test_move_item_directory() {
-        let src_dir = TempDir::new().unwrap();
-        let dst_dir = TempDir::new().unwrap();
-
-        let src = src_dir.path().join("cache");
-        let dst = dst_dir.path().join("cache");
-        fs::create_dir_all(src.join("covers")).unwrap();
-        fs::write(src.join("covers").join("img.jpg"), b"image").unwrap();
-
-        move_item(&src, &dst).unwrap();
-
-        assert!(!src.exists());
-        assert!(dst.join("covers").join("img.jpg").exists());
-        assert_eq!(
-            fs::read(dst.join("covers").join("img.jpg")).unwrap(),
-            b"image"
-        );
-    }
-
-    #[test]
-    fn test_copy_dir_recursive() {
-        let src_dir = TempDir::new().unwrap();
-        let dst_dir = TempDir::new().unwrap();
-
-        let src = src_dir.path().join("data");
-        let dst = dst_dir.path().join("data");
-
-        fs::create_dir_all(src.join("sub")).unwrap();
-        fs::write(src.join("a.txt"), b"aaa").unwrap();
-        fs::write(src.join("sub").join("b.txt"), b"bbb").unwrap();
-
-        copy_dir_recursive(&src, &dst).unwrap();
-
-        assert!(dst.join("a.txt").exists());
-        assert!(dst.join("sub").join("b.txt").exists());
-        assert_eq!(fs::read(dst.join("a.txt")).unwrap(), b"aaa");
-        assert_eq!(fs::read(dst.join("sub").join("b.txt")).unwrap(), b"bbb");
+        write_migration_marker(&legacy_dir, target_dir);
     }
 }

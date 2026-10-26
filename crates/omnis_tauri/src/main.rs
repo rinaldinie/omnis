@@ -46,14 +46,17 @@ fn main() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .setup(|app| {
-            // Resolve the canonical app data directory from Tauri
-            let app_dir = app
-                .path()
-                .app_local_data_dir()
-                .expect("Failed to resolve app_local_data_dir");
+            // Resolve application data directory (Portable mode if <exe>/data exists, else %APPDATA%/Omnis Game Library)
+            let tauri_fallback = app.path().app_data_dir().ok();
+            let (app_dir, is_portable) = migration::resolve_app_dir(tauri_fallback);
+            info!(
+                "Omnis Data Directory: {} (Portable: {})",
+                app_dir.display(),
+                is_portable
+            );
 
-            // Migrate data from legacy OmnisGameLibrary directory (if present)
-            migration::migrate_legacy_data(&app_dir);
+            // Migrate data from legacy directories if needed
+            migration::migrate_all_legacy_data(&app_dir);
 
             // Create directory structure
             let cache_dir = app_dir.join("cache");
@@ -72,6 +75,10 @@ fn main() {
             let db_path = app_dir.join("library.db");
             let db =
                 Arc::new(Database::open(&db_path).expect("Failed to open SQLite database"));
+
+            // Ensure artwork & achievement paths safely point to the active app_dir
+            let app_dir_str = app_dir.to_string_lossy();
+            let _ = db.relocate_image_paths(&app_dir_str);
 
             // Initialize plugin host
             let event_bus = EventBus::new(256);

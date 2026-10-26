@@ -1423,6 +1423,64 @@ impl Database {
         )?;
         Ok(())
     }
+
+    /// Safely realigns cached image and achievement paths to the active app directory.
+    /// Extracts the relative `cache/...` suffix from each entry and prepends the new base directory,
+    /// completely preventing nested/recursive path concatenation.
+    pub fn relocate_image_paths(&self, new_base_dir: &str) -> Result<usize> {
+        let conn = self.conn.lock().unwrap();
+        let target_base = new_base_dir.trim_end_matches(['\\', '/']);
+
+        // Update games (cover, background, icon)
+        let query_games = format!(
+            "UPDATE games SET
+                cover_image_path = CASE
+                    WHEN cover_image_path LIKE '%cache/%'
+                    THEN '{target}/' || SUBSTR(cover_image_path, INSTR(cover_image_path, 'cache/'))
+                    WHEN cover_image_path LIKE '%cache\\%'
+                    THEN '{target}\\' || SUBSTR(cover_image_path, INSTR(cover_image_path, 'cache\\'))
+                    ELSE cover_image_path
+                END,
+                background_image_path = CASE
+                    WHEN background_image_path LIKE '%cache/%'
+                    THEN '{target}/' || SUBSTR(background_image_path, INSTR(background_image_path, 'cache/'))
+                    WHEN background_image_path LIKE '%cache\\%'
+                    THEN '{target}\\' || SUBSTR(background_image_path, INSTR(background_image_path, 'cache\\'))
+                    ELSE background_image_path
+                END,
+                icon_image_path = CASE
+                    WHEN icon_image_path LIKE '%cache/%'
+                    THEN '{target}/' || SUBSTR(icon_image_path, INSTR(icon_image_path, 'cache/'))
+                    WHEN icon_image_path LIKE '%cache\\%'
+                    THEN '{target}\\' || SUBSTR(icon_image_path, INSTR(icon_image_path, 'cache\\'))
+                    ELSE icon_image_path
+                END
+             WHERE (cover_image_path IS NOT NULL AND NOT cover_image_path LIKE '{target}%' AND NOT cover_image_path LIKE 'http%')
+                OR (background_image_path IS NOT NULL AND NOT background_image_path LIKE '{target}%' AND NOT background_image_path LIKE 'http%')
+                OR (icon_image_path IS NOT NULL AND NOT icon_image_path LIKE '{target}%' AND NOT icon_image_path LIKE 'http%');",
+            target = target_base
+        );
+        let n1 = conn.execute(&query_games, []).unwrap_or(0);
+
+        // Update game_achievements (local_icon_path)
+        let query_achievements = format!(
+            "UPDATE game_achievements SET
+                local_icon_path = CASE
+                    WHEN local_icon_path LIKE '%cache/%'
+                    THEN '{target}/' || SUBSTR(local_icon_path, INSTR(local_icon_path, 'cache/'))
+                    WHEN local_icon_path LIKE '%cache\\%'
+                    THEN '{target}\\' || SUBSTR(local_icon_path, INSTR(local_icon_path, 'cache\\'))
+                    ELSE local_icon_path
+                END
+             WHERE local_icon_path IS NOT NULL
+               AND NOT local_icon_path LIKE '{target}%'
+               AND NOT local_icon_path LIKE 'http%';",
+            target = target_base
+        );
+        let n2 = conn.execute(&query_achievements, []).unwrap_or(0);
+
+        Ok(n1 + n2)
+    }
 }
 
 /// DTO for library summary counters computed via single-pass SQL
