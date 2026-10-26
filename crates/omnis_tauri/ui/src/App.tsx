@@ -49,10 +49,14 @@ import {
 } from "./types";
 import { useWindowControls } from "./hooks/useWindowControls";
 import { useLibraryFilters } from "./hooks/useLibraryFilters";
-import { useGamepadNavigation } from "./hooks/useGamepadNavigation";
+import { useGamepadNavigation, ControllerType } from "./hooks/useGamepadNavigation";
 import { useAppUpdater, UpdaterContext } from "./hooks/useAppUpdater";
 import FullscreenView from "./components/views/FullscreenView";
-import { ControllerTypeContext } from "./components/fullscreen/ConsoleChrome";
+import {
+  ControllerTypeContext,
+  InputPromptContext,
+  ControllerStyleSetting,
+} from "./components/fullscreen/ConsoleChrome";
 import { GameSortMode, readSavedSortMode, saveSortMode, sortGames } from "./utils/sortGames";
 import DetailsSplitView from "./components/views/DetailsSplitView";
 import GridView from "./components/views/GridView";
@@ -399,6 +403,8 @@ export default function App() {
 
   // GAMEPAD NAVIGATION HOOK
   const {
+    activeDevice,
+    setActiveDevice,
     gamepadConnected,
     gamepadName,
     gamepadType,
@@ -424,6 +430,33 @@ export default function App() {
     fullscreenGridColumns: isFullscreen ? fullscreenGridColumns : 0,
     hasRecentRow: isFullscreen && fullscreenHasRecentRow,
   });
+
+  // Controller style setting (auto / xbox / playstation / nintendo / keyboard)
+  const [controllerStyleSetting, setControllerStyleSettingState] = useState<ControllerStyleSetting>(() => {
+    try {
+      const saved = localStorage.getItem("omnis_controller_style");
+      if (saved && ["auto", "xbox", "playstation", "nintendo", "keyboard"].includes(saved)) {
+        return saved as ControllerStyleSetting;
+      }
+    } catch {
+      // Dev or test environment fallback
+    }
+    return "auto";
+  });
+
+  const setControllerStyleSetting = (style: ControllerStyleSetting) => {
+    setControllerStyleSettingState(style);
+    try {
+      localStorage.setItem("omnis_controller_style", style);
+    } catch {
+      // Dev or test environment fallback
+    }
+  };
+
+  const effectiveFamily: ControllerType =
+    controllerStyleSetting !== "auto" && controllerStyleSetting !== "keyboard"
+      ? (controllerStyleSetting as ControllerType)
+      : gamepadType;
 
   const focusedGame = fullscreenGames.length > 0
     ? (fullscreenGames[focusedIndex] || fullscreenGames[0] || null)
@@ -1115,7 +1148,16 @@ export default function App() {
 
   return (
     <UpdaterContext.Provider value={updater}>
-    <ControllerTypeContext.Provider value={gamepadType}>
+    <InputPromptContext.Provider
+      value={{
+        activeDevice,
+        controllerType: gamepadType,
+        effectiveFamily,
+        styleSetting: controllerStyleSetting,
+        setStyleSetting: setControllerStyleSetting,
+      }}
+    >
+    <ControllerTypeContext.Provider value={effectiveFamily}>
       <div
         className="flex flex-col h-screen w-screen select-none overflow-hidden transition-colors duration-300"
       style={{
@@ -1137,6 +1179,7 @@ export default function App() {
           counts={counts}
           activeFilter={activeFilter}
           setActiveFilter={setActiveFilter}
+          cycleFilter={cycleFilter}
           gamepadConnected={gamepadConnected}
           gamepadName={gamepadName}
           searchQuery={searchQuery}
@@ -2052,6 +2095,7 @@ export default function App() {
       )}
     </div>
     </ControllerTypeContext.Provider>
+    </InputPromptContext.Provider>
     </UpdaterContext.Provider>
   );
 }

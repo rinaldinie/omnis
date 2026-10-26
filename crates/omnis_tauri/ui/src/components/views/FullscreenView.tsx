@@ -50,7 +50,14 @@ import { GAME_SORT_MODES, GameSortMode } from "../../utils/sortGames";
 import { useUpdater } from "../../hooks/useAppUpdater";
 import { useUiScale } from "../../hooks/useUiScale";
 import type { HomeFocusZone } from "../../hooks/useGamepadNavigation";
-import { ControllerLegend, Glyph, LegendEntry, useClock } from "../fullscreen/ConsoleChrome";
+import {
+  ControllerLegend,
+  Glyph,
+  LegendEntry,
+  useClock,
+  useInputPrompt,
+} from "../fullscreen/ConsoleChrome";
+import type { ControllerStyleSetting } from "../fullscreen/ConsoleChrome";
 
 interface FullscreenViewProps {
   focusedGame: GameDto | null;
@@ -61,6 +68,7 @@ interface FullscreenViewProps {
   counts: LibraryCounts;
   activeFilter: string;
   setActiveFilter: (filter: string) => void;
+  cycleFilter?: (direction: number, onCycle?: (nextFilter: string) => void) => void;
   gamepadConnected: boolean;
   gamepadName: string;
   searchQuery: string;
@@ -245,13 +253,22 @@ interface ShelfCardProps {
   /** False while focus is elsewhere (menu button, recent row): the card stays wide but loses its ring */
   hasFocusRing?: boolean;
   liveLabel?: string;
+  onClick?: () => void;
 }
 
-const ShelfCard = React.memo(function ShelfCard({ game, isFocused, isRunning, hasFocusRing = true, liveLabel = "Live" }: ShelfCardProps) {
+const ShelfCard = React.memo(function ShelfCard({
+  game,
+  isFocused,
+  isRunning,
+  hasFocusRing = true,
+  liveLabel = "Live",
+  onClick,
+}: ShelfCardProps) {
   const widthRem = isFocused ? CARD_FOCUSED_W_REM : CARD_W_REM;
   return (
     <div
-      className="relative shrink-0 rounded-md overflow-hidden transition-[width,box-shadow,opacity] duration-200 ease-out"
+      onClick={onClick}
+      className="cursor-pointer relative shrink-0 rounded-md overflow-hidden transition-[width,box-shadow,opacity] duration-200 ease-out"
       style={{
         width: `${widthRem}rem`,
         height: `${CARD_H_REM}rem`,
@@ -287,10 +304,19 @@ const ShelfCard = React.memo(function ShelfCard({ game, isFocused, isRunning, ha
   );
 });
 
-const RecentCard = React.memo(function RecentCard({ game, isFocused }: { game: GameDto; isFocused: boolean }) {
+const RecentCard = React.memo(function RecentCard({
+  game,
+  isFocused,
+  onClick,
+}: {
+  game: GameDto;
+  isFocused: boolean;
+  onClick?: () => void;
+}) {
   return (
     <div
-      className="relative shrink-0 rounded-md overflow-hidden transition-[transform,box-shadow,opacity] duration-150 ease-out"
+      onClick={onClick}
+      className="cursor-pointer relative shrink-0 rounded-md overflow-hidden transition-[transform,box-shadow,opacity] duration-150 ease-out"
       style={{
         width: `${RECENT_CARD_W_REM}rem`,
         height: `${(RECENT_CARD_W_REM * 9) / 16}rem`,
@@ -315,10 +341,11 @@ const RecentCard = React.memo(function RecentCard({ game, isFocused }: { game: G
   );
 });
 
-const GridCard = React.memo(function GridCard({ game, isFocused, isRunning }: ShelfCardProps) {
+const GridCard = React.memo(function GridCard({ game, isFocused, isRunning, onClick }: ShelfCardProps) {
   return (
     <div
-      className="relative rounded-md overflow-hidden transition-[transform,box-shadow,opacity] duration-150 ease-out"
+      onClick={onClick}
+      className="cursor-pointer relative rounded-md overflow-hidden transition-[transform,box-shadow,opacity] duration-150 ease-out"
       style={{
         // 2:3 cover box via padding: aspect-ratio items collapse grid row tracks
         paddingTop: "150%",
@@ -360,6 +387,8 @@ export default function FullscreenView({
   setFocusedIndex,
   counts,
   activeFilter,
+  setActiveFilter,
+  cycleFilter: propCycleFilter,
   gamepadConnected,
   searchQuery,
   setShowVirtualKeyboard,
@@ -398,11 +427,22 @@ export default function FullscreenView({
   onSelectTheme,
 }: FullscreenViewProps) {
   const { locale, setLocale } = useTranslation();
+  const { activeDevice, styleSetting, setStyleSetting, effectiveFamily } = useInputPrompt();
   const updater = useUpdater();
   const clock = useClock(locale);
   const { scale, stepScale, resetScale } = useUiScale(true);
   const isFocusedGameRunning = activeGame?.game_id === focusedGame?.id;
   const duration = (seconds: number) => (formatDuration ? formatDuration(seconds) : `${seconds}s`);
+
+  const cycleControllerStyle = React.useCallback(
+    (delta: 1 | -1 = 1) => {
+      const styles: ControllerStyleSetting[] = ["auto", "xbox", "playstation", "nintendo", "keyboard"];
+      const currentIdx = styles.indexOf(styleSetting);
+      const nextIdx = (currentIdx + delta + styles.length) % styles.length;
+      setStyleSetting(styles[nextIdx]);
+    },
+    [styleSetting, setStyleSetting]
+  );
 
   // ---------------------------------------------------------------------------
   // Interface scale: Ctrl + / Ctrl - / Ctrl 0, plus a transient indicator
@@ -465,7 +505,10 @@ export default function FullscreenView({
       toggleLayout();
     };
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() === "g" && !e.ctrlKey && !e.altKey && !isMenuOpen && !showFullscreenDetails) {
+      const target = e.target as HTMLElement | null;
+      if (target?.tagName === "INPUT" || target?.tagName === "TEXTAREA" || target?.isContentEditable) return;
+      if ((e.key.toLowerCase() === "g" || e.key === "Tab") && !e.ctrlKey && !e.altKey && !isMenuOpen && !showFullscreenDetails) {
+        e.preventDefault();
         handleToggle();
       }
     };
@@ -619,7 +662,25 @@ export default function FullscreenView({
     (id) => PINNED_FILTERS.includes(id) || id === activeFilter || filterCount(id) > 0
   );
 
-  const tabRefs = React.useRef<Record<string, HTMLSpanElement | null>>({});
+  const cycleFilter = React.useCallback(
+    (direction: number, onCycle?: (nextFilter: string) => void) => {
+      if (propCycleFilter) {
+        propCycleFilter(direction, onCycle);
+        return;
+      }
+      const currentIndex = visibleFilters.indexOf(activeFilter);
+      const nextIndex =
+        currentIndex === -1
+          ? 0
+          : (currentIndex + direction + visibleFilters.length) % visibleFilters.length;
+      const nextFilter = visibleFilters[nextIndex];
+      setActiveFilter(nextFilter);
+      if (onCycle) onCycle(nextFilter);
+    },
+    [propCycleFilter, visibleFilters, activeFilter, setActiveFilter]
+  );
+
+  const tabRefs = React.useRef<Record<string, HTMLElement | null>>({});
   React.useEffect(() => {
     tabRefs.current[activeFilter]?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
   }, [activeFilter]);
@@ -783,6 +844,9 @@ export default function FullscreenView({
   // Shortcut key listener: "k" or "Delete" terminates running focused game
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target?.tagName === "INPUT" || target?.tagName === "TEXTAREA" || target?.isContentEditable) return;
+      if (isMenuOpen || showFullscreenDetails || e.ctrlKey || e.altKey || e.metaKey) return;
       if ((e.key.toLowerCase() === "k" || e.key === "Delete") && isFocusedGameRunning && handleKillRunningGame) {
         e.preventDefault();
         handleKillRunningGame();
@@ -790,7 +854,7 @@ export default function FullscreenView({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isFocusedGameRunning, handleKillRunningGame]);
+  }, [isFocusedGameRunning, handleKillRunningGame, isMenuOpen, showFullscreenDetails]);
 
   // ---------------------------------------------------------------------------
   // Side menu
@@ -1008,6 +1072,38 @@ export default function FullscreenView({
       value: soundEnabled ? t("common.enabled") : t("common.disabled"),
       onActivate: handleToggleSound,
       onAdjust: () => handleToggleSound(),
+    },
+    {
+      id: "controller-style",
+      icon: Gamepad2,
+      section: "display",
+      label: (() => {
+        const val = t("console_ui.controller_glyphs");
+        return val && val !== "console_ui.controller_glyphs"
+          ? val
+          : locale === "it"
+          ? "Stile Comandi"
+          : "Controller Style";
+      })(),
+      value:
+        styleSetting === "auto"
+          ? `Auto (${effectiveFamily.toUpperCase()})`
+          : styleSetting === "xbox"
+          ? "Xbox"
+          : styleSetting === "playstation"
+          ? "PlayStation"
+          : styleSetting === "nintendo"
+          ? "Nintendo Switch"
+          : (() => {
+              const val = t("console_ui.controller_keyboard");
+              return val && val !== "console_ui.controller_keyboard"
+                ? val
+                : locale === "it"
+                ? "Tastiera"
+                : "Keyboard";
+            })(),
+      onActivate: () => cycleControllerStyle(1),
+      onAdjust: (delta) => cycleControllerStyle(delta),
     }
   );
 
@@ -1249,7 +1345,9 @@ export default function FullscreenView({
   return (
     <main
       data-omnis="fullscreen"
-      className="relative flex flex-col h-screen w-screen overflow-hidden cursor-none pointer-events-none select-none"
+      className={`relative flex flex-col h-screen w-screen overflow-hidden select-none ${
+        activeDevice === "gamepad" ? "cursor-none" : ""
+      }`}
       style={{ backgroundColor: "var(--bg-base)", color: "var(--text-primary)" }}
     >
       {/* Ambient backdrop of the focused game */}
@@ -1267,8 +1365,10 @@ export default function FullscreenView({
 
       {/* TOP BAR: menu, category tabs, status */}
       <header className="relative z-20 flex items-center gap-6 px-10 pt-6 pb-2 shrink-0">
-        <div
-          className="flex items-center gap-2.5 px-4 py-2 rounded-full text-sm font-semibold uppercase tracking-wider transition-colors duration-150"
+        <button
+          type="button"
+          onClick={() => setIsMenuOpen?.((prev) => !prev)}
+          className="cursor-pointer flex items-center gap-2.5 px-4 py-2 rounded-full text-sm font-semibold uppercase tracking-wider transition-colors duration-150 border-none"
           style={
             homeFocusZone === "topbar" || isMenuOpen
               ? { backgroundColor: "#ffffff", color: "#0b0f19" }
@@ -1277,34 +1377,64 @@ export default function FullscreenView({
         >
           <Menu className="w-4 h-4" />
           <span>{t("console_ui.menu")}</span>
-        </div>
+        </button>
 
         <nav className="flex-1 min-w-0 flex items-center justify-center gap-3">
-          <Glyph kind="lb" />
+          <button
+            type="button"
+            className="cursor-pointer hover:opacity-100 opacity-80 transition-opacity bg-transparent border-none p-0 inline-flex items-center justify-center text-inherit"
+            onClick={() => {
+              cycleFilter(-1, () => setFocusedIndex(0));
+              soundEffects.playNav();
+            }}
+            title="Previous Category"
+          >
+            <Glyph kind="lb" />
+          </button>
           <div className="flex items-center gap-1 overflow-x-auto no-scrollbar min-w-0">
             {visibleFilters.map((id) => {
               const isActive = id === activeFilter;
               return (
-                <span
+                <button
+                  type="button"
                   key={id}
                   ref={(el) => {
                     tabRefs.current[id] = el;
                   }}
-                  className="flex items-center gap-2 px-4 py-2 rounded-full whitespace-nowrap text-sm font-semibold uppercase tracking-wider transition-colors duration-150"
+                  className={`cursor-pointer flex items-center gap-2 px-4 py-2 rounded-full whitespace-nowrap text-sm font-semibold uppercase tracking-wider transition-colors duration-150 border-none ${
+                    isActive ? "hover:bg-white/25" : "hover:bg-white/10"
+                  }`}
                   style={
                     isActive
                       ? { backgroundColor: "rgba(255, 255, 255, 0.16)", color: "#ffffff" }
-                      : { color: "rgba(255, 255, 255, 0.55)" }
+                      : { color: "rgba(255, 255, 255, 0.55)", backgroundColor: "transparent" }
                   }
+                  onClick={() => {
+                    if (id !== activeFilter) {
+                      soundEffects.playNav();
+                      setActiveFilter(id);
+                      setFocusedIndex(0);
+                    }
+                  }}
                 >
                   {STORE_LABELS[id] && <StoreIcon library={id} className="w-3.5 h-3.5" />}
                   {filterLabel(id)}
                   {isActive && <span className="text-xs font-medium opacity-60">{filterCount(id)}</span>}
-                </span>
+                </button>
               );
             })}
           </div>
-          <Glyph kind="rb" />
+          <button
+            type="button"
+            className="cursor-pointer hover:opacity-100 opacity-80 transition-opacity bg-transparent border-none p-0 inline-flex items-center justify-center text-inherit"
+            onClick={() => {
+              cycleFilter(1, () => setFocusedIndex(0));
+              soundEffects.playNav();
+            }}
+            title="Next Category"
+          >
+            <Glyph kind="rb" />
+          </button>
         </nav>
 
         <div className="flex items-center gap-5 text-white/90 shrink-0">
@@ -1369,6 +1499,19 @@ export default function FullscreenView({
                     key={game.id}
                     game={game}
                     isFocused={homeFocusZone === "recent" && idx === safeRecentIndex}
+                    onClick={() => {
+                      setRecentIndex(idx);
+                      setHomeFocusZone?.("recent");
+                      soundEffects.playSelect();
+                      const targetIdx = filteredGames.findIndex((g) => g.id === game.id);
+                      if (targetIdx !== -1) {
+                        setFocusedIndex(targetIdx);
+                        setHomeFocusZone?.("carousel");
+                        setShowFullscreenDetails(true);
+                      } else {
+                        handleLaunch(game.id);
+                      }
+                    }}
                   />
                 ))}
               </div>
@@ -1399,6 +1542,16 @@ export default function FullscreenView({
                 isRunning={activeGame?.game_id === game.id}
                 hasFocusRing={homeFocusZone === "carousel"}
                 liveLabel={t("console_ui.live")}
+                onClick={() => {
+                  if (idx === focusedIndex) {
+                    soundEffects.playSelect();
+                    setShowFullscreenDetails(true);
+                  } else {
+                    soundEffects.playNav();
+                    setFocusedIndex(idx);
+                    setHomeFocusZone?.("carousel");
+                  }
+                }}
               />
             ))}
           </div>
@@ -1447,6 +1600,16 @@ export default function FullscreenView({
                 game={game}
                 isFocused={idx === focusedIndex}
                 isRunning={activeGame?.game_id === game.id}
+                onClick={() => {
+                  if (idx === focusedIndex) {
+                    soundEffects.playSelect();
+                    setShowFullscreenDetails(true);
+                  } else {
+                    soundEffects.playNav();
+                    setFocusedIndex(idx);
+                    setHomeFocusZone?.("carousel");
+                  }
+                }}
               />
             ))}
           </div>
@@ -1513,8 +1676,18 @@ export default function FullscreenView({
                   const isFocused = detailsFocusedSection === "hero" && heroFocusedButton === "launch";
                   const isStop = isFocusedGameRunning && !!handleKillRunningGame;
                   return (
-                    <div
-                      className="flex items-center gap-3 px-10 py-4 rounded-md text-lg font-semibold uppercase tracking-wider transition-all duration-150"
+                    <button
+                      type="button"
+                      onClick={() => {
+                        soundEffects.playSelect();
+                        if (isFocusedGameRunning && handleKillRunningGame) {
+                          handleKillRunningGame();
+                        } else {
+                          handleLaunch(activeDetailGame.id);
+                        }
+                        setShowFullscreenDetails(false);
+                      }}
+                      className="cursor-pointer flex items-center gap-3 px-10 py-4 rounded-md text-lg font-semibold uppercase tracking-wider transition-all duration-150 border-none"
                       style={{
                         backgroundColor: isStop ? "#e11d48" : "var(--accent-primary)",
                         color: "#ffffff",
@@ -1535,7 +1708,7 @@ export default function FullscreenView({
                           {activeDetailGame.is_installed ? t("console_ui.play") : t("console_ui.install")}
                         </>
                       )}
-                    </div>
+                    </button>
                   );
                 })()}
 
@@ -1545,9 +1718,19 @@ export default function FullscreenView({
                   const Icon = action.icon;
                   const isFocused = detailsFocusedSection === "hero" && heroFocusedButton === button;
                   return (
-                    <div
+                    <button
+                      type="button"
                       key={button}
-                      className="flex items-center gap-2.5 px-5 py-4 rounded-md text-base font-semibold transition-all duration-150"
+                      onClick={() => {
+                        soundEffects.playSelect();
+                        if (button === "uninstall") {
+                          openConfirm("uninstall", activeDetailGame);
+                        } else if (onGameAction) {
+                          onGameAction(button, activeDetailGame.id);
+                          setNotice(t(`console_ui.notice_${button}`));
+                        }
+                      }}
+                      className="cursor-pointer flex items-center gap-2.5 px-5 py-4 rounded-md text-base font-semibold transition-all duration-150 border-none"
                       style={
                         isFocused
                           ? {
@@ -1560,12 +1743,17 @@ export default function FullscreenView({
                     >
                       <Icon className="w-5 h-5" />
                       {t(action.labelKey)}
-                    </div>
+                    </button>
                   );
                 })}
 
-                <div
-                  className="px-8 py-4 rounded-md text-lg font-semibold uppercase tracking-wider transition-all duration-150"
+                <button
+                  type="button"
+                  onClick={() => {
+                    soundEffects.playSelect();
+                    setShowFullscreenDetails(false);
+                  }}
+                  className="cursor-pointer px-8 py-4 rounded-md text-lg font-semibold uppercase tracking-wider transition-all duration-150 border-none"
                   style={
                     detailsFocusedSection === "hero" && heroFocusedButton === "back"
                       ? { backgroundColor: "#ffffff", color: "#0b0f19", transform: "scale(1.04)" }
@@ -1573,7 +1761,7 @@ export default function FullscreenView({
                   }
                 >
                   {t("console_ui.back")}
-                </div>
+                </button>
               </div>
 
               <dl className="flex items-start gap-12 pt-2">
@@ -1629,7 +1817,10 @@ export default function FullscreenView({
       {/* SIDE MENU */}
       {isMenuOpen && (
         <div className="fixed inset-0 z-40 flex">
-          <div className="absolute inset-0 bg-black/55 omnis-fade-in" />
+          <div
+            className="absolute inset-0 bg-black/55 omnis-fade-in cursor-pointer"
+            onClick={() => setIsMenuOpen?.(false)}
+          />
           <aside
             className="relative h-full w-[26rem] max-w-[85vw] flex flex-col pt-8 pb-24 shadow-2xl omnis-slide-in-left"
             style={{ backgroundColor: "var(--bg-surface)" }}
@@ -1667,7 +1858,12 @@ export default function FullscreenView({
                       ref={(el) => {
                         menuItemRefs.current[item.id] = el;
                       }}
-                      className="flex items-center gap-4 px-4 py-3 rounded-md transition-colors duration-100"
+                      onClick={() => {
+                        setMenuFocusedIndex(idx);
+                        soundEffects.playSelect();
+                        item.onActivate();
+                      }}
+                      className="cursor-pointer flex items-center gap-4 px-4 py-3 rounded-md transition-colors duration-100"
                       style={
                         isFocused
                           ? focusedStyle
@@ -1678,9 +1874,31 @@ export default function FullscreenView({
                       <span className="flex-1 min-w-0 truncate text-base font-medium">{item.label}</span>
                       {item.value && (
                         <span className={`flex items-center gap-1 text-sm shrink-0 ${isFocused ? "opacity-80" : "opacity-55"}`}>
-                          {isFocused && item.onAdjust && <ChevronLeft className="w-4 h-4" />}
+                          {isFocused && item.onAdjust && (
+                            <button
+                              type="button"
+                              className="p-0.5 hover:opacity-100 cursor-pointer bg-transparent border-none text-inherit inline-flex"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                item.onAdjust?.(-1);
+                              }}
+                            >
+                              <ChevronLeft className="w-4 h-4" />
+                            </button>
+                          )}
                           <span className="max-w-[9rem] truncate">{item.value}</span>
-                          {isFocused && item.onAdjust && <ChevronRight className="w-4 h-4" />}
+                          {isFocused && item.onAdjust && (
+                            <button
+                              type="button"
+                              className="p-0.5 hover:opacity-100 cursor-pointer bg-transparent border-none text-inherit inline-flex"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                item.onAdjust?.(1);
+                              }}
+                            >
+                              <ChevronRight className="w-4 h-4" />
+                            </button>
+                          )}
                         </span>
                       )}
                     </li>
@@ -1716,9 +1934,25 @@ export default function FullscreenView({
                 const isFocused = confirmFocus === button;
                 const isDanger = button === "confirm" && confirm.kind !== "desktop";
                 return (
-                  <div
+                  <button
+                    type="button"
                     key={button}
-                    className="px-6 py-3 rounded-md text-base font-semibold uppercase tracking-wider transition-all duration-150"
+                    onClick={() => {
+                      soundEffects.playSelect();
+                      setConfirm(null);
+                      if (button === "cancel") return;
+                      if (confirm.kind === "exit") {
+                        setIsMenuOpen?.(false);
+                        handleClose();
+                      } else if (confirm.kind === "desktop") {
+                        setIsMenuOpen?.(false);
+                        toggleFullscreen();
+                      } else if (confirm.game && onGameAction) {
+                        onGameAction("uninstall", confirm.game.id);
+                        setNotice(t("console_ui.notice_uninstall"));
+                      }
+                    }}
+                    className="cursor-pointer px-6 py-3 rounded-md text-base font-semibold uppercase tracking-wider transition-all duration-150 border-none"
                     style={
                       isFocused
                         ? {
@@ -1736,7 +1970,7 @@ export default function FullscreenView({
                       : confirm.kind === "desktop"
                       ? t("console_ui.desktop_mode")
                       : t("console_ui.action_uninstall")}
-                  </div>
+                  </button>
                 );
               })}
             </div>

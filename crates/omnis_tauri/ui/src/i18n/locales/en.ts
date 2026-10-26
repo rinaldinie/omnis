@@ -325,6 +325,8 @@ export const en: TranslationSchema = {
     notice_uninstall: 'Uninstallation started in the client',
     continue_playing: 'Continue playing',
     controller_connected: 'Controller connected',
+    controller_glyphs: 'Controller Style',
+    controller_keyboard: 'Keyboard',
     live: 'Live',
   },
   app_status: {
