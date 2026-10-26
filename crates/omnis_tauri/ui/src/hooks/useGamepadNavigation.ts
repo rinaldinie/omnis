@@ -23,6 +23,8 @@ interface UseGamepadNavigationProps {
 
 export type HomeFocusZone = "carousel" | "topbar" | "recent";
 export type ControllerType = "xbox" | "playstation" | "nintendo";
+export type InputDevice = "keyboard" | "gamepad";
+export type ControllerStyleSetting = "auto" | "xbox" | "playstation" | "nintendo" | "keyboard";
 
 /** Guesses the controller family from the Gamepad API id (name plus vendor id). */
 export function detectControllerType(id: string): ControllerType {
@@ -81,10 +83,33 @@ export function useGamepadNavigation({
   const [gamepadConnected, setGamepadConnected] = useState<boolean>(false);
   const [gamepadName, setGamepadName] = useState<string>("");
   const [gamepadType, setGamepadType] = useState<ControllerType>("xbox");
+  const [activeDevice, setActiveDevice] = useState<InputDevice>("keyboard");
   const [focusedIndex, setFocusedIndex] = useState<number>(0);
   const [showFullscreenDetails, setShowFullscreenDetails] = useState<boolean>(false);
   const [homeFocusZone, setHomeFocusZone] = useState<HomeFocusZone>("carousel");
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
+
+  // Dynamic input device detection: switch to keyboard on mouse or key input
+  useEffect(() => {
+    const handleUserInput = () => {
+      setActiveDevice((prev) => (prev !== "keyboard" ? "keyboard" : prev));
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (Math.abs(e.movementX) > 5 || Math.abs(e.movementY) > 5) {
+        setActiveDevice((prev) => (prev !== "keyboard" ? "keyboard" : prev));
+      }
+    };
+
+    window.addEventListener("keydown", handleUserInput, { capture: true });
+    window.addEventListener("pointerdown", handleUserInput, { capture: true });
+    window.addEventListener("mousemove", handleMouseMove, { capture: true });
+    return () => {
+      window.removeEventListener("keydown", handleUserInput, { capture: true });
+      window.removeEventListener("pointerdown", handleUserInput, { capture: true });
+      window.removeEventListener("mousemove", handleMouseMove, { capture: true });
+    };
+  }, []);
 
   useEffect(() => {
     if (!isFullscreen) {
@@ -191,6 +216,15 @@ export function useGamepadNavigation({
           }
           return prev;
         });
+
+        // Dynamic input device detection: switch to gamepad on button or stick interaction
+        const anyButtonPressedForDevice = activeGamepad.buttons.some(
+          (btn) => btn && (btn.pressed || btn.value > 0.15)
+        );
+        const anyStickActiveForDevice = activeGamepad.axes.some((ax) => Math.abs(ax) > 0.45);
+        if (anyButtonPressedForDevice || anyStickActiveForDevice) {
+          setActiveDevice((prev) => (prev !== "gamepad" ? "gamepad" : prev));
+        }
 
         // Ghost Input Shield upon window restore / unsuspension
         // Ignore ALL gamepad inputs until every button and stick is released at least once
@@ -590,6 +624,9 @@ export function useGamepadNavigation({
       // Delegate key events if Virtual Keyboard modal is open or during active game suspension
       if (showVirtualKeyboard || isSuspended) return;
 
+      const target = e.target as HTMLElement | null;
+      if (target?.tagName === "INPUT" || target?.tagName === "TEXTAREA" || target?.isContentEditable) return;
+
       if (e.key === "F11") {
         e.preventDefault();
         if (!isFullscreen) {
@@ -657,6 +694,24 @@ export function useGamepadNavigation({
           return;
         }
 
+        // Top bar category tab cycling via Q and E keys (matching LB / RB bumpers)
+        if (e.key.toLowerCase() === "q" && !e.ctrlKey && !e.altKey && !e.metaKey) {
+          if (!showFullscreenDetails && !isMenuOpen) {
+            e.preventDefault();
+            soundEffects.playNav();
+            cycleFilterRef.current(-1, () => setFocusedIndex(0));
+            return;
+          }
+        }
+        if (e.key.toLowerCase() === "e" && !e.ctrlKey && !e.altKey && !e.metaKey) {
+          if (!showFullscreenDetails && !isMenuOpen) {
+            e.preventDefault();
+            soundEffects.playNav();
+            cycleFilterRef.current(1, () => setFocusedIndex(0));
+            return;
+          }
+        }
+
         // When Topbar Menu Button is focused:
         if (homeFocusZone === "topbar") {
           if (e.key === "ArrowDown") {
@@ -688,7 +743,11 @@ export function useGamepadNavigation({
             dispatchRecent("nav", { direction: e.key === "ArrowRight" ? "right" : "left" });
             return;
           }
-          if (e.key === "Enter" || e.key.toLowerCase() === "x") {
+          if (e.key === "Enter") {
+            dispatchRecent("action", { action: "launch" });
+            return;
+          }
+          if (e.key.toLowerCase() === "x" && !e.ctrlKey && !e.altKey && !e.metaKey) {
             dispatchRecent("action", { action: "details" });
             return;
           }
@@ -723,22 +782,23 @@ export function useGamepadNavigation({
             return next;
           });
         } else if (e.key === "Enter") {
-          if (filteredGames.length > 0) {
+          const current = filteredGames[focusedIndex];
+          if (current) {
             soundEffects.playSelect();
-            setShowFullscreenDetails(true);
+            handleLaunch(current.id);
           }
-        } else if (e.key.toLowerCase() === "m" || e.key === "F10") {
+        } else if ((e.key.toLowerCase() === "m" || e.key === "F10") && !e.ctrlKey && !e.altKey && !e.metaKey) {
           soundEffects.playSelect();
           setIsMenuOpen((prev) => !prev);
-        } else if (e.key.toLowerCase() === "x") {
+        } else if (e.key.toLowerCase() === "x" && !e.ctrlKey && !e.altKey && !e.metaKey) {
           if (filteredGames.length > 0) {
             soundEffects.playSelect();
             setShowFullscreenDetails((prev) => !prev);
           }
-        } else if (e.key.toLowerCase() === "t") {
+        } else if (e.key.toLowerCase() === "t" && !e.ctrlKey && !e.altKey && !e.metaKey) {
           soundEffects.playSelect();
           setShowThemeModal(true);
-        } else if (e.key.toLowerCase() === "y" || e.key.toLowerCase() === "s" || e.key === "/") {
+        } else if ((e.key.toLowerCase() === "y" || e.key.toLowerCase() === "s" || e.key === "/") && !e.ctrlKey && !e.altKey && !e.metaKey) {
           e.preventDefault();
           soundEffects.playSelect();
           setShowVirtualKeyboard(true);
@@ -767,6 +827,8 @@ export function useGamepadNavigation({
   ]);
 
   return {
+    activeDevice,
+    setActiveDevice,
     gamepadConnected,
     gamepadName,
     gamepadType,
