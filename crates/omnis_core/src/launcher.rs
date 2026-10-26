@@ -679,6 +679,7 @@ impl GameLauncher {
             let _ = child.wait().await;
 
             // Store-specific Steam AppID detection heuristic if target_dir is not known (Requirement A7)
+            #[cfg(windows)]
             let steam_appid: Option<u64> = config.arguments.iter().find_map(|arg| {
                 if let Some(pos) = arg.find("steam://rungameid/") {
                     let id_part = &arg[pos + "steam://rungameid/".len()..];

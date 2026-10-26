@@ -61,7 +61,7 @@ pub fn resolve_app_dir(tauri_fallback: Option<PathBuf>) -> (PathBuf, bool) {
 
 /// Discovers existing legacy data directories to migrate from, ordered by recency.
 fn discover_legacy_directories(target_dir: &Path) -> Vec<PathBuf> {
-    let mut candidates = Vec::new();
+    let mut candidates: Vec<PathBuf> = Vec::new();
 
     #[cfg(windows)]
     {
