@@ -151,15 +151,36 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn dirs_or_local() -> PathBuf {
-    if let Ok(local_app_data) = env::var("LOCALAPPDATA") {
-        let tauri_path = PathBuf::from(&local_app_data).join("Omnis Game Library");
-        let legacy_path = PathBuf::from(&local_app_data).join("OmnisGameLibrary");
-        if tauri_path.exists() || !legacy_path.exists() {
-            tauri_path
-        } else {
-            legacy_path
+    if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(exe_dir) = exe_path.parent() {
+            let local_data = exe_dir.join("data");
+            if local_data.is_dir() || exe_dir.join("portable.txt").exists() {
+                return local_data;
+            }
         }
-    } else {
-        PathBuf::from("./data")
     }
+
+    #[cfg(windows)]
+    {
+        if let Ok(appdata) = env::var("APPDATA") {
+            let canonical = PathBuf::from(&appdata).join("Omnis Game Library");
+            if canonical.exists() {
+                return canonical;
+            }
+        }
+        if let Ok(local_app_data) = env::var("LOCALAPPDATA") {
+            let tauri_path = PathBuf::from(&local_app_data).join("com.omnis.gamelibrary");
+            let legacy_path = PathBuf::from(&local_app_data).join("OmnisGameLibrary");
+            if tauri_path.exists() {
+                return tauri_path;
+            } else if legacy_path.exists() {
+                return legacy_path;
+            }
+        }
+        if let Ok(appdata) = env::var("APPDATA") {
+            return PathBuf::from(&appdata).join("Omnis Game Library");
+        }
+    }
+
+    PathBuf::from("./data")
 }

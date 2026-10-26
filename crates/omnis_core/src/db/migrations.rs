@@ -178,15 +178,18 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
     );
 
     // Fix legacy absolute paths in games table after data directory consolidation
-    // Updates %LOCALAPPDATA%\OmnisGameLibrary -> %LOCALAPPDATA%\Omnis Game Library
+    // Tauri v2 uses the bundle identifier 'com.omnis.gamelibrary' for app_local_data_dir()
     let _ = conn.execute(
         "UPDATE games SET
-            cover_image_path = REPLACE(cover_image_path, 'OmnisGameLibrary', 'Omnis Game Library'),
-            background_image_path = REPLACE(background_image_path, 'OmnisGameLibrary', 'Omnis Game Library'),
-            icon_image_path = REPLACE(icon_image_path, 'OmnisGameLibrary', 'Omnis Game Library')
+            cover_image_path = REPLACE(REPLACE(cover_image_path, 'Omnis Game Library', 'com.omnis.gamelibrary'), 'OmnisGameLibrary', 'com.omnis.gamelibrary'),
+            background_image_path = REPLACE(REPLACE(background_image_path, 'Omnis Game Library', 'com.omnis.gamelibrary'), 'OmnisGameLibrary', 'com.omnis.gamelibrary'),
+            icon_image_path = REPLACE(REPLACE(icon_image_path, 'Omnis Game Library', 'com.omnis.gamelibrary'), 'OmnisGameLibrary', 'com.omnis.gamelibrary')
          WHERE cover_image_path LIKE '%OmnisGameLibrary%'
+            OR cover_image_path LIKE '%Omnis Game Library%'
             OR background_image_path LIKE '%OmnisGameLibrary%'
-            OR icon_image_path LIKE '%OmnisGameLibrary%';",
+            OR background_image_path LIKE '%Omnis Game Library%'
+            OR icon_image_path LIKE '%OmnisGameLibrary%'
+            OR icon_image_path LIKE '%Omnis Game Library%';",
         [],
     );
 
