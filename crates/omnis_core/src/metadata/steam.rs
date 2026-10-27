@@ -4,8 +4,75 @@ use omnis_sdk::{
     GameMetadataPatch, MetadataField, MetadataProvider, MetadataSearchRequest, PluginSettingsSchema,
     SettingField, SettingGroup, SettingType,
 };
+use serde::Deserialize;
 use serde_json::{Map, Value};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+
+// ============================================================================
+// Steam Store API Typed DTOs
+// ============================================================================
+
+#[derive(Debug, Deserialize)]
+struct SteamStoreSearchResponse {
+    #[serde(default)]
+    items: Vec<SteamStoreSearchItem>,
+}
+
+#[derive(Debug, Deserialize)]
+struct SteamStoreSearchItem {
+    id: u64,
+}
+
+#[derive(Debug, Deserialize)]
+struct SteamAppDetailsWrapper {
+    success: bool,
+    data: Option<SteamAppDataDto>,
+}
+
+#[derive(Debug, Deserialize)]
+struct SteamAppDataDto {
+    short_description: Option<String>,
+    release_date: Option<SteamReleaseDateDto>,
+    metacritic: Option<SteamMetacriticDto>,
+    #[serde(default)]
+    genres: Vec<SteamDescriptionItemDto>,
+    #[serde(default)]
+    developers: Vec<String>,
+    #[serde(default)]
+    publishers: Vec<String>,
+    #[serde(default)]
+    categories: Vec<SteamDescriptionItemDto>,
+    header_image: Option<String>,
+    #[serde(default)]
+    screenshots: Vec<SteamScreenshotDto>,
+    achievements: Option<SteamAchievementsSummaryDto>,
+}
+
+#[derive(Debug, Deserialize)]
+struct SteamReleaseDateDto {
+    date: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct SteamMetacriticDto {
+    score: Option<u64>,
+}
+
+#[derive(Debug, Deserialize)]
+struct SteamDescriptionItemDto {
+    description: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct SteamScreenshotDto {
+    path_full: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct SteamAchievementsSummaryDto {
+    total: Option<u64>,
+}
 
 // ============================================================================
 // Steam Metadata Provider (External Plugin)
@@ -47,13 +114,9 @@ impl SteamMetadataProvider {
         .ok()?;
 
         if let Ok(resp) = self.client.get(search_url).send().await {
-            if let Ok(json) = resp.json::<Value>().await {
-                if let Some(items) = json.get("items").and_then(|v| v.as_array()) {
-                    if let Some(first) = items.first() {
-                        if let Some(id) = first.get("id").and_then(|v| v.as_u64()) {
-                            return Some(id.to_string());
-                        }
-                    }
+            if let Ok(search_res) = resp.json::<SteamStoreSearchResponse>().await {
+                if let Some(first) = search_res.items.first() {
+                    return Some(first.id.to_string());
                 }
             }
         }
@@ -174,91 +237,47 @@ impl MetadataProvider for SteamMetadataProvider {
             .send()
             .await
             .map_err(|e| e.to_string())?;
-        let json: Value = resp.json().await.map_err(|e| e.to_string())?;
-        let app_obj = json
-            .get(&appid)
-            .and_then(|v| v.as_object())
+
+        let mut app_map: HashMap<String, SteamAppDetailsWrapper> =
+            resp.json().await.map_err(|e| e.to_string())?;
+
+        let app_obj = app_map
+            .remove(&appid)
             .ok_or_else(|| "Missing appid in steam response".to_string())?;
 
-        let success = app_obj
-            .get("success")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false);
-        if !success {
+        if !app_obj.success {
             return Err("Steam API reported success: false".to_string());
         }
 
         let data = app_obj
-            .get("data")
-            .and_then(|v| v.as_object())
+            .data
             .ok_or_else(|| "Missing data object in Steam response".to_string())?;
 
-        let short_desc = data
-            .get("short_description")
-            .and_then(|v| v.as_str())
-            .map(html_to_plain_text);
-        let release_date = data
-            .get("release_date")
-            .and_then(|v| v.get("date"))
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string());
-        let critic_score = data
-            .get("metacritic")
-            .and_then(|v| v.get("score"))
-            .and_then(|v| v.as_u64())
-            .map(|s| s as u8);
+        let short_desc = data.short_description.as_deref().map(html_to_plain_text);
+        let release_date = data.release_date.and_then(|r| r.date);
+        let critic_score = data.metacritic.and_then(|m| m.score).map(|s| s as u8);
 
-        let mut genres = Vec::new();
-        if let Some(genres_arr) = data.get("genres").and_then(|v| v.as_array()) {
-            for g in genres_arr {
-                if let Some(desc) = g.get("description").and_then(|v| v.as_str()) {
-                    genres.push(desc.to_string());
-                }
-            }
-        }
+        let genres: Vec<String> = data
+            .genres
+            .into_iter()
+            .filter_map(|g| g.description)
+            .collect();
 
-        let mut developers = Vec::new();
-        if let Some(devs_arr) = data.get("developers").and_then(|v| v.as_array()) {
-            for d in devs_arr {
-                if let Some(name) = d.as_str() {
-                    developers.push(name.to_string());
-                }
-            }
-        }
+        let developers = data.developers;
+        let publishers = data.publishers;
 
-        let mut publishers = Vec::new();
-        if let Some(pubs_arr) = data.get("publishers").and_then(|v| v.as_array()) {
-            for p in pubs_arr {
-                if let Some(name) = p.as_str() {
-                    publishers.push(name.to_string());
-                }
-            }
-        }
+        let features: Vec<String> = data
+            .categories
+            .into_iter()
+            .filter_map(|c| {
+                c.description
+                    .map(|d| d.trim().to_string())
+                    .filter(|d| !d.is_empty())
+            })
+            .collect();
 
-        let mut features = Vec::new();
-        if let Some(cat_arr) = data.get("categories").and_then(|v| v.as_array()) {
-            for c in cat_arr {
-                if let Some(desc) = c.get("description").and_then(|v| v.as_str()) {
-                    let trimmed = desc.trim();
-                    if !trimmed.is_empty() {
-                        features.push(trimmed.to_string());
-                    }
-                }
-            }
-        }
-
-        let header_img = data
-            .get("header_image")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string());
-
-        let screenshot_bg = data
-            .get("screenshots")
-            .and_then(|v| v.as_array())
-            .and_then(|arr| arr.first())
-            .and_then(|s| s.get("path_full"))
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string());
+        let header_img = data.header_image;
+        let screenshot_bg = data.screenshots.into_iter().next().and_then(|s| s.path_full);
 
         let primary_cover_url = format!(
             "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/{}/library_600x900_2x.jpg",
@@ -269,29 +288,19 @@ impl MetadataProvider for SteamMetadataProvider {
             appid
         );
 
-        let achievements_total = data
-            .get("achievements")
-            .and_then(|v| v.get("total"))
-            .and_then(|v| v.as_u64());
-
-        let mut extra_map = serde_json::Map::new();
-        if let Some(total) = achievements_total {
-            if total > 0 {
-                extra_map.insert(
-                    "achievements".to_string(),
-                    serde_json::json!({
+        let extra_metadata = data
+            .achievements
+            .and_then(|a| a.total)
+            .filter(|&total| total > 0)
+            .map(|total| {
+                serde_json::json!({
+                    "achievements": {
                         "total": total,
                         "unlocked": 0,
-                    }),
-                );
-            }
-        }
-
-        let extra_metadata = if !extra_map.is_empty() {
-            Some(serde_json::Value::Object(extra_map).to_string())
-        } else {
-            None
-        };
+                    }
+                })
+                .to_string()
+            });
 
         Ok(GameMetadataPatch {
             description: short_desc,
@@ -326,5 +335,48 @@ impl MetadataProvider for SteamMetadataProvider {
                 resp.status()
             ))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_steam_app_details_deserialization() {
+        let json = r#"{
+            "400": {
+                "success": true,
+                "data": {
+                    "short_description": "Portal&trade; is a new single player game from Valve.",
+                    "release_date": { "date": "10 Oct, 2007" },
+                    "metacritic": { "score": 90 },
+                    "genres": [
+                        { "description": "Action" }
+                    ],
+                    "developers": ["Valve"],
+                    "publishers": ["Valve"],
+                    "categories": [
+                        { "description": "Single-player" }
+                    ],
+                    "header_image": "https://cdn.steam.com/header.jpg",
+                    "screenshots": [
+                        { "path_full": "https://cdn.steam.com/ss1.jpg" }
+                    ],
+                    "achievements": { "total": 15 }
+                }
+            }
+        }"#;
+
+        let mut app_map: HashMap<String, SteamAppDetailsWrapper> =
+            serde_json::from_str(json).expect("Failed to deserialize Steam app details");
+        let app = app_map.remove("400").expect("Missing appid 400");
+        assert!(app.success);
+        let data = app.data.expect("Missing data");
+        assert_eq!(data.short_description.as_deref(), Some("Portal&trade; is a new single player game from Valve."));
+        assert_eq!(data.release_date.and_then(|r| r.date), Some("10 Oct, 2007".to_string()));
+        assert_eq!(data.metacritic.and_then(|m| m.score), Some(90));
+        assert_eq!(data.developers, vec!["Valve"]);
+        assert_eq!(data.achievements.and_then(|a| a.total), Some(15));
     }
 }
