@@ -2,6 +2,7 @@ use crate::metadata::types::MetadataCandidateDto;
 use crate::metadata::utils::extract_year;
 use crate::metadata::{html_to_plain_text, url_encode};
 use async_trait::async_trait;
+use omnis_sdk::constants::stores;
 use omnis_sdk::{
     GameMetadataPatch, MetadataField, MetadataProvider, MetadataSearchRequest,
 };
@@ -181,7 +182,7 @@ impl GogMetadataProvider {
                 };
 
                 MetadataCandidateDto {
-                    provider_id: "gog".to_string(),
+                    provider_id: stores::GOG.to_string(),
                     provider_game_id: id,
                     title: name,
                     release_year,
@@ -200,7 +201,7 @@ impl GogMetadataProvider {
 #[async_trait]
 impl MetadataProvider for GogMetadataProvider {
     fn id(&self) -> &str {
-        "gog"
+        stores::GOG
     }
 
     fn name(&self) -> &str {
@@ -253,7 +254,7 @@ impl MetadataProvider for GogMetadataProvider {
         _settings: &Map<String, Value>,
     ) -> Result<GameMetadataPatch, String> {
         // 1. If external_id is numeric and library is GOG, query GOG products API directly
-        if request.library_id.eq_ignore_ascii_case("gog") {
+        if request.library_id.eq_ignore_ascii_case(stores::GOG) {
             if let Some(ref ext_id) = request.external_id {
                 if ext_id.chars().all(|c| c.is_ascii_digit()) && !ext_id.is_empty() {
                     let url = format!("https://api.gog.com/products/{}?expand=description", ext_id);

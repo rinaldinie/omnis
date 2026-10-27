@@ -1,5 +1,6 @@
 use crate::metadata::html_to_plain_text;
 use async_trait::async_trait;
+use omnis_sdk::constants::stores;
 use omnis_sdk::{
     GameMetadataPatch, MetadataField, MetadataProvider, MetadataSearchRequest, PluginSettingsSchema,
     SettingField, SettingGroup, SettingType,
@@ -100,7 +101,7 @@ impl SteamMetadataProvider {
     }
 
     async fn resolve_appid(&self, library: &str, external_id: &str, title: &str) -> Option<String> {
-        if library.eq_ignore_ascii_case("steam")
+        if library.eq_ignore_ascii_case(stores::STEAM)
             && external_id.chars().all(|c| c.is_ascii_digit())
             && !external_id.is_empty()
         {
@@ -128,7 +129,7 @@ impl SteamMetadataProvider {
 #[async_trait]
 impl MetadataProvider for SteamMetadataProvider {
     fn id(&self) -> &str {
-        "steam"
+        stores::STEAM
     }
 
     fn name(&self) -> &str {
