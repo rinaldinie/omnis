@@ -382,6 +382,24 @@ pub mod tracker;
 pub use tracker::ProcessTracker;
 
 impl GameLauncher {
+    fn resolve_target_name(config: &LaunchConfiguration, install_dir: Option<&Path>) -> Option<String> {
+        match &config.tracking_mode {
+            ProcessTrackingMode::ProcessName(name) => Some(name.clone()),
+            _ => install_dir.and_then(|dir| {
+                find_gog_game_executable(dir).and_then(|p| {
+                    p.file_name().and_then(|f| f.to_str()).map(|s| s.to_string())
+                })
+            }),
+        }
+    }
+
+    fn resolve_target_dir(config: &LaunchConfiguration, install_dir: Option<PathBuf>) -> Option<PathBuf> {
+        install_dir.or_else(|| match &config.tracking_mode {
+            ProcessTrackingMode::WatchDirectory(dir) => Some(dir.clone()),
+            _ => config.working_dir.clone(),
+        })
+    }
+
     /// Launches a game executable with real-time process monitoring, hybrid scan+kernel wait,
     /// and exit grace period handoff (Requirements A1, A5, A6).
     pub async fn launch_and_track<F>(
@@ -393,128 +411,136 @@ impl GameLauncher {
     where
         F: FnOnce(u32) + Send,
     {
-        let is_uri = is_uri_command(&config);
+        let target_name = Self::resolve_target_name(&config, install_dir.as_deref());
+        let target_dir = Self::resolve_target_dir(&config, install_dir);
 
-        let target_name: Option<String> = match &config.tracking_mode {
-            ProcessTrackingMode::ProcessName(name) => Some(name.clone()),
-            _ => None,
-        };
+        if is_uri_command(&config) {
+            Self::launch_and_track_uri(game_id, config, target_name, target_dir, on_started).await
+        } else {
+            Self::launch_and_track_binary(config, target_name, target_dir, on_started).await
+        }
+    }
 
-        let target_name = target_name.or_else(|| {
-            if let Some(ref dir) = install_dir {
-                find_gog_game_executable(dir).and_then(|p| {
-                    p.file_name().and_then(|f| f.to_str()).map(|s| s.to_string())
-                })
+    /// Launches a URI/shell game command and tracks its lifecycle using process polling or Steam AppID detection.
+    pub async fn launch_and_track_uri<F>(
+        game_id: Uuid,
+        config: LaunchConfiguration,
+        target_name: Option<String>,
+        target_dir: Option<PathBuf>,
+        on_started: F,
+    ) -> Result<u64, LaunchError>
+    where
+        F: FnOnce(u32) + Send,
+    {
+        ProcessTracker::spawn_uri_command(&config).await?;
+
+        #[cfg(windows)]
+        let steam_appid: Option<u64> = config.arguments.iter().find_map(|arg| {
+            if let Some(pos) = arg.find("steam://rungameid/") {
+                let id_part = &arg[pos + "steam://rungameid/".len()..];
+                let clean_id: String = id_part.chars().take_while(|c| c.is_ascii_digit()).collect();
+                clean_id.parse::<u64>().ok()
             } else {
                 None
             }
         });
 
-        let target_dir: Option<PathBuf> = install_dir.or_else(|| match &config.tracking_mode {
-            ProcessTrackingMode::WatchDirectory(dir) => Some(dir.clone()),
-            _ => config.working_dir.clone(),
-        });
-
-        if is_uri {
-            ProcessTracker::spawn_uri_command(&config).await?;
-
-            #[cfg(windows)]
-            let steam_appid: Option<u64> = config.arguments.iter().find_map(|arg| {
-                if let Some(pos) = arg.find("steam://rungameid/") {
-                    let id_part = &arg[pos + "steam://rungameid/".len()..];
-                    let clean_id: String = id_part.chars().take_while(|c| c.is_ascii_digit()).collect();
-                    clean_id.parse::<u64>().ok()
-                } else {
-                    None
+        #[cfg(windows)]
+        if let Some(appid) = steam_appid {
+            let wait_start = Instant::now();
+            let mut steam_detected = false;
+            while wait_start.elapsed() < Duration::from_secs(45) {
+                if get_steam_running_appid() == Some(appid) {
+                    steam_detected = true;
+                    break;
                 }
-            });
+                tokio::time::sleep(Duration::from_millis(500)).await;
+            }
 
-            #[cfg(windows)]
-            if let Some(appid) = steam_appid {
-                let wait_start = Instant::now();
-                let mut steam_detected = false;
-                while wait_start.elapsed() < Duration::from_secs(45) {
-                    if get_steam_running_appid() == Some(appid) {
-                        steam_detected = true;
+            if steam_detected {
+                let mut sys = System::new();
+                sys.refresh_processes();
+                let mut found_pid = 0u32;
+                for (pid, proc) in sys.processes() {
+                    if matches_target(proc, target_name.as_deref(), target_dir.as_deref()) {
+                        found_pid = pid.as_u32();
                         break;
                     }
-                    tokio::time::sleep(Duration::from_millis(500)).await;
+                }
+                let detection_time = Instant::now();
+                on_started(found_pid);
+
+                while get_steam_running_appid() == Some(appid) {
+                    tokio::time::sleep(Duration::from_secs(1)).await;
                 }
 
-                if steam_detected {
-                    let mut sys = System::new();
-                    sys.refresh_processes();
-                    let mut found_pid = 0u32;
-                    for (pid, proc) in sys.processes() {
-                        if matches_target(proc, target_name.as_deref(), target_dir.as_deref()) {
-                            found_pid = pid.as_u32();
-                            break;
-                        }
-                    }
-                    let detection_time = Instant::now();
-                    on_started(found_pid);
-
-                    while get_steam_running_appid() == Some(appid) {
-                        tokio::time::sleep(Duration::from_secs(1)).await;
-                    }
-
-                    let duration = detection_time.elapsed().as_secs();
-                    return Ok(duration);
-                }
+                let duration = detection_time.elapsed().as_secs();
+                return Ok(duration);
             }
+        }
 
-            if target_name.is_none() && target_dir.is_none() {
-                on_started(0);
-                return Ok(0);
+        if target_name.is_none() && target_dir.is_none() {
+            on_started(0);
+            return Ok(0);
+        }
+
+        let real_pid = match ProcessTracker::detect_process(
+            target_name.as_deref(),
+            target_dir.as_deref(),
+            Duration::from_secs(90),
+        ).await {
+            Some(pid) => pid,
+            None => {
+                tracing::warn!("Grace period timeout: no process found for game {}", game_id);
+                return Err(LaunchError::ProcessNotFound);
             }
+        };
 
-            let real_pid = match ProcessTracker::detect_process(
+        let detection_time = Instant::now();
+        on_started(real_pid);
+
+        ProcessTracker::track_until_exit(real_pid, target_name.as_deref(), target_dir.as_deref()).await;
+
+        let duration = detection_time.elapsed().as_secs();
+        Ok(duration)
+    }
+
+    /// Launches a native binary game process and tracks it using kernel wait and grace period handoff.
+    pub async fn launch_and_track_binary<F>(
+        config: LaunchConfiguration,
+        target_name: Option<String>,
+        target_dir: Option<PathBuf>,
+        on_started: F,
+    ) -> Result<u64, LaunchError>
+    where
+        F: FnOnce(u32) + Send,
+    {
+        let mut cmd = Command::new(&config.executable);
+        cmd.args(&config.arguments);
+        if let Some(ref dir) = config.working_dir {
+            cmd.current_dir(dir);
+        }
+
+        let mut child = cmd.spawn()?;
+        let child_pid = child.id().unwrap_or(0);
+        let detection_time = Instant::now();
+        on_started(child_pid);
+
+        let _status = child.wait().await?;
+        let mut duration = detection_time.elapsed().as_secs();
+
+        if duration < 3 && (target_name.is_some() || target_dir.is_some()) {
+            if let Some(real_pid) = ProcessTracker::detect_process(
                 target_name.as_deref(),
                 target_dir.as_deref(),
-                Duration::from_secs(90),
+                Duration::from_secs(1),
             ).await {
-                Some(pid) => pid,
-                None => {
-                    tracing::warn!("Grace period timeout: no process found for game {}", game_id);
-                    return Err(LaunchError::ProcessNotFound);
-                }
-            };
-
-            let detection_time = Instant::now();
-            on_started(real_pid);
-
-            ProcessTracker::track_until_exit(real_pid, target_name.as_deref(), target_dir.as_deref()).await;
-
-            let duration = detection_time.elapsed().as_secs();
-            Ok(duration)
-        } else {
-            let mut cmd = Command::new(&config.executable);
-            cmd.args(&config.arguments);
-            if let Some(ref dir) = config.working_dir {
-                cmd.current_dir(dir);
+                let _ = wait_for_process_exit_kernel(real_pid).await;
+                duration = detection_time.elapsed().as_secs();
             }
-
-            let mut child = cmd.spawn()?;
-            let child_pid = child.id().unwrap_or(0);
-            let detection_time = Instant::now();
-            on_started(child_pid);
-
-            let _status = child.wait().await?;
-            let mut duration = detection_time.elapsed().as_secs();
-
-            if duration < 3 && (target_name.is_some() || target_dir.is_some()) {
-                if let Some(real_pid) = ProcessTracker::detect_process(
-                    target_name.as_deref(),
-                    target_dir.as_deref(),
-                    Duration::from_secs(1),
-                ).await {
-                    let _ = wait_for_process_exit_kernel(real_pid).await;
-                    duration = detection_time.elapsed().as_secs();
-                }
-            }
-
-            Ok(duration)
         }
+
+        Ok(duration)
     }
 
     pub async fn launch_and_track_simple<F>(
