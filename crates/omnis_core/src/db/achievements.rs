@@ -42,7 +42,7 @@ impl AchievementRepository for Database {
         game_id: Uuid,
         achievements: &[Achievement],
     ) -> Result<(), DatabaseError> {
-        let mut conn = self.conn.lock().unwrap();
+        let mut conn = self.writer();
         let tx = conn.transaction()?;
         let now = Utc::now().to_rfc3339();
         let game_id_str = game_id.to_string();
@@ -102,7 +102,7 @@ impl AchievementRepository for Database {
         &self,
         game_id: Uuid,
     ) -> Result<GameAchievementsSummary, DatabaseError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.reader();
         let game_id_str = game_id.to_string();
 
         let mut stmt = conn.prepare(
@@ -195,7 +195,7 @@ impl AchievementRepository for Database {
         id: &str,
         local_icon_path: &str,
     ) -> Result<(), DatabaseError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.writer();
         conn.execute(
             "UPDATE game_achievements SET local_icon_path = ?1 WHERE id = ?2",
             params![local_icon_path, id],

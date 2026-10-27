@@ -23,7 +23,7 @@ pub trait GameSearchRepository: Send + Sync {
 impl GameSearchRepository for Database {
     fn reload_search_index(&self) -> Result<()> {
         let items = {
-            let conn = self.conn.lock().unwrap();
+            let conn = self.reader();
             let mut stmt = conn.prepare("SELECT id, title FROM games;")?;
             let rows = stmt.query_map([], |row| {
                 let id_str: String = row.get(0)?;
@@ -62,7 +62,7 @@ impl GameSearchRepository for Database {
             return Ok(Vec::new());
         }
 
-        let conn = self.conn.lock().unwrap();
+        let conn = self.reader();
         let safe_query = format!("\"{}\"", trimmed.replace('"', "\"\""));
 
         let mut stmt = match conn.prepare(
@@ -131,7 +131,7 @@ impl GameSearchRepository for Database {
 
     /// Legacy LIKE-based search fallback across genres, developers, tags, notes
     fn search_games_like(&self, search_term: &str) -> Result<Vec<Game>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.reader();
         let pattern = format!("%{}%", search_term);
         let sql = format!(
             "

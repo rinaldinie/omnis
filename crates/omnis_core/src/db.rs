@@ -1,7 +1,7 @@
-use rusqlite::{Connection, Result};
+use rusqlite::{Connection, OpenFlags, Result};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
-use std::sync::{Mutex, RwLock};
+use std::sync::{Mutex, MutexGuard, RwLock};
 
 use crate::search::FuzzyGameSearchIndex;
 
@@ -23,28 +23,69 @@ pub use sessions::SessionRepository;
 pub type DatabaseError = rusqlite::Error;
 
 pub struct Database {
-    pub(crate) conn: Mutex<Connection>,
+    pub(crate) writer: Mutex<Connection>,
+    pub(crate) reader: Option<Mutex<Connection>>,
     pub(crate) search_index: RwLock<FuzzyGameSearchIndex>,
 }
 
 impl Database {
-    /// Open or create the unified SQLite database with WAL mode
-    pub fn open<P: AsRef<Path>>(path: P) -> Result<Self> {
-        let conn = Connection::open(path)?;
+    /// Acquire a lock on the dedicated writer connection.
+    #[inline]
+    pub(crate) fn writer(&self) -> MutexGuard<'_, Connection> {
+        self.writer.lock().unwrap()
+    }
 
-        // Tune SQLite for maximum desktop performance and safe concurrency
-        conn.execute_batch(
+    /// Acquire a lock on the dedicated reader connection (or fallback to writer for in-memory databases).
+    #[inline]
+    pub(crate) fn reader(&self) -> MutexGuard<'_, Connection> {
+        match &self.reader {
+            Some(r) => r.lock().unwrap(),
+            None => self.writer.lock().unwrap(),
+        }
+    }
+
+    /// Compatibility accessor returning a guard to the primary connection.
+    #[inline]
+    pub fn conn(&self) -> MutexGuard<'_, Connection> {
+        self.writer()
+    }
+
+    /// Open or create the unified SQLite database with WAL mode and dedicated reader/writer connections
+    pub fn open<P: AsRef<Path>>(path: P) -> Result<Self> {
+        let path_ref = path.as_ref();
+        let writer = Connection::open(path_ref)?;
+
+        // Tune SQLite for maximum desktop performance and safe WAL concurrency
+        writer.execute_batch(
             "
             PRAGMA journal_mode = WAL;
             PRAGMA synchronous = NORMAL;
             PRAGMA temp_store = MEMORY;
             PRAGMA cache_size = -64000; -- 64MB memory cache
             PRAGMA foreign_keys = ON;
+            PRAGMA busy_timeout = 5000;
+            ",
+        )?;
+
+        // Dedicated read connection with query_only enabled for non-blocking concurrent reads
+        let reader = Connection::open_with_flags(
+            path_ref,
+            OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_URI,
+        )?;
+        reader.execute_batch(
+            "
+            PRAGMA synchronous = NORMAL;
+            PRAGMA temp_store = MEMORY;
+            PRAGMA cache_size = -64000;
+            PRAGMA foreign_keys = ON;
+            PRAGMA busy_timeout = 5000;
+            PRAGMA query_only = ON;
             ",
         )?;
 
         let db = Self {
-            conn: Mutex::new(conn),
+            writer: Mutex::new(writer),
+            reader: Some(Mutex::new(reader)),
             search_index: RwLock::new(FuzzyGameSearchIndex::new()),
         };
         db.migrate()?;
@@ -59,10 +100,12 @@ impl Database {
             "
             PRAGMA temp_store = MEMORY;
             PRAGMA foreign_keys = ON;
+            PRAGMA busy_timeout = 5000;
             ",
         )?;
         let db = Self {
-            conn: Mutex::new(conn),
+            writer: Mutex::new(conn),
+            reader: None,
             search_index: RwLock::new(FuzzyGameSearchIndex::new()),
         };
         db.migrate()?;
@@ -77,13 +120,13 @@ impl Database {
 
     /// Create tables and indexes if they do not exist
     pub fn migrate(&self) -> Result<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.writer();
         migrations::run_migrations(&conn)
     }
 
     /// Retrieve the column names for a given table via PRAGMA table_info
     pub fn get_table_columns(&self, table: &str) -> Result<Vec<String>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.reader();
         let pragma = format!("PRAGMA table_info({})", table);
         let mut stmt = conn.prepare(&pragma)?;
         let rows = stmt.query_map([], |row| row.get::<_, String>(1))?;

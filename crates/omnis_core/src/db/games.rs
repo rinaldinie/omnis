@@ -59,7 +59,7 @@ impl GameRepository for Database {
         play_actions: Vec<LaunchConfiguration>,
         cover_image_path: Option<String>,
     ) -> Result<Game> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.writer();
         let now = Utc::now().to_rfc3339();
         let play_actions_json =
             serde_json::to_string(&play_actions).unwrap_or_else(|_| "[]".to_string());
@@ -92,9 +92,6 @@ impl GameRepository for Database {
         self.get_game_by_id(id)?
             .ok_or(rusqlite::Error::QueryReturnedNoRows)
     }
-
-}
-
 }
 
 const GAME_COLUMNS: &str = "
@@ -252,12 +249,12 @@ fn map_row_to_game(row: &rusqlite::Row) -> rusqlite::Result<Game> {
         added_timestamp,
         modified_timestamp,
     })
-
+}
 
 impl GameRepository for Database {
     /// Retrieve all games in library sorted alphabetically
     fn get_all_games(&self) -> Result<Vec<Game>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.reader();
         let query = format!(
             "
             SELECT {}
@@ -279,7 +276,7 @@ impl GameRepository for Database {
 
     /// Retrieve a single game by its unique UUID
     fn get_game_by_id(&self, game_id: Uuid) -> Result<Option<Game>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.reader();
         let query = format!(
             "
             SELECT {}
@@ -305,7 +302,7 @@ impl GameRepository for Database {
             return Ok(Vec::new());
         }
 
-        let conn = self.conn.lock().unwrap();
+        let conn = self.reader();
         let placeholders = ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
         let sql = format!(
             "SELECT {} FROM games WHERE id IN ({});",
@@ -374,7 +371,7 @@ impl GameRepository for Database {
         let completion_status_val = update.completion_status.as_deref().unwrap_or("NotPlayed");
 
         {
-            let conn = self.conn.lock().unwrap();
+            let conn = self.writer();
             let rows_affected = conn.execute(
                 "
                 UPDATE games SET
@@ -447,7 +444,7 @@ impl GameRepository for Database {
 
     /// Apply a metadata patch from an external provider (e.g. Steam Store, IGDB)
     fn apply_metadata_patch(&self, game_id: Uuid, patch: &GameMetadataPatch) -> Result<bool> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.writer();
         let now = Utc::now().to_rfc3339();
 
         let genres_joined = if !patch.genres.is_empty() {
@@ -550,14 +547,14 @@ impl GameRepository for Database {
 
     /// Clear all games from the database
     fn clear_all_games(&self) -> Result<usize> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.writer();
         let deleted = conn.execute("DELETE FROM games", [])?;
         Ok(deleted)
     }
 
     /// Update the installation status of a game
     fn set_game_installed(&self, game_id: Uuid, is_installed: bool) -> Result<Game> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.writer();
         let now = Utc::now().to_rfc3339();
         conn.execute(
             "UPDATE games SET is_installed = ?2, modified_timestamp = ?3 WHERE id = ?1",
@@ -570,7 +567,7 @@ impl GameRepository for Database {
 
     /// Delete a game from the database
     fn delete_game(&self, game_id: Uuid) -> Result<bool> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.writer();
         let affected = conn.execute(
             "DELETE FROM games WHERE id = ?1",
             params![game_id.to_string()],
@@ -581,7 +578,7 @@ impl GameRepository for Database {
 
     /// Retrieve recent games ordered by last_activity DESC (or playtime)
     fn get_recent_games(&self, limit: usize) -> Result<Vec<Game>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.reader();
         let sql = format!(
             "SELECT {} FROM games WHERE last_activity IS NOT NULL OR playtime_seconds > 0 ORDER BY COALESCE(last_activity, added_timestamp) DESC LIMIT ?1",
             GAME_COLUMNS
