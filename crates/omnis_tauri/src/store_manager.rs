@@ -25,7 +25,7 @@ pub mod sync;
 #[path = "store/tests.rs"]
 mod tests;
 
-pub use oauth::OAuthLoginService;
+pub use oauth::{OAuthLoginService, OAuthSessionHandler};
 pub use session::StoreSessionVault;
 pub use sync::StoreCatalogSyncEngine;
 
@@ -163,9 +163,11 @@ impl StoreAccountManager {
         StoreSessionVault::get_store_accounts(self).await
     }
 
-    #[inline]
     pub fn start_login(&self, app_handle: &AppHandle, store_id: &str) -> Result<(), String> {
-        OAuthLoginService::start_login(self, app_handle, store_id)
+        let plugin = self
+            .get_plugin_sync(store_id)
+            .ok_or_else(|| format!("Plugin non trovato per lo store {}", store_id))?;
+        OAuthLoginService::start_login(app_handle, plugin, store_id, Arc::new(self.clone()))
     }
 
     #[inline]
@@ -176,5 +178,29 @@ impl StoreAccountManager {
     #[inline]
     pub async fn sync_all_connected(&self, app_handle: &AppHandle) -> Result<usize, String> {
         StoreCatalogSyncEngine::sync_all_connected(self, app_handle).await
+    }
+}
+
+#[async_trait::async_trait]
+impl OAuthSessionHandler for StoreAccountManager {
+    async fn on_session_authenticated(
+        &self,
+        app: &AppHandle,
+        store_id: &str,
+        session: StoreAccountSession,
+    ) {
+        if let Err(e) = self.save_session(store_id, &session) {
+            tracing::error!("Errore nel salvataggio della sessione {}: {}", store_id, e);
+        }
+        let _ = app.emit(
+            "store-account-connected",
+            serde_json::json!({
+                "store_id": store_id,
+                "username": session.username,
+            }),
+        );
+        if let Err(e) = self.sync_store(app, store_id).await {
+            tracing::error!("Errore sincronizzazione iniziale store {}: {}", store_id, e);
+        }
     }
 }
