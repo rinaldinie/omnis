@@ -6,14 +6,10 @@ import {
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
-  Gamepad2,
-  CheckCircle2,
-  Clock,
-  Sparkles,
   Download,
 } from "lucide-react";
 import { StoreBadge } from "./StoreBadge";
-import { useTranslation, TranslationSchema } from "../i18n";
+import { useTranslation } from "../i18n";
 
 export interface GameItem {
   id: string;
@@ -45,7 +41,6 @@ export type SortField =
   | "is_installed"
   | "playtime_seconds"
   | "critic_score"
-  | "series"
   | "completion_status"
   | "release_date";
 
@@ -171,9 +166,6 @@ export default function ListViewTable({
         case "critic_score":
           cmp = (a.critic_score ?? -1) - (b.critic_score ?? -1);
           break;
-        case "series":
-          cmp = (a.series || "").localeCompare(b.series || "");
-          break;
         case "completion_status":
           cmp = (a.completion_status || "NotPlayed").localeCompare(
             b.completion_status || "NotPlayed"
@@ -230,9 +222,9 @@ export default function ListViewTable({
 
     return (
       <span
-        className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold border ${bg} ${text} ${border}`}
+        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold border ${bg} ${text} ${border}`}
       >
-        <span className="text-[9px]">★</span>
+        <span className="text-[10px]">★</span>
         <span>{score}</span>
       </span>
     );
@@ -261,7 +253,7 @@ export default function ListViewTable({
 
     return (
       <span
-        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium border tracking-tight whitespace-nowrap"
+        className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-semibold border tracking-tight whitespace-nowrap"
         style={{
           backgroundColor: cfg.bg,
           color: cfg.text,
@@ -290,19 +282,19 @@ export default function ListViewTable({
         {/* TABLE HEADER */}
         <thead>
           <tr
-            className="border-b border-white/[0.06] text-[10px] font-black uppercase tracking-wider sticky top-0 z-10 backdrop-blur-md"
+            className="border-b border-white/[0.08] text-[10px] font-black uppercase tracking-wider sticky top-0 z-10 backdrop-blur-md"
             style={{
               backgroundColor: "var(--bg-surface)",
               color: "var(--text-muted)",
             }}
           >
-            {/* 1. Icon */}
-            <th className="py-2 px-2.5 w-10 text-center">{t('table.cover')}</th>
+            {/* 1. Cover */}
+            <th className="py-2 px-3 w-12 text-center">{t('table.cover')}</th>
 
             {/* 2. Title */}
             <th
               onClick={() => handleHeaderClick("title")}
-              className="py-2 px-2.5 cursor-pointer hover:text-white transition-colors group min-w-[160px]"
+              className="py-2 px-3 cursor-pointer hover:text-white transition-colors group min-w-[180px]"
             >
               <div className="flex items-center gap-1">
                 <span>{t('table.title')}</span>
@@ -313,7 +305,7 @@ export default function ListViewTable({
             {/* 3. Store / Platform */}
             <th
               onClick={() => handleHeaderClick("library")}
-              className="py-2 px-2.5 cursor-pointer hover:text-white transition-colors group w-24"
+              className="py-2 px-3 cursor-pointer hover:text-white transition-colors group w-28"
             >
               <div className="flex items-center gap-1">
                 <span>{t('table.platform')}</span>
@@ -324,7 +316,7 @@ export default function ListViewTable({
             {/* 4. Status (Installed / Available) */}
             <th
               onClick={() => handleHeaderClick("is_installed")}
-              className="py-2 px-2.5 cursor-pointer hover:text-white transition-colors group w-24"
+              className="py-2 px-3 cursor-pointer hover:text-white transition-colors group w-24"
             >
               <div className="flex items-center gap-1">
                 <span>{t('table.status')}</span>
@@ -335,7 +327,7 @@ export default function ListViewTable({
             {/* 5. Playtime */}
             <th
               onClick={() => handleHeaderClick("playtime_seconds")}
-              className="py-2 px-2.5 cursor-pointer hover:text-white transition-colors group w-24"
+              className="py-2 px-3 cursor-pointer hover:text-white transition-colors group w-24"
             >
               <div className="flex items-center gap-1">
                 <span>{t('table.playtime')}</span>
@@ -346,7 +338,7 @@ export default function ListViewTable({
             {/* 6. Critic Score */}
             <th
               onClick={() => handleHeaderClick("critic_score")}
-              className="py-2 px-2.5 cursor-pointer hover:text-white transition-colors group w-16 text-center"
+              className="py-2 px-3 cursor-pointer hover:text-white transition-colors group w-20 text-center"
             >
               <div className="flex items-center justify-center gap-1">
                 <span>{t('table.critic_score')}</span>
@@ -354,21 +346,10 @@ export default function ListViewTable({
               </div>
             </th>
 
-            {/* 7. Series */}
-            <th
-              onClick={() => handleHeaderClick("series")}
-              className="py-2 px-2.5 cursor-pointer hover:text-white transition-colors group w-28"
-            >
-              <div className="flex items-center gap-1">
-                <span>{t('table.series')}</span>
-                {renderSortArrow("series")}
-              </div>
-            </th>
-
-            {/* 8. Completion Status */}
+            {/* 7. Completion Status */}
             <th
               onClick={() => handleHeaderClick("completion_status")}
-              className="py-2 px-2.5 cursor-pointer hover:text-white transition-colors group w-28"
+              className="py-2 px-3 cursor-pointer hover:text-white transition-colors group w-32"
             >
               <div className="flex items-center gap-1">
                 <span>{t('table.completion')}</span>
@@ -376,10 +357,10 @@ export default function ListViewTable({
               </div>
             </th>
 
-            {/* 9. Release Date */}
+            {/* 8. Release Date */}
             <th
               onClick={() => handleHeaderClick("release_date")}
-              className="py-2 px-2.5 cursor-pointer hover:text-white transition-colors group w-24"
+              className="py-2 px-3 cursor-pointer hover:text-white transition-colors group w-24"
             >
               <div className="flex items-center gap-1">
                 <span>{t('table.release_date')}</span>
@@ -387,8 +368,8 @@ export default function ListViewTable({
               </div>
             </th>
 
-            {/* 10. Actions */}
-            <th className="py-2 px-2.5 text-right pr-3 w-28">{t('table.actions')}</th>
+            {/* 9. Actions */}
+            <th className="py-2 px-3 text-right pr-3 w-28">{t('table.actions')}</th>
           </tr>
         </thead>
 
@@ -399,7 +380,7 @@ export default function ListViewTable({
           {sortedGames.length === 0 ? (
             <tr>
               <td
-                colSpan={10}
+                colSpan={9}
                 className="py-8 text-center text-xs"
                 style={{ color: "var(--text-muted)" }}
               >
@@ -430,15 +411,15 @@ export default function ListViewTable({
                   style={{
                     backgroundColor: isSelected ? "var(--bg-surface)" : undefined,
                     contentVisibility: "auto",
-                    containIntrinsicSize: "0 34px",
+                    containIntrinsicSize: "0 46px",
                   }}
                   title={t("list_table.row_hint")}
                 >
-                  {/* 1. Icon / Thumbnail (24x24 rounded with fallback) */}
-                  <td className="py-1 px-2.5 text-center">
+                  {/* 1. Icon / Thumbnail (Compact vertical cover poster with fallback) */}
+                  <td className="py-1.5 px-3 text-center">
                     <div className="flex items-center justify-center">
                       <div
-                        className="w-6 h-6 rounded overflow-hidden flex items-center justify-center border border-white/[0.08] shadow-xs shrink-0"
+                        className="w-8 h-10.5 rounded-md overflow-hidden flex items-center justify-center border border-white/10 shadow-xs shrink-0 transition-transform group-hover:scale-105"
                         style={{
                           backgroundColor: "var(--bg-surface)",
                         }}
@@ -466,28 +447,29 @@ export default function ListViewTable({
                   </td>
 
                   {/* 2. Title */}
-                  <td className="py-1 px-2.5 font-medium text-white max-w-xs">
-                    <div className="flex items-center gap-1.5">
-                      <span className="truncate text-xs font-semibold" title={game.title}>
-                        {game.title}
-                      </span>
-                    </div>
+                  <td className="py-1.5 px-3 font-semibold text-white max-w-xs md:max-w-sm">
+                    <span
+                      className="truncate block text-xs md:text-sm font-bold tracking-tight text-white group-hover:text-indigo-300 transition-colors"
+                      title={game.title}
+                    >
+                      {game.title}
+                    </span>
                   </td>
 
                   {/* 3. Store / Platform */}
-                  <td className="py-1 px-2.5 whitespace-nowrap">
-                    <StoreBadge library={game.library} showName={true} className="scale-95 origin-left" />
+                  <td className="py-1.5 px-3 whitespace-nowrap">
+                    <StoreBadge library={game.library} showName={true} />
                   </td>
 
                   {/* 4. Status (Installed / Available) */}
-                  <td className="py-1 px-2.5 whitespace-nowrap">
+                  <td className="py-1.5 px-3 whitespace-nowrap">
                     {game.is_installed ? (
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
+                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                         <span>{t("groups.installed")}</span>
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium bg-slate-800/30 text-slate-400 border border-slate-700/40">
+                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-800/40 text-slate-400 border border-slate-700/40">
                         <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
                         <span>Cloud</span>
                       </span>
@@ -495,43 +477,30 @@ export default function ListViewTable({
                   </td>
 
                   {/* 5. Playtime */}
-                  <td className="py-1 px-2.5 whitespace-nowrap text-xs">
+                  <td className="py-1.5 px-3 whitespace-nowrap text-xs font-semibold">
                     {formatPlaytime(game.playtime_seconds, game.playtime_formatted)}
                   </td>
 
                   {/* 6. Critic Score */}
-                  <td className="py-1 px-2.5 text-center whitespace-nowrap">
+                  <td className="py-1.5 px-3 text-center whitespace-nowrap">
                     {renderScoreBadge(game.critic_score)}
                   </td>
 
-                  {/* 7. Series */}
-                  <td
-                    className="py-1 px-2.5 truncate max-w-[120px] text-xs"
-                    style={{ color: "var(--text-primary)" }}
-                    title={game.series || ""}
-                  >
-                    {game.series ? (
-                      <span className="text-slate-300 font-medium">{game.series}</span>
-                    ) : (
-                      <span style={{ color: "var(--text-muted)", opacity: 0.4 }}>-</span>
-                    )}
-                  </td>
-
-                  {/* 8. Completion Status */}
-                  <td className="py-1 px-2.5 whitespace-nowrap">
+                  {/* 7. Completion Status */}
+                  <td className="py-1.5 px-3 whitespace-nowrap">
                     {renderCompletionBadge(game.completion_status)}
                   </td>
 
-                  {/* 9. Release Date */}
+                  {/* 8. Release Date */}
                   <td
-                    className="py-1 px-2.5 whitespace-nowrap text-[11px]"
+                    className="py-1.5 px-3 whitespace-nowrap text-xs font-medium"
                     style={{ color: "var(--text-muted)" }}
                   >
                     {game.release_date || "-"}
                   </td>
 
-                  {/* 10. Quick Actions */}
-                  <td className="py-1 px-2.5 text-right pr-3 whitespace-nowrap">
+                  {/* 9. Quick Actions */}
+                  <td className="py-1.5 px-3 text-right pr-3 whitespace-nowrap">
                     <div className="flex items-center justify-end gap-1">
                       {/* Play Button (if installed) */}
                       {game.is_installed ? (
@@ -540,7 +509,7 @@ export default function ListViewTable({
                             e.stopPropagation();
                             onLaunchGame(game.id);
                           }}
-                          className="w-6 h-6 rounded flex items-center justify-center text-white transition-all hover:brightness-125 active:opacity-90 shadow-xs"
+                          className="w-7 h-7 rounded-md flex items-center justify-center text-white transition-all hover:scale-105 hover:brightness-125 active:scale-95 shadow-xs cursor-pointer"
                           style={{
                             backgroundColor: "var(--accent-primary)",
                           }}
@@ -554,7 +523,7 @@ export default function ListViewTable({
                             e.stopPropagation();
                             onLaunchGame(game.id);
                           }}
-                          className="w-6 h-6 rounded flex items-center justify-center text-indigo-300 hover:text-white border border-indigo-500/40 hover:bg-indigo-500/20 transition-all shadow-xs"
+                          className="w-7 h-7 rounded-md flex items-center justify-center text-indigo-300 hover:text-white border border-indigo-500/40 hover:bg-indigo-500/25 transition-all hover:scale-105 active:scale-95 shadow-xs cursor-pointer"
                           style={{ backgroundColor: "rgba(99, 102, 241, 0.15)" }}
                           title={t('common.install')}
                         >
@@ -568,7 +537,7 @@ export default function ListViewTable({
                           e.stopPropagation();
                           onOpenDetails(game);
                         }}
-                        className="w-6 h-6 rounded flex items-center justify-center border text-slate-300 hover:text-white transition-all hover:bg-white/10"
+                        className="w-7 h-7 rounded-md flex items-center justify-center border text-slate-300 hover:text-white transition-all hover:bg-white/10 hover:border-slate-400 cursor-pointer shadow-xs"
                         style={{
                           backgroundColor: "var(--bg-surface)",
                           borderColor: "var(--border-color)",
@@ -584,7 +553,7 @@ export default function ListViewTable({
                           e.stopPropagation();
                           onEditGame(game);
                         }}
-                        className="w-6 h-6 rounded flex items-center justify-center border text-slate-300 hover:text-white transition-all hover:bg-white/10"
+                        className="w-7 h-7 rounded-md flex items-center justify-center border text-slate-300 hover:text-white transition-all hover:bg-white/10 hover:border-slate-400 cursor-pointer shadow-xs"
                         style={{
                           backgroundColor: "var(--bg-surface)",
                           borderColor: "var(--border-color)",

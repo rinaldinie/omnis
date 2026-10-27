@@ -367,34 +367,32 @@ export default function DetailsSplitView({
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <span
-                      className={`text-xs font-bold truncate block ${
-                        isSelected ? "text-white" : "text-slate-300"
-                      }`}
-                      title={game.title}
-                    >
-                      {game.title}
-                    </span>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <StoreBadge library={game.library} className="py-0 px-1 text-[9px]" />
-                      {activeGame?.game_id === game.id ? (
-                        <span className="flex items-center gap-1 text-[9px] font-bold text-emerald-300 animate-pulse">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                          {t("status.running")}
-                        </span>
-                      ) : game.is_installed ? (
-                        <span className="flex items-center gap-1 text-[9px] font-bold text-emerald-400">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                          {t("groups.installed")}
-                        </span>
-                      ) : null}
+                    <div className="flex items-center justify-between gap-1.5">
                       <span
-                        className="text-[10px] font-mono ml-auto"
-                        style={{ color: "var(--text-muted)" }}
+                        className={`text-xs font-bold truncate min-w-0 ${
+                          isSelected ? "text-white" : "text-slate-300"
+                        }`}
+                        title={game.title}
                       >
-                        {game.playtime_formatted}
+                        {game.title}
                       </span>
+                      <StoreBadge library={game.library} className="py-0 px-1 text-[9px] shrink-0" />
                     </div>
+                    {(activeGame?.game_id === game.id || game.is_installed) && (
+                      <div className="flex items-center gap-2 mt-0.5">
+                        {activeGame?.game_id === game.id ? (
+                          <span className="flex items-center gap-1 text-[9px] font-bold text-emerald-300 animate-pulse">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                            {t("status.running")}
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1 text-[9px] font-bold text-emerald-400">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                            {t("groups.installed")}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               );

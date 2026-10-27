@@ -214,7 +214,7 @@ export const BUILTIN_THEMES: ThemeConfig[] = [
     accent_glow: "rgba(99, 102, 241, 0.4)",
     border_color: "#1e293b",
     card_radius: "12px",
-    font_family: "system-ui, -apple-system, sans-serif",
+    font_family: '"Brutal", "Brutal Type", "Inter", system-ui, -apple-system, sans-serif',
     custom_css: null,
   },
   {
