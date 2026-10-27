@@ -1,6 +1,7 @@
 use chrono::Utc;
-use rusqlite::Result;
+use rusqlite::{params, Result};
 use std::path::PathBuf;
+use uuid::Uuid;
 use omnis_sdk::DiscoveredGame;
 
 use crate::db::{Database, LibraryCounts};

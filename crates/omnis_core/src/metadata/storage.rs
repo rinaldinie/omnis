@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use tracing::warn;
 use uuid::Uuid;
 use omnis_sdk::GameMetadataPatch;
@@ -46,7 +46,7 @@ impl MediaStorageManager {
         }
 
         let appid_hint = if library_id == "steam" {
-            Some(external_id.as_str())
+            Some(external_id)
         } else {
             None
         };
@@ -56,7 +56,7 @@ impl MediaStorageManager {
             if curl_trim.is_empty() {
                 final_patch.cover_url = None;
             } else if curl_trim.starts_with("http://") || curl_trim.starts_with("https://") {
-                match self
+                match media
                     .download_image_with_fallbacks(curl_trim, appid_hint)
                     .await
                 {
@@ -84,7 +84,7 @@ impl MediaStorageManager {
             if burl_trim.is_empty() {
                 final_patch.background_url = None;
             } else if burl_trim.starts_with("http://") || burl_trim.starts_with("https://") {
-                match self
+                match media
                     .download_image_with_fallbacks(burl_trim, appid_hint)
                     .await
                 {

@@ -19,7 +19,6 @@ pub mod types;
 pub use achievement_service::*;
 pub use active_game::*;
 pub use bootstrap::*;
-pub use builtin_themes::*;
 pub use candidate_applier::*;
 pub use commands::*;
 pub use launcher_service::*;

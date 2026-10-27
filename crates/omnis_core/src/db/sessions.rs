@@ -1,4 +1,4 @@
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use omnis_sdk::GameSessionRecord;
 use rusqlite::{params, OptionalExtension, Result};
 use uuid::Uuid;
@@ -49,13 +49,6 @@ pub trait SessionRepository: Send + Sync {
         game_id: Uuid,
     ) -> Result<Vec<GameSessionRecord>, DatabaseError>;
 }
-
-use chrono::Utc;
-use omnis_sdk::GameSessionRecord;
-use rusqlite::{params, OptionalExtension, Result};
-use uuid::Uuid;
-
-use crate::db::{Database, DatabaseError};
 
 impl SessionRepository for Database {
     /// Initialize a new active play session in the database

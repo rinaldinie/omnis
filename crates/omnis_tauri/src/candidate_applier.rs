@@ -277,36 +277,7 @@ mod tests {
 
     #[test]
     fn test_resolve_appid_hint_digit_steam() {
-        let game = Game {
-            id: Uuid::new_v4(),
-            external_id: "non_numeric".to_string(),
-            title: "Test Game".to_string(),
-            library_id: "custom".to_string(),
-            install_dir: None,
-            executable_path: None,
-            launch_arguments: None,
-            is_installed: true,
-            playtime_seconds: 0,
-            last_played: None,
-            critic_score: None,
-            community_score: None,
-            release_date: None,
-            description: None,
-            cover_image_path: None,
-            background_image_path: None,
-            icon_image_path: None,
-            genres: vec![],
-            developers: vec![],
-            publishers: vec![],
-            series: None,
-            completion_status: None,
-            user_notes: None,
-            features: vec![],
-            custom_links: vec![],
-            extra_metadata: None,
-            created_at: None,
-            last_activity: None,
-        };
+        let game = Game::new("custom".to_string(), "non_numeric".to_string(), "Test Game".to_string());
 
         let candidate = MetadataCandidateDto {
             provider_id: "steam".to_string(),
@@ -316,7 +287,6 @@ mod tests {
             cover_url: None,
             background_url: None,
             description: None,
-            confidence: 1.0,
             raw_patch: GameMetadataPatch::default(),
         };
 
@@ -326,36 +296,7 @@ mod tests {
 
     #[test]
     fn test_resolve_appid_hint_fallback_to_steam_library_external_id() {
-        let game = Game {
-            id: Uuid::new_v4(),
-            external_id: "570".to_string(),
-            title: "Dota 2".to_string(),
-            library_id: "steam".to_string(),
-            install_dir: None,
-            executable_path: None,
-            launch_arguments: None,
-            is_installed: true,
-            playtime_seconds: 0,
-            last_played: None,
-            critic_score: None,
-            community_score: None,
-            release_date: None,
-            description: None,
-            cover_image_path: None,
-            background_image_path: None,
-            icon_image_path: None,
-            genres: vec![],
-            developers: vec![],
-            publishers: vec![],
-            series: None,
-            completion_status: None,
-            user_notes: None,
-            features: vec![],
-            custom_links: vec![],
-            extra_metadata: None,
-            created_at: None,
-            last_activity: None,
-        };
+        let game = Game::new("steam".to_string(), "570".to_string(), "Dota 2".to_string());
 
         let candidate = MetadataCandidateDto {
             provider_id: "steam".to_string(),
@@ -365,7 +306,6 @@ mod tests {
             cover_url: None,
             background_url: None,
             description: None,
-            confidence: 0.9,
             raw_patch: GameMetadataPatch::default(),
         };
 
@@ -375,36 +315,7 @@ mod tests {
 
     #[test]
     fn test_resolve_appid_hint_non_steam_provider() {
-        let game = Game {
-            id: Uuid::new_v4(),
-            external_id: "570".to_string(),
-            title: "Dota 2".to_string(),
-            library_id: "steam".to_string(),
-            install_dir: None,
-            executable_path: None,
-            launch_arguments: None,
-            is_installed: true,
-            playtime_seconds: 0,
-            last_played: None,
-            critic_score: None,
-            community_score: None,
-            release_date: None,
-            description: None,
-            cover_image_path: None,
-            background_image_path: None,
-            icon_image_path: None,
-            genres: vec![],
-            developers: vec![],
-            publishers: vec![],
-            series: None,
-            completion_status: None,
-            user_notes: None,
-            features: vec![],
-            custom_links: vec![],
-            extra_metadata: None,
-            created_at: None,
-            last_activity: None,
-        };
+        let game = Game::new("steam".to_string(), "570".to_string(), "Dota 2".to_string());
 
         let candidate = MetadataCandidateDto {
             provider_id: "igdb".to_string(),
@@ -414,7 +325,6 @@ mod tests {
             cover_url: None,
             background_url: None,
             description: None,
-            confidence: 0.9,
             raw_patch: GameMetadataPatch::default(),
         };
 

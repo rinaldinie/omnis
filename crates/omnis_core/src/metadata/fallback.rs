@@ -38,7 +38,7 @@ impl FallbackMetadataGenerator {
 
         if clean_title.contains("witcher")
             || clean_title.contains("rpg")
-            || clean_title.contains("baldurs")
+            || clean_title.contains("baldur")
         {
             genres.push("RPG".to_string());
             genres.push("Open World Adventure".to_string());

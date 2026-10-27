@@ -3,6 +3,7 @@ use uuid::Uuid;
 use omnis_sdk::Game;
 
 use crate::db::Database;
+use crate::db::games::{map_row_to_game, GAME_COLUMNS};
 use crate::search::SearchItem;
 
 /// Repository trait for game full-text search (SQLite FTS5) and in-memory fuzzy matching
