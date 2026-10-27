@@ -65,7 +65,7 @@ impl SessionRepository for Database {
         game_id: Uuid,
         started_at: chrono::DateTime<chrono::Utc>,
     ) -> Result<(), DatabaseError> {
-        let mut conn = self.conn.lock().unwrap();
+        let mut conn = self.writer();
         let tx = conn.transaction()?;
 
         let started_at_str = started_at.to_rfc3339();
@@ -105,7 +105,7 @@ impl SessionRepository for Database {
         if delta_seconds == 0 {
             return Ok(());
         }
-        let mut conn = self.conn.lock().unwrap();
+        let mut conn = self.writer();
         let tx = conn.transaction()?;
 
         let now_str = current_time.to_rfc3339();
@@ -144,7 +144,7 @@ impl SessionRepository for Database {
         started_at: chrono::DateTime<chrono::Utc>,
         ended_at: chrono::DateTime<chrono::Utc>,
     ) -> Result<GameSessionRecord, DatabaseError> {
-        let mut conn = self.conn.lock().unwrap();
+        let mut conn = self.writer();
         let tx = conn.transaction()?;
 
         let started_at_str = started_at.to_rfc3339();
@@ -245,7 +245,7 @@ impl SessionRepository for Database {
         &self,
         game_id: Uuid,
     ) -> Result<Vec<GameSessionRecord>, DatabaseError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.reader();
         let mut stmt = conn.prepare(
             "
             SELECT id, game_id, started_at, ended_at, duration_seconds

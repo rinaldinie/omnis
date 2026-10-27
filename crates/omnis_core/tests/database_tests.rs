@@ -517,4 +517,58 @@ fn test_achievements_upsert_and_summary() {
     assert_eq!(ach1.local_icon_path.as_deref(), Some("C:\\cache\\ach_1.png"));
 }
 
+#[test]
+fn test_concurrent_reader_during_writer() {
+    let temp_dir = std::env::temp_dir().join(format!("omnis_wal_test_{}", Uuid::new_v4()));
+    let _ = std::fs::create_dir_all(&temp_dir);
+    let db_path = temp_dir.join("library.db");
+
+    let db = std::sync::Arc::new(Database::open(&db_path).expect("Failed to open disk DB"));
+    db.seed_sample_games().expect("Failed to seed initial starter games");
+    let initial_count = db.count_games().expect("Failed to count");
+    assert!(initial_count > 0);
+
+    let db_writer = db.clone();
+    let (tx_started, rx_started) = std::sync::mpsc::channel();
+    let (tx_continue, rx_continue) = std::sync::mpsc::channel();
+
+    let writer_handle = std::thread::spawn(move || {
+        let mut conn = db_writer.writer();
+        let tx = conn.transaction().expect("Failed to start transaction");
+        let new_id = Uuid::new_v4().to_string();
+        let now = Utc::now().to_rfc3339();
+        tx.execute(
+            "INSERT INTO games (id, library_id, external_id, title, sorting_title, added_timestamp, modified_timestamp)
+             VALUES (?1, 'custom', ?1, 'Concurrent Game', 'concurrent game', ?2, ?2)",
+            rusqlite::params![new_id, now],
+        ).expect("Insert in tx failed");
+
+        tx_started.send(()).unwrap();
+        // Wait until main thread performs concurrent read
+        rx_continue.recv().unwrap();
+        tx.commit().expect("Commit failed");
+    });
+
+    // Wait until background writer holds transaction
+    rx_started.recv().unwrap();
+
+    // Reader connection can read simultaneously without blocking!
+    let games_during_tx = db.get_all_games().expect("Reader must succeed during write transaction");
+    assert_eq!(games_during_tx.len(), initial_count);
+
+    let counts_during_tx = db.get_library_counts().expect("Reader counts must succeed during write transaction");
+    assert_eq!(counts_during_tx.total, initial_count);
+
+    // Let writer commit
+    tx_continue.send(()).unwrap();
+    writer_handle.join().unwrap();
+
+    // After commit, reader sees the new game
+    let games_after_commit = db.get_all_games().expect("Reader must succeed after commit");
+    assert_eq!(games_after_commit.len(), initial_count + 1);
+
+    let _ = std::fs::remove_dir_all(&temp_dir);
+}
+
+
 
