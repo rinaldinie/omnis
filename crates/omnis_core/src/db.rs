@@ -7,12 +7,16 @@ use crate::search::FuzzyGameSearchIndex;
 
 pub mod achievements;
 pub mod games;
+pub mod maintenance;
 pub mod migrations;
+pub mod search;
 pub mod secrets;
 pub mod sessions;
 
 pub use achievements::AchievementRepository;
 pub use games::GameRepository;
+pub use maintenance::CatalogMaintenanceRepository;
+pub use search::GameSearchRepository;
 pub use secrets::SecretRepository;
 pub use sessions::SessionRepository;
 
