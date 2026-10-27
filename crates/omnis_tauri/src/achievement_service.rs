@@ -151,12 +151,18 @@ mod tests {
         ) -> Result<Vec<Achievement>, String> {
             Ok(vec![Achievement {
                 id: "mock_1".to_string(),
-                name: "Mock Achieved".to_string(),
-                description: "Mock Description".to_string(),
-                icon_url: None,
-                unlocked: true,
+                game_id: Uuid::new_v4(),
+                api_name: "mock_1".to_string(),
+                display_name: "Mock Achieved".to_string(),
+                description: Some("Mock Description".to_string()),
+                icon_unlocked_url: "https://example.com/icon.png".to_string(),
+                icon_locked_url: None,
+                local_icon_path: None,
+                is_unlocked: true,
                 unlock_time: None,
                 rarity_percentage: Some(50.0),
+                points: None,
+                is_hidden: false,
             }])
         }
     }
@@ -167,45 +173,11 @@ mod tests {
         service.register_provider(Box::new(MockProvider));
         assert!(service.providers.contains_key("mock_store"));
 
-        let db = Database::ephemeral();
-        let vault = Arc::new(omnis_core::SecretVault::ephemeral());
+        let db = Database::open_in_memory().unwrap();
+        let vault = Arc::new(omnis_core::SecretVault::from_key([0x55; 32]));
         let store_mgr = StoreAccountManager::new(Arc::new(db), vault);
 
-        let game = Game {
-            id: Uuid::new_v4(),
-            library_id: "mock_store".to_string(),
-            external_id: "123".to_string(),
-            title: "Mock Game".to_string(),
-            is_installed: true,
-            install_dir: None,
-            executable_path: None,
-            launch_arguments: vec![],
-            working_dir: None,
-            cover_image_path: None,
-            background_image_path: None,
-            icon_image_path: None,
-            playtime_seconds: 0,
-            play_count: 0,
-            last_activity: None,
-            description: None,
-            release_date: None,
-            critic_score: None,
-            community_score: None,
-            genres: vec![],
-            developers: vec![],
-            publishers: vec![],
-            tags: vec![],
-            categories: vec![],
-            features: vec![],
-            series: None,
-            age_rating: None,
-            completion_status: None,
-            user_notes: None,
-            custom_links: vec![],
-            extra_metadata: None,
-            is_favorite: false,
-            is_hidden: false,
-        };
+        let game = Game::new("mock_store".to_string(), "123".to_string(), "Mock Game".to_string());
 
         let res = service.fetch_achievements(&game, &store_mgr).await;
         assert!(res.is_ok());
@@ -217,45 +189,11 @@ mod tests {
     #[tokio::test]
     async fn test_unsupported_store_error() {
         let service = AchievementService::new();
-        let db = Database::ephemeral();
-        let vault = Arc::new(omnis_core::SecretVault::ephemeral());
+        let db = Database::open_in_memory().unwrap();
+        let vault = Arc::new(omnis_core::SecretVault::from_key([0x55; 32]));
         let store_mgr = StoreAccountManager::new(Arc::new(db), vault);
 
-        let game = Game {
-            id: Uuid::new_v4(),
-            library_id: "unsupported_unknown".to_string(),
-            external_id: "123".to_string(),
-            title: "Unknown Game".to_string(),
-            is_installed: true,
-            install_dir: None,
-            executable_path: None,
-            launch_arguments: vec![],
-            working_dir: None,
-            cover_image_path: None,
-            background_image_path: None,
-            icon_image_path: None,
-            playtime_seconds: 0,
-            play_count: 0,
-            last_activity: None,
-            description: None,
-            release_date: None,
-            critic_score: None,
-            community_score: None,
-            genres: vec![],
-            developers: vec![],
-            publishers: vec![],
-            tags: vec![],
-            categories: vec![],
-            features: vec![],
-            series: None,
-            age_rating: None,
-            completion_status: None,
-            user_notes: None,
-            custom_links: vec![],
-            extra_metadata: None,
-            is_favorite: false,
-            is_hidden: false,
-        };
+        let game = Game::new("unsupported_unknown".to_string(), "123".to_string(), "Unknown Game".to_string());
 
         let res = service.fetch_achievements(&game, &store_mgr).await;
         assert!(res.is_err());

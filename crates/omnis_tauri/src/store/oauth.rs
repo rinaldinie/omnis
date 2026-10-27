@@ -92,7 +92,7 @@ impl OAuthLoginService {
             .on_navigation(move |url| {
                 let url_str = url.as_str();
 
-                if plugin_for_nav.is_callback_url(url_str) {
+                if plugin_for_nav.is_redirect_url(url_str) {
                     if is_exchanging.swap(true, Ordering::SeqCst) {
                         return false;
                     }

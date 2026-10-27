@@ -4,17 +4,14 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use serde_json::{Map, Value};
 use tokio::sync::RwLock;
-use tracing::{debug, info, warn};
 
-use crate::dynamic_loader::{find_shared_library_in_dir, DynamicPluginLoader};
-use omnis_sdk::{MetadataField, MetadataProvider, MetadataSearchRequest};
+use omnis_sdk::MetadataProvider;
 
 use super::gog::GogMetadataProvider;
 use super::igdb::IgdbMetadataProvider;
 use super::steam::SteamMetadataProvider;
 use super::scaffold;
 use super::types::*;
-use super::utils::*;
 
 /// Trait managing discovery, registration, configuration, and connectivity of metadata providers
 #[async_trait]

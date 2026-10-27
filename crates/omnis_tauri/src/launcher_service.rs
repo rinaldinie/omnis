@@ -4,7 +4,7 @@
 //! management, periodic play-session checkpointing, and background process tracking.
 
 use crate::types::AppState;
-use omnis_core::db::{Database, SessionRepository};
+use omnis_core::db::Database;
 use omnis_core::GameLauncher;
 use omnis_sdk::constants::events;
 use omnis_sdk::{Game, LaunchConfiguration, ProcessTrackingMode};
@@ -163,7 +163,7 @@ impl GameLaunchCoordinator {
     /// Background monitoring loop handling 60s periodic checkpoints and process exit reconciliation.
     async fn run_tracking_lifecycle(
         app_handle: tauri::AppHandle,
-        active_mgr: crate::active_game::ActiveGameManager,
+        active_mgr: Arc<crate::active_game::ActiveGameManager>,
         db: Arc<Database>,
         id: Uuid,
         game_id_str: String,
@@ -353,7 +353,7 @@ pub fn validate_and_open_store_uri(uri: &str) -> Result<(), String> {
     if !allowed_schemes.iter().any(|scheme| uri.starts_with(scheme)) {
         return Err("Protocollo URI non autorizzato".to_string());
     }
-    if uri.chars().any(|c| c.is_control() || "&|<>^%\"' \r\n\t".contains(c)) {
+    if uri.chars().any(|c| c.is_control() || "&|;<>^%\"' \r\n\t".contains(c)) {
         return Err("URI contiene caratteri non consentiti".to_string());
     }
 

@@ -1,8 +1,6 @@
 use super::*;
 
-    use super::*;
-
-    #[tokio::test]
+#[tokio::test]
     async fn test_steam_metadata_download() {
         let db = Database::open_in_memory().expect("Failed to open DB");
         db.seed_sample_games().expect("Failed to seed");

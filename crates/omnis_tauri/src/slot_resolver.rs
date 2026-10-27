@@ -1,6 +1,6 @@
 use crate::types::AppState;
 use omnis_core::ProviderInfo;
-use omnis_sdk::{Game, SlotWidget, WidgetTemplate};
+use omnis_sdk::{Game, SlotWidget, SlotWidgetTemplate};
 use uuid::Uuid;
 
 /// Helper function to resolve a dotted value key (e.g. "howlongtobeat.main_story") from a JSON value
@@ -92,7 +92,7 @@ impl SlotWidgetResolver {
     }
 
     fn build_widget_from_template(
-        template: &WidgetTemplate,
+        template: &SlotWidgetTemplate,
         extra_json: Option<&serde_json::Value>,
     ) -> Option<SlotWidget> {
         match template.widget_type.as_str() {

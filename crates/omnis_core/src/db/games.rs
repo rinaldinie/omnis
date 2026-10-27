@@ -49,52 +49,7 @@ pub trait GameRepository: Send + Sync {
     fn get_recent_games(&self, limit: usize) -> Result<Vec<Game>>;
 }
 
-impl GameRepository for Database {
-    fn insert_custom_game(
-        &self,
-        id: Uuid,
-        title: &str,
-        sorting_title: &str,
-        install_dir: Option<PathBuf>,
-        play_actions: Vec<LaunchConfiguration>,
-        cover_image_path: Option<String>,
-    ) -> Result<Game> {
-        let conn = self.writer();
-        let now = Utc::now().to_rfc3339();
-        let play_actions_json =
-            serde_json::to_string(&play_actions).unwrap_or_else(|_| "[]".to_string());
-        let install_dir_str = install_dir
-            .as_ref()
-            .map(|p| p.to_string_lossy().to_string());
-
-        conn.execute(
-            "INSERT INTO games (
-                id, library_id, external_id, title, sorting_title,
-                install_dir, is_installed, play_actions, cover_image_path,
-                added_timestamp, modified_timestamp
-            ) VALUES (?1, 'custom', ?1, ?2, ?3, ?4, 1, ?5, ?6, ?7, ?7)",
-            params![
-                id.to_string(),
-                title,
-                sorting_title,
-                install_dir_str,
-                play_actions_json,
-                cover_image_path,
-                now,
-            ],
-        )?;
-
-        drop(conn);
-        self.search_index
-            .write()
-            .unwrap()
-            .insert_or_update(id, title);
-        self.get_game_by_id(id)?
-            .ok_or(rusqlite::Error::QueryReturnedNoRows)
-    }
-}
-
-const GAME_COLUMNS: &str = "
+pub(crate) const GAME_COLUMNS: &str = "
     id, library_id, external_id, title, sorting_title,
     install_dir, is_installed, playtime_seconds, play_count,
     last_activity, release_date, user_score, critic_score,
@@ -106,7 +61,7 @@ const GAME_COLUMNS: &str = "
     added_timestamp, modified_timestamp
 ";
 
-fn map_row_to_game(row: &rusqlite::Row) -> rusqlite::Result<Game> {
+pub(crate) fn map_row_to_game(row: &rusqlite::Row) -> rusqlite::Result<Game> {
     let id_str: String = row.get(0)?;
     let id = Uuid::parse_str(&id_str).unwrap_or_else(|_| Uuid::new_v4());
     let library_id: String = row.get(1)?;
@@ -252,6 +207,49 @@ fn map_row_to_game(row: &rusqlite::Row) -> rusqlite::Result<Game> {
 }
 
 impl GameRepository for Database {
+    fn insert_custom_game(
+        &self,
+        id: Uuid,
+        title: &str,
+        sorting_title: &str,
+        install_dir: Option<PathBuf>,
+        play_actions: Vec<LaunchConfiguration>,
+        cover_image_path: Option<String>,
+    ) -> Result<Game> {
+        let conn = self.writer();
+        let now = Utc::now().to_rfc3339();
+        let play_actions_json =
+            serde_json::to_string(&play_actions).unwrap_or_else(|_| "[]".to_string());
+        let install_dir_str = install_dir
+            .as_ref()
+            .map(|p| p.to_string_lossy().to_string());
+
+        conn.execute(
+            "INSERT INTO games (
+                id, library_id, external_id, title, sorting_title,
+                install_dir, is_installed, play_actions, cover_image_path,
+                added_timestamp, modified_timestamp
+            ) VALUES (?1, 'custom', ?1, ?2, ?3, ?4, 1, ?5, ?6, ?7, ?7)",
+            params![
+                id.to_string(),
+                title,
+                sorting_title,
+                install_dir_str,
+                play_actions_json,
+                cover_image_path,
+                now,
+            ],
+        )?;
+
+        drop(conn);
+        self.search_index
+            .write()
+            .unwrap()
+            .insert_or_update(id, title);
+        self.get_game_by_id(id)?
+            .ok_or(rusqlite::Error::QueryReturnedNoRows)
+    }
+
     /// Retrieve all games in library sorted alphabetically
     fn get_all_games(&self) -> Result<Vec<Game>> {
         let conn = self.reader();
@@ -591,9 +589,6 @@ impl GameRepository for Database {
         }
         Ok(games)
     }
-
-    /// Seed iconic starter games if the library is empty
-
 }
 
 // Inherent forwarders on Database for backward compatibility
