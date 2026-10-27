@@ -2,6 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 pub mod active_game;
+pub mod candidate_applier;
 pub mod commands;
 pub mod launcher_service;
 pub mod migration;
@@ -10,6 +11,7 @@ pub mod tray;
 pub mod types;
 
 pub use active_game::*;
+pub use candidate_applier::*;
 pub use commands::*;
 pub use launcher_service::*;
 pub use tray::*;
