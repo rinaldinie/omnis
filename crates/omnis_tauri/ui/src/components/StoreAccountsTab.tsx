@@ -8,11 +8,10 @@ import {
   Check,
   ExternalLink,
   HelpCircle,
-  Layers,
   LogOut,
   LogIn,
 } from "lucide-react";
-import { SteamIcon, EpicIcon, GogIcon, XboxIcon } from "./StoreBadge";
+import { SteamIcon, EpicIcon, GogIcon, XboxIcon, AmazonIcon } from "./StoreBadge";
 import soundEffects from "../utils/soundEffects";
 import { openExternalUrl } from "../utils/openUrl";
 import { useTranslation } from "../i18n/i18nContext";
@@ -74,7 +73,7 @@ const STORE_LIST: StoreItemMeta[] = [
   {
     id: "amazon",
     name: "Amazon Games",
-    icon: (c = "w-4 h-4") => <Layers className={`${c} text-amber-400`} />,
+    icon: (c = "w-4 h-4") => <AmazonIcon className={`${c} text-[#ff9900]`} />,
     tag: "Locale",
   },
 ];

@@ -17,8 +17,6 @@ import {
   RefreshCw,
   Download,
   Sparkles,
-  ZoomOut,
-  ZoomIn,
   Minus,
   Square,
   MoreHorizontal,
@@ -51,8 +49,6 @@ interface TopBarProps {
   isSyncing: boolean;
   handleDownloadAll: () => void;
   isDownloading: boolean;
-  uiZoom: number;
-  setUiZoom: React.Dispatch<React.SetStateAction<number>>;
   handleMinimize: () => void;
   handleToggleMaximize: () => void;
   handleClose: () => void;
@@ -89,8 +85,6 @@ export default function TopBar({
   isSyncing,
   handleDownloadAll,
   isDownloading,
-  uiZoom,
-  setUiZoom,
   handleMinimize,
   handleToggleMaximize,
   handleClose,
@@ -439,40 +433,6 @@ export default function TopBar({
           </button>
         )}
 
-        {/* Zoom Controls on 2xl */}
-        <div
-          className="hidden 2xl:flex items-center gap-1 p-0.5 rounded-lg border shrink-0"
-          style={{
-            backgroundColor: "var(--bg-card)",
-            borderColor: "var(--border-color)",
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => setUiZoom((z) => Math.max(0.7, z - 0.1))}
-            className="p-1 hover:text-white"
-            style={{ color: "var(--text-muted)" }}
-            title={t("topbar.zoom_out")}
-          >
-            <ZoomOut className="w-3.5 h-3.5" />
-          </button>
-          <span
-            className="text-[10px] font-mono px-1"
-            style={{ color: "var(--text-primary)" }}
-          >
-            {Math.round(uiZoom * 100)}%
-          </span>
-          <button
-            type="button"
-            onClick={() => setUiZoom((z) => Math.min(1.5, z + 0.1))}
-            className="p-1 hover:text-white"
-            style={{ color: "var(--text-muted)" }}
-            title={t("topbar.zoom_in")}
-          >
-            <ZoomIn className="w-3.5 h-3.5" />
-          </button>
-        </div>
-
         {/* Overflow Menu for smaller/non-fullscreen windows (< xl) */}
         <div className="relative xl:hidden" ref={moreMenuRef}>
           <button
@@ -561,31 +521,6 @@ export default function TopBar({
                   <span className="truncate">{t("topbar.edit_info")} ("{selectedGame.title}")</span>
                 </button>
               )}
-
-              <div className="border-t border-white/10 my-1 pt-1.5 px-3 flex items-center justify-between">
-                <span className="text-xs text-slate-400 font-medium">{t("topbar.zoom_ui")}</span>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setUiZoom((z) => Math.max(0.7, z - 0.1))}
-                    className="p-1 rounded hover:bg-white/10 text-slate-300 hover:text-white"
-                    title={t("topbar.zoom_out")}
-                  >
-                    <ZoomOut className="w-3.5 h-3.5" />
-                  </button>
-                  <span className="text-xs font-mono text-white">
-                    {Math.round(uiZoom * 100)}%
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setUiZoom((z) => Math.min(1.5, z + 0.1))}
-                    className="p-1 rounded hover:bg-white/10 text-slate-300 hover:text-white"
-                    title={t("topbar.zoom_in")}
-                  >
-                    <ZoomIn className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
             </div>
           )}
         </div>

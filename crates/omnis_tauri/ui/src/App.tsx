@@ -29,6 +29,11 @@ import {
   EpicIcon,
   GogIcon,
   XboxIcon,
+  AmazonIcon,
+  EaIcon,
+  UbisoftIcon,
+  BattlenetIcon,
+  ItchIcon,
   StoreIcon,
   StoreBadge,
 } from "./components/StoreBadge";
@@ -96,7 +101,19 @@ export function formatDuration(seconds: number): string {
   return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
 }
 
-export { SteamIcon, EpicIcon, GogIcon, XboxIcon, StoreIcon, StoreBadge };
+export {
+  SteamIcon,
+  EpicIcon,
+  GogIcon,
+  XboxIcon,
+  AmazonIcon,
+  EaIcon,
+  UbisoftIcon,
+  BattlenetIcon,
+  ItchIcon,
+  StoreIcon,
+  StoreBadge,
+};
 export { formatImageUrl, normalizeGame };
 export type { ViewMode, GroupBy, GameDto };
 
@@ -121,7 +138,6 @@ export default function App() {
   const [gridCardWidth, setGridCardWidth] = useState<number>(180);
   const [detailsSidebarOpen, setDetailsSidebarOpen] = useState<boolean>(true);
   const [selectedGame, setSelectedGame] = useState<GameDto | null>(null);
-  const [uiZoom, setUiZoom] = useState<number>(1.0);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
   const [statusMessage, setStatusMessage] = useState<string>("");
@@ -1163,7 +1179,6 @@ export default function App() {
       style={{
         backgroundColor: "var(--bg-base)",
         color: "var(--text-primary)",
-        fontSize: `${uiZoom * 14}px`,
       }}
     >
       {currentTheme.custom_css && <style>{currentTheme.custom_css}</style>}
@@ -1262,8 +1277,6 @@ export default function App() {
             handleDownloadAll={handleDownloadAll}
             isDownloading={isDownloading}
             setShowBatchEnrichModal={setShowBatchEnrichModal}
-            uiZoom={uiZoom}
-            setUiZoom={setUiZoom}
             handleMinimize={handleMinimize}
             handleToggleMaximize={handleToggleMaximize}
             handleClose={handleClose}
