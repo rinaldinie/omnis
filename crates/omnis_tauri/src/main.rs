@@ -1,7 +1,9 @@
 // Prevents additional console window on Windows in release
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+pub mod achievement_service;
 pub mod active_game;
+pub mod bootstrap;
 pub mod builtin_themes;
 pub mod candidate_applier;
 pub mod commands;
@@ -14,7 +16,9 @@ pub mod trailer_service;
 pub mod tray;
 pub mod types;
 
+pub use achievement_service::*;
 pub use active_game::*;
+pub use bootstrap::*;
 pub use builtin_themes::*;
 pub use candidate_applier::*;
 pub use commands::*;
@@ -25,10 +29,6 @@ pub use trailer_service::*;
 pub use tray::*;
 pub use types::*;
 
-use omnis_core::{Database, EventBus, MarketplaceManager, MetadataDownloader, PluginHost};
-use omnis_plugin_steam::SteamPlugin;
-use std::sync::Arc;
-use tauri::Manager;
 use tracing::info;
 
 fn main() {
@@ -43,175 +43,13 @@ fn main() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
-            use tauri::Emitter;
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.unminimize();
-                let _ = window.show();
-                let _ = window.set_focus();
-                if commands::is_fullscreen_requested(&argv) {
-                    let _ = window.set_fullscreen(true);
-                    let _ = app.emit("app-set-fullscreen", true);
-                    let _ = window.emit("app-set-fullscreen", true);
-                }
-            }
+            AppBootstrap::handle_single_instance(app, &argv);
         }))
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
-        .setup(|app| {
-            // Resolve application data directory (Portable mode if <exe>/data exists, else %APPDATA%/Omnis Game Library)
-            let tauri_fallback = app.path().app_data_dir().ok();
-            let (app_dir, is_portable) = migration::resolve_app_dir(tauri_fallback);
-            info!(
-                "Omnis Data Directory: {} (Portable: {})",
-                app_dir.display(),
-                is_portable
-            );
-
-            // Migrate data from legacy directories if needed
-            migration::migrate_all_legacy_data(&app_dir);
-
-            // Create directory structure
-            let cache_dir = app_dir.join("cache");
-            let covers_dir = cache_dir.join("covers");
-            let backgrounds_dir = cache_dir.join("backgrounds");
-            let plugins_dir = app_dir.join("plugins");
-            let themes_dir = app_dir.join("themes");
-            let trailers_dir = app_dir.join("trailers");
-            let _ = std::fs::create_dir_all(&covers_dir);
-            let _ = std::fs::create_dir_all(&backgrounds_dir);
-            let _ = std::fs::create_dir_all(&plugins_dir);
-            let _ = std::fs::create_dir_all(&themes_dir);
-            let _ = std::fs::create_dir_all(&trailers_dir);
-
-            // Open database
-            let db_path = app_dir.join("library.db");
-            let db =
-                Arc::new(Database::open(&db_path).expect("Failed to open SQLite database"));
-
-            // Ensure artwork & achievement paths safely point to the active app_dir
-            let app_dir_str = app_dir.to_string_lossy();
-            let _ = db.relocate_image_paths(&app_dir_str);
-
-            // Initialize plugin host
-            let event_bus = EventBus::new(256);
-            let mut host = PluginHost::new(event_bus.clone(), db.clone());
-            host.register_plugin(Box::new(SteamPlugin::new()));
-
-            let downloader = Arc::new(MetadataDownloader::new());
-            let marketplace = Arc::new(MarketplaceManager::new());
-
-            // Initialize plugins and set directories
-            let plugins_dir_clone = plugins_dir.clone();
-            let downloader_clone = downloader.clone();
-            let marketplace_clone = marketplace.clone();
-            tauri::async_runtime::block_on(async {
-                let _ = host.initialize_all().await;
-                downloader_clone
-                    .set_plugins_dir(plugins_dir_clone.clone())
-                    .await;
-                marketplace_clone
-                    .set_plugins_dir(plugins_dir_clone)
-                    .await;
-            });
-
-            // Initialize secret vault and store account manager
-            let vault =
-                Arc::new(omnis_core::SecretVault::new(&app_dir).unwrap_or_else(|e| {
-                    tracing::error!(
-                        "SecretVault initialization failed: {}. Using ephemeral in-memory key.",
-                        e
-                    );
-                    omnis_core::SecretVault::ephemeral()
-                }));
-            let store_account_manager = Arc::new(store_manager::StoreAccountManager::new(
-                db.clone(),
-                vault.clone(),
-            ));
-            store_account_manager
-                .register_plugin(Arc::new(omnis_plugin_gog::GogCloudPlugin::new()));
-            store_account_manager
-                .register_plugin(Arc::new(omnis_plugin_xbox::XboxCloudPlugin::new()));
-            store_account_manager
-                .register_plugin(Arc::new(omnis_plugin_steam::SteamPlugin::new()));
-            store_account_manager
-                .register_plugin(Arc::new(omnis_plugin_epic::EpicLibraryPlugin::new()));
-
-            let host = Arc::new(host);
-            let image_cache = Arc::new(ImageCache::new());
-            let active_game_manager = Arc::new(active_game::ActiveGameManager::new());
-
-            let state = AppState {
-                db: db.clone(),
-                host,
-                downloader,
-                marketplace,
-                app_dir,
-                covers_dir,
-                backgrounds_dir,
-                plugins_dir,
-                themes_dir,
-                image_cache,
-                store_account_manager,
-                trailer_cache: Arc::new(tokio::sync::RwLock::new(
-                    std::collections::HashMap::new(),
-                )),
-                active_game_manager: active_game_manager.clone(),
-                minimize_to_tray: Arc::new(std::sync::atomic::AtomicBool::new(true)),
-            };
-
-            app.manage(state);
-
-            // Check if an installed game is already running and re-attach session on startup
-            let active_mgr = active_game_manager.clone();
-            let db_ref = db.clone();
-            tauri::async_runtime::spawn(async move {
-                active_mgr.check_and_reattach(&db_ref).await;
-            });
-
-            // If started with --fullscreen, enter fullscreen mode immediately
-            let is_fullscreen = commands::is_fullscreen_requested(std::env::args());
-            if is_fullscreen {
-                use tauri::Emitter;
-                if let Some(window) = app.get_webview_window("main") {
-                    let _ = window.set_fullscreen(true);
-                    let _ = window.emit("app-set-fullscreen", true);
-                }
-            }
-
-            // Initialize System Tray
-            if let Err(e) = tray::setup_tray(&app.handle()) {
-                tracing::error!("Failed to initialize system tray: {}", e);
-            }
-
-            // Listen for library and game events to update tray menu
-            let app_handle = app.handle().clone();
-            use tauri::Listener;
-            let h1 = app_handle.clone();
-            app.listen("library-updated", move |_| {
-                tray::update_tray_menu(&h1);
-            });
-            let h2 = app_handle.clone();
-            app.listen("game-started", move |_| {
-                tray::update_tray_menu(&h2);
-            });
-            let h3 = app_handle.clone();
-            app.listen("game-stopped", move |_| {
-                tray::update_tray_menu(&h3);
-            });
-
-            Ok(())
-        })
+        .setup(|app| AppBootstrap::setup(app))
         .on_window_event(|window, event| {
-            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                let state = window.state::<AppState>();
-                if state
-                    .minimize_to_tray
-                    .load(std::sync::atomic::Ordering::SeqCst)
-                {
-                    api.prevent_close();
-                    let _ = window.hide();
-                }
-            }
+            AppBootstrap::handle_window_event(window, event);
         })
         .invoke_handler(tauri::generate_handler![
             get_games,
