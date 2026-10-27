@@ -509,8 +509,11 @@ export default function App() {
     root.style.setProperty("--accent-glow", currentTheme.accent_glow);
     root.style.setProperty("--border-color", currentTheme.border_color);
     root.style.setProperty("--card-radius", currentTheme.card_radius);
-    if (currentTheme.font_family) {
+    const epicFontStack = '"Brutal", "Brutal Type", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+    if (currentTheme.font_family && !currentTheme.font_family.startsWith("system-ui")) {
       root.style.fontFamily = currentTheme.font_family;
+    } else {
+      root.style.fontFamily = epicFontStack;
     }
     if (currentTheme.tokens && typeof currentTheme.tokens === "object") {
       Object.entries(currentTheme.tokens).forEach(([tokenKey, tokenValue]) => {
