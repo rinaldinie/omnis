@@ -2,18 +2,26 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 pub mod active_game;
+pub mod builtin_themes;
 pub mod candidate_applier;
 pub mod commands;
 pub mod launcher_service;
 pub mod migration;
+pub mod slot_resolver;
+pub mod store_actions;
 pub mod store_manager;
+pub mod trailer_service;
 pub mod tray;
 pub mod types;
 
 pub use active_game::*;
+pub use builtin_themes::*;
 pub use candidate_applier::*;
 pub use commands::*;
 pub use launcher_service::*;
+pub use slot_resolver::*;
+pub use store_actions::*;
+pub use trailer_service::*;
 pub use tray::*;
 pub use types::*;
 
