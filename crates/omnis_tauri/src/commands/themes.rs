@@ -69,119 +69,134 @@ Nel file `style.css` puoi scrivere qualsiasi regola CSS valida per sovrascrivere
     }
 }
 
-pub fn scan_themes_directory(themes_dir: &Path) -> Vec<ThemeConfig> {
-    seed_themes_folder(themes_dir);
+pub struct ThemeScanner;
 
-    // Start with built-in theme presets in a map keyed by id
-    let mut theme_map: HashMap<String, ThemeConfig> = HashMap::new();
-    let mut theme_order: Vec<String> = Vec::new();
+impl ThemeScanner {
+    /// Scans themes directory for directory-based and flat json themes
+    pub fn scan(themes_dir: &Path) -> Vec<ThemeConfig> {
+        seed_themes_folder(themes_dir);
 
-    for t in get_builtin_themes() {
-        theme_order.push(t.id.clone());
-        theme_map.insert(t.id.clone(), t);
-    }
+        let mut theme_map: HashMap<String, ThemeConfig> = HashMap::new();
+        let mut theme_order: Vec<String> = Vec::new();
 
-    // Scan user themes directory
-    if let Ok(entries) = std::fs::read_dir(themes_dir) {
-        for entry in entries.flatten() {
-            let path = entry.path();
+        for t in get_builtin_themes() {
+            theme_order.push(t.id.clone());
+            theme_map.insert(t.id.clone(), t);
+        }
 
-            // 1. Directory-based theme (e.g., themes/my_theme/theme.json + style.css)
-            if path.is_dir() {
-                let json_file = path.join("theme.json");
-                if json_file.exists() {
-                    if let Ok(content) = std::fs::read_to_string(&json_file) {
-                        // Validate apiVersion if present in manifest
-                        if content.contains("apiVersion") {
-                            if let Err(err) = omnis_core::parse_and_validate_theme_manifest(&content) {
-                                eprintln!("Theme at {:?} rejected: {}", path, err);
-                                continue;
-                            }
-                        }
-
-                        if let Ok(mut theme) = serde_json::from_str::<ThemeConfig>(&content) {
-                            // Check if a companion style.css exists
-                            let mut combined_css = String::new();
-                            let css_file = path.join("style.css");
-                            if css_file.exists() {
-                                if let Ok(css_content) = std::fs::read_to_string(&css_file) {
-                                    if !css_content.trim().is_empty() {
-                                        if let Err(sec_err) = omnis_core::validate_theme_css_security(&css_content) {
-                                            eprintln!("Theme {:?} style.css security violation: {}", theme.id, sec_err);
-                                        } else {
-                                            combined_css.push_str(&css_content);
-                                            combined_css.push('\n');
-                                        }
-                                    }
-                                }
-                            }
-
-                            // Check additional style files listed in styles array
-                            for style_rel in &theme.styles {
-                                let add_css_path = path.join(style_rel);
-                                if add_css_path.exists() && add_css_path != css_file {
-                                    if let Ok(css_content) = std::fs::read_to_string(&add_css_path) {
-                                        if let Err(sec_err) = omnis_core::validate_theme_css_security(&css_content) {
-                                            eprintln!("Theme {:?} style '{}' security violation: {}", theme.id, style_rel, sec_err);
-                                        } else {
-                                            combined_css.push_str(&css_content);
-                                            combined_css.push('\n');
-                                        }
-                                    }
-                                }
-                            }
-
-                            if !combined_css.trim().is_empty() {
-                                theme.custom_css = Some(combined_css);
-                            } else if let Some(ref inline_css) = theme.custom_css {
-                                if let Err(sec_err) = omnis_core::validate_theme_css_security(inline_css) {
-                                    eprintln!("Theme {:?} inline CSS security violation: {}", theme.id, sec_err);
-                                    theme.custom_css = None;
-                                }
-                            }
-
-                            theme.is_custom = true;
-                            if !theme_order.contains(&theme.id) {
-                                theme_order.push(theme.id.clone());
-                            }
-                            theme_map.insert(theme.id.clone(), theme);
-                        }
+        if let Ok(entries) = std::fs::read_dir(themes_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if let Some(mut theme) = Self::load_theme_entry(&path) {
+                    theme.is_custom = true;
+                    if !theme_order.contains(&theme.id) {
+                        theme_order.push(theme.id.clone());
                     }
+                    theme_map.insert(theme.id.clone(), theme);
                 }
             }
-            // 2. Flat file-based theme (e.g., themes/my_theme.json)
-            else if path.extension().and_then(|e| e.to_str()) == Some("json") {
-                if let Ok(content) = std::fs::read_to_string(&path) {
-                    if content.contains("apiVersion") {
-                        if let Err(err) = omnis_core::parse_and_validate_theme_manifest(&content) {
-                            eprintln!("Theme file {:?} rejected: {}", path, err);
-                            continue;
-                        }
-                    }
+        }
 
-                    if let Ok(mut theme) = serde_json::from_str::<ThemeConfig>(&content) {
-                        if let Some(ref inline_css) = theme.custom_css {
-                            if let Err(sec_err) = omnis_core::validate_theme_css_security(inline_css) {
-                                eprintln!("Theme {:?} inline CSS security violation: {}", theme.id, sec_err);
-                                theme.custom_css = None;
-                            }
-                        }
-                        theme.is_custom = true;
-                        if !theme_order.contains(&theme.id) {
-                            theme_order.push(theme.id.clone());
-                        }
-                        theme_map.insert(theme.id.clone(), theme);
+        theme_order
+            .into_iter()
+            .filter_map(|id| theme_map.remove(&id))
+            .collect()
+    }
+
+    fn load_theme_entry(path: &Path) -> Option<ThemeConfig> {
+        if path.is_dir() {
+            Self::load_dir_theme(path)
+        } else if path.extension().and_then(|e| e.to_str()) == Some("json") {
+            Self::load_file_theme(path)
+        } else {
+            None
+        }
+    }
+
+    fn load_dir_theme(dir: &Path) -> Option<ThemeConfig> {
+        let json_file = dir.join("theme.json");
+        if !json_file.exists() {
+            return None;
+        }
+
+        let content = std::fs::read_to_string(&json_file).ok()?;
+        if content.contains("apiVersion") {
+            if let Err(err) = omnis_core::parse_and_validate_theme_manifest(&content) {
+                eprintln!("Theme at {:?} rejected: {}", dir, err);
+                return None;
+            }
+        }
+
+        let mut theme = serde_json::from_str::<ThemeConfig>(&content).ok()?;
+        let combined_css = Self::resolve_dir_css(dir, &theme);
+        if !combined_css.trim().is_empty() {
+            theme.custom_css = Some(combined_css);
+        } else if let Some(ref inline_css) = theme.custom_css {
+            if let Err(sec_err) = omnis_core::validate_theme_css_security(inline_css) {
+                eprintln!("Theme {:?} inline CSS security violation: {}", theme.id, sec_err);
+                theme.custom_css = None;
+            }
+        }
+
+        Some(theme)
+    }
+
+    fn resolve_dir_css(dir: &Path, theme: &ThemeConfig) -> String {
+        let mut combined_css = String::new();
+        let css_file = dir.join("style.css");
+        if css_file.exists() {
+            if let Ok(css_content) = std::fs::read_to_string(&css_file) {
+                if !css_content.trim().is_empty() {
+                    if let Err(sec_err) = omnis_core::validate_theme_css_security(&css_content) {
+                        eprintln!("Theme {:?} style.css security violation: {}", theme.id, sec_err);
+                    } else {
+                        combined_css.push_str(&css_content);
+                        combined_css.push('\n');
                     }
                 }
             }
         }
+
+        for style_rel in &theme.styles {
+            let add_css_path = dir.join(style_rel);
+            if add_css_path.exists() && add_css_path != css_file {
+                if let Ok(css_content) = std::fs::read_to_string(&add_css_path) {
+                    if let Err(sec_err) = omnis_core::validate_theme_css_security(&css_content) {
+                        eprintln!("Theme {:?} style '{}' security violation: {}", theme.id, style_rel, sec_err);
+                    } else {
+                        combined_css.push_str(&css_content);
+                        combined_css.push('\n');
+                    }
+                }
+            }
+        }
+
+        combined_css
     }
 
-    // Return themes in deterministic order
-    theme_order
-        .into_iter()
-        .filter_map(|id| theme_map.remove(&id))
-        .collect()
+    fn load_file_theme(file: &Path) -> Option<ThemeConfig> {
+        let content = std::fs::read_to_string(file).ok()?;
+        if content.contains("apiVersion") {
+            if let Err(err) = omnis_core::parse_and_validate_theme_manifest(&content) {
+                eprintln!("Theme file {:?} rejected: {}", file, err);
+                return None;
+            }
+        }
+
+        let mut theme = serde_json::from_str::<ThemeConfig>(&content).ok()?;
+        if let Some(ref inline_css) = theme.custom_css {
+            if let Err(sec_err) = omnis_core::validate_theme_css_security(inline_css) {
+                eprintln!("Theme {:?} inline CSS security violation: {}", theme.id, sec_err);
+                theme.custom_css = None;
+            }
+        }
+
+        Some(theme)
+    }
+}
+
+pub fn scan_themes_directory(themes_dir: &Path) -> Vec<ThemeConfig> {
+    ThemeScanner::scan(themes_dir)
 }
 
 #[tauri::command]
