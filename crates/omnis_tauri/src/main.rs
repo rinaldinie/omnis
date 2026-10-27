@@ -3,6 +3,7 @@
 
 pub mod active_game;
 pub mod commands;
+pub mod launcher_service;
 pub mod migration;
 pub mod store_manager;
 pub mod tray;
@@ -10,6 +11,7 @@ pub mod types;
 
 pub use active_game::*;
 pub use commands::*;
+pub use launcher_service::*;
 pub use tray::*;
 pub use types::*;
 
