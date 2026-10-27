@@ -43,6 +43,7 @@ pub struct ProviderRegistry {
     pub pipeline_config: Arc<RwLock<MetadataPipelineConfig>>,
     pub igdb_provider: Arc<IgdbMetadataProvider>,
     pub gog_provider: Arc<GogMetadataProvider>,
+    pub client: reqwest::Client,
 }
 
 impl ProviderRegistry {
@@ -57,7 +58,7 @@ impl ProviderRegistry {
         );
         providers.insert(
             "gog".to_string(),
-            Box::new(GogMetadataProvider::new(client)),
+            Box::new(GogMetadataProvider::new(client.clone())),
         );
 
         let mut enabled = HashMap::new();
@@ -72,6 +73,7 @@ impl ProviderRegistry {
             pipeline_config: Arc::new(RwLock::new(MetadataPipelineConfig::default())),
             igdb_provider: igdb,
             gog_provider: gog,
+            client,
         }
     }
 
@@ -109,13 +111,9 @@ pub async fn set_plugins_dir(&self, dir: PathBuf) {
 
     /// Scans the plugins folder for subdirectories with native shared libraries or manifest.json and loads them dynamically
     async fn scan_and_load_external_plugins(&self, dir: &Path) {
-        super::loader::DynamicPluginScanner::scan_and_load_external_plugins(
-            &self.providers,
-            &self.enabled_providers,
-            &self.settings_cache,
-            dir,
-        ).await;
+        super::loader::DynamicPluginScanner::scan_and_load_external_plugins(self, dir).await;
     }
+
     /// Re-scans disk for plugins and returns the refreshed provider list
     pub async fn refresh_external_plugins(&self) -> Result<Vec<ProviderInfo>, String> {
         if let Some(ref dir) = *self.plugins_dir.read().await {
@@ -141,10 +139,7 @@ pub async fn set_plugins_dir(&self, dir: PathBuf) {
         &self,
         path: &Path,
     ) -> Result<ProviderInfo, String> {
-        super::loader::DynamicPluginScanner::load_and_register_dynamic_plugin(
-            &self.providers,
-            path,
-        ).await
+        super::loader::DynamicPluginScanner::load_and_register_dynamic_plugin(self, path).await
     }
     async fn load_persisted_state(&self, dir: &Path) {
         // Load pipeline config
