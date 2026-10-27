@@ -1,14 +1,15 @@
 import React from "react";
-import { Gamepad2 } from "lucide-react";
+import { StoreIcon } from "../StoreBadge";
 import { useTranslation } from "../../i18n";
 
 interface FutureStoreCardProps {
+  id?: string;
   name: string;
   publisher: string;
   color: string;
 }
 
-export const FutureStoreCard: React.FC<FutureStoreCardProps> = ({ name, publisher, color }) => {
+export const FutureStoreCard: React.FC<FutureStoreCardProps> = ({ id, name, publisher, color }) => {
   const { t } = useTranslation();
   return (
     <div
@@ -27,7 +28,7 @@ export const FutureStoreCard: React.FC<FutureStoreCardProps> = ({ name, publishe
             color: color,
           }}
         >
-          <Gamepad2 className="w-4 h-4" />
+          <StoreIcon library={id || name} className="w-4 h-4" />
         </div>
         <div className="min-w-0">
           <div className="text-xs font-bold text-white truncate">{name}</div>
