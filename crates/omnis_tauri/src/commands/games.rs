@@ -2,6 +2,7 @@ use crate::launcher_service::{validate_and_open_store_uri, GameLaunchCoordinator
 use crate::types::{game_to_dto, AppState, GameDto};
 use omnis_core::LibraryCounts;
 use omnis_plugin_epic::EpicLibraryPlugin;
+use omnis_sdk::constants::events;
 use omnis_sdk::{Game, LaunchConfiguration, LibraryPlugin, PluginEvent};
 use serde::Deserialize;
 use std::path::PathBuf;
@@ -204,8 +205,8 @@ pub async fn uninstall_game(
 
     // Notify UI
     use tauri::Emitter;
-    let _ = app_handle.emit("game-updated", id.to_string());
-    let _ = app_handle.emit("library-updated", ());
+    let _ = app_handle.emit(events::GAME_UPDATED, id.to_string());
+    let _ = app_handle.emit(events::LIBRARY_UPDATED, ());
 
     Ok(())
 }
@@ -254,8 +255,8 @@ pub async fn remove_game_from_library(
     let deleted = state.db.delete_game(id).map_err(|e| e.to_string())?;
     if deleted {
         use tauri::Emitter;
-        let _ = app_handle.emit("game-deleted", game_id);
-        let _ = app_handle.emit("library-updated", ());
+        let _ = app_handle.emit(events::GAME_DELETED, game_id);
+        let _ = app_handle.emit(events::LIBRARY_UPDATED, ());
     }
     Ok(deleted)
 }

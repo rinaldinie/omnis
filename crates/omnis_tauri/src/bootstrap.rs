@@ -11,6 +11,7 @@ use omnis_plugin_epic::EpicLibraryPlugin;
 use omnis_plugin_gog::GogCloudPlugin;
 use omnis_plugin_steam::SteamPlugin;
 use omnis_plugin_xbox::XboxCloudPlugin;
+use omnis_sdk::constants::{events, storage};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
@@ -42,12 +43,12 @@ impl AppBootstrap {
 
         migration::migrate_all_legacy_data(&app_dir);
 
-        let cache_dir = app_dir.join("cache");
-        let covers_dir = cache_dir.join("covers");
-        let backgrounds_dir = cache_dir.join("backgrounds");
-        let plugins_dir = app_dir.join("plugins");
-        let themes_dir = app_dir.join("themes");
-        let trailers_dir = app_dir.join("trailers");
+        let cache_dir = app_dir.join(storage::CACHE_DIR);
+        let covers_dir = cache_dir.join(storage::COVERS_DIR);
+        let backgrounds_dir = cache_dir.join(storage::BACKGROUNDS_DIR);
+        let plugins_dir = app_dir.join(storage::PLUGINS_DIR);
+        let themes_dir = app_dir.join(storage::THEMES_DIR);
+        let trailers_dir = app_dir.join(storage::TRAILERS_DIR);
 
         let _ = std::fs::create_dir_all(&covers_dir);
         let _ = std::fs::create_dir_all(&backgrounds_dir);
@@ -68,7 +69,7 @@ impl AppBootstrap {
 
     /// Opens SQLite database and relocates artwork paths if moved
     pub fn init_database(app_dir: &Path) -> Arc<Database> {
-        let db_path = app_dir.join("library.db");
+        let db_path = app_dir.join(storage::DATABASE_FILE);
         let db = Arc::new(Database::open(&db_path).expect("Failed to open SQLite database"));
 
         let app_dir_str = app_dir.to_string_lossy();
@@ -171,7 +172,7 @@ impl AppBootstrap {
             use tauri::Emitter;
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.set_fullscreen(true);
-                let _ = window.emit("app-set-fullscreen", true);
+                let _ = window.emit(events::APP_SET_FULLSCREEN, true);
             }
         }
 
@@ -184,15 +185,15 @@ impl AppBootstrap {
         let app_handle = app.handle().clone();
         use tauri::Listener;
         let h1 = app_handle.clone();
-        app.listen("library-updated", move |_| {
+        app.listen(events::LIBRARY_UPDATED, move |_| {
             tray::update_tray_menu(&h1);
         });
         let h2 = app_handle.clone();
-        app.listen("game-started", move |_| {
+        app.listen(events::GAME_STARTED, move |_| {
             tray::update_tray_menu(&h2);
         });
         let h3 = app_handle.clone();
-        app.listen("game-stopped", move |_| {
+        app.listen(events::GAME_STOPPED, move |_| {
             tray::update_tray_menu(&h3);
         });
 
@@ -208,8 +209,8 @@ impl AppBootstrap {
             let _ = window.set_focus();
             if crate::commands::is_fullscreen_requested(argv) {
                 let _ = window.set_fullscreen(true);
-                let _ = app.emit("app-set-fullscreen", true);
-                let _ = window.emit("app-set-fullscreen", true);
+                let _ = app.emit(events::APP_SET_FULLSCREEN, true);
+                let _ = window.emit(events::APP_SET_FULLSCREEN, true);
             }
         }
     }

@@ -6,6 +6,7 @@
 use crate::types::AppState;
 use omnis_core::db::{Database, SessionRepository};
 use omnis_core::GameLauncher;
+use omnis_sdk::constants::events;
 use omnis_sdk::{Game, LaunchConfiguration, ProcessTrackingMode};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -117,7 +118,7 @@ impl GameLaunchCoordinator {
 
         // Emit game-started event
         let _ = app_handle.emit(
-            "game-started",
+            events::GAME_STARTED,
             serde_json::json!({
                 "session_id": session_id_str,
                 "game_id": id.to_string(),
@@ -210,7 +211,7 @@ impl GameLaunchCoordinator {
                 tokio::spawn(async move {
                     mgr.set_running(&sid_for_pid, pid).await;
                     let _ = app.emit(
-                        "game-status-changed",
+                        events::GAME_STATUS_CHANGED,
                         serde_json::json!({
                             "session_id": sid_for_pid,
                             "game_id": gid_for_pid,
@@ -254,14 +255,14 @@ impl GameLaunchCoordinator {
         window_snapshot.restore(&app_handle, duration).await;
 
         let _ = app_handle.emit(
-            "game-stopped",
+            events::GAME_STOPPED,
             serde_json::json!({
                 "session_id": session_id_str,
                 "game_id": game_id_str,
                 "duration_seconds": duration,
             }),
         );
-        let _ = app_handle.emit("library-updated", ());
+        let _ = app_handle.emit(events::LIBRARY_UPDATED, ());
     }
 
     /// Kill the currently active game session and restore main window.
@@ -274,7 +275,7 @@ impl GameLaunchCoordinator {
         if killed || current_session.is_some() {
             if let Some(session) = current_session {
                 let _ = app_handle.emit(
-                    "game-stopped",
+                    events::GAME_STOPPED,
                     serde_json::json!({
                         "session_id": session.session_id,
                         "game_id": session.game_id,
