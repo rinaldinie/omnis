@@ -25,7 +25,7 @@ pub trait CatalogMaintenanceRepository: Send + Sync {
 
 impl CatalogMaintenanceRepository for Database {
     fn ingest_discovered_batch(&self, games: &[DiscoveredGame]) -> Result<usize> {
-        let mut conn = self.conn.lock().unwrap();
+        let mut conn = self.writer();
         let tx = conn.transaction()?;
         let now = Utc::now().to_rfc3339();
 
@@ -199,14 +199,14 @@ impl CatalogMaintenanceRepository for Database {
 
 
     fn count_games(&self) -> Result<usize> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.reader();
         let count: i64 = conn.query_row("SELECT COUNT(*) FROM games", [], |row| row.get(0))?;
         Ok(count as usize)
     }
 
     /// Optimized single-pass SQL aggregation for library dashboard counts
     fn get_library_counts(&self) -> Result<LibraryCounts> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.reader();
         let query = "
             SELECT
                 COUNT(*),
@@ -246,7 +246,7 @@ impl CatalogMaintenanceRepository for Database {
     /// Extracts the relative `cache/...` suffix from each entry and prepends the new base directory,
     /// completely preventing nested/recursive path concatenation.
     fn relocate_image_paths(&self, new_base_dir: &str) -> Result<usize> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.writer();
         let target_base = new_base_dir.trim_end_matches(['\\', '/']);
 
         // Update games (cover, background, icon)

@@ -26,7 +26,7 @@ impl SecretRepository for Database {
         nonce: &[u8],
         ciphertext: &[u8],
     ) -> Result<(), DatabaseError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.writer();
         let now = chrono::Utc::now().timestamp();
         conn.execute(
             "INSERT INTO secrets (id, nonce, ciphertext, updated_at)
@@ -41,7 +41,7 @@ impl SecretRepository for Database {
     }
 
     fn get_secret(&self, id: &str) -> Result<Option<(Vec<u8>, Vec<u8>)>, DatabaseError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.reader();
         let mut stmt = conn.prepare("SELECT nonce, ciphertext FROM secrets WHERE id = ?1")?;
         let res = stmt
             .query_row(params![id], |row| {
@@ -54,7 +54,7 @@ impl SecretRepository for Database {
     }
 
     fn delete_secret(&self, id: &str) -> Result<(), DatabaseError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.writer();
         conn.execute("DELETE FROM secrets WHERE id = ?1", params![id])?;
         Ok(())
     }

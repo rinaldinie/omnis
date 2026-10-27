@@ -149,7 +149,7 @@ impl Database {
         }
 
         let now = Utc::now().to_rfc3339();
-        let conn = self.conn.lock().unwrap();
+        let conn = self.writer();
 
         // If dry_run, we do all checks without executing mutations
         for item in items {
