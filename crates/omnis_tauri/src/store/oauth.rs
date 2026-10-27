@@ -1,16 +1,35 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
+use omnis_sdk::models::StoreSyncProgressPayload;
 use omnis_sdk::plugin::{CloudStorePlugin, StoreAccountSession};
 
-use crate::store_manager::StoreAccountManager;
+/// Trait implemented by receivers of authenticated OAuth sessions (decoupling OAuth windowing from StoreAccountManager)
+#[async_trait::async_trait]
+pub trait OAuthSessionHandler: Send + Sync {
+    /// Callback triggered when an OAuth authorization exchange succeeds
+    async fn on_session_authenticated(
+        &self,
+        app: &AppHandle,
+        store_id: &str,
+        session: StoreAccountSession,
+    );
+}
 
 /// Handles launching OAuth webview popup windows, injecting authentication scripts, and capturing authorization codes
 pub struct OAuthLoginService;
 
 impl OAuthLoginService {
-    /// Launch OAuth login popup window in Tauri webview
-    pub fn start_login(&self, app_handle: &AppHandle, store_id: &str) -> Result<(), String> {
+    /// Launch OAuth login popup window in Tauri webview with decoupled session handler
+    pub fn start_login<H>(
+        app_handle: &AppHandle,
+        plugin: Arc<dyn CloudStorePlugin>,
+        store_id: &str,
+        session_handler: Arc<H>,
+    ) -> Result<(), String>
+    where
+        H: OAuthSessionHandler + 'static,
+    {
         let label = format!("store-login-{}", store_id);
 
         // Bring to focus if already open
@@ -19,10 +38,6 @@ impl OAuthLoginService {
             return Ok(());
         }
 
-        let plugin = self
-            .get_plugin_sync(store_id)
-            .ok_or_else(|| format!("Plugin non trovato per lo store {}", store_id))?;
-
         let login_url = plugin.login_url();
         let parsed_url: url::Url = login_url
             .parse()
@@ -30,11 +45,11 @@ impl OAuthLoginService {
 
         let window_url = WebviewUrl::External(parsed_url);
 
-        let manager = self.clone();
         let app_for_nav = app_handle.clone();
         let plugin_for_nav = plugin.clone();
         let store_id_for_nav = store_id.to_string();
         let label_for_nav = label.clone();
+        let handler = session_handler.clone();
 
         let is_exchanging = Arc::new(AtomicBool::new(false));
 
@@ -59,62 +74,43 @@ impl OAuthLoginService {
                                     window.location.href = parsed.redirectUrl;
                                 }
                             }
-                        } catch (e) {}
+                        } catch(e) {}
                     }
-
-                    if (document.readyState === 'complete' || document.readyState === 'interactive') {
-                        extractAndForwardEpicCode();
+                    if (document.readyState === 'loading') {
+                        document.addEventListener('DOMContentLoaded', extractAndForwardEpicCode);
                     } else {
-                        window.addEventListener('DOMContentLoaded', extractAndForwardEpicCode);
-                        window.addEventListener('load', extractAndForwardEpicCode);
+                        extractAndForwardEpicCode();
                     }
-                    const timer = setInterval(extractAndForwardEpicCode, 300);
-                    setTimeout(() => clearInterval(timer), 30000);
+                    setTimeout(extractAndForwardEpicCode, 1000);
+                    setTimeout(extractAndForwardEpicCode, 3000);
                 })();
             "#;
             builder = builder.initialization_script(epic_script);
         }
 
-        let builder = builder.on_navigation(move |url| {
-                if plugin_for_nav.is_redirect_url(url.as_str()) {
+        builder = builder
+            .on_navigation(move |url| {
+                let url_str = url.as_str();
+
+                if plugin_for_nav.is_callback_url(url_str) {
                     if is_exchanging.swap(true, Ordering::SeqCst) {
                         return false;
                     }
 
-                    let manager = manager.clone();
                     let app = app_for_nav.clone();
                     let plugin = plugin_for_nav.clone();
                     let sid = store_id_for_nav.clone();
                     let lbl = label_for_nav.clone();
+                    let handler_clone = handler.clone();
                     let url_str = url.as_str().to_string();
 
                     tokio::spawn(async move {
                         match plugin.exchange_code(&url_str).await {
                             Ok(session) => {
-                                if let Err(e) = manager.save_session(&sid, &session) {
-                                    tracing::error!(
-                                        "Errore nel salvataggio della sessione {}: {}",
-                                        sid,
-                                        e
-                                    );
-                                }
                                 if let Some(win) = app.get_webview_window(&lbl) {
                                     let _ = win.close();
                                 }
-                                let _ = app.emit(
-                                    "store-account-connected",
-                                    serde_json::json!({
-                                        "store_id": sid,
-                                        "username": session.username,
-                                    }),
-                                );
-                                if let Err(e) = manager.sync_store(&app, &sid).await {
-                                    tracing::error!(
-                                        "Errore sincronizzazione iniziale store {}: {}",
-                                        sid,
-                                        e
-                                    );
-                                }
+                                handler_clone.on_session_authenticated(&app, &sid, session).await;
                             }
                             Err(e) => {
                                 tracing::error!("Errore scambio codice OAuth per {}: {}", sid, e);
