@@ -123,6 +123,15 @@ pub struct PlayniteImportStats {
     pub categories_added: usize,
 }
 
+struct ExistingGameRow {
+    id: String,
+    playtime_seconds: u64,
+    play_count: i32,
+    cover_image_path: Option<String>,
+    background_image_path: Option<String>,
+    is_favorite: i32,
+}
+
 /// Domain service coordinating non-duplicative, idempotent game importing from Playnite 10 JSON exports
 pub struct PlayniteImporter;
 
@@ -162,311 +171,12 @@ impl PlayniteImporter {
                 _ => format!("manual:{}", item.Name.to_lowercase().replace(' ', "-")),
             };
 
-            // Query existing game
-            let existing: Option<(String, u64, i32, Option<String>, Option<String>, i32)> = {
-                let mut stmt = conn.prepare(
-                    "SELECT id, playtime_seconds, play_count, cover_image_path, background_image_path, is_favorite FROM games WHERE library_id = ?1 AND external_id = ?2;"
-                )?;
-                let mut rows = stmt.query(params![library_id, external_id])?;
-                if let Some(row) = rows.next()? {
-                    Some((
-                        row.get(0)?,
-                        row.get::<_, i64>(1)? as u64,
-                        row.get::<_, i32>(2)?,
-                        row.get(3)?,
-                        row.get(4)?,
-                        row.get(5)?,
-                    ))
-                } else {
-                    None
-                }
-            };
+            let existing = Self::find_existing_game(&conn, library_id, &external_id)?;
 
-            let imported_playtime = item.PlaytimeSeconds.unwrap_or(0);
-            let imported_play_count = item.PlayCount.unwrap_or(0);
-            let is_fav = if item.Favorite.unwrap_or(false) { 1 } else { 0 };
-
-            if let Some((existing_id, existing_playtime, existing_play_count, ex_cover, ex_bg, ex_fav)) = existing {
-                // Game already exists in Omnis -> Merge
-                stats.games_merged += 1;
-
-                // Check historical sessions
-                let session_count: i64 = conn.query_row(
-                    "SELECT COUNT(*) FROM game_sessions WHERE game_id = ?1;",
-                    params![existing_id],
-                    |r| r.get(0),
-                )?;
-
-                let new_playtime = if session_count > 0 {
-                    // Omnis has recorded sessions! Avoid double counting:
-                    if imported_playtime > existing_playtime {
-                        info!(
-                            "Playtime conflict for '{}': keeping higher Playnite playtime ({}s > {}s)",
-                            item.Name, imported_playtime, existing_playtime
-                        );
-                        stats.playtime_updated += 1;
-                        imported_playtime
-                    } else {
-                        existing_playtime
-                    }
-                } else {
-                    // No Omnis sessions: adopt higher playtime between store sync and playnite
-                    if imported_playtime > existing_playtime {
-                        stats.playtime_updated += 1;
-                        imported_playtime
-                    } else {
-                        existing_playtime
-                    }
-                };
-
-                let new_play_count = existing_play_count.max(imported_play_count as i32);
-                let new_fav = ex_fav.max(is_fav);
-
-                // Handle images
-                let mut cover_to_save = ex_cover;
-                if cover_to_save.is_none() {
-                    if let Some(ref c) = item.Cover {
-                        if Path::new(c).exists() {
-                            if let Some(ref cache_dir) = options.image_cache_dir {
-                                let ext = Path::new(c)
-                                    .extension()
-                                    .and_then(|e| e.to_str())
-                                    .unwrap_or("jpg");
-                                let target = cache_dir.join(format!("{}_cover.{}", existing_id, ext));
-                                if !options.dry_run {
-                                    let _ = fs::copy(c, &target);
-                                }
-                                cover_to_save = Some(target.to_string_lossy().to_string());
-                                stats.images_cached += 1;
-                            } else {
-                                cover_to_save = Some(c.clone());
-                            }
-                        }
-                    }
-                }
-
-                let mut bg_to_save = ex_bg;
-                if bg_to_save.is_none() {
-                    if let Some(ref b) = item.Background {
-                        if Path::new(b).exists() {
-                            if let Some(ref cache_dir) = options.image_cache_dir {
-                                let ext = Path::new(b)
-                                    .extension()
-                                    .and_then(|e| e.to_str())
-                                    .unwrap_or("jpg");
-                                let target = cache_dir.join(format!("{}_bg.{}", existing_id, ext));
-                                if !options.dry_run {
-                                    let _ = fs::copy(b, &target);
-                                }
-                                bg_to_save = Some(target.to_string_lossy().to_string());
-                                stats.images_cached += 1;
-                            } else {
-                                bg_to_save = Some(b.clone());
-                            }
-                        }
-                    }
-                }
-
-                if !options.dry_run {
-                    conn.execute(
-                        "UPDATE games SET
-                            playtime_seconds = ?1,
-                            play_count = ?2,
-                            is_favorite = ?3,
-                            cover_image_path = ?4,
-                            background_image_path = ?5,
-                            completion_status = COALESCE(?6, completion_status),
-                            modified_timestamp = ?7
-                        WHERE id = ?8;",
-                        params![
-                            new_playtime as i64,
-                            new_play_count,
-                            new_fav,
-                            cover_to_save,
-                            bg_to_save,
-                            item.Completion,
-                            now,
-                            existing_id,
-                        ],
-                    )?;
-
-                    // Relate tags and categories
-                    if let Some(ref tags) = item.Tags {
-                        for t in tags {
-                            let tag_name = t.trim();
-                            if !tag_name.is_empty() {
-                                let tag_id = Uuid::new_v4().to_string();
-                                conn.execute(
-                                    "INSERT INTO tags (id, name) VALUES (?1, ?2) ON CONFLICT(name) DO NOTHING;",
-                                    params![tag_id, tag_name],
-                                )?;
-                                conn.execute(
-                                    "INSERT INTO game_tags (game_id, tag_id)
-                                     SELECT ?1, id FROM tags WHERE name = ?2
-                                     ON CONFLICT DO NOTHING;",
-                                    params![existing_id, tag_name],
-                                )?;
-                                stats.tags_added += 1;
-                            }
-                        }
-                    }
-
-                    if let Some(ref categories) = item.Categories {
-                        for c in categories {
-                            let cat_name = c.trim();
-                            if !cat_name.is_empty() {
-                                let cat_id = Uuid::new_v4().to_string();
-                                conn.execute(
-                                    "INSERT INTO categories (id, name) VALUES (?1, ?2) ON CONFLICT(name) DO NOTHING;",
-                                    params![cat_id, cat_name],
-                                )?;
-                                conn.execute(
-                                    "INSERT INTO game_categories (game_id, category_id)
-                                     SELECT ?1, id FROM categories WHERE name = ?2
-                                     ON CONFLICT DO NOTHING;",
-                                    params![existing_id, cat_name],
-                                )?;
-                                stats.categories_added += 1;
-                            }
-                        }
-                    }
-                } else {
-                    if let Some(ref tags) = item.Tags {
-                        stats.tags_added += tags.len();
-                    }
-                    if let Some(ref cats) = item.Categories {
-                        stats.categories_added += cats.len();
-                    }
-                }
+            if let Some(existing_row) = existing {
+                Self::merge_existing_game(&conn, item, existing_row, options, &now, &mut stats)?;
             } else {
-                // Game does NOT exist -> Create new game
-                stats.games_created += 1;
-                let new_id = Uuid::new_v4().to_string();
-                let is_installed = if item.InstallDirectory.is_some() { 1 } else { 0 };
-
-                // Handle images
-                let mut cover_to_save = None;
-                if let Some(ref c) = item.Cover {
-                    if Path::new(c).exists() {
-                        if let Some(ref cache_dir) = options.image_cache_dir {
-                            let ext = Path::new(c)
-                                .extension()
-                                .and_then(|e| e.to_str())
-                                .unwrap_or("jpg");
-                            let target = cache_dir.join(format!("{}_cover.{}", new_id, ext));
-                            if !options.dry_run {
-                                let _ = fs::copy(c, &target);
-                            }
-                            cover_to_save = Some(target.to_string_lossy().to_string());
-                            stats.images_cached += 1;
-                        } else {
-                            cover_to_save = Some(c.clone());
-                        }
-                    }
-                }
-
-                let mut bg_to_save = None;
-                if let Some(ref b) = item.Background {
-                    if Path::new(b).exists() {
-                        if let Some(ref cache_dir) = options.image_cache_dir {
-                            let ext = Path::new(b)
-                                .extension()
-                                .and_then(|e| e.to_str())
-                                .unwrap_or("jpg");
-                            let target = cache_dir.join(format!("{}_bg.{}", new_id, ext));
-                            if !options.dry_run {
-                                let _ = fs::copy(b, &target);
-                            }
-                            bg_to_save = Some(target.to_string_lossy().to_string());
-                            stats.images_cached += 1;
-                        } else {
-                            bg_to_save = Some(b.clone());
-                        }
-                    }
-                }
-
-                let sorting_title = item.Name.to_lowercase();
-                let tags_str = item.Tags.as_ref().map(|t| t.join(", "));
-                let features_str = item.Features.as_ref().map(|f| f.join(", "));
-
-                if !options.dry_run {
-                    conn.execute(
-                        "INSERT INTO games (
-                            id, library_id, external_id, title, sorting_title,
-                            install_dir, is_installed, playtime_seconds, play_count,
-                            last_activity, cover_image_path, background_image_path,
-                            tags, features, completion_status, is_favorite,
-                            added_timestamp, modified_timestamp
-                        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?17);",
-                        params![
-                            new_id,
-                            library_id,
-                            external_id,
-                            item.Name,
-                            sorting_title,
-                            item.InstallDirectory,
-                            is_installed,
-                            imported_playtime as i64,
-                            imported_play_count as i32,
-                            item.LastActivity,
-                            cover_to_save,
-                            bg_to_save,
-                            tags_str,
-                            features_str,
-                            item.Completion.as_deref().unwrap_or("NotPlayed"),
-                            is_fav,
-                            now,
-                        ],
-                    )?;
-
-                    // Relate tags and categories
-                    if let Some(ref tags) = item.Tags {
-                        for t in tags {
-                            let tag_name = t.trim();
-                            if !tag_name.is_empty() {
-                                let tag_id = Uuid::new_v4().to_string();
-                                conn.execute(
-                                    "INSERT INTO tags (id, name) VALUES (?1, ?2) ON CONFLICT(name) DO NOTHING;",
-                                    params![tag_id, tag_name],
-                                )?;
-                                conn.execute(
-                                    "INSERT INTO game_tags (game_id, tag_id)
-                                     SELECT ?1, id FROM tags WHERE name = ?2
-                                     ON CONFLICT DO NOTHING;",
-                                    params![new_id, tag_name],
-                                )?;
-                                stats.tags_added += 1;
-                            }
-                        }
-                    }
-
-                    if let Some(ref categories) = item.Categories {
-                        for c in categories {
-                            let cat_name = c.trim();
-                            if !cat_name.is_empty() {
-                                let cat_id = Uuid::new_v4().to_string();
-                                conn.execute(
-                                    "INSERT INTO categories (id, name) VALUES (?1, ?2) ON CONFLICT(name) DO NOTHING;",
-                                    params![cat_id, cat_name],
-                                )?;
-                                conn.execute(
-                                    "INSERT INTO game_categories (game_id, category_id)
-                                     SELECT ?1, id FROM categories WHERE name = ?2
-                                     ON CONFLICT DO NOTHING;",
-                                    params![new_id, cat_name],
-                                )?;
-                                stats.categories_added += 1;
-                            }
-                        }
-                    }
-                } else {
-                    if let Some(ref tags) = item.Tags {
-                        stats.tags_added += tags.len();
-                    }
-                    if let Some(ref cats) = item.Categories {
-                        stats.categories_added += cats.len();
-                    }
-                }
+                Self::insert_new_game(&conn, item, library_id, &external_id, options, &now, &mut stats)?;
             }
         }
 
@@ -477,6 +187,303 @@ impl PlayniteImporter {
         }
 
         Ok(stats)
+    }
+
+    fn find_existing_game(
+        conn: &rusqlite::Connection,
+        library_id: &str,
+        external_id: &str,
+    ) -> Result<Option<ExistingGameRow>, rusqlite::Error> {
+        let mut stmt = conn.prepare(
+            "SELECT id, playtime_seconds, play_count, cover_image_path, background_image_path, is_favorite FROM games WHERE library_id = ?1 AND external_id = ?2;"
+        )?;
+        let mut rows = stmt.query(params![library_id, external_id])?;
+        if let Some(row) = rows.next()? {
+            Ok(Some(ExistingGameRow {
+                id: row.get(0)?,
+                playtime_seconds: row.get::<_, i64>(1)? as u64,
+                play_count: row.get::<_, i32>(2)?,
+                cover_image_path: row.get(3)?,
+                background_image_path: row.get(4)?,
+                is_favorite: row.get(5)?,
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn cache_imported_image(
+        source: Option<&str>,
+        game_id: &str,
+        suffix: &str,
+        cache_dir: Option<&Path>,
+        dry_run: bool,
+        stats: &mut PlayniteImportStats,
+    ) -> Option<String> {
+        let src = source?;
+        let src_path = Path::new(src);
+        if !src_path.exists() {
+            return None;
+        }
+
+        if let Some(dir) = cache_dir {
+            let ext = src_path
+                .extension()
+                .and_then(|e| e.to_str())
+                .unwrap_or("jpg");
+            let target = dir.join(format!("{}_{}.{}", game_id, suffix, ext));
+            if !dry_run {
+                let _ = fs::copy(src_path, &target);
+            }
+            stats.images_cached += 1;
+            Some(target.to_string_lossy().to_string())
+        } else {
+            Some(src.to_string())
+        }
+    }
+
+    fn sync_tags_and_categories(
+        conn: &rusqlite::Connection,
+        game_id: &str,
+        tags: Option<&Vec<String>>,
+        categories: Option<&Vec<String>>,
+        dry_run: bool,
+        stats: &mut PlayniteImportStats,
+    ) -> Result<(), rusqlite::Error> {
+        if !dry_run {
+            if let Some(tags_list) = tags {
+                for t in tags_list {
+                    let tag_name = t.trim();
+                    if !tag_name.is_empty() {
+                        let tag_id = Uuid::new_v4().to_string();
+                        conn.execute(
+                            "INSERT INTO tags (id, name) VALUES (?1, ?2) ON CONFLICT(name) DO NOTHING;",
+                            params![tag_id, tag_name],
+                        )?;
+                        conn.execute(
+                            "INSERT INTO game_tags (game_id, tag_id)
+                             SELECT ?1, id FROM tags WHERE name = ?2
+                             ON CONFLICT DO NOTHING;",
+                            params![game_id, tag_name],
+                        )?;
+                        stats.tags_added += 1;
+                    }
+                }
+            }
+
+            if let Some(cats_list) = categories {
+                for c in cats_list {
+                    let cat_name = c.trim();
+                    if !cat_name.is_empty() {
+                        let cat_id = Uuid::new_v4().to_string();
+                        conn.execute(
+                            "INSERT INTO categories (id, name) VALUES (?1, ?2) ON CONFLICT(name) DO NOTHING;",
+                            params![cat_id, cat_name],
+                        )?;
+                        conn.execute(
+                            "INSERT INTO game_categories (game_id, category_id)
+                             SELECT ?1, id FROM categories WHERE name = ?2
+                             ON CONFLICT DO NOTHING;",
+                            params![game_id, cat_name],
+                        )?;
+                        stats.categories_added += 1;
+                    }
+                }
+            }
+        } else {
+            if let Some(tags_list) = tags {
+                stats.tags_added += tags_list.len();
+            }
+            if let Some(cats_list) = categories {
+                stats.categories_added += cats_list.len();
+            }
+        }
+
+        Ok(())
+    }
+
+    fn merge_existing_game(
+        conn: &rusqlite::Connection,
+        item: &PlayniteGameDto,
+        existing: ExistingGameRow,
+        options: &PlayniteImportOptions,
+        now: &str,
+        stats: &mut PlayniteImportStats,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        stats.games_merged += 1;
+
+        let imported_playtime = item.PlaytimeSeconds.unwrap_or(0);
+        let imported_play_count = item.PlayCount.unwrap_or(0);
+        let is_fav = if item.Favorite.unwrap_or(false) { 1 } else { 0 };
+
+        let session_count: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM game_sessions WHERE game_id = ?1;",
+            params![existing.id],
+            |r| r.get(0),
+        )?;
+
+        let new_playtime = if session_count > 0 {
+            if imported_playtime > existing.playtime_seconds {
+                info!(
+                    "Playtime conflict for '{}': keeping higher Playnite playtime ({}s > {}s)",
+                    item.Name, imported_playtime, existing.playtime_seconds
+                );
+                stats.playtime_updated += 1;
+                imported_playtime
+            } else {
+                existing.playtime_seconds
+            }
+        } else if imported_playtime > existing.playtime_seconds {
+            stats.playtime_updated += 1;
+            imported_playtime
+        } else {
+            existing.playtime_seconds
+        };
+
+        let new_play_count = existing.play_count.max(imported_play_count as i32);
+        let new_fav = existing.is_favorite.max(is_fav);
+
+        let cover_to_save = if existing.cover_image_path.is_some() {
+            existing.cover_image_path
+        } else {
+            Self::cache_imported_image(
+                item.Cover.as_deref(),
+                &existing.id,
+                "cover",
+                options.image_cache_dir.as_deref(),
+                options.dry_run,
+                stats,
+            )
+        };
+
+        let bg_to_save = if existing.background_image_path.is_some() {
+            existing.background_image_path
+        } else {
+            Self::cache_imported_image(
+                item.Background.as_deref(),
+                &existing.id,
+                "bg",
+                options.image_cache_dir.as_deref(),
+                options.dry_run,
+                stats,
+            )
+        };
+
+        if !options.dry_run {
+            conn.execute(
+                "UPDATE games SET
+                    playtime_seconds = ?1,
+                    play_count = ?2,
+                    is_favorite = ?3,
+                    cover_image_path = ?4,
+                    background_image_path = ?5,
+                    completion_status = COALESCE(?6, completion_status),
+                    modified_timestamp = ?7
+                WHERE id = ?8;",
+                params![
+                    new_playtime as i64,
+                    new_play_count,
+                    new_fav,
+                    cover_to_save,
+                    bg_to_save,
+                    item.Completion,
+                    now,
+                    existing.id,
+                ],
+            )?;
+        }
+
+        Self::sync_tags_and_categories(
+            conn,
+            &existing.id,
+            item.Tags.as_ref(),
+            item.Categories.as_ref(),
+            options.dry_run,
+            stats,
+        )?;
+
+        Ok(())
+    }
+
+    fn insert_new_game(
+        conn: &rusqlite::Connection,
+        item: &PlayniteGameDto,
+        library_id: &str,
+        external_id: &str,
+        options: &PlayniteImportOptions,
+        now: &str,
+        stats: &mut PlayniteImportStats,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        stats.games_created += 1;
+        let new_id = Uuid::new_v4().to_string();
+        let is_installed = if item.InstallDirectory.is_some() { 1 } else { 0 };
+        let imported_playtime = item.PlaytimeSeconds.unwrap_or(0);
+        let imported_play_count = item.PlayCount.unwrap_or(0);
+        let is_fav = if item.Favorite.unwrap_or(false) { 1 } else { 0 };
+
+        let cover_to_save = Self::cache_imported_image(
+            item.Cover.as_deref(),
+            &new_id,
+            "cover",
+            options.image_cache_dir.as_deref(),
+            options.dry_run,
+            stats,
+        );
+
+        let bg_to_save = Self::cache_imported_image(
+            item.Background.as_deref(),
+            &new_id,
+            "bg",
+            options.image_cache_dir.as_deref(),
+            options.dry_run,
+            stats,
+        );
+
+        let sorting_title = item.Name.to_lowercase();
+        let tags_str = item.Tags.as_ref().map(|t| t.join(", "));
+        let features_str = item.Features.as_ref().map(|f| f.join(", "));
+
+        if !options.dry_run {
+            conn.execute(
+                "INSERT INTO games (
+                    id, library_id, external_id, title, sorting_title,
+                    install_dir, is_installed, playtime_seconds, play_count,
+                    last_activity, cover_image_path, background_image_path,
+                    tags, features, completion_status, is_favorite,
+                    added_timestamp, modified_timestamp
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?17);",
+                params![
+                    new_id,
+                    library_id,
+                    external_id,
+                    item.Name,
+                    sorting_title,
+                    item.InstallDirectory,
+                    is_installed,
+                    imported_playtime as i64,
+                    imported_play_count as i32,
+                    item.LastActivity,
+                    cover_to_save,
+                    bg_to_save,
+                    tags_str,
+                    features_str,
+                    item.Completion.as_deref().unwrap_or("NotPlayed"),
+                    is_fav,
+                    now,
+                ],
+            )?;
+        }
+
+        Self::sync_tags_and_categories(
+            conn,
+            &new_id,
+            item.Tags.as_ref(),
+            item.Categories.as_ref(),
+            options.dry_run,
+            stats,
+        )?;
+
+        Ok(())
     }
 
     /// Import games from a JSON string payload.
