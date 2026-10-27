@@ -1,8 +1,6 @@
 use async_trait::async_trait;
 use tracing::debug;
 
-use super::MetadataDownloader;
-
 /// Trait for downloading and fallback resolution of game artwork and media assets
 #[async_trait]
 pub trait MediaDownloader: Send + Sync {
@@ -14,12 +12,20 @@ pub trait MediaDownloader: Send + Sync {
     ) -> Result<Vec<u8>, String>;
 }
 
-use tracing::debug;
+/// HTTP-based media downloader implementing intelligent fallback resolution and CDN recovery
+pub struct HttpMediaDownloader {
+    pub client: reqwest::Client,
+}
 
-use super::MetadataDownloader;
+impl HttpMediaDownloader {
+    pub fn new(client: reqwest::Client) -> Self {
+        Self { client }
+    }
+}
 
-impl MetadataDownloader {
-    pub async fn download_image_bytes(&self, url: &str) -> Result<Vec<u8>, String> {
+#[async_trait]
+impl MediaDownloader for HttpMediaDownloader {
+    async fn download_image_bytes(&self, url: &str) -> Result<Vec<u8>, String> {
         let resp = self
             .client
             .get(url)
@@ -40,7 +46,7 @@ impl MetadataDownloader {
     }
 
     /// Download image with intelligent fallback resolution for Steam CDN and alternative formats
-    pub async fn download_image_with_fallbacks(
+    async fn download_image_with_fallbacks(
         &self,
         url: &str,
         appid_hint: Option<&str>,
@@ -134,23 +140,5 @@ impl MetadataDownloader {
             "Failed to download image from {} and all fallbacks",
             trimmed_url
         ))
-    }
-
-}
-
-#[async_trait]
-impl MediaDownloader for MetadataDownloader {
-    #[inline]
-    async fn download_image_bytes(&self, url: &str) -> Result<Vec<u8>, String> {
-        self.download_image_bytes(url).await
-    }
-
-    #[inline]
-    async fn download_image_with_fallbacks(
-        &self,
-        url: &str,
-        appid_hint: Option<&str>,
-    ) -> Result<Vec<u8>, String> {
-        self.download_image_with_fallbacks(url, appid_hint).await
     }
 }

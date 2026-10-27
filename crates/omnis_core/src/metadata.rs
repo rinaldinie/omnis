@@ -27,19 +27,20 @@ pub use steamgriddb::SteamGridDbProvider;
 pub use types::*;
 pub use utils::*;
 
+pub mod media;
+pub mod registry;
+
+pub use media::{HttpMediaDownloader, MediaDownloader};
+pub use registry::{MetadataRegistry, ProviderRegistry};
+
 // ============================================================================
 // 4. Metadata Pipeline & Engine Manager
 // ============================================================================
 pub struct MetadataDownloader {
-    pub(crate) client: reqwest::Client,
-    pub(crate) plugins_dir: Arc<RwLock<Option<PathBuf>>>,
-    pub(crate) providers: Arc<RwLock<HashMap<String, Box<dyn MetadataProvider>>>>,
-    pub(crate) enabled_providers: Arc<RwLock<HashMap<String, bool>>>,
-    pub(crate) settings_cache: Arc<RwLock<HashMap<String, Map<String, Value>>>>,
-    pub(crate) pipeline_config: Arc<RwLock<MetadataPipelineConfig>>,
-    pub(crate) igdb_provider: Arc<IgdbMetadataProvider>,
-    pub(crate) gog_provider: Arc<GogMetadataProvider>,
-    pub(crate) cancel_requested: Arc<AtomicBool>,
+    pub client: reqwest::Client,
+    pub registry: Arc<ProviderRegistry>,
+    pub media: Arc<HttpMediaDownloader>,
+    pub cancel_requested: Arc<AtomicBool>,
 }
 
 impl Default for MetadataDownloader {
@@ -56,438 +57,126 @@ impl MetadataDownloader {
             .build()
             .unwrap_or_default();
 
-        let igdb = Arc::new(IgdbMetadataProvider::new(client.clone()));
-        let gog = Arc::new(GogMetadataProvider::new(client.clone()));
-
-        let mut providers: HashMap<String, Box<dyn MetadataProvider>> = HashMap::new();
-        providers.insert(
-            "steam".to_string(),
-            Box::new(SteamMetadataProvider::new(client.clone())),
-        );
-        providers.insert(
-            "gog".to_string(),
-            Box::new(GogMetadataProvider::new(client.clone())),
-        );
-
-        let mut enabled = HashMap::new();
-        enabled.insert("steam".to_string(), true);
-        enabled.insert("gog".to_string(), true);
+        let registry = Arc::new(ProviderRegistry::new(client.clone()));
+        let media = Arc::new(HttpMediaDownloader::new(client.clone()));
 
         Self {
             client,
-            plugins_dir: Arc::new(RwLock::new(None)),
-            providers: Arc::new(RwLock::new(providers)),
-            enabled_providers: Arc::new(RwLock::new(enabled)),
-            settings_cache: Arc::new(RwLock::new(HashMap::new())),
-            pipeline_config: Arc::new(RwLock::new(MetadataPipelineConfig::default())),
-            igdb_provider: igdb,
-            gog_provider: gog,
+            registry,
+            media,
             cancel_requested: Arc::new(AtomicBool::new(false)),
         }
     }
-}
 
-pub mod media;
-pub mod registry;
+    /// Construct a MetadataDownloader with explicit registry and media services (for mocking and tests)
+    pub fn with_services(
+        client: reqwest::Client,
+        registry: Arc<ProviderRegistry>,
+        media: Arc<HttpMediaDownloader>,
+    ) -> Self {
+        Self {
+            client,
+            registry,
+            media,
+            cancel_requested: Arc::new(AtomicBool::new(false)),
+        }
+    }
 
-pub use media::MediaDownloader;
-pub use registry::MetadataRegistry;
+    // Inherent forwarders to registry for zero-breaking-change compatibility
+    #[inline]
+    pub async fn set_plugins_dir(&self, dir: PathBuf) {
+        self.registry.set_plugins_dir(dir).await;
+    }
 
-impl MetadataDownloader {
+    #[inline]
+    pub async fn get_plugins_dir(&self) -> Option<PathBuf> {
+        self.registry.get_plugins_dir().await
+    }
+
+    #[inline]
+    pub async fn unregister_provider(&self, provider_id: &str) -> Result<(), String> {
+        self.registry.unregister_provider(provider_id).await
+    }
+
+    #[inline]
+    pub async fn register_provider(&self, provider: Box<dyn MetadataProvider>) {
+        self.registry.register_provider(provider).await;
+    }
+
+    #[inline]
+    pub async fn refresh_external_plugins(&self) -> Result<Vec<ProviderInfo>, String> {
+        self.registry.refresh_external_plugins().await
+    }
+
+    #[inline]
+    pub async fn fetch_hltb_times(&self, title: &str) -> (String, String, String) {
+        self.registry.fetch_hltb_times(title).await
+    }
+
+    #[inline]
+    pub async fn load_and_register_dynamic_plugin(&self, path: &Path) -> Result<ProviderInfo, String> {
+        self.registry.load_and_register_dynamic_plugin(path).await
+    }
+
+    #[inline]
+    pub async fn get_providers_info(&self) -> Vec<ProviderInfo> {
+        self.registry.get_providers_info().await
+    }
+
+    #[inline]
+    pub async fn save_provider_settings(&self, provider_id: &str, settings: Map<String, Value>) -> Result<(), String> {
+        self.registry.save_provider_settings(provider_id, settings).await
+    }
+
+    #[inline]
+    pub async fn toggle_provider(&self, provider_id: &str, enabled: bool) -> Result<(), String> {
+        self.registry.toggle_provider(provider_id, enabled).await
+    }
+
+    #[inline]
+    pub async fn test_provider_connection(&self, provider_id: &str) -> Result<String, String> {
+        self.registry.test_provider_connection(provider_id).await
+    }
+
+    #[inline]
+    pub async fn get_pipeline_config(&self) -> MetadataPipelineConfig {
+        self.registry.get_pipeline_config().await
+    }
+
+    #[inline]
+    pub async fn save_pipeline_config(&self, config: MetadataPipelineConfig) -> Result<(), String> {
+        self.registry.save_pipeline_config(config).await
+    }
+
+    // Inherent forwarders to media downloader
+    #[inline]
+    pub async fn download_image_bytes(&self, url: &str) -> Result<Vec<u8>, String> {
+        self.media.download_image_bytes(url).await
+    }
+
+    #[inline]
+    pub async fn download_image_with_fallbacks(
+        &self,
+        url: &str,
+        appid_hint: Option<&str>,
+    ) -> Result<Vec<u8>, String> {
+        self.media.download_image_with_fallbacks(url, appid_hint).await
+    }
+
+/// Search for metadata candidates across online providers (Steam, GOG, and enabled external providers)
     /// Search for metadata candidates across online providers (Steam, GOG, and enabled external providers)
     pub async fn search_candidates(
         &self,
         title: &str,
         provider_id: Option<&str>,
     ) -> Result<Vec<MetadataCandidateDto>, String> {
-        let filter = provider_id.unwrap_or("all").to_lowercase();
-        let mut candidates = Vec::new();
-        let enabled_guard = self.enabled_providers.read().await;
-
-        // 1. Steam Store Search
-        if (filter == "all" || filter == "steam")
-            && enabled_guard.get("steam").copied().unwrap_or(true)
-        {
-            let search_url = reqwest::Url::parse_with_params(
-                "https://store.steampowered.com/api/storesearch/",
-                &[("term", title), ("l", "italian"), ("cc", "IT")],
-            );
-            if let Ok(url) = search_url {
-                if let Ok(resp) = self.client.get(url).send().await {
-                    if let Ok(json) = resp.json::<Value>().await {
-                        if let Some(items) = json.get("items").and_then(|v| v.as_array()) {
-                            for item in items.iter().take(5) {
-                                if let Some(appid_num) = item.get("id").and_then(|v| v.as_u64()) {
-                                    let appid = appid_num.to_string();
-                                    let name = item
-                                        .get("name")
-                                        .and_then(|v| v.as_str())
-                                        .unwrap_or(title)
-                                        .to_string();
-                                    let cover_url = format!(
-                                        "https://shared.steamstatic.com/store_item_assets/steam/apps/{}/library_600x900_2x.jpg",
-                                        appid
-                                    );
-                                    let bg_url = format!(
-                                        "https://shared.steamstatic.com/store_item_assets/steam/apps/{}/library_hero.jpg",
-                                        appid
-                                    );
-
-                                    let mut desc = format!("Titolo Steam Store: {}", name);
-                                    let mut release_year = None;
-                                    let mut critic_score = None;
-                                    let mut release_date = None;
-                                    let mut genres = vec!["Azione".to_string()];
-                                    let mut developers = Vec::new();
-
-                                    // Quick details query for rich metadata candidate
-                                    let details_url = format!(
-                                        "https://store.steampowered.com/api/appdetails?appids={}&l=italian",
-                                        appid
-                                    );
-                                    if let Ok(Ok(d_resp)) = tokio::time::timeout(
-                                        std::time::Duration::from_millis(2000),
-                                        self.client.get(&details_url).send(),
-                                    )
-                                    .await
-                                    {
-                                        if let Ok(d_json) = d_resp.json::<Value>().await {
-                                            if let Some(data) =
-                                                d_json.get(&appid).and_then(|v| v.get("data"))
-                                            {
-                                                if let Some(sd) = data
-                                                    .get("short_description")
-                                                    .and_then(|v| v.as_str())
-                                                {
-                                                    let plain = html_to_plain_text(sd);
-                                                    if !plain.is_empty() {
-                                                        desc = plain;
-                                                    }
-                                                }
-                                                if let Some(rd) = data
-                                                    .get("release_date")
-                                                    .and_then(|v| v.get("date"))
-                                                    .and_then(|v| v.as_str())
-                                                {
-                                                    release_date = Some(rd.to_string());
-                                                    release_year = extract_year(rd);
-                                                }
-                                                if let Some(meta) = data
-                                                    .get("metacritic")
-                                                    .and_then(|v| v.get("score"))
-                                                    .and_then(|v| v.as_u64())
-                                                {
-                                                    critic_score = Some(meta as u8);
-                                                }
-                                                if let Some(g_arr) =
-                                                    data.get("genres").and_then(|v| v.as_array())
-                                                {
-                                                    let g_parsed: Vec<String> = g_arr
-                                                        .iter()
-                                                        .filter_map(|g| {
-                                                            g.get("description")
-                                                                .and_then(|d| d.as_str())
-                                                                .map(|s| s.to_string())
-                                                        })
-                                                        .collect();
-                                                    if !g_parsed.is_empty() {
-                                                        genres = g_parsed;
-                                                    }
-                                                }
-                                                if let Some(d_arr) = data
-                                                    .get("developers")
-                                                    .and_then(|v| v.as_array())
-                                                {
-                                                    developers = d_arr
-                                                        .iter()
-                                                        .filter_map(|d| {
-                                                            d.as_str().map(|s| s.to_string())
-                                                        })
-                                                        .collect();
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    let raw_patch = GameMetadataPatch {
-                                        description: Some(desc.clone()),
-                                        release_date,
-                                        cover_url: Some(cover_url.clone()),
-                                        background_url: Some(bg_url.clone()),
-                                        icon_url: None,
-                                        critic_score,
-                                        community_score: None,
-                                        genres,
-                                        developers,
-                                        publishers: Vec::new(),
-                                        tags: Vec::new(),
-                                        features: Vec::new(),
-                                        extra_metadata: None,
-                                    };
-
-                                    candidates.push(MetadataCandidateDto {
-                                        provider_id: "steam".to_string(),
-                                        provider_game_id: appid,
-                                        title: name,
-                                        release_year,
-                                        cover_url: Some(cover_url),
-                                        background_url: Some(bg_url),
-                                        description: Some(desc),
-                                        raw_patch,
-                                    });
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // 2. GOG Catalog Search (Official DRM-Free)
-        if (filter == "all" || filter == "gog") && enabled_guard.get("gog").copied().unwrap_or(true)
-        {
-            if let Ok(gog_candidates) = self.gog_provider.search_candidates(title, 4).await {
-                candidates.extend(gog_candidates);
-            }
-        }
-
-        // 3. SteamGridDB Autocomplete Search (Only if enabled or explicitly requested)
-        if filter == "steamgriddb"
-            || (filter == "all" && enabled_guard.get("steamgriddb").copied().unwrap_or(false))
-        {
-            let settings_guard = self.settings_cache.read().await;
-            let sgdb_key = settings_guard
-                .get("steamgriddb")
-                .and_then(|m| m.get("api_key"))
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .trim();
-
-            if !sgdb_key.is_empty() {
-                let encoded_term = url_encode(title);
-                let url = format!(
-                    "https://www.steamgriddb.com/api/v2/search/autocomplete/{}",
-                    encoded_term
-                );
-                if let Ok(resp) = self
-                    .client
-                    .get(&url)
-                    .header("Authorization", format!("Bearer {}", sgdb_key))
-                    .send()
-                    .await
-                {
-                    if let Ok(json) = resp.json::<Value>().await {
-                        if let Some(data) = json.get("data").and_then(|v| v.as_array()) {
-                            for item in data.iter().take(4) {
-                                let id = item
-                                    .get("id")
-                                    .and_then(|v| v.as_u64())
-                                    .map(|n| n.to_string())
-                                    .unwrap_or_default();
-                                let name = item
-                                    .get("name")
-                                    .and_then(|v| v.as_str())
-                                    .unwrap_or(title)
-                                    .to_string();
-                                let release_date_ts =
-                                    item.get("release_date").and_then(|v| v.as_i64());
-                                let year = release_date_ts.and_then(|ts| {
-                                    chrono::DateTime::from_timestamp(ts, 0).map(|dt| {
-                                        use chrono::Datelike;
-                                        dt.year()
-                                    })
-                                });
-
-                                // Fetch top grid
-                                let mut cover_url = None;
-                                let grid_url =
-                                    format!("https://www.steamgriddb.com/api/v2/grids/game/{}", id);
-                                if let Ok(g_resp) = self
-                                    .client
-                                    .get(&grid_url)
-                                    .header("Authorization", format!("Bearer {}", sgdb_key))
-                                    .send()
-                                    .await
-                                {
-                                    if let Ok(g_json) = g_resp.json::<Value>().await {
-                                        cover_url = g_json
-                                            .get("data")
-                                            .and_then(|d| d.as_array())
-                                            .and_then(|arr| arr.first())
-                                            .and_then(|it| it.get("url"))
-                                            .and_then(|u| u.as_str())
-                                            .map(|s| s.to_string());
-                                    }
-                                }
-
-                                // Fetch top hero
-                                let mut bg_url = None;
-                                let hero_url = format!(
-                                    "https://www.steamgriddb.com/api/v2/heroes/game/{}",
-                                    id
-                                );
-                                if let Ok(h_resp) = self
-                                    .client
-                                    .get(&hero_url)
-                                    .header("Authorization", format!("Bearer {}", sgdb_key))
-                                    .send()
-                                    .await
-                                {
-                                    if let Ok(h_json) = h_resp.json::<Value>().await {
-                                        bg_url = h_json
-                                            .get("data")
-                                            .and_then(|d| d.as_array())
-                                            .and_then(|arr| arr.first())
-                                            .and_then(|it| it.get("url"))
-                                            .and_then(|u| u.as_str())
-                                            .map(|s| s.to_string());
-                                    }
-                                }
-
-                                let desc =
-                                    format!("Artwork HD verificata da SteamGridDB per {}", name);
-                                let raw_patch = GameMetadataPatch {
-                                    description: Some(desc.clone()),
-                                    cover_url: cover_url.clone(),
-                                    background_url: bg_url.clone(),
-                                    ..Default::default()
-                                };
-
-                                candidates.push(MetadataCandidateDto {
-                                    provider_id: "steamgriddb".to_string(),
-                                    provider_game_id: id,
-                                    title: name,
-                                    release_year: year,
-                                    cover_url,
-                                    background_url: bg_url,
-                                    description: Some(desc),
-                                    raw_patch,
-                                });
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // 4. OpenCritic Search (Only if enabled or explicitly requested)
-        if filter == "opencritic"
-            || (filter == "all" && enabled_guard.get("opencritic").copied().unwrap_or(false))
-        {
-            let settings_guard = self.settings_cache.read().await;
-            let oc_key = settings_guard
-                .get("opencritic")
-                .and_then(|m| m.get("api_key"))
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .trim();
-
-            if !oc_key.is_empty() {
-                let encoded_term = url_encode(title);
-                let url = format!(
-                    "https://opencritic-api.p.rapidapi.com/game/search?criteria={}",
-                    encoded_term
-                );
-                if let Ok(resp) = self
-                    .client
-                    .get(&url)
-                    .header("X-RapidAPI-Key", oc_key)
-                    .header("X-RapidAPI-Host", "opencritic-api.p.rapidapi.com")
-                    .send()
-                    .await
-                {
-                    if let Ok(json) = resp.json::<Value>().await {
-                        if let Some(arr) = json.as_array() {
-                            for item in arr.iter().take(3) {
-                                let id = item
-                                    .get("id")
-                                    .and_then(|v| v.as_u64())
-                                    .map(|n| n.to_string())
-                                    .unwrap_or_default();
-                                let name = item
-                                    .get("name")
-                                    .and_then(|v| v.as_str())
-                                    .unwrap_or(title)
-                                    .to_string();
-                                let score = item
-                                    .get("topCriticScore")
-                                    .and_then(|s| s.as_f64())
-                                    .map(|s| s.round() as u8);
-                                let percent_rec = item
-                                    .get("percentRecommended")
-                                    .and_then(|s| s.as_f64())
-                                    .map(|s| s.round() as u8);
-                                let desc = format!(
-                                    "Recensioni aggregate da OpenCritic per {}. Critic Score: {:?}",
-                                    name, score
-                                );
-
-                                let raw_patch = GameMetadataPatch {
-                                    description: Some(desc.clone()),
-                                    critic_score: score,
-                                    community_score: percent_rec,
-                                    ..Default::default()
-                                };
-
-                                candidates.push(MetadataCandidateDto {
-                                    provider_id: "opencritic".to_string(),
-                                    provider_game_id: id,
-                                    title: name,
-                                    release_year: None,
-                                    cover_url: None,
-                                    background_url: None,
-                                    description: Some(desc),
-                                    raw_patch,
-                                });
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // 5. IGDB APICalypse v4 Search (Only if enabled or explicitly requested)
-        if filter == "igdb"
-            || (filter == "all" && enabled_guard.get("igdb").copied().unwrap_or(false))
-        {
-            let igdb_settings = {
-                let settings_guard = self.settings_cache.read().await;
-                settings_guard.get("igdb").cloned().unwrap_or_default()
-            };
-            if let Ok(igdb_candidates) = self
-                .igdb_provider
-                .search_candidates(title, &igdb_settings, 8)
-                .await
-            {
-                candidates.extend(igdb_candidates);
-            }
-        }
-
-        // 6. Guarantee candidates: if no online provider returned results, produce aesthetic fallback candidate
-        if candidates.is_empty() {
-            let fallback = self.generate_fallback_metadata(title, "catalogo");
-            candidates.push(MetadataCandidateDto {
-                provider_id: if filter == "all" {
-                    "steam".to_string()
-                } else {
-                    filter.clone()
-                },
-                provider_game_id: format!("local_{}", Uuid::new_v4()),
-                title: title.to_string(),
-                release_year: Some(2023),
-                cover_url: Some(
-                    "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=600".to_string(),
-                ),
-                background_url: Some(
-                    "https://images.unsplash.com/photo-1511512578047-dfb367046420?w=1280"
-                        .to_string(),
-                ),
-                description: fallback.description.clone(),
-                raw_patch: fallback,
-            });
-        }
-
-        Ok(candidates)
+        MetadataSearchEngine::search_candidates(
+            &self.client,
+            &self.registry,
+            title,
+            provider_id,
+            |t, l| self.generate_fallback_metadata(t, l),
+        ).await
     }
 
     /// Primary enrichment routine combining multiple providers via the priority pipeline
@@ -513,463 +202,29 @@ impl MetadataDownloader {
             library_id: game.library_id.clone(),
         };
 
-        let pipeline = self.pipeline_config.read().await.clone();
-        let settings_guard = self.settings_cache.read().await;
-        let enabled_guard = self.enabled_providers.read().await;
-        let providers_guard = self.providers.read().await;
+        let pipeline = self.registry.pipeline_config.read().await.clone();
+        let settings_guard = self.registry.settings_cache.read().await;
+        let enabled_guard = self.registry.enabled_providers.read().await;
+        let providers_guard = self.registry.providers.read().await;
 
-        let has_existing_local_cover = game
-            .cover_image_path
-            .as_ref()
-            .map(|p| {
-                let p_trim = p.trim();
-                !p_trim.is_empty()
-                    && !p_trim.starts_with("http://")
-                    && !p_trim.starts_with("https://")
-            })
-            .unwrap_or(false);
+        let mut final_patch = MetadataPipelineResolver::resolve_metadata(
+            &game,
+            &request,
+            &pipeline,
+            &*providers_guard,
+            &*enabled_guard,
+            &*settings_guard,
+            |t, l| self.generate_fallback_metadata(t, l),
+        ).await;
 
-        let has_existing_local_bg = game
-            .background_image_path
-            .as_ref()
-            .map(|p| {
-                let p_trim = p.trim();
-                !p_trim.is_empty()
-                    && !p_trim.starts_with("http://")
-                    && !p_trim.starts_with("https://")
-            })
-            .unwrap_or(false);
-
-        let remote_cover_to_cache = game.cover_image_path.as_ref().and_then(|p| {
-            let p_trim = p.trim();
-            if p_trim.starts_with("http://") || p_trim.starts_with("https://") {
-                Some(p_trim.to_string())
-            } else {
-                None
-            }
-        });
-
-        let remote_bg_to_cache = game.background_image_path.as_ref().and_then(|p| {
-            let p_trim = p.trim();
-            if p_trim.starts_with("http://") || p_trim.starts_with("https://") {
-                Some(p_trim.to_string())
-            } else {
-                None
-            }
-        });
-
-        // If current background is a low-res Steam header banner (460x215) and we are preserving artwork,
-        // do not block high-res background retrieval from providers (IGDB / Steam Store hero).
-        let has_low_res_steam_banner_bg = game
-            .background_image_path
-            .as_ref()
-            .map(|p| p.ends_with("/header.jpg") || p.ends_with("\\header.jpg"))
-            .unwrap_or(false);
-
-        let should_fetch_cover = if pipeline.preserve_existing_artwork {
-            !has_existing_local_cover && remote_cover_to_cache.is_none()
-        } else {
-            true
-        };
-
-        let should_fetch_background = if pipeline.preserve_existing_artwork {
-            (!has_existing_local_bg && remote_bg_to_cache.is_none()) || has_low_res_steam_banner_bg
-        } else {
-            true
-        };
-
-        let mut final_patch = GameMetadataPatch::default();
-        let mut details_cover_fallback = None;
-        let mut details_bg_fallback = None;
-
-        if pipeline.preserve_existing_artwork {
-            if !has_existing_local_cover && remote_cover_to_cache.is_some() {
-                final_patch.cover_url = remote_cover_to_cache.clone();
-            }
-            if !has_existing_local_bg
-                && remote_bg_to_cache.is_some()
-                && !has_low_res_steam_banner_bg
-            {
-                final_patch.background_url = remote_bg_to_cache.clone();
-            }
-        }
-
-        // Store-Native resolution: determine store-native provider from game.library_id
-        let store_native_id = match game.library_id.to_lowercase().as_str() {
-            "steam" => "steam",
-            "gog" => "gog",
-            _ => "steam", // Steam Store search by title is universal PC catalog
-        };
-
-        let effective_details_source = if pipeline.details_source == "store_native" {
-            store_native_id
-        } else {
-            pipeline.details_source.as_str()
-        };
-        let effective_cover_source = if pipeline.cover_source == "store_native" {
-            store_native_id
-        } else {
-            pipeline.cover_source.as_str()
-        };
-        let effective_background_source = if pipeline.background_source == "store_native" {
-            store_native_id
-        } else {
-            pipeline.background_source.as_str()
-        };
-        let effective_score_source = if pipeline.score_source == "store_native" {
-            store_native_id
-        } else {
-            pipeline.score_source.as_str()
-        };
-
-        // 1. Fetch Primary Details & Descriptions (Store-First)
-        let mut details_patch: Option<GameMetadataPatch> = None;
-        if enabled_guard
-            .get(effective_details_source)
-            .copied()
-            .unwrap_or(true)
-        {
-            if let Some(prov) = providers_guard.get(effective_details_source) {
-                let settings = settings_guard
-                    .get(effective_details_source)
-                    .cloned()
-                    .unwrap_or_default();
-                if let Ok(patch) = prov.fetch_metadata(&request, &settings).await {
-                    details_patch = Some(patch);
-                }
-            }
-        }
-
-        // Fallback: If primary store had no match, try the alternative built-in store
-        if details_patch.is_none() {
-            let alt_store = if effective_details_source == "steam" {
-                "gog"
-            } else {
-                "steam"
-            };
-            if enabled_guard.get(alt_store).copied().unwrap_or(true) {
-                if let Some(prov) = providers_guard.get(alt_store) {
-                    let settings = settings_guard.get(alt_store).cloned().unwrap_or_default();
-                    if let Ok(patch) = prov.fetch_metadata(&request, &settings).await {
-                        details_patch = Some(patch);
-                    }
-                }
-            }
-        }
-
-        if let Some(ref patch) = details_patch {
-            if game
-                .description
-                .as_ref()
-                .map(|d| d.trim().is_empty())
-                .unwrap_or(true)
-            {
-                final_patch.description = patch.description.clone();
-            }
-            if game
-                .release_date
-                .as_ref()
-                .map(|r| r.trim().is_empty())
-                .unwrap_or(true)
-            {
-                final_patch.release_date = patch.release_date.clone();
-            }
-            if game.genres.is_empty() {
-                final_patch.genres = patch.genres.clone();
-            }
-            if game.features.is_empty() || !patch.features.is_empty() {
-                final_patch.features = patch.features.clone();
-            }
-            if game.developers.is_empty() {
-                final_patch.developers = patch.developers.clone();
-            }
-            if game.publishers.is_empty() {
-                final_patch.publishers = patch.publishers.clone();
-            }
-            if game.critic_score.is_none() {
-                final_patch.critic_score = patch.critic_score;
-            }
-            if game.community_score.is_none() {
-                final_patch.community_score = patch.community_score;
-            }
-
-            if should_fetch_cover {
-                if effective_cover_source == effective_details_source
-                    || effective_cover_source == store_native_id
-                {
-                    final_patch.cover_url = patch.cover_url.clone();
-                } else {
-                    details_cover_fallback = patch.cover_url.clone();
-                }
-            }
-
-            if should_fetch_background {
-                if effective_background_source == effective_details_source
-                    || effective_background_source == store_native_id
-                {
-                    final_patch.background_url = patch.background_url.clone();
-                } else {
-                    details_bg_fallback = patch.background_url.clone();
-                }
-            }
-        }
-
-        // 2. Resolve High-Res Artwork if dedicated provider configured
-        if should_fetch_cover && final_patch.cover_url.is_none() {
-            if effective_cover_source != effective_details_source
-                && enabled_guard
-                    .get(effective_cover_source)
-                    .copied()
-                    .unwrap_or(false)
-            {
-                if let Some(prov) = providers_guard.get(effective_cover_source) {
-                    let settings = settings_guard
-                        .get(effective_cover_source)
-                        .cloned()
-                        .unwrap_or_default();
-                    if let Ok(cov_patch) = prov.fetch_metadata(&request, &settings).await {
-                        if cov_patch.cover_url.is_some() {
-                            final_patch.cover_url = cov_patch.cover_url;
-                        }
-                    }
-                }
-            }
-            if final_patch.cover_url.is_none() {
-                final_patch.cover_url = details_cover_fallback.or(remote_cover_to_cache.clone());
-            }
-        }
-
-        if should_fetch_background && final_patch.background_url.is_none() {
-            if effective_background_source != effective_details_source
-                && enabled_guard
-                    .get(effective_background_source)
-                    .copied()
-                    .unwrap_or(false)
-            {
-                if let Some(prov) = providers_guard.get(effective_background_source) {
-                    let settings = settings_guard
-                        .get(effective_background_source)
-                        .cloned()
-                        .unwrap_or_default();
-                    if let Ok(bg_patch) = prov.fetch_metadata(&request, &settings).await {
-                        if bg_patch.background_url.is_some() {
-                            final_patch.background_url = bg_patch.background_url;
-                        }
-                    }
-                }
-            }
-            if final_patch.background_url.is_none() {
-                final_patch.background_url = details_bg_fallback.or(remote_bg_to_cache.clone());
-            }
-        }
-
-        // 3. Resolve Critic & Community Scores if needed
-        if game.critic_score.is_none() && final_patch.critic_score.is_none() {
-            if effective_score_source != effective_details_source
-                && enabled_guard
-                    .get(effective_score_source)
-                    .copied()
-                    .unwrap_or(false)
-            {
-                if let Some(prov) = providers_guard.get(effective_score_source) {
-                    let settings = settings_guard
-                        .get(effective_score_source)
-                        .cloned()
-                        .unwrap_or_default();
-                    if let Ok(sc_patch) = prov.fetch_metadata(&request, &settings).await {
-                        if sc_patch.critic_score.is_some() {
-                            final_patch.critic_score = sc_patch.critic_score;
-                            final_patch.community_score = sc_patch.community_score;
-                        }
-                    }
-                }
-            }
-        }
-
-        // 3b. Query enabled external/enrichment providers that contribute extra_metadata (e.g. HowLongToBeat)
-        for (prov_id, prov) in &*providers_guard {
-            if prov_id != "steam" && prov_id != "gog" && prov_id != "epic" {
-                if enabled_guard.get(prov_id).copied().unwrap_or(true) {
-                    let settings = settings_guard.get(prov_id).cloned().unwrap_or_default();
-                    if let Ok(p_patch) = prov.fetch_metadata(&request, &settings).await {
-                        if let Some(extra) = p_patch.extra_metadata {
-                            let mut current_merged: serde_json::Map<String, serde_json::Value> =
-                                final_patch
-                                    .extra_metadata
-                                    .as_deref()
-                                    .and_then(|s| serde_json::from_str(s).ok())
-                                    .unwrap_or_default();
-                            if let Ok(incoming) = serde_json::from_str::<
-                                serde_json::Map<String, serde_json::Value>,
-                            >(&extra)
-                            {
-                                for (k, v) in incoming {
-                                    current_merged.insert(k, v);
-                                }
-                                final_patch.extra_metadata =
-                                    Some(serde_json::to_string(&current_merged).unwrap_or(extra));
-                            } else {
-                                final_patch.extra_metadata = Some(extra);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // 4. Generate aesthetic fallback only if fields are still empty
-        let needs_fallback_desc = final_patch.description.is_none()
-            && game
-                .description
-                .as_ref()
-                .map(|d| d.trim().is_empty())
-                .unwrap_or(true);
-        let needs_fallback_rd = final_patch.release_date.is_none()
-            && game
-                .release_date
-                .as_ref()
-                .map(|r| r.trim().is_empty())
-                .unwrap_or(true);
-        let needs_fallback_genres = final_patch.genres.is_empty() && game.genres.is_empty();
-        let needs_fallback_devs = final_patch.developers.is_empty() && game.developers.is_empty();
-        let needs_fallback_pubs = final_patch.publishers.is_empty() && game.publishers.is_empty();
-        let needs_fallback_scores =
-            final_patch.critic_score.is_none() && game.critic_score.is_none();
-
-        if needs_fallback_desc
-            || needs_fallback_genres
-            || needs_fallback_rd
-            || needs_fallback_devs
-            || needs_fallback_pubs
-            || needs_fallback_scores
-        {
-            let fallback = self.generate_fallback_metadata(&game.title, &game.library_id);
-            if needs_fallback_desc {
-                final_patch.description = fallback.description;
-            }
-            if needs_fallback_rd {
-                final_patch.release_date = fallback.release_date;
-            }
-            if needs_fallback_genres {
-                final_patch.genres = fallback.genres;
-            }
-            if needs_fallback_devs {
-                final_patch.developers = fallback.developers;
-            }
-            if needs_fallback_pubs {
-                final_patch.publishers = fallback.publishers;
-            }
-            if needs_fallback_scores {
-                final_patch.critic_score = fallback.critic_score;
-                final_patch.community_score = fallback.community_score;
-            }
-        }
-
-        // 5. Download binary image payloads to local cache
-        let (covers_dir, bgs_dir) = if cache_dir.ends_with("covers") {
-            (
-                cache_dir.to_path_buf(),
-                cache_dir
-                    .parent()
-                    .map(|p| p.join("backgrounds"))
-                    .unwrap_or_else(|| cache_dir.join("backgrounds")),
-            )
-        } else {
-            (cache_dir.join("covers"), cache_dir.join("backgrounds"))
-        };
-        let _ = std::fs::create_dir_all(&covers_dir);
-        let _ = std::fs::create_dir_all(&bgs_dir);
-
-        let cover_dest = covers_dir.join(format!("{}.jpg", game_id));
-        let bg_dest = bgs_dir.join(format!("{}.jpg", game_id));
-
-        // Self-healing migration for previously double-nested cache/covers/covers and cache/covers/backgrounds
-        let double_nested_cover = covers_dir.join("covers").join(format!("{}.jpg", game_id));
-        if double_nested_cover.exists() && !cover_dest.exists() {
-            let _ = std::fs::rename(&double_nested_cover, &cover_dest);
-        }
-        let double_nested_bg = bgs_dir.join("backgrounds").join(format!("{}.jpg", game_id));
-        if double_nested_bg.exists() && !bg_dest.exists() {
-            let _ = std::fs::rename(&double_nested_bg, &bg_dest);
-        }
-
-        let appid_hint = if game.library_id == "steam" {
-            Some(game.external_id.as_str())
-        } else {
-            None
-        };
-
-        if let Some(ref curl) = final_patch.cover_url.clone() {
-            let curl_trim = curl.trim();
-            if curl_trim.is_empty() {
-                final_patch.cover_url = None;
-            } else if curl_trim.starts_with("http://") || curl_trim.starts_with("https://") {
-                match self
-                    .download_image_with_fallbacks(curl_trim, appid_hint)
-                    .await
-                {
-                    Ok(bytes) => {
-                        if std::fs::write(&cover_dest, bytes).is_ok() {
-                            final_patch.cover_url = Some(cover_dest.to_string_lossy().to_string());
-                        } else {
-                            warn!("Failed to write downloaded cover image to {:?}", cover_dest);
-                            final_patch.cover_url = Some(curl_trim.to_string());
-                        }
-                    }
-                    Err(e) => {
-                        warn!("Failed to download cover image from {}: {}", curl_trim, e);
-                        final_patch.cover_url = Some(curl_trim.to_string());
-                    }
-                }
-            } else if !std::path::Path::new(curl_trim).exists() && !curl_trim.contains('\\') {
-                warn!("Local cover path does not exist: {}", curl_trim);
-                final_patch.cover_url = None;
-            }
-        }
-
-        if let Some(ref burl) = final_patch.background_url.clone() {
-            let burl_trim = burl.trim();
-            if burl_trim.is_empty() {
-                final_patch.background_url = None;
-            } else if burl_trim.starts_with("http://") || burl_trim.starts_with("https://") {
-                match self
-                    .download_image_with_fallbacks(burl_trim, appid_hint)
-                    .await
-                {
-                    Ok(bytes) => {
-                        if std::fs::write(&bg_dest, bytes).is_ok() {
-                            final_patch.background_url =
-                                Some(bg_dest.to_string_lossy().to_string());
-                        } else {
-                            warn!(
-                                "Failed to write downloaded background image to {:?}",
-                                bg_dest
-                            );
-                            final_patch.background_url = Some(burl_trim.to_string());
-                        }
-                    }
-                    Err(e) => {
-                        warn!(
-                            "Failed to download background image from {}: {}",
-                            burl_trim, e
-                        );
-                        final_patch.background_url = Some(burl_trim.to_string());
-                    }
-                }
-            } else if !std::path::Path::new(burl_trim).exists() && !burl_trim.contains('\\') {
-                warn!("Local background path does not exist: {}", burl_trim);
-                final_patch.background_url = None;
-            }
-        }
-
-        // If local file exists and final_patch artwork was None, point to local cached file
-        if final_patch.cover_url.is_none() && cover_dest.exists() {
-            final_patch.cover_url = Some(cover_dest.to_string_lossy().to_string());
-        }
-        if final_patch.background_url.is_none() && bg_dest.exists() {
-            final_patch.background_url = Some(bg_dest.to_string_lossy().to_string());
-        }
-
+        MediaStorageManager::cache_game_artwork(
+            self.media.as_ref(),
+            game_id,
+            &game.library_id,
+            &game.external_id,
+            cache_dir,
+            &mut final_patch,
+        ).await;
         if let Err(e) = db.apply_metadata_patch(game_id, &final_patch) {
             return Err(format!("Failed to save metadata to SQLite: {}", e));
         }
@@ -1091,388 +346,6 @@ impl MetadataDownloader {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
 
-    #[tokio::test]
-    async fn test_steam_metadata_download() {
-        let db = Database::open_in_memory().expect("Failed to open DB");
-        db.seed_sample_games().expect("Failed to seed");
-
-        let games = db.get_all_games().expect("Failed to get games");
-        let cyberpunk = games
-            .iter()
-            .find(|g| g.title.contains("Cyberpunk"))
-            .expect("Cyberpunk not found");
-
-        let temp_cache = std::env::temp_dir().join("omnis_test_cache");
-        let _ = std::fs::create_dir_all(&temp_cache);
-
-        let downloader = MetadataDownloader::new();
-        let patch_result = downloader
-            .download_for_game(&db, cyberpunk.id, &temp_cache)
-            .await;
-
-        assert!(
-            patch_result.is_ok(),
-            "Download failed: {:?}",
-            patch_result.err()
-        );
-        let patch = patch_result.unwrap();
-
-        assert!(patch.critic_score.is_some());
-        assert!(patch.description.is_some());
-        assert!(!patch.genres.is_empty());
-
-        let updated_game = db.get_game_by_id(cyberpunk.id).unwrap().unwrap();
-        assert!(updated_game.critic_score.is_some());
-        assert!(updated_game.description.is_some());
-        println!(
-            "Enriched game: {} with score {:?}",
-            updated_game.title, updated_game.critic_score
-        );
-
-        let _ = std::fs::remove_dir_all(&temp_cache);
-    }
-
-    #[tokio::test]
-    async fn test_plugins_scaffolding_and_dynamic_discovery() {
-        let temp_plugins =
-            std::env::temp_dir().join(format!("omnis_test_plugins_{}", uuid::Uuid::new_v4()));
-        let _ = std::fs::create_dir_all(&temp_plugins);
-
-        let downloader = MetadataDownloader::new();
-        downloader.set_plugins_dir(temp_plugins.clone()).await;
-
-        // Verify scaffolding created README.txt and metacritic_provider
-        assert!(
-            temp_plugins.join("README.txt").exists(),
-            "README.txt was not scaffolded"
-        );
-        assert!(
-            temp_plugins
-                .join("metacritic_provider")
-                .join("manifest.json")
-                .exists(),
-            "manifest.json was not scaffolded"
-        );
-
-        // Verify provider was dynamically loaded
-        let providers = downloader.get_providers_info().await;
-        let metacritic = providers.iter().find(|p| p.id == "metacritic_provider");
-        assert!(
-            metacritic.is_some(),
-            "metacritic_provider was not dynamically registered"
-        );
-
-        let meta = metacritic.unwrap();
-        assert_eq!(
-            meta.is_builtin, false,
-            "metacritic_provider must have is_builtin = false"
-        );
-        assert_eq!(meta.name, "Metacritic Community Scraper");
-        assert!(meta.version.is_some());
-        assert!(meta.plugin_path.is_some());
-
-        let _ = std::fs::remove_dir_all(&temp_plugins);
-    }
-
-    #[tokio::test]
-    async fn test_metadata_candidate_search() {
-        let downloader = MetadataDownloader::new();
-        let candidates = downloader.search_candidates("Portal", Some("steam")).await;
-        assert!(
-            candidates.is_ok(),
-            "Candidate search returned error: {:?}",
-            candidates.err()
-        );
-        let list = candidates.unwrap();
-        assert!(
-            !list.is_empty(),
-            "Should return at least one candidate for 'Portal'"
-        );
-        let first = &list[0];
-        assert_eq!(first.provider_id, "steam");
-        assert!(!first.title.is_empty());
-        assert!(first.raw_patch.description.is_some() || first.description.is_some());
-    }
-
-    #[tokio::test]
-    async fn test_igdb_provider_registration_and_settings() {
-        let temp_dir =
-            std::env::temp_dir().join(format!("omnis_igdb_test_{}", uuid::Uuid::new_v4()));
-        let igdb_dir = temp_dir.join("igdb");
-        std::fs::create_dir_all(&igdb_dir).unwrap();
-        std::fs::write(
-            igdb_dir.join("manifest.json"),
-            r#"{"id":"igdb","name":"IGDB (Internet Game Database)","version":"1.0.0","plugin_type":"metadata"}"#,
-        )
-        .unwrap();
-
-        let downloader = MetadataDownloader::new();
-        downloader
-            .load_and_register_dynamic_plugin(&igdb_dir)
-            .await
-            .expect("Failed to register igdb");
-
-        let providers = downloader.get_providers_info().await;
-
-        let igdb = providers.iter().find(|p| p.id == "igdb");
-        assert!(
-            igdb.is_some(),
-            "IGDB provider must be registered in MetadataDownloader"
-        );
-
-        let igdb_info = igdb.unwrap();
-        assert_eq!(igdb_info.name, "IGDB (Internet Game Database)");
-        assert!(!igdb_info.is_builtin);
-        assert!(igdb_info.requires_api_key);
-        assert!(
-            !igdb_info.has_configured_key,
-            "Initially credentials should not be configured"
-        );
-
-        // Save valid client_id and client_secret
-        let mut settings = Map::new();
-        settings.insert(
-            "client_id".to_string(),
-            Value::String("twitch_test_id".to_string()),
-        );
-        settings.insert(
-            "client_secret".to_string(),
-            Value::String("twitch_test_secret".to_string()),
-        );
-        downloader
-            .save_provider_settings("igdb", settings)
-            .await
-            .expect("Failed to save settings");
-
-        let updated_providers = downloader.get_providers_info().await;
-        let updated_igdb = updated_providers.iter().find(|p| p.id == "igdb").unwrap();
-        assert!(
-            updated_igdb.has_configured_key,
-            "has_configured_key should be true when both client_id and client_secret are provided"
-        );
-
-        let _ = std::fs::remove_dir_all(&temp_dir);
-    }
-
-    #[tokio::test]
-    async fn test_pipeline_score_steam_when_details_not_steam() {
-        let db = Database::open_in_memory().expect("Failed to open DB");
-        db.seed_sample_games().expect("Failed to seed");
-        let games = db.get_all_games().expect("Failed to get games");
-        let portal = games
-            .iter()
-            .find(|g| g.title.contains("Portal"))
-            .expect("Portal not found");
-
-        let temp_cache =
-            std::env::temp_dir().join(format!("omnis_test_pipe_{}", uuid::Uuid::new_v4()));
-        let _ = std::fs::create_dir_all(&temp_cache);
-
-        let downloader = MetadataDownloader::new();
-        let mut cfg = downloader.get_pipeline_config().await;
-        cfg.details_source = "metacritic_provider".to_string();
-        cfg.score_source = "steam".to_string();
-        downloader.save_pipeline_config(cfg).await.unwrap();
-
-        let patch_result = downloader
-            .download_for_game(&db, portal.id, &temp_cache)
-            .await;
-        assert!(patch_result.is_ok());
-        let patch = patch_result.unwrap();
-        assert!(patch.critic_score.is_some(), "Steam score should be fetched when score_source is steam even if details_source != steam");
-
-        let _ = std::fs::remove_dir_all(&temp_cache);
-    }
-
-    #[tokio::test]
-    async fn test_pipeline_preserve_existing_artwork() {
-        let db = Database::open_in_memory().expect("Failed to open DB");
-        db.seed_sample_games().expect("Failed to seed");
-        let games = db.get_all_games().expect("Failed to get games");
-        let portal = games
-            .iter()
-            .find(|g| g.title.contains("Portal"))
-            .expect("Portal not found");
-
-        let custom_cover = "C:\\existing_steam_cover.jpg".to_string();
-        let custom_bg = "C:\\existing_steam_bg.jpg".to_string();
-        let manual_patch = GameMetadataPatch {
-            cover_url: Some(custom_cover.clone()),
-            background_url: Some(custom_bg.clone()),
-            ..Default::default()
-        };
-        db.apply_metadata_patch(portal.id, &manual_patch)
-            .expect("Failed to apply manual patch");
-
-        let saved = db.get_game_by_id(portal.id).unwrap().unwrap();
-        assert_eq!(
-            saved.cover_image_path.as_deref(),
-            Some("C:\\existing_steam_cover.jpg")
-        );
-        assert_eq!(
-            saved.background_image_path.as_deref(),
-            Some("C:\\existing_steam_bg.jpg")
-        );
-
-        let temp_cache =
-            std::env::temp_dir().join(format!("omnis_test_pipe_preserve_{}", uuid::Uuid::new_v4()));
-        let _ = std::fs::create_dir_all(&temp_cache);
-
-        let downloader = MetadataDownloader::new();
-        let cfg = downloader.get_pipeline_config().await;
-        assert!(
-            cfg.preserve_existing_artwork,
-            "preserve_existing_artwork should default to true"
-        );
-
-        let patch_result = downloader
-            .download_for_game(&db, portal.id, &temp_cache)
-            .await;
-        assert!(patch_result.is_ok());
-
-        let reloaded = db.get_game_by_id(portal.id).unwrap().unwrap();
-        assert_eq!(
-            reloaded.cover_image_path.as_deref(),
-            Some("C:\\existing_steam_cover.jpg"),
-            "Existing cover must be preserved"
-        );
-        assert_eq!(
-            reloaded.background_image_path.as_deref(),
-            Some("C:\\existing_steam_bg.jpg"),
-            "Existing background must be preserved"
-        );
-
-        let _ = std::fs::remove_dir_all(&temp_cache);
-    }
-
-    #[tokio::test]
-    async fn test_download_for_all_cancellation() {
-        let db = Arc::new(Database::open_in_memory().expect("Failed to open DB"));
-        db.seed_sample_games().expect("Failed to seed");
-
-        let temp_cache =
-            std::env::temp_dir().join(format!("omnis_test_cancel_{}", uuid::Uuid::new_v4()));
-        let _ = std::fs::create_dir_all(&temp_cache);
-
-        let downloader = Arc::new(MetadataDownloader::new());
-        let downloader_clone = downloader.clone();
-
-        tokio::spawn(async move {
-            tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
-            downloader_clone.cancel_download();
-        });
-
-        let total_enriched = downloader
-            .download_for_all(db, &temp_cache, |_cur, _tot, _title| {})
-            .await;
-        assert!(total_enriched.is_ok());
-        assert!(total_enriched.unwrap() < 4);
-
-        let _ = std::fs::remove_dir_all(&temp_cache);
-    }
-
-    #[tokio::test]
-    async fn test_download_for_games_batch() {
-        let db = Arc::new(Database::open_in_memory().expect("Failed to open DB"));
-        db.seed_sample_games().expect("Failed to seed");
-        let all_games = db.get_all_games().expect("Failed to get games");
-        assert!(all_games.len() >= 2);
-
-        let target_ids: Vec<uuid::Uuid> = all_games.iter().take(2).map(|g| g.id).collect();
-
-        let temp_cache =
-            std::env::temp_dir().join(format!("omnis_test_batch_{}", uuid::Uuid::new_v4()));
-        let _ = std::fs::create_dir_all(&temp_cache);
-
-        let downloader = Arc::new(MetadataDownloader::new());
-        let total_enriched = downloader
-            .download_for_games(db, target_ids, &temp_cache, |_cur, _tot, _title| {})
-            .await;
-
-        assert!(total_enriched.is_ok());
-        let count = total_enriched.unwrap();
-        assert_eq!(count, 2);
-
-        let _ = std::fs::remove_dir_all(&temp_cache);
-    }
-
-    #[tokio::test]
-    async fn test_remote_cover_caching_and_path_nesting() {
-        let db = Database::open_in_memory().expect("Failed to open DB");
-        db.seed_sample_games().expect("Failed to seed");
-        let games = db.get_all_games().expect("Failed to get games");
-        let portal = games
-            .iter()
-            .find(|g| g.title.contains("Portal"))
-            .expect("Portal not found");
-
-        let remote_url =
-            "https://cdn.cloudflare.steamstatic.com/steam/apps/400/header.jpg".to_string();
-        let manual_patch = GameMetadataPatch {
-            cover_url: Some(remote_url.clone()),
-            ..Default::default()
-        };
-        db.apply_metadata_patch(portal.id, &manual_patch)
-            .expect("Failed to apply remote URL patch");
-
-        let saved = db.get_game_by_id(portal.id).unwrap().unwrap();
-        assert_eq!(saved.cover_image_path.as_deref(), Some(remote_url.as_str()));
-
-        let temp_cache =
-            std::env::temp_dir().join(format!("omnis_test_nesting_{}", uuid::Uuid::new_v4()));
-        let _ = std::fs::create_dir_all(&temp_cache);
-
-        let downloader = MetadataDownloader::new();
-        // Even with preserve_existing_artwork = true, remote URLs should be downloaded and cached locally!
-        let patch_result = downloader
-            .download_for_game(&db, portal.id, &temp_cache)
-            .await;
-        assert!(
-            patch_result.is_ok(),
-            "Download failed: {:?}",
-            patch_result.err()
-        );
-
-        let reloaded = db.get_game_by_id(portal.id).unwrap().unwrap();
-        let cover_path = reloaded
-            .cover_image_path
-            .expect("Game must have a cover image path");
-        assert!(
-            !cover_path.starts_with("http"),
-            "Cover image path must be converted to local path: {}",
-            cover_path
-        );
-        assert!(
-            !cover_path.contains("covers/covers") && !cover_path.contains("covers\\covers"),
-            "Path must NOT be double-nested: {}",
-            cover_path
-        );
-        assert!(
-            std::path::Path::new(&cover_path).exists(),
-            "Downloaded local cover file must exist on disk: {}",
-            cover_path
-        );
-
-        let _ = std::fs::remove_dir_all(&temp_cache);
-    }
-
-    #[tokio::test]
-    async fn test_steam_fallback_resolution() {
-        let downloader = MetadataDownloader::new();
-        // Test fallback for a non-existent 2x image that should fall back to header.jpg or capsule
-        let invalid_steam_2x =
-            "https://steamcdn-a.akamaihd.net/steam/apps/400/library_600x900_2x.jpg";
-        let res = downloader
-            .download_image_with_fallbacks(invalid_steam_2x, Some("400"))
-            .await;
-        assert!(
-            res.is_ok(),
-            "Fallback download for Steam app 400 must succeed: {:?}",
-            res.err()
-        );
-        assert!(!res.unwrap().is_empty());
-    }
-}
+#[cfg(test)]
+mod tests;
