@@ -31,13 +31,13 @@ pub struct Database {
 impl Database {
     /// Acquire a lock on the dedicated writer connection.
     #[inline]
-    pub(crate) fn writer(&self) -> MutexGuard<'_, Connection> {
+    pub fn writer(&self) -> MutexGuard<'_, Connection> {
         self.writer.lock().unwrap()
     }
 
     /// Acquire a lock on the dedicated reader connection (or fallback to writer for in-memory databases).
     #[inline]
-    pub(crate) fn reader(&self) -> MutexGuard<'_, Connection> {
+    pub fn reader(&self) -> MutexGuard<'_, Connection> {
         match &self.reader {
             Some(r) => r.lock().unwrap(),
             None => self.writer.lock().unwrap(),

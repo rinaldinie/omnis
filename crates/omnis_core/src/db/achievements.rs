@@ -28,13 +28,6 @@ pub trait AchievementRepository: Send + Sync {
     ) -> Result<(), DatabaseError>;
 }
 
-use chrono::{DateTime, Utc};
-use omnis_sdk::{Achievement, GameAchievementsSummary};
-use rusqlite::{params, Result};
-use uuid::Uuid;
-
-use crate::db::{Database, DatabaseError};
-
 impl AchievementRepository for Database {
     /// Upsert a list of achievements for a game
     fn upsert_achievements(

@@ -12,7 +12,7 @@ use omnis_sdk::plugin::{CloudStorePlugin, StoreAccountSession};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
-use tauri::AppHandle;
+use tauri::{AppHandle, Emitter};
 
 #[path = "store/oauth.rs"]
 pub mod oauth;
@@ -104,10 +104,9 @@ impl StoreAccountManager {
     #[inline]
     pub fn save_integration_settings(
         &self,
-        store_id: &str,
         settings: &StoreIntegrationSettingsDto,
     ) -> Result<(), String> {
-        StoreSessionVault::save_integration_settings(self, store_id, settings)
+        StoreSessionVault::save_integration_settings(self, settings)
     }
 
     #[inline]

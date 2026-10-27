@@ -1,6 +1,5 @@
 use std::time::{Duration, Instant};
 use sysinfo::{Pid, System};
-use tokio::time::sleep;
 
 pub fn allow_set_foreground_window() {
     #[cfg(windows)]

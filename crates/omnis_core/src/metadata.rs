@@ -1,13 +1,10 @@
 use crate::db::Database;
-use crate::dynamic_loader::{find_shared_library_in_dir, DynamicPluginLoader};
-use omnis_sdk::{GameMetadataPatch, MetadataField, MetadataProvider, MetadataSearchRequest};
+use omnis_sdk::{GameMetadataPatch, MetadataProvider, MetadataSearchRequest};
 use serde_json::{Map, Value};
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use tokio::sync::RwLock;
-use tracing::{debug, info, warn};
+use tracing::{info, warn};
 use uuid::Uuid;
 
 pub mod gog;
@@ -28,12 +25,22 @@ pub use types::*;
 pub use utils::*;
 
 pub mod fallback;
+pub mod hltb;
+pub mod loader;
 pub mod media;
 pub mod registry;
+pub mod resolver;
+pub mod search;
+pub mod storage;
 
 pub use fallback::FallbackMetadataGenerator;
+pub use hltb::HltbEnrichmentService;
+pub use loader::DynamicPluginScanner;
 pub use media::{HttpMediaDownloader, MediaDownloader};
 pub use registry::{MetadataRegistry, ProviderRegistry};
+pub use resolver::MetadataPipelineResolver;
+pub use search::MetadataSearchEngine;
+pub use storage::MediaStorageManager;
 
 // ============================================================================
 // 4. Metadata Pipeline & Engine Manager

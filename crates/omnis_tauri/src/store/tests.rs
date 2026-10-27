@@ -1,9 +1,7 @@
-use super::store_manager::*;
 use std::sync::Arc;
 use omnis_core::{Database, SecretVault};
-use omnis_sdk::plugin::{CloudStorePlugin, StoreAccountSession};
-
-    use super::*;
+use omnis_sdk::plugin::StoreAccountSession;
+use super::*;
 
     fn make_test_manager() -> (StoreAccountManager, Arc<Database>) {
         let db = Arc::new(Database::open_in_memory().unwrap());

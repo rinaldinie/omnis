@@ -1,12 +1,12 @@
-use crate::launcher_service::{validate_and_open_store_uri, GameLaunchCoordinator};
+use crate::launcher_service::GameLaunchCoordinator;
 use crate::types::{game_to_dto, AppState, GameDto};
 use omnis_core::LibraryCounts;
 use omnis_plugin_epic::EpicLibraryPlugin;
 use omnis_sdk::constants::events;
-use omnis_sdk::{Game, LaunchConfiguration, LibraryPlugin, PluginEvent};
+use omnis_sdk::{Game, LaunchConfiguration, LibraryPlugin, PluginEvent, ProcessTrackingMode};
 use serde::Deserialize;
 use std::path::PathBuf;
-use tauri::{Manager, State};
+use tauri::State;
 use uuid::Uuid;
 
 #[derive(Debug, Deserialize)]

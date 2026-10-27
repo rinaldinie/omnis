@@ -1,7 +1,7 @@
 use std::sync::Arc;
-use serde_json::{Map, Value};
+use serde_json::Value;
 use uuid::Uuid;
-use omnis_sdk::{GameMetadataPatch, MetadataCandidateDto};
+use omnis_sdk::GameMetadataPatch;
 
 use super::registry::ProviderRegistry;
 use super::types::*;

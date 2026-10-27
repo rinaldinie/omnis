@@ -1,8 +1,6 @@
-use chrono::{DateTime, Utc};
-use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
+use chrono::Utc;
+use std::collections::HashMap;
 use tauri::{AppHandle, Emitter};
-use omnis_core::Database;
 use omnis_sdk::constants::events;
 use omnis_sdk::models::{DiscoveredGame, StoreSyncProgressPayload};
 use omnis_sdk::plugin::{CloudStorePlugin, StoreAccountSession};
@@ -14,8 +12,8 @@ pub struct StoreCatalogSyncEngine;
 
 impl StoreCatalogSyncEngine {
     /// Synchronize owned game library from a connected cloud store
-    pub async fn sync_store(&self, app_handle: &AppHandle, store_id: &str) -> Result<usize, String> {
-        if !self.mark_syncing(store_id) {
+    pub async fn sync_store(mgr: &StoreAccountManager, app_handle: &AppHandle, store_id: &str) -> Result<usize, String> {
+        if !mgr.mark_syncing(store_id) {
             tracing::info!("Store {} is already synchronizing", store_id);
             return Ok(0);
         }
@@ -25,19 +23,19 @@ impl StoreCatalogSyncEngine {
                 self.0.unmark_syncing(self.1);
             }
         }
-        let _guard = SyncGuard(self, store_id);
+        let _guard = SyncGuard(mgr, store_id);
 
-        let mut session = self
+        let mut session = mgr
             .load_session(store_id)?
             .ok_or_else(|| format!("Nessun account connesso per {}", store_id))?;
 
-        let plugin = self
+        let plugin = mgr
             .get_plugin(store_id)
             .await
             .ok_or_else(|| format!("Plugin non trovato per {}", store_id))?;
 
         // 1. Refresh OAuth session if expired
-        Self::ensure_fresh_session(self, app_handle, store_id, plugin.as_ref(), &mut session).await?;
+        Self::ensure_fresh_session(mgr, app_handle, store_id, plugin.as_ref(), &mut session).await?;
 
         // 2. Report initial sync progress
         Self::emit_sync_progress(
@@ -94,7 +92,7 @@ impl StoreCatalogSyncEngine {
             }
         }
 
-        let count = match self.db.ingest_discovered_batch(&games) {
+        let count = match mgr.db.ingest_discovered_batch(&games) {
             Ok(c) => c,
             Err(e) => {
                 let err_msg = format!("Errore salvataggio giochi per {}: {}", plugin.name(), e);
@@ -104,7 +102,7 @@ impl StoreCatalogSyncEngine {
         };
 
         // 6. Update last sync timestamp and emit completion
-        self.last_syncs
+        mgr.last_syncs
             .write()
             .await
             .insert(store_id.to_string(), Utc::now());
@@ -135,13 +133,13 @@ impl StoreCatalogSyncEngine {
     }
 
     /// Synchronize all connected cloud stores sequentially
-    pub async fn sync_all_connected(&self, app_handle: &AppHandle) -> Result<usize, String> {
-        let accounts = self.get_store_accounts().await?;
+    pub async fn sync_all_connected(mgr: &StoreAccountManager, app_handle: &AppHandle) -> Result<usize, String> {
+        let accounts = mgr.get_store_accounts().await?;
         let mut total = 0;
 
         for account in accounts {
             if account.is_connected {
-                match self.sync_store(app_handle, &account.store_id).await {
+                match Self::sync_store(mgr, app_handle, &account.store_id).await {
                     Ok(count) => total += count,
                     Err(e) => {
                         tracing::warn!("Sync failed for {}: {}", account.store_id, e);

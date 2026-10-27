@@ -1,4 +1,4 @@
-use crate::metadata::html_to_plain_text;
+use super::utils::html_to_plain_text;
 use async_trait::async_trait;
 use omnis_sdk::constants::stores;
 use omnis_sdk::{

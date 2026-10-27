@@ -1,6 +1,5 @@
-use crate::metadata::types::MetadataCandidateDto;
-use crate::metadata::utils::extract_year;
-use crate::metadata::{html_to_plain_text, url_encode};
+use super::types::MetadataCandidateDto;
+use super::utils::{extract_year, html_to_plain_text, url_encode};
 use async_trait::async_trait;
 use omnis_sdk::constants::stores;
 use omnis_sdk::{
@@ -155,12 +154,12 @@ impl GogMetadataProvider {
             .take(limit)
             .map(|prod| {
                 let id = prod.id_string();
-                let name = prod.title.unwrap_or_else(|| title.to_string());
                 let cover_vert = prod.cover_vertical_url();
                 let cover_horiz = prod.cover_horizontal_url();
+                let genres = prod.genres_list();
+                let name = prod.title.unwrap_or_else(|| title.to_string());
                 let release_date = prod.release_date;
                 let release_year = release_date.as_deref().and_then(extract_year);
-                let genres = prod.genres_list();
                 let developers = prod.developers;
                 let publishers = prod.publishers;
                 let desc = format!("Titolo ufficiale GOG Store DRM-Free: {}", name);
@@ -261,7 +260,7 @@ impl MetadataProvider for GogMetadataProvider {
                     if let Ok(resp) = self.client.get(&url).send().await {
                         if resp.status().is_success() {
                             if let Ok(data) = resp.json::<GogProductDetailsDto>().await {
-                                let desc = data.description.and_then(|d| d.lead).map(html_to_plain_text);
+                                let desc = data.description.and_then(|d| d.lead).as_deref().map(html_to_plain_text);
                                 let mut cover_url = None;
                                 let mut bg_url = None;
 
@@ -323,15 +322,19 @@ impl MetadataProvider for GogMetadataProvider {
             .next()
             .ok_or_else(|| format!("Nessun gioco trovato su GOG per '{}'", request.title))?;
 
+        let cover_url = first.cover_vertical_url();
+        let background_url = first.cover_horizontal_url();
+        let genres = first.genres_list();
+
         Ok(GameMetadataPatch {
             description: None,
             release_date: first.release_date,
-            cover_url: first.cover_vertical_url(),
-            background_url: first.cover_horizontal_url(),
+            cover_url,
+            background_url,
             icon_url: None,
             critic_score: None,
             community_score: None,
-            genres: first.genres_list(),
+            genres,
             developers: first.developers,
             publishers: first.publishers,
             tags: Vec::new(),

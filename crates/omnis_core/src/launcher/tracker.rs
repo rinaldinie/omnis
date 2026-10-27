@@ -1,14 +1,10 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::time::{Duration, Instant};
-use sysinfo::{Pid, System};
+use sysinfo::System;
 use tokio::process::Command;
-use uuid::Uuid;
-use omnis_sdk::{LaunchConfiguration, ProcessTrackingMode};
+use omnis_sdk::LaunchConfiguration;
 
-use super::{
-    find_gog_game_executable, get_steam_running_appid, is_uri_command, matches_target,
-    wait_for_process_exit_kernel, LaunchError,
-};
+use super::{matches_target, wait_for_process_exit_kernel, LaunchError};
 
 /// Handles process identification, launcher trampoline detection, and exit grace period monitoring
 pub struct ProcessTracker;
