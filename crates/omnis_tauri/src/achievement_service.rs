@@ -6,6 +6,7 @@ use omnis_plugin_epic::EpicLibraryPlugin;
 use omnis_plugin_gog::GogCloudPlugin;
 use omnis_plugin_steam::SteamPlugin;
 use omnis_plugin_xbox::XboxCloudPlugin;
+use omnis_sdk::constants::{storage, stores};
 use omnis_sdk::{Achievement, AchievementProvider, Game, GameAchievementsSummary};
 use std::collections::HashMap;
 use std::path::Path;
@@ -52,31 +53,31 @@ impl AchievementService {
         })?;
 
         let session = match game.library_id.as_str() {
-            "steam" => Some(
+            stores::STEAM => Some(
                 store_account_manager
-                    .load_session("steam")
+                    .load_session(stores::STEAM)
                     .map_err(|e| format!("Errore nel caricamento della sessione Steam: {e}"))?
                     .ok_or_else(|| {
                         "Nessun account Steam configurato. Inserisci la Steam Web API Key e l'ID Account nelle impostazioni Store.".to_string()
                     })?,
             ),
-            "xbox" => Some(
+            stores::XBOX => Some(
                 store_account_manager
-                    .load_session("xbox")
+                    .load_session(stores::XBOX)
                     .map_err(|e| format!("Error loading Xbox session: {e}"))?
                     .ok_or_else(|| {
                         "No active Xbox account found. Please connect your Xbox account in Store Accounts.".to_string()
                     })?,
             ),
-            "gog" => Some(
+            stores::GOG => Some(
                 store_account_manager
-                    .load_session("gog")
+                    .load_session(stores::GOG)
                     .map_err(|e| format!("Error loading GOG session: {e}"))?
                     .ok_or_else(|| {
                         "No active GOG Galaxy account found. Please connect your GOG account in Store Accounts.".to_string()
                     })?,
             ),
-            "epic" => store_account_manager.load_session("epic").ok().flatten(),
+            stores::EPIC => store_account_manager.load_session(stores::EPIC).ok().flatten(),
             _ => store_account_manager.load_session(&game.library_id).ok().flatten(),
         };
 
@@ -102,7 +103,7 @@ impl AchievementService {
             .map_err(|e| format!("Database error saving achievements: {e}"))?;
 
         let db_clone = Arc::clone(db);
-        let cache_dir = app_dir.join("cache").join("achievements");
+        let cache_dir = app_dir.join(storage::CACHE_DIR).join(storage::ACHIEVEMENTS_DIR);
         let cache_manager = AchievementCacheManager::new(cache_dir);
         tokio::spawn(async move {
             if let Err(e) = cache_manager
@@ -131,10 +132,10 @@ mod tests {
     #[test]
     fn test_achievement_service_initialization() {
         let service = AchievementService::new();
-        assert!(service.providers.contains_key("steam"));
-        assert!(service.providers.contains_key("xbox"));
-        assert!(service.providers.contains_key("gog"));
-        assert!(service.providers.contains_key("epic"));
+        assert!(service.providers.contains_key(stores::STEAM));
+        assert!(service.providers.contains_key(stores::XBOX));
+        assert!(service.providers.contains_key(stores::GOG));
+        assert!(service.providers.contains_key(stores::EPIC));
     }
 
     struct MockProvider;

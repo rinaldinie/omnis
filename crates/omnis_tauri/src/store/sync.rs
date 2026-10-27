@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter};
 use omnis_core::Database;
+use omnis_sdk::constants::events;
 use omnis_sdk::models::{DiscoveredGame, StoreSyncProgressPayload};
 use omnis_sdk::plugin::{CloudStorePlugin, StoreAccountSession};
 
@@ -122,7 +123,7 @@ impl StoreCatalogSyncEngine {
         Self::emit_sync_progress(app_handle, store_id, games.len(), games.len(), "completed", Some(completion_message));
 
         let _ = app_handle.emit(
-            "library-updated",
+            events::LIBRARY_UPDATED,
             serde_json::json!({
                 "store_id": store_id,
                 "count": count

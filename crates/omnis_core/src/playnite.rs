@@ -1,5 +1,7 @@
 use crate::Database;
 use chrono::Utc;
+use omnis_sdk::constants::stores;
+use omnis_sdk::CompletionStatus;
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -53,10 +55,10 @@ namespace OmnisPlayniteExporter
 /// Official GUIDs taken from Playnite source code:
 pub fn map_playnite_plugin_id(plugin_id: Option<&str>) -> &'static str {
     match plugin_id.map(|s| s.trim().to_ascii_lowercase()).as_deref() {
-        Some("cb91aec9-6843-410e-a02b-a64c48325983") => "steam",
-        Some("aebe8b7c-6dc3-4a66-af31-e7375c6b5e9e") => "gog",
-        Some("00000002-dbd1-46c6-b5d0-b1cb55d14e34") => "epic",
-        Some("7e4fbb5e-2304-4c2c-9721-402f4586f6a7") | Some("b5199324-4061-4613-9f4c-1e24749f57d6") => "xbox",
+        Some("cb91aec9-6843-410e-a02b-a64c48325983") => stores::STEAM,
+        Some("aebe8b7c-6dc3-4a66-af31-e7375c6b5e9e") => stores::GOG,
+        Some("00000002-dbd1-46c6-b5d0-b1cb55d14e34") => stores::EPIC,
+        Some("7e4fbb5e-2304-4c2c-9721-402f4586f6a7") | Some("b5199324-4061-4613-9f4c-1e24749f57d6") => stores::XBOX,
         Some("85dd7072-76de-42bc-9c2b-000e60e4e843") => "origin",
         Some("c2f038e5-8b92-4877-9163-0d6e1fa20322") => "ubisoft",
         Some("e3c26a3d-dce2-4bb7-9ec7-300e12361115") => "battlenet",
@@ -64,7 +66,7 @@ pub fn map_playnite_plugin_id(plugin_id: Option<&str>) -> &'static str {
         Some("4029fdd1-eb23-4e4b-9e58-690a9a4b85c2") => "amazon",
         Some("0e460992-6ff1-4666-a111-000000000001") => "bethesda",
         Some("96e8c4bc-1666-4e5a-a435-0902c3ec0b2b") => "humble",
-        _ => "manual",
+        _ => stores::MANUAL,
     }
 }
 
@@ -467,7 +469,7 @@ impl PlayniteImporter {
                     bg_to_save,
                     tags_str,
                     features_str,
-                    item.Completion.as_deref().unwrap_or("NotPlayed"),
+                    item.Completion.as_deref().unwrap_or(CompletionStatus::NotPlayed.as_str()),
                     is_fav,
                     now,
                 ],

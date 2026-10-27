@@ -1,5 +1,6 @@
 use crate::types::{game_to_dto, AppState, GameDto};
 use omnis_core::{MetadataCandidateDto, MetadataPipelineConfig, ProviderInfo};
+use omnis_sdk::constants::events;
 use tauri::{Emitter, State};
 use uuid::Uuid;
 
@@ -22,7 +23,7 @@ pub async fn download_all_metadata(
     downloader
         .download_for_all(db, &cache_dir, move |cur, tot, title| {
             let _ = handle.emit(
-                "metadata-progress",
+                events::METADATA_PROGRESS,
                 MetadataProgressPayload {
                     current: cur,
                     total: tot,
@@ -106,8 +107,8 @@ pub async fn enrich_single_game(
         state.image_cache.invalidate(p);
     }
 
-    let _ = app_handle.emit("game-updated", &game_id);
-    let _ = app_handle.emit("library-updated", ());
+    let _ = app_handle.emit(events::GAME_UPDATED, &game_id);
+    let _ = app_handle.emit(events::LIBRARY_UPDATED, ());
 
     Ok(game_to_dto(game, &state.image_cache))
 }
@@ -150,8 +151,8 @@ pub async fn refresh_game_howlongtobeat(
         .map_err(|e| e.to_string())?
         .ok_or_else(|| "Gioco non trovato".to_string())?;
 
-    let _ = app_handle.emit("game-updated", &game_id);
-    let _ = app_handle.emit("library-updated", ());
+    let _ = app_handle.emit(events::GAME_UPDATED, &game_id);
+    let _ = app_handle.emit(events::LIBRARY_UPDATED, ());
 
     Ok(game_to_dto(updated_game, &state.image_cache))
 }
