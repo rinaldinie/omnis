@@ -27,9 +27,11 @@ pub use steamgriddb::SteamGridDbProvider;
 pub use types::*;
 pub use utils::*;
 
+pub mod fallback;
 pub mod media;
 pub mod registry;
 
+pub use fallback::FallbackMetadataGenerator;
 pub use media::{HttpMediaDownloader, MediaDownloader};
 pub use registry::{MetadataRegistry, ProviderRegistry};
 
@@ -302,50 +304,11 @@ impl MetadataDownloader {
         self.cancel_requested.load(Ordering::SeqCst)
     }
 
+    #[inline]
     pub fn generate_fallback_metadata(&self, title: &str, library: &str) -> GameMetadataPatch {
-        let clean_title = title.to_lowercase();
-        let mut genres = Vec::new();
-
-        if clean_title.contains("witcher")
-            || clean_title.contains("rpg")
-            || clean_title.contains("baldurs")
-        {
-            genres.push("GDR".to_string());
-            genres.push("Avventura Open World".to_string());
-        } else if clean_title.contains("portal") || clean_title.contains("puzzle") {
-            genres.push("Puzzle".to_string());
-            genres.push("Fantascienza".to_string());
-        } else if clean_title.contains("hades") || clean_title.contains("rogue") {
-            genres.push("Roguelike".to_string());
-            genres.push("Azione Hack & Slash".to_string());
-        } else {
-            genres.push("Azione".to_string());
-            genres.push("Single Player".to_string());
-        }
-
-        GameMetadataPatch {
-            description: Some(format!(
-                "{} è un entusiasmante titolo disponibile nella tua libreria {}. Informazioni dettagliate sincronizzate localmente.",
-                title,
-                library.to_uppercase()
-            )),
-            release_date: Some("Recente".to_string()),
-            cover_url: None,
-            background_url: None,
-            icon_url: None,
-            critic_score: Some(88),
-            community_score: Some(90),
-            genres,
-            developers: vec!["Sviluppatore Ufficiale".to_string()],
-            publishers: vec![library.to_uppercase()],
-            tags: vec!["Preferito".to_string(), "PC".to_string()],
-            features: vec!["Single-player".to_string()],
-            extra_metadata: None,
-        }
+        FallbackMetadataGenerator::generate(title, library)
     }
 }
-
-#[cfg(test)]
 
 #[cfg(test)]
 mod tests;
