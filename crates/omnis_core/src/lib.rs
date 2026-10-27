@@ -29,7 +29,7 @@ pub use launcher::{
 pub use marketplace::{
     MarketplaceCatalog, MarketplaceManager, MarketplacePlatformAsset, MarketplacePluginItem,
 };
-pub use metadata::{MetadataCandidateDto, MetadataDownloader, MetadataPipelineConfig, ProviderInfo};
+pub use metadata::{MediaDownloader, MetadataCandidateDto, MetadataDownloader, MetadataPipelineConfig, MetadataRegistry, ProviderInfo};
 pub use security::{SecretVault, VaultError, VaultStatus};
 pub use theme::{
     parse_and_validate_theme_manifest, validate_theme_css_security, ThemeManifest,
