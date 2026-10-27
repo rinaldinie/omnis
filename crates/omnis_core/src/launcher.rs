@@ -1,3 +1,9 @@
+pub mod process_control;
+pub use process_control::*;
+
+#[cfg(test)]
+mod tests;
+
 use omnis_sdk::{LaunchConfiguration, ProcessTrackingMode};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
@@ -322,244 +328,6 @@ pub async fn wait_for_process_exit_kernel(pid: u32) -> Result<(), String> {
 }
 
 /// Allows background and child processes to set the foreground window on Windows (Requirement C1)
-pub fn allow_set_foreground_window() {
-    #[cfg(windows)]
-    {
-        use windows::Win32::UI::WindowsAndMessaging::{AllowSetForegroundWindow, ASFW_ANY};
-        unsafe {
-            let _ = AllowSetForegroundWindow(ASFW_ANY);
-        }
-    }
-}
-
-/// Brings the main visible window of a process (or its child process tree) to the foreground on Windows.
-/// Uses AttachThreadInput, AllowSetForegroundWindow, and SetForegroundWindow to reliably bypass Windows foreground lock.
-#[cfg(windows)]
-pub fn bring_process_to_foreground(pid: u32) -> bool {
-    use windows::Win32::Foundation::{BOOL, HWND, LPARAM};
-    use windows::Win32::System::Threading::{AttachThreadInput, GetCurrentThreadId};
-    use windows::Win32::UI::WindowsAndMessaging::{
-        AllowSetForegroundWindow, BringWindowToTop, EnumWindows, GetForegroundWindow,
-        GetWindowThreadProcessId, IsWindowVisible, SetForegroundWindow, ShowWindow,
-        ASFW_ANY, SW_RESTORE,
-    };
-
-    if pid == 0 {
-        return false;
-    }
-
-    // Collect all candidate PIDs: root PID and all children in process tree
-    let mut candidate_pids = std::collections::HashSet::new();
-    candidate_pids.insert(pid);
-
-    let mut sys = System::new();
-    sys.refresh_processes();
-    let mut added = true;
-    while added {
-        added = false;
-        for (p, proc) in sys.processes() {
-            let p_u32 = p.as_u32();
-            if !candidate_pids.contains(&p_u32) {
-                if let Some(parent) = proc.parent() {
-                    if candidate_pids.contains(&parent.as_u32()) {
-                        candidate_pids.insert(p_u32);
-                        added = true;
-                    }
-                }
-            }
-        }
-    }
-
-    struct WindowSearch {
-        candidate_pids: std::collections::HashSet<u32>,
-        found_hwnd: Option<HWND>,
-    }
-
-    unsafe extern "system" fn enum_proc(hwnd: HWND, lparam: LPARAM) -> BOOL {
-        let data = &mut *(lparam.0 as *mut WindowSearch);
-        let mut proc_id = 0u32;
-        GetWindowThreadProcessId(hwnd, Some(&mut proc_id));
-        if data.candidate_pids.contains(&proc_id) && IsWindowVisible(hwnd).as_bool() {
-            data.found_hwnd = Some(hwnd);
-            return BOOL(0); // Stop enumeration
-        }
-        BOOL(1)
-    }
-
-    let mut data = WindowSearch {
-        candidate_pids,
-        found_hwnd: None,
-    };
-
-    unsafe {
-        let _ = EnumWindows(Some(enum_proc), LPARAM(&mut data as *mut WindowSearch as isize));
-        if let Some(hwnd) = data.found_hwnd {
-            let _ = AllowSetForegroundWindow(ASFW_ANY);
-
-            let fg_hwnd = GetForegroundWindow();
-            let mut fg_proc_id = 0u32;
-            let fg_thread_id = GetWindowThreadProcessId(fg_hwnd, Some(&mut fg_proc_id));
-            let current_thread_id = GetCurrentThreadId();
-            let mut target_proc_id = 0u32;
-            let target_thread_id = GetWindowThreadProcessId(hwnd, Some(&mut target_proc_id));
-
-            let attached_fg = if fg_thread_id != current_thread_id && fg_thread_id != 0 {
-                AttachThreadInput(current_thread_id, fg_thread_id, BOOL(1)) == BOOL(1)
-            } else {
-                false
-            };
-
-            let attached_target = if target_thread_id != current_thread_id && target_thread_id != 0 {
-                AttachThreadInput(current_thread_id, target_thread_id, BOOL(1)) == BOOL(1)
-            } else {
-                false
-            };
-
-            let _ = ShowWindow(hwnd, SW_RESTORE);
-            let _ = BringWindowToTop(hwnd);
-            let _ = SetForegroundWindow(hwnd);
-
-            if attached_fg {
-                let _ = AttachThreadInput(current_thread_id, fg_thread_id, BOOL(0));
-            }
-            if attached_target {
-                let _ = AttachThreadInput(current_thread_id, target_thread_id, BOOL(0));
-            }
-
-            return true;
-        }
-    }
-    false
-}
-
-#[cfg(not(windows))]
-pub fn bring_process_to_foreground(_pid: u32) -> bool {
-    false
-}
-
-/// Asynchronously attempts to bring the process's main window to the foreground with polling retries.
-/// Since games often take 1 to 5 seconds to initialize graphics and display their window,
-/// this retries every 300ms for up to `timeout_secs` (default ~6-8s).
-pub async fn bring_process_to_foreground_async(pid: u32, timeout_secs: u64) -> bool {
-    if pid == 0 {
-        return false;
-    }
-    let deadline = Instant::now() + Duration::from_secs(timeout_secs.max(1));
-    while Instant::now() < deadline {
-        if bring_process_to_foreground(pid) {
-            return true;
-        }
-        tokio::time::sleep(Duration::from_millis(300)).await;
-    }
-    false
-}
-
-/// Helper to forcibly terminate a process by PID across platforms
-pub fn kill_process(pid: u32) -> Result<(), String> {
-    if pid == 0 {
-        return Err("Invalid PID: 0".to_string());
-    }
-
-    #[cfg(windows)]
-    {
-        use windows::Win32::Foundation::CloseHandle;
-        use windows::Win32::System::Threading::{OpenProcess, TerminateProcess, PROCESS_TERMINATE};
-        unsafe {
-            if let Ok(handle) = OpenProcess(PROCESS_TERMINATE, false, pid) {
-                let res = TerminateProcess(handle, 1);
-                let _ = CloseHandle(handle);
-                if res.is_ok() {
-                    return Ok(());
-                }
-            }
-        }
-    }
-
-    let mut sys = System::new();
-    sys.refresh_processes();
-    let sysinfo_pid = Pid::from(pid as usize);
-    if let Some(proc) = sys.process(sysinfo_pid) {
-        if proc.kill() {
-            return Ok(());
-        }
-    }
-
-    #[cfg(unix)]
-    {
-        unsafe {
-            if libc::kill(pid as i32, libc::SIGKILL) == 0 {
-                return Ok(());
-            }
-        }
-    }
-
-    // Check if the process is already gone
-    sys.refresh_processes();
-    if sys.process(sysinfo_pid).is_none() {
-        return Ok(());
-    }
-
-    Err(format!("Impossibile terminare il processo con PID {}", pid))
-}
-
-/// Sends WM_CLOSE to all top-level windows of a process for graceful exit (Requirement B4)
-#[cfg(windows)]
-pub fn send_wm_close_to_process(pid: u32) {
-    use windows::Win32::Foundation::{BOOL, HWND, LPARAM, WPARAM};
-    use windows::Win32::UI::WindowsAndMessaging::{
-        EnumWindows, GetWindowThreadProcessId, PostMessageW, WM_CLOSE,
-    };
-
-    struct EnumData {
-        target_pid: u32,
-    }
-
-    unsafe extern "system" fn enum_proc(hwnd: HWND, lparam: LPARAM) -> BOOL {
-        let data = &mut *(lparam.0 as *mut EnumData);
-        let mut proc_id = 0u32;
-        GetWindowThreadProcessId(hwnd, Some(&mut proc_id));
-        if proc_id == data.target_pid {
-            let _ = PostMessageW(hwnd, WM_CLOSE, WPARAM(0), LPARAM(0));
-        }
-        BOOL(1)
-    }
-
-    let mut data = EnumData { target_pid: pid };
-    unsafe {
-        let _ = EnumWindows(Some(enum_proc), LPARAM(&mut data as *mut EnumData as isize));
-    }
-}
-
-#[cfg(not(windows))]
-pub fn send_wm_close_to_process(pid: u32) {
-    #[cfg(unix)]
-    unsafe {
-        let _ = libc::kill(pid as i32, libc::SIGTERM);
-    }
-}
-
-/// Graceful termination: sends WM_CLOSE, waits up to timeout_secs, then falls back to hard kill (Requirement B4)
-pub async fn kill_process_graceful(pid: u32, timeout_secs: u64) -> Result<(), String> {
-    if pid == 0 {
-        return Err("Invalid PID: 0".to_string());
-    }
-
-    send_wm_close_to_process(pid);
-
-    let deadline = Instant::now() + Duration::from_secs(timeout_secs.max(1));
-    let mut sys = System::new();
-    let sys_pid = Pid::from(pid as usize);
-
-    while Instant::now() < deadline {
-        tokio::time::sleep(Duration::from_millis(300)).await;
-        if !sys.refresh_process(sys_pid) {
-            return Ok(()); // Exited gracefully
-        }
-    }
-
-    // Still alive after graceful timeout, terminate forcibly
-    kill_process(pid)
-}
 
 /// Calculates the total resident memory in bytes of a process and ALL its descendants.
 /// Correctly accounts for multi-process architectures such as Chromium/WebView2,
@@ -610,6 +378,9 @@ pub fn get_current_app_memory_bytes() -> u64 {
 /// High-performance process runner & monitoring engine for Omnis
 pub struct GameLauncher;
 
+pub mod tracker;
+pub use tracker::ProcessTracker;
+
 impl GameLauncher {
     /// Launches a game executable with real-time process monitoring, hybrid scan+kernel wait,
     /// and exit grace period handoff (Requirements A1, A5, A6).
@@ -629,7 +400,6 @@ impl GameLauncher {
             _ => None,
         };
 
-        // Store-specific GOG detection: if install_dir has goggame-*.info, look for real primary executable
         let target_name = target_name.or_else(|| {
             if let Some(ref dir) = install_dir {
                 find_gog_game_executable(dir).and_then(|p| {
@@ -646,39 +416,8 @@ impl GameLauncher {
         });
 
         if is_uri {
-            let mut cmd = Command::new(&config.executable);
-            let mut args = config.arguments.clone();
-            if cfg!(windows) {
-                // Ensure `start` has the empty title argument `""` so Windows doesn't treat URI as a title
-                let mut sanitized = Vec::new();
-                let mut iter = args.into_iter();
-                while let Some(arg) = iter.next() {
-                    let is_start = arg.eq_ignore_ascii_case("start");
-                    sanitized.push(arg);
-                    if is_start {
-                        if let Some(next_arg) = iter.next() {
-                            if !next_arg.is_empty()
-                                && (next_arg.contains("://")
-                                    || next_arg.ends_with(".exe")
-                                    || next_arg.starts_with('"'))
-                            {
-                                sanitized.push("".to_string());
-                            }
-                            sanitized.push(next_arg);
-                        }
-                    }
-                }
-                args = sanitized;
-            }
-            cmd.args(&args);
-            if let Some(ref dir) = config.working_dir {
-                cmd.current_dir(dir);
-            }
+            ProcessTracker::spawn_uri_command(&config).await?;
 
-            let mut child = cmd.spawn()?;
-            let _ = child.wait().await;
-
-            // Store-specific Steam AppID detection heuristic if target_dir is not known (Requirement A7)
             #[cfg(windows)]
             let steam_appid: Option<u64> = config.arguments.iter().find_map(|arg| {
                 if let Some(pos) = arg.find("steam://rungameid/") {
@@ -724,34 +463,16 @@ impl GameLauncher {
                 }
             }
 
-            // If neither target name nor directory is specified, we cannot track a process
             if target_name.is_none() && target_dir.is_none() {
                 on_started(0);
                 return Ok(0);
             }
 
-            // A6. Generous launch timeout (up to 90 seconds, checking every 1s)
-            let timeout = Duration::from_secs(90);
-            let check_interval = Duration::from_secs(1);
-            let grace_start = Instant::now();
-            let mut detected_pid: Option<u32> = None;
-            let mut sys = System::new();
-
-            while grace_start.elapsed() < timeout {
-                sys.refresh_processes();
-                for (pid, proc) in sys.processes() {
-                    if matches_target(proc, target_name.as_deref(), target_dir.as_deref()) {
-                        detected_pid = Some(pid.as_u32());
-                        break;
-                    }
-                }
-                if detected_pid.is_some() {
-                    break;
-                }
-                tokio::time::sleep(check_interval).await;
-            }
-
-            let mut real_pid = match detected_pid {
+            let real_pid = match ProcessTracker::detect_process(
+                target_name.as_deref(),
+                target_dir.as_deref(),
+                Duration::from_secs(90),
+            ).await {
                 Some(pid) => pid,
                 None => {
                     tracing::warn!("Grace period timeout: no process found for game {}", game_id);
@@ -759,46 +480,14 @@ impl GameLauncher {
                 }
             };
 
-            // Playtime begins now (at process detection, Requirement A6)
             let detection_time = Instant::now();
             on_started(real_pid);
 
-            // A1 & A5: Kernel Wait + Exit Grace Period
-            loop {
-                // Wait kernel-side for process exit (0% CPU)
-                let _ = wait_for_process_exit_kernel(real_pid).await;
-
-                // A5. Exit grace period (5s): check if an alternative game process was spawned by the launcher
-                let mut alternative_found = None;
-                let exit_grace_deadline = Instant::now() + Duration::from_secs(5);
-
-                while Instant::now() < exit_grace_deadline {
-                    tokio::time::sleep(Duration::from_millis(500)).await;
-                    sys.refresh_processes();
-                    for (pid, proc) in sys.processes() {
-                        if matches_target(proc, target_name.as_deref(), target_dir.as_deref()) {
-                            alternative_found = Some(pid.as_u32());
-                            break;
-                        }
-                    }
-                    if alternative_found.is_some() {
-                        break;
-                    }
-                }
-
-                if let Some(next_pid) = alternative_found {
-                    real_pid = next_pid;
-                    continue; // Seamlessly track next child process
-                }
-
-                // No processes remaining after grace period; session ended
-                break;
-            }
+            ProcessTracker::track_until_exit(real_pid, target_name.as_deref(), target_dir.as_deref()).await;
 
             let duration = detection_time.elapsed().as_secs();
             Ok(duration)
         } else {
-            // Direct executable launch without intermediate launcher
             let mut cmd = Command::new(&config.executable);
             cmd.args(&config.arguments);
             if let Some(ref dir) = config.working_dir {
@@ -813,19 +502,12 @@ impl GameLauncher {
             let _status = child.wait().await?;
             let mut duration = detection_time.elapsed().as_secs();
 
-            // Trampoline launcher scenario: if exited in under 3 seconds, check for real game process
             if duration < 3 && (target_name.is_some() || target_dir.is_some()) {
-                let mut sys = System::new();
-                sys.refresh_processes();
-                let mut found_pid = None;
-                for (pid, proc) in sys.processes() {
-                    if matches_target(proc, target_name.as_deref(), target_dir.as_deref()) {
-                        found_pid = Some(pid.as_u32());
-                        break;
-                    }
-                }
-
-                if let Some(real_pid) = found_pid {
+                if let Some(real_pid) = ProcessTracker::detect_process(
+                    target_name.as_deref(),
+                    target_dir.as_deref(),
+                    Duration::from_secs(1),
+                ).await {
                     let _ = wait_for_process_exit_kernel(real_pid).await;
                     duration = detection_time.elapsed().as_secs();
                 }
@@ -835,7 +517,6 @@ impl GameLauncher {
         }
     }
 
-    /// Convenience wrapper for launching without explicit install directory
     pub async fn launch_and_track_simple<F>(
         game_id: Uuid,
         config: LaunchConfiguration,
@@ -868,141 +549,3 @@ impl GameLauncher {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::sync::atomic::{AtomicU32, Ordering};
-    use std::sync::Arc;
-
-    #[test]
-    fn test_is_blacklisted_process() {
-        assert!(is_blacklisted_process("UnityCrashHandler64.exe"));
-        assert!(is_blacklisted_process("unitycrashhandler32.exe"));
-        assert!(is_blacklisted_process("vcredist_x64.exe"));
-        assert!(is_blacklisted_process("dxsetup.exe"));
-        assert!(is_blacklisted_process("CrashReportClient.exe"));
-        assert!(!is_blacklisted_process("Doom.exe"));
-        assert!(!is_blacklisted_process("Cyberpunk2077.exe"));
-    }
-
-    #[test]
-    fn test_is_uri_command() {
-        let uri_cfg_windows = LaunchConfiguration {
-            executable: "cmd.exe".to_string(),
-            arguments: vec!["/c".to_string(), "start".to_string(), "steam://rungameid/10".to_string()],
-            working_dir: None,
-            tracking_mode: ProcessTrackingMode::KernelJobObject,
-        };
-        assert!(is_uri_command(&uri_cfg_windows));
-
-        let uri_cfg_linux = LaunchConfiguration {
-            executable: "xdg-open".to_string(),
-            arguments: vec!["steam://rungameid/10".to_string()],
-            working_dir: None,
-            tracking_mode: ProcessTrackingMode::KernelJobObject,
-        };
-        assert!(is_uri_command(&uri_cfg_linux));
-
-        let direct_cfg = LaunchConfiguration {
-            executable: "C:\\Games\\Doom\\Doom.exe".to_string(),
-            arguments: vec![],
-            working_dir: None,
-            tracking_mode: ProcessTrackingMode::KernelJobObject,
-        };
-        assert!(!is_uri_command(&direct_cfg));
-    }
-
-    #[test]
-    fn test_path_contains() {
-        let parent = Path::new("C:/Games/Doom");
-        let child_ok = Path::new("C:\\Games\\Doom\\bin\\doom.exe");
-        let child_same = Path::new("C:\\Games\\Doom");
-        let child_other = Path::new("C:\\Games\\Doom2\\doom2.exe");
-        let child_unrelated = Path::new("D:\\Other\\app.exe");
-
-        assert!(path_contains(parent, child_ok));
-        assert!(path_contains(parent, child_same));
-        assert!(!path_contains(parent, child_other));
-        assert!(!path_contains(parent, child_unrelated));
-    }
-
-    #[test]
-    fn test_kill_process_invalid_pid() {
-        assert!(kill_process(0).is_err());
-        assert!(GameLauncher::kill_process(0).is_err());
-    }
-
-    #[tokio::test]
-    async fn test_direct_launch_completion() {
-        let config = if cfg!(windows) {
-            LaunchConfiguration {
-                executable: "cmd.exe".to_string(),
-                arguments: vec!["/c".to_string(), "exit".to_string(), "0".to_string()],
-                working_dir: None,
-                tracking_mode: ProcessTrackingMode::KernelJobObject,
-            }
-        } else {
-            LaunchConfiguration {
-                executable: "sh".to_string(),
-                arguments: vec!["-c".to_string(), "exit 0".to_string()],
-                working_dir: None,
-                tracking_mode: ProcessTrackingMode::KernelJobObject,
-            }
-        };
-
-        let started_pid = Arc::new(AtomicU32::new(0));
-        let pid_clone = started_pid.clone();
-        let res = GameLauncher::launch_and_track_simple(
-            Uuid::new_v4(),
-            config,
-            move |pid| {
-                pid_clone.store(pid, Ordering::SeqCst);
-            },
-        )
-        .await;
-
-        assert!(res.is_ok());
-        assert!(started_pid.load(Ordering::SeqCst) > 0);
-    }
-
-    #[test]
-    fn test_matches_target() {
-        let mut sys = System::new();
-        sys.refresh_processes();
-
-        let current_pid = std::process::id();
-        let sys_pid = Pid::from(current_pid as usize);
-        if let Some(proc) = sys.process(sys_pid) {
-            let p_name = proc.name().to_string();
-            assert!(matches_target(proc, Some(&p_name), None));
-            assert!(matches_target(proc, Some(&p_name.to_lowercase()), None));
-            assert!(matches_target(proc, Some(&p_name.to_uppercase()), None));
-
-            if let Some(parent_dir) = proc.exe().and_then(|e| e.parent()) {
-                assert!(matches_target(proc, None, Some(parent_dir)));
-            }
-
-            assert!(!matches_target(proc, Some("non_existent_process_12345.exe"), None));
-        }
-    }
-
-    #[tokio::test]
-    async fn test_kill_process_active() {
-        let mut cmd = if cfg!(windows) {
-            let mut c = std::process::Command::new("cmd.exe");
-            c.args(["/c", "ping", "-n", "10", "127.0.0.1"]);
-            c
-        } else {
-            let mut c = std::process::Command::new("sleep");
-            c.arg("10");
-            c
-        };
-
-        let child = cmd.spawn().expect("Failed to spawn sleeper process");
-        let pid = child.id();
-        assert!(pid > 0);
-
-        let kill_res = kill_process(pid);
-        assert!(kill_res.is_ok(), "Kill process failed: {:?}", kill_res);
-    }
-}
