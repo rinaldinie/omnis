@@ -383,3 +383,14 @@ use super::*;
         );
         assert!(!res.unwrap().is_empty());
     }
+
+    #[test]
+    fn test_generate_fallback_metadata_facade() {
+        let downloader = MetadataDownloader::new();
+        let patch = downloader.generate_fallback_metadata("Baldur's Gate 3", "gog");
+        assert!(patch.genres.contains(&"RPG".to_string()));
+        assert!(patch.genres.contains(&"Open World Adventure".to_string()));
+        assert_eq!(patch.publishers, vec!["GOG".to_string()]);
+        assert_eq!(patch.developers, vec!["Official Developer".to_string()]);
+        assert!(patch.description.unwrap().contains("Baldur's Gate 3"));
+    }
