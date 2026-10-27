@@ -19,7 +19,7 @@ pub use event_bus::EventBus;
 pub use host::PluginHost;
 pub use playnite::{
     export_csharp_script, map_playnite_plugin_id, PlayniteGameDto, PlayniteImportOptions,
-    PlayniteImportStats,
+    PlayniteImportStats, PlayniteImporter,
 };
 pub use search::{FuzzyGameSearchIndex, SearchItem};
 pub use launcher::{
@@ -27,7 +27,8 @@ pub use launcher::{
     get_process_tree_memory_from_system, GameLauncher,
 };
 pub use marketplace::{
-    MarketplaceCatalog, MarketplaceManager, MarketplacePlatformAsset, MarketplacePluginItem,
+    MarketplaceCatalog, MarketplaceCatalogService, MarketplaceManager, MarketplacePlatformAsset,
+    MarketplacePluginItem, PluginPackageInstaller,
 };
 pub use metadata::{
     FallbackMetadataGenerator, HttpMediaDownloader, MediaDownloader, MetadataCandidateDto,

@@ -123,8 +123,11 @@ pub struct PlayniteImportStats {
     pub categories_added: usize,
 }
 
-impl Database {
-    /// Import games from Playnite 10 JSON export data.
+/// Domain service coordinating non-duplicative, idempotent game importing from Playnite 10 JSON exports
+pub struct PlayniteImporter;
+
+impl PlayniteImporter {
+    /// Import games from Playnite 10 JSON export data into the given database.
     ///
     /// Follows strict non-duplicative, idempotent merging semantics:
     /// - Stores mapped via Playnite GUID table.
@@ -132,8 +135,8 @@ impl Database {
     /// - Avoids double-counting playtime if Omnis already has historical sessions.
     /// - Copies local image assets into the image cache directory.
     /// - Supports --dry-run without mutating database or filesystem.
-    pub fn import_playnite_games(
-        &self,
+    pub fn import_games(
+        db: &Database,
         items: &[PlayniteGameDto],
         options: &PlayniteImportOptions,
     ) -> Result<PlayniteImportStats, Box<dyn std::error::Error>> {
@@ -149,7 +152,7 @@ impl Database {
         }
 
         let now = Utc::now().to_rfc3339();
-        let conn = self.writer();
+        let conn = db.writer();
 
         // If dry_run, we do all checks without executing mutations
         for item in items {
@@ -470,29 +473,62 @@ impl Database {
         drop(conn);
 
         if !options.dry_run {
-            let _ = self.reload_search_index();
+            let _ = db.reload_search_index();
         }
 
         Ok(stats)
     }
 
     /// Import games from a JSON string payload.
+    pub fn import_from_json(
+        db: &Database,
+        json_content: &str,
+        options: &PlayniteImportOptions,
+    ) -> Result<PlayniteImportStats, Box<dyn std::error::Error>> {
+        let items: Vec<PlayniteGameDto> = serde_json::from_str(json_content)?;
+        Self::import_games(db, &items, options)
+    }
+
+    /// Import games from a JSON file path.
+    pub fn import_from_file<P: AsRef<Path>>(
+        db: &Database,
+        path: P,
+        options: &PlayniteImportOptions,
+    ) -> Result<PlayniteImportStats, Box<dyn std::error::Error>> {
+        let content = fs::read_to_string(path)?;
+        Self::import_from_json(db, &content, options)
+    }
+}
+
+// Inherent forwarders on Database for backward compatibility
+impl Database {
+    /// Inherent forwarder to PlayniteImporter::import_games
+    #[inline]
+    pub fn import_playnite_games(
+        &self,
+        items: &[PlayniteGameDto],
+        options: &PlayniteImportOptions,
+    ) -> Result<PlayniteImportStats, Box<dyn std::error::Error>> {
+        PlayniteImporter::import_games(self, items, options)
+    }
+
+    /// Inherent forwarder to PlayniteImporter::import_from_json
+    #[inline]
     pub fn import_playnite_from_json(
         &self,
         json_content: &str,
         options: &PlayniteImportOptions,
     ) -> Result<PlayniteImportStats, Box<dyn std::error::Error>> {
-        let items: Vec<PlayniteGameDto> = serde_json::from_str(json_content)?;
-        self.import_playnite_games(&items, options)
+        PlayniteImporter::import_from_json(self, json_content, options)
     }
 
-    /// Import games from a JSON file path.
+    /// Inherent forwarder to PlayniteImporter::import_from_file
+    #[inline]
     pub fn import_playnite_from_file<P: AsRef<Path>>(
         &self,
         path: P,
         options: &PlayniteImportOptions,
     ) -> Result<PlayniteImportStats, Box<dyn std::error::Error>> {
-        let content = fs::read_to_string(path)?;
-        self.import_playnite_from_json(&content, options)
+        PlayniteImporter::import_from_file(self, path, options)
     }
 }
