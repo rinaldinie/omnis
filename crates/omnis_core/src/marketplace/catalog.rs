@@ -4,7 +4,7 @@ use super::types::{file_url_to_path, is_newer_version, MarketplaceCatalog};
 use std::path::{Path, PathBuf};
 
 pub const DEFAULT_CATALOG_URL: &str =
-    "https://raw.githubusercontent.com/rinaldinie/omins/main/plugins/marketplace.json";
+    "https://raw.githubusercontent.com/rinaldinie/omnis/main/plugins/marketplace.json";
 
 /// Service dedicated to retrieving the plugin catalog and enriching it with local installation status
 pub struct MarketplaceCatalogService;

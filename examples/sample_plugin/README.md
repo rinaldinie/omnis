@@ -59,4 +59,4 @@ sample_plugin/
    Al successivo avvio o apertura del Plugin Manager, il plugin verrà rilevato e caricato automaticamente.
 
 4. **Pubblicazione nel Marketplace**:
-   Per pubblicare il plugin nel Marketplace della community, segui le istruzioni nel repository ufficiale dei plugin su GitHub: [`omins-plugins`](https://github.com/rinaldinie/omins).
+   Per pubblicare il plugin nel Marketplace della community, segui le istruzioni nel repository ufficiale dei plugin su GitHub: [`omnis-plugins`](https://github.com/rinaldinie/omnis).
