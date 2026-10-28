@@ -360,6 +360,7 @@ export function useLibraryFilters(games: GameDto[]) {
           key = game.library ? game.library.toUpperCase() : t("library_groups.other").toUpperCase();
           break;
         case "is_installed":
+        case "installed" as any:
           key = game.is_installed ? t("sidebar.installed") : t("library_groups.downloadable");
           break;
         case "genre":

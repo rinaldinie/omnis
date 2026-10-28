@@ -22,6 +22,7 @@ export const en: TranslationSchema = {
     install: 'Install',
     enabled: 'Enabled',
     disabled: 'Disabled',
+    reset: 'Reset',
   },
   sidebar: {
     library: 'Library',
@@ -71,6 +72,7 @@ export const en: TranslationSchema = {
     edit_game_title: "Manually edit information for '{title}'",
     search_placeholder: 'Search by title, genre, developer or series...',
     sync: 'Sync Library',
+    sync_tooltip: 'Scan for installed games and sync connected accounts (Steam, Epic, GOG, Xbox)',
     syncing: 'Syncing...',
     enrich_button: 'Download Metadata',
     enrich_tooltip: 'Download covers, backgrounds, scores and playtime for games',
@@ -78,6 +80,7 @@ export const en: TranslationSchema = {
     all_games: 'All Games',
     filtered_count: '{count} FILTERED TITLES',
     options: 'Options',
+    settings: 'Settings',
     zoom_ui: 'UI Zoom',
     zoom_in: 'Increase Zoom',
     zoom_out: 'Decrease Zoom',

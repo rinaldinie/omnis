@@ -22,6 +22,7 @@ export const it: TranslationSchema = {
     install: 'Installa',
     enabled: 'Abilitato',
     disabled: 'Disabilitato',
+    reset: 'Ripristina',
   },
   sidebar: {
     library: 'Libreria',
@@ -71,6 +72,7 @@ export const it: TranslationSchema = {
     edit_game_title: "Modifica manualmente le informazioni di '{title}'",
     search_placeholder: 'Cerca per titolo, genere, sviluppatore o serie...',
     sync: 'Sincronizza Libreria',
+    sync_tooltip: 'Rileva giochi installati e scansiona account collegati (Steam, Epic, GOG, Xbox)',
     syncing: 'Sincronizzazione...',
     enrich_button: 'Scarica Dati e Copertine',
     enrich_tooltip: 'Scarica automaticamente locandine, sfondi, voti e dettagli per i giochi',
@@ -78,6 +80,7 @@ export const it: TranslationSchema = {
     all_games: 'Tutti i Giochi',
     filtered_count: '{count} TITOLI FILTRATI',
     options: 'Opzioni',
+    settings: 'Impostazioni',
     zoom_ui: 'Zoom UI',
     zoom_in: 'Aumenta zoom',
     zoom_out: 'Riduci zoom',

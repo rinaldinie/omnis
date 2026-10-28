@@ -6,6 +6,7 @@ import {
   Sparkles,
   Volume2,
   VolumeX,
+  Settings,
 } from "lucide-react";
 import soundEffects from "../../utils/soundEffects";
 
@@ -17,9 +18,11 @@ export interface AppMenuDropdownProps {
   onOpenPluginModal: () => void;
   onOpenAddCustomModal: () => void;
   onOpenBatchEnrichModal: () => void;
+  onOpenSettingsModal?: () => void;
   onToggleSound: () => void;
   soundEnabled: boolean;
   hasActiveProviders?: boolean;
+  isUpdateAvailable?: boolean;
   t?: (key: string, params?: Record<string, any>) => string;
 }
 
@@ -31,9 +34,11 @@ export default function AppMenuDropdown({
   onOpenPluginModal,
   onOpenAddCustomModal,
   onOpenBatchEnrichModal,
+  onOpenSettingsModal,
   onToggleSound,
   soundEnabled,
   hasActiveProviders = false,
+  isUpdateAvailable = false,
   t,
 }: AppMenuDropdownProps) {
   const menuRef = useRef<HTMLDivElement>(null);
@@ -139,6 +144,20 @@ export default function AppMenuDropdown({
           onToggleSound();
         },
       },
+      {
+        id: "settings",
+        dividerBefore: true,
+        label: t ? (t("topbar.settings") || "Impostazioni") : "Impostazioni",
+        icon: <Settings className="w-4 h-4 text-sky-400 shrink-0" />,
+        badge: isUpdateAvailable ? (
+          <span className="w-2 h-2 rounded-full bg-sky-400 animate-ping shrink-0" />
+        ) : null,
+        action: () => {
+          soundEffects.playSelect();
+          onOpenSettingsModal?.();
+          onClose();
+        },
+      },
     ],
     [
       t,
@@ -150,6 +169,8 @@ export default function AppMenuDropdown({
       onOpenBatchEnrichModal,
       soundEnabled,
       onToggleSound,
+      onOpenSettingsModal,
+      isUpdateAvailable,
     ]
   );
 

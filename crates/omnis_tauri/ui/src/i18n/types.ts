@@ -38,6 +38,7 @@ export interface TranslationSchema {
     install: string;
     enabled: string;
     disabled: string;
+    reset: string;
   };
   sidebar: {
     library: string;
@@ -87,6 +88,7 @@ export interface TranslationSchema {
     edit_game_title: string;
     search_placeholder: string;
     sync: string;
+    sync_tooltip: string;
     syncing: string;
     enrich_button: string;
     enrich_tooltip: string;
@@ -94,6 +96,7 @@ export interface TranslationSchema {
     all_games: string;
     filtered_count: string;
     options: string;
+    settings: string;
     zoom_ui: string;
     zoom_in: string;
     zoom_out: string;

@@ -4,6 +4,7 @@ import { ActiveGameSession, GameDto, GroupBy, ViewMode } from "../../types";
 import { StoreBadge } from "../StoreBadge";
 import { Slot } from "../common/Slot";
 import { GameCardCover } from "../common/GameCardCover";
+import EmptyGamesView from "../common/EmptyGamesView";
 import { useTranslation } from "../../i18n";
 
 const COMPLETION_STATUS_CONFIG: Record<string, { dot: string; labelKey: string }> = {
@@ -35,6 +36,8 @@ interface GridViewProps {
   handleKillRunningGame?: () => void;
   activeFilter?: string;
   searchQuery?: string;
+  onClearFilters?: () => void;
+  hasActiveFilters?: boolean;
 }
 
 interface GameCardItemProps {
@@ -372,6 +375,8 @@ export default function GridView({
   handleKillRunningGame,
   activeFilter = "all",
   searchQuery = "",
+  onClearFilters,
+  hasActiveFilters,
 }: GridViewProps) {
   const { t } = useTranslation();
 
@@ -383,6 +388,15 @@ export default function GridView({
       .sort((a, b) => lastPlayed(b) - lastPlayed(a))
       .slice(0, 6);
   }, [filteredGames, activeFilter, searchQuery]);
+
+  if (filteredGames.length === 0) {
+    return (
+      <EmptyGamesView
+        onClearFilters={onClearFilters}
+        hasActiveFilters={hasActiveFilters ?? (activeFilter !== "all" || searchQuery.trim() !== "")}
+      />
+    );
+  }
 
   return (
     <div className="flex-1 overflow-y-auto p-6 space-y-6">
@@ -432,21 +446,12 @@ export default function GridView({
         </div>
       )}
 
-      {filteredGames.length === 0 ? (
-        <div className="h-64 flex flex-col items-center justify-center text-center p-8">
-          <Gamepad2 className="w-12 h-12 mb-3 opacity-30" style={{ color: "var(--text-muted)" }} />
-          <span className="text-sm font-bold text-white">{t("views.no_games_found")}</span>
-          <span className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-            {t("views.no_games_found_hint")}
-          </span>
-        </div>
-      ) : (
-        Object.entries(groupedGames).map(([groupName, groupGames]) => {
-          const isCollapsed = !!collapsedGroups[groupName];
-          const isGrouped = groupBy !== "none";
+      {Object.entries(groupedGames).map(([groupName, groupGames]) => {
+        const isCollapsed = !!collapsedGroups[groupName];
+        const isGrouped = groupBy !== "none";
 
-          return (
-            <div key={groupName} className="space-y-3">
+        return (
+          <div key={groupName} className="space-y-3">
               {isGrouped && (
                 <button
                   onClick={() => toggleGroup(groupName)}
@@ -509,8 +514,7 @@ export default function GridView({
               )}
             </div>
           );
-        })
-      )}
+        })}
     </div>
   );
 }

@@ -22,6 +22,7 @@ export const ja: TranslationSchema = {
     install: 'インストール',
     enabled: '有効',
     disabled: '無効',
+    reset: 'リセット',
   },
   sidebar: {
     library: 'ライブラリ',
@@ -71,6 +72,7 @@ export const ja: TranslationSchema = {
     edit_game_title: "「{title}」の情報を手動編集",
     search_placeholder: 'タイトル、ジャンル、開発元、シリーズで検索...',
     sync: 'ライブラリ同期',
+    sync_tooltip: 'インストール済みゲームの検出と連携アカウントの同期 (Steam, Epic, GOG, Xbox)',
     syncing: '同期中...',
     enrich_button: '情報取得',
     enrich_tooltip: 'ライブラリの一括情報取得 (HowLongToBeat、カバー、詳細)',
@@ -78,6 +80,7 @@ export const ja: TranslationSchema = {
     all_games: 'すべてのゲーム',
     filtered_count: '{count} 本のタイトル',
     options: '設定',
+    settings: '設定',
     zoom_ui: 'UI ズーム',
     zoom_in: '拡大',
     zoom_out: '縮小',
