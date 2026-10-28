@@ -115,6 +115,9 @@ fn main() {
             get_slot_widgets,
             get_game_achievements,
             refresh_game_achievements,
+            inspect_playnite_backup,
+            execute_playnite_import,
+            pick_playnite_backup_file,
         ])
         .run(tauri::generate_context!())
         .expect("Errore durante l'esecuzione dell'applicazione Tauri");

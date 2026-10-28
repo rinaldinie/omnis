@@ -108,6 +108,12 @@ impl ImageCache {
             guard.remove(path_str);
         }
     }
+
+    pub fn clear(&self) {
+        if let Ok(mut guard) = self.cache.write() {
+            guard.clear();
+        }
+    }
 }
 
 impl Default for ImageCache {

@@ -72,6 +72,7 @@ import ThemeModal from "./components/modals/ThemeModal";
 import PluginManagerModal from "./components/modals/PluginManagerModal";
 import CustomGameModal from "./components/modals/CustomGameModal";
 import BatchEnrichModal from "./components/modals/BatchEnrichModal";
+import PlayniteImportModal from "./components/modals/PlayniteImportModal";
 import { UninstallModal } from "./components/modals/UninstallModal";
 import GlobalContextMenu from "./components/GlobalContextMenu";
 import FilterAndSortPopover from "./components/navigation/FilterAndSortPopover";
@@ -673,6 +674,7 @@ export default function App() {
   // PLUGIN MANAGEMENT STATES
   const [showPluginModal, setShowPluginModal] = useState<boolean>(false);
   const [showBatchEnrichModal, setShowBatchEnrichModal] = useState<boolean>(false);
+  const [isPlayniteImportOpen, setIsPlayniteImportOpen] = useState<boolean>(false);
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
   const [pipelineConfig, setPipelineConfig] = useState<MetadataPipelineConfig>({
     cover_source: "steamgriddb",
@@ -1365,6 +1367,7 @@ export default function App() {
             providers={providers}
             setShowAddCustomModal={setShowAddCustomModal}
             setShowBatchEnrichModal={setShowBatchEnrichModal}
+            onOpenPlayniteImport={() => setIsPlayniteImportOpen(true)}
             handleSync={handleSync}
             isSyncing={isSyncing}
             handleMinimize={handleMinimize}
@@ -1987,6 +1990,16 @@ export default function App() {
         currentThemeName={currentTheme.name}
         initialTab={settingsInitialTab}
         onSyncComplete={refreshLibrary}
+        onOpenPlayniteImport={() => setIsPlayniteImportOpen(true)}
+      />
+
+      {/* PLAYNITE BACKUP IMPORT MODAL */}
+      <PlayniteImportModal
+        isOpen={isPlayniteImportOpen}
+        onClose={() => setIsPlayniteImportOpen(false)}
+        onSuccess={() => {
+          refreshLibrary();
+        }}
       />
 
       {/* KILL RUNNING GAME CONFIRMATION MODAL */}
