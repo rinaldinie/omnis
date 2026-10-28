@@ -7,6 +7,7 @@ import {
   Volume2,
   VolumeX,
   Settings,
+  FolderArchive,
 } from "lucide-react";
 import soundEffects from "../../utils/soundEffects";
 
@@ -18,6 +19,7 @@ export interface AppMenuDropdownProps {
   onOpenPluginModal: () => void;
   onOpenAddCustomModal: () => void;
   onOpenBatchEnrichModal: () => void;
+  onOpenPlayniteImport?: () => void;
   onOpenSettingsModal?: () => void;
   onToggleSound: () => void;
   soundEnabled: boolean;
@@ -34,6 +36,7 @@ export default function AppMenuDropdown({
   onOpenPluginModal,
   onOpenAddCustomModal,
   onOpenBatchEnrichModal,
+  onOpenPlayniteImport,
   onOpenSettingsModal,
   onToggleSound,
   soundEnabled,
@@ -120,6 +123,16 @@ export default function AppMenuDropdown({
         },
       },
       {
+        id: "playnite-import",
+        label: t ? (t("topbar.playnite_import") || "Importa Backup Playnite...") : "Importa Backup Playnite...",
+        icon: <FolderArchive className="w-4 h-4 text-purple-400 shrink-0" />,
+        action: () => {
+          soundEffects.playSelect();
+          onOpenPlayniteImport?.();
+          onClose();
+        },
+      },
+      {
         id: "sound-fx",
         dividerBefore: true,
         label: t ? t("topbar.audio_ui") : "Effetti Audio",
@@ -167,6 +180,7 @@ export default function AppMenuDropdown({
       onOpenPluginModal,
       onOpenAddCustomModal,
       onOpenBatchEnrichModal,
+      onOpenPlayniteImport,
       soundEnabled,
       onToggleSound,
       onOpenSettingsModal,

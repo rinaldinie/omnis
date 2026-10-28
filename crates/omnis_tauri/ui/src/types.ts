@@ -557,3 +557,48 @@ export interface GameAchievementsSummary {
   achievements: Achievement[];
 }
 
+export interface PlayniteBackupMatchSample {
+  title: string;
+  library_id?: string;
+  external_id?: string;
+  existing_playtime_seconds?: number;
+  backup_playtime_seconds?: number;
+  has_playtime_update?: boolean;
+  cover_available?: boolean;
+  background_available?: boolean;
+}
+
+export interface PlayniteBackupInspection {
+  total_games_in_backup: number;
+  matching_games_in_library: number;
+  non_matching_games: number;
+  playtime_updates_available: number;
+  missing_covers_available: number;
+  missing_backgrounds_available: number;
+  sample_matches: Array<PlayniteBackupMatchSample | string>;
+}
+
+export interface PlayniteBackupImportOptions {
+  image_cache_dir?: string | null;
+  import_images: boolean;
+  update_playtime: boolean;
+  dry_run: boolean;
+}
+
+export interface PlayniteImportStats {
+  total_read: number;
+  games_created: number;
+  games_merged: number;
+  playtime_updated: number;
+  images_cached: number;
+  tags_added: number;
+  categories_added: number;
+}
+
+export interface PlayniteImportProgressPayload {
+  current: number;
+  total: number;
+  message: string;
+}
+
+

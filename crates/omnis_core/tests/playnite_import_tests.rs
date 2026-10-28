@@ -325,3 +325,393 @@ fn test_image_caching_on_import() {
     let _ = fs::remove_dir_all(&temp_src);
     let _ = fs::remove_dir_all(&temp_cache);
 }
+
+#[test]
+fn test_litedb_bson_parser_and_scanner() {
+    use omnis_core::playnite::litedb::{
+        is_litedb_buffer, parse_bson_document, scan_litedb_games,
+        LITEDB_MAGIC, LITEDB_HEADER_MAGIC_OFFSET,
+    };
+
+    // 1. Build a synthetic BSON document
+    // doc_len (u32) + elements + 0x00
+    let mut bson_body = Vec::new();
+    // Element 1: _id (Binary UUID)
+    bson_body.push(0x05); // Binary
+    bson_body.extend_from_slice(b"_id\0");
+    bson_body.extend_from_slice(&16u32.to_le_bytes()); // length 16
+    bson_body.push(0x04); // UUID subtype
+    let guid_bytes = [
+        0x7c, 0x8b, 0xbe, 0xae, 0xc3, 0x6d, 0x66, 0x4a, 0xaf, 0x31, 0xe7, 0x37, 0x5c, 0x6b, 0x5e, 0x9e,
+    ]; // aebe8b7c-6dc3-4a66-af31-e7375c6b5e9e (GOG) in .NET bytes_le
+    bson_body.extend_from_slice(&guid_bytes);
+
+    // Element 2: Name (String)
+    bson_body.push(0x02);
+    bson_body.extend_from_slice(b"Name\0");
+    let name_str = b"Cyberpunk 2077\0";
+    bson_body.extend_from_slice(&(name_str.len() as u32).to_le_bytes());
+    bson_body.extend_from_slice(name_str);
+
+    // Element 3: GameId (String)
+    bson_body.push(0x02);
+    bson_body.extend_from_slice(b"GameId\0");
+    let gid_str = b"1091500\0";
+    bson_body.extend_from_slice(&(gid_str.len() as u32).to_le_bytes());
+    bson_body.extend_from_slice(gid_str);
+
+    // Element 4: PluginId (Binary UUID)
+    bson_body.push(0x05);
+    bson_body.extend_from_slice(b"PluginId\0");
+    bson_body.extend_from_slice(&16u32.to_le_bytes());
+    bson_body.push(0x04);
+    bson_body.extend_from_slice(&guid_bytes);
+
+    // Element 5: Playtime (Int64)
+    bson_body.push(0x12);
+    bson_body.extend_from_slice(b"Playtime\0");
+    bson_body.extend_from_slice(&7200i64.to_le_bytes());
+
+    // Element 6: PlayCount (Int32)
+    bson_body.push(0x10);
+    bson_body.extend_from_slice(b"PlayCount\0");
+    bson_body.extend_from_slice(&10i32.to_le_bytes());
+
+    // Element 7: Favorite (Bool)
+    bson_body.push(0x08);
+    bson_body.extend_from_slice(b"Favorite\0");
+    bson_body.push(0x01); // true
+
+    // Element 8: CoverImage (String)
+    bson_body.push(0x02);
+    bson_body.extend_from_slice(b"CoverImage\0");
+    let cover_str = b"guid/cover.jpg\0";
+    bson_body.extend_from_slice(&(cover_str.len() as u32).to_le_bytes());
+    bson_body.extend_from_slice(cover_str);
+
+    // Finalize BSON doc
+    let total_doc_len = (4 + bson_body.len() + 1) as u32;
+    let mut bson_doc = Vec::new();
+    bson_doc.extend_from_slice(&total_doc_len.to_le_bytes());
+    bson_doc.extend_from_slice(&bson_body);
+    bson_doc.push(0x00); // trailing null
+
+    // Test standalone BSON parser
+    let (parsed, consumed) = parse_bson_document(&bson_doc).expect("BSON parse failed");
+    assert_eq!(consumed, total_doc_len as usize);
+    assert_eq!(parsed.get("Name").unwrap().as_str().unwrap(), "Cyberpunk 2077");
+    assert_eq!(parsed.get("Playtime").unwrap().as_u64().unwrap(), 7200);
+    assert_eq!(parsed.get("PlayCount").unwrap().as_u64().unwrap(), 10);
+    assert_eq!(parsed.get("Favorite").unwrap().as_bool().unwrap(), true);
+    assert_eq!(
+        parsed.get("PluginId").unwrap().as_guid_string().unwrap(),
+        "aebe8b7c-6dc3-4a66-af31-e7375c6b5e9e"
+    );
+
+    // 2. Build a synthetic LiteDB buffer (4KB pages)
+    let page_size = 4096;
+    let mut litedb_buf = vec![0u8; page_size * 3];
+
+    // Page 0: Header
+    litedb_buf[4] = 0x01; // PageType Header
+    litedb_buf[LITEDB_HEADER_MAGIC_OFFSET..LITEDB_HEADER_MAGIC_OFFSET + LITEDB_MAGIC.len()]
+        .copy_from_slice(LITEDB_MAGIC);
+    litedb_buf[52] = 7; // Version 7
+    litedb_buf[59..63].copy_from_slice(&2u32.to_le_bytes()); // LastPageID = 2
+
+    assert!(is_litedb_buffer(&litedb_buf));
+
+    // Page 1: DataPage (PageType 0x04) containing our BSON doc
+    let page1_start = page_size;
+    litedb_buf[page1_start + 4] = 0x04; // DataPage
+    // Place BSON doc at offset 48 inside DataPage
+    let doc_offset = page1_start + 48;
+    litedb_buf[doc_offset..doc_offset + bson_doc.len()].copy_from_slice(&bson_doc);
+
+    // Scan games from LiteDB buffer
+    let games = scan_litedb_games(&litedb_buf).expect("LiteDB scan failed");
+    assert_eq!(games.len(), 1);
+    let game = &games[0];
+    assert_eq!(game.Name, "Cyberpunk 2077");
+    assert_eq!(game.GameId.as_deref(), Some("1091500"));
+    assert_eq!(
+        game.PluginId.as_deref(),
+        Some("aebe8b7c-6dc3-4a66-af31-e7375c6b5e9e")
+    );
+    assert_eq!(game.PlaytimeSeconds, Some(7200));
+    assert_eq!(game.PlayCount, Some(10));
+    assert_eq!(game.Favorite, Some(true));
+    assert_eq!(game.Cover.as_deref(), Some("guid/cover.jpg"));
+}
+
+#[test]
+fn test_synthetic_playnite_backup_inspection_and_import() {
+    use omnis_core::{
+        PlayniteBackupImportOptions, Database,
+    };
+    use std::path::Path;
+    use std::io::Write;
+    use zip::write::SimpleFileOptions;
+    use zip::ZipWriter;
+
+    let temp_dir = std::env::temp_dir().join(format!("omnis_backup_test_{}", Uuid::new_v4()));
+    fs::create_dir_all(&temp_dir).unwrap();
+    let zip_path = temp_dir.join("test_backup.zip");
+    let cache_dir = temp_dir.join("image_cache");
+
+    // 1. Create a synthetic LiteDB buffer with 2 games:
+    // Game 1: "Portal 2" (GameId: "620", PluginId: Steam, Playtime: 3600, Cover: "p2/cover.jpg")
+    // Game 2: "Unknown Game" (GameId: "999", PluginId: Steam, Playtime: 100)
+    let page_size = 4096;
+    let mut litedb_buf = vec![0u8; page_size * 2];
+    litedb_buf[4] = 0x01;
+    litedb_buf[25..25 + 27].copy_from_slice(b"** This is a LiteDB file **");
+    litedb_buf[52] = 7;
+    litedb_buf[59..63].copy_from_slice(&1u32.to_le_bytes());
+
+    // Helper to serialize a game BSON doc
+    let make_game_doc = |name: &str, gid: &str, playtime: i64, cover: Option<&str>| -> Vec<u8> {
+        let mut body = Vec::new();
+        // _id
+        body.push(0x05);
+        body.extend_from_slice(b"_id\0");
+        body.extend_from_slice(&16u32.to_le_bytes());
+        body.push(0x04);
+        body.extend_from_slice(&[1u8; 16]);
+
+        // Name
+        body.push(0x02);
+        body.extend_from_slice(b"Name\0");
+        let n_bytes = format!("{}\0", name);
+        body.extend_from_slice(&(n_bytes.len() as u32).to_le_bytes());
+        body.extend_from_slice(n_bytes.as_bytes());
+
+        // GameId
+        body.push(0x02);
+        body.extend_from_slice(b"GameId\0");
+        let g_bytes = format!("{}\0", gid);
+        body.extend_from_slice(&(g_bytes.len() as u32).to_le_bytes());
+        body.extend_from_slice(g_bytes.as_bytes());
+
+        // PluginId: cb91dfc9-b977-43bf-8e70-55f46e410fab (Steam) in .NET bytes_le
+        let steam_le = [
+            0xc9, 0xdf, 0x91, 0xcb, 0x77, 0xb9, 0xbf, 0x43, 0x8e, 0x70, 0x55, 0xf4, 0x6e, 0x41, 0x0f, 0xab,
+        ];
+        body.push(0x05);
+        body.extend_from_slice(b"PluginId\0");
+        body.extend_from_slice(&16u32.to_le_bytes());
+        body.push(0x04);
+        body.extend_from_slice(&steam_le);
+
+        // Playtime
+        body.push(0x12);
+        body.extend_from_slice(b"Playtime\0");
+        body.extend_from_slice(&playtime.to_le_bytes());
+
+        // PlayCount
+        body.push(0x10);
+        body.extend_from_slice(b"PlayCount\0");
+        body.extend_from_slice(&5i32.to_le_bytes());
+
+        // Favorite
+        body.push(0x08);
+        body.extend_from_slice(b"Favorite\0");
+        body.push(0x01);
+
+        if let Some(c) = cover {
+            body.push(0x02);
+            body.extend_from_slice(b"CoverImage\0");
+            let c_bytes = format!("{}\0", c);
+            body.extend_from_slice(&(c_bytes.len() as u32).to_le_bytes());
+            body.extend_from_slice(c_bytes.as_bytes());
+        }
+
+        let total_len = (4 + body.len() + 1) as u32;
+        let mut doc = Vec::new();
+        doc.extend_from_slice(&total_len.to_le_bytes());
+        doc.extend_from_slice(&body);
+        doc.push(0x00);
+        doc
+    };
+
+    let doc1 = make_game_doc("Portal 2", "620", 3600, Some("p2/cover.jpg"));
+    let doc2 = make_game_doc("Unknown Game", "999", 100, None);
+
+    litedb_buf[4096 + 4] = 0x04; // DataPage
+    litedb_buf[4096 + 48..4096 + 48 + doc1.len()].copy_from_slice(&doc1);
+    let off2 = 4096 + 48 + doc1.len() + 16;
+    litedb_buf[off2..off2 + doc2.len()].copy_from_slice(&doc2);
+
+    // 2. Create the ZIP archive
+    {
+        let zip_file = fs::File::create(&zip_path).unwrap();
+        let mut zip_writer = ZipWriter::new(zip_file);
+        let zip_opts = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
+
+        zip_writer.start_file("library/games.db", zip_opts).unwrap();
+        zip_writer.write_all(&litedb_buf).unwrap();
+
+        zip_writer.start_file("libraryfiles/p2/cover.jpg", zip_opts).unwrap();
+        zip_writer.write_all(b"FAKE_JPEG_DATA_COVER").unwrap();
+
+        zip_writer.finish().unwrap();
+    }
+
+    // 3. Setup Omnis Database with only "Portal 2" (playtime 1000, no cover)
+    let db = Database::new_in_memory().unwrap();
+    db.migrate().unwrap();
+
+    let p2_id = Uuid::new_v4();
+    db.insert_custom_game(
+        p2_id,
+        "Portal 2",
+        "portal 2",
+        None,
+        vec![],
+        None,
+    ).unwrap();
+
+    // Set store and external id for Portal 2
+    {
+        let conn = db.writer();
+        conn.execute(
+            "UPDATE games SET library_id = 'steam', external_id = '620', playtime_seconds = 1000 WHERE id = ?1;",
+            rusqlite::params![p2_id.to_string()],
+        ).unwrap();
+    }
+
+    // 4. Test Inspection
+    let inspection = db.inspect_playnite_backup(&zip_path).expect("Inspection failed");
+    assert_eq!(inspection.total_games_in_backup, 2);
+    assert_eq!(inspection.matching_games_in_library, 1);
+    assert_eq!(inspection.non_matching_games, 1);
+    assert_eq!(inspection.playtime_updates_available, 1);
+    assert_eq!(inspection.missing_covers_available, 1);
+    assert_eq!(inspection.sample_matches.len(), 1);
+    assert_eq!(inspection.sample_matches[0].title, "Portal 2");
+    assert_eq!(inspection.sample_matches[0].existing_playtime_seconds, 1000);
+    assert_eq!(inspection.sample_matches[0].backup_playtime_seconds, 3600);
+    assert!(inspection.sample_matches[0].cover_available);
+
+    // 5. Test Dry-Run Import
+    let dry_options = PlayniteBackupImportOptions {
+        image_cache_dir: Some(cache_dir.clone()),
+        import_images: true,
+        update_playtime: true,
+        dry_run: true,
+    };
+    let dry_stats = db.import_playnite_backup(&zip_path, &dry_options, |_, _, _| {}).unwrap();
+    assert_eq!(dry_stats.total_read, 2);
+    assert_eq!(dry_stats.games_merged, 1);
+    assert_eq!(dry_stats.games_created, 0); // MUST NEVER create new games
+    assert_eq!(dry_stats.playtime_updated, 1);
+    assert_eq!(dry_stats.images_cached, 1);
+
+    // Verify DB was NOT mutated
+    let game = db.get_game_by_id(p2_id).unwrap().unwrap();
+    assert_eq!(game.playtime_seconds, 1000);
+    assert!(game.cover_image_path.is_none());
+
+    // 6. Test Actual Import
+    let live_options = PlayniteBackupImportOptions {
+        image_cache_dir: Some(cache_dir.clone()),
+        import_images: true,
+        update_playtime: true,
+        dry_run: false,
+    };
+    let live_stats = db.import_playnite_backup(&zip_path, &live_options, |_, _, _| {}).unwrap();
+    assert_eq!(live_stats.total_read, 2);
+    assert_eq!(live_stats.games_merged, 1);
+    assert_eq!(live_stats.games_created, 0);
+    assert_eq!(live_stats.playtime_updated, 1);
+    assert_eq!(live_stats.images_cached, 1);
+
+    // Verify DB WAS updated
+    let game_after = db.get_game_by_id(p2_id).unwrap().unwrap();
+    assert_eq!(game_after.playtime_seconds, 3600);
+    assert_eq!(game_after.play_count, 5);
+    assert!(game_after.cover_image_path.is_some());
+    let cover_path = game_after.cover_image_path.unwrap();
+    assert!(Path::new(&cover_path).exists(), "Extracted cover file must exist");
+    assert_eq!(fs::read_to_string(&cover_path).unwrap(), "FAKE_JPEG_DATA_COVER");
+
+    // Verify Unknown Game was NOT inserted into Omnis
+    let all_games = db.get_all_games().unwrap();
+    assert_eq!(all_games.len(), 1, "Only pre-existing games must be present in library");
+
+    // Cleanup
+    let _ = fs::remove_dir_all(&temp_dir);
+}
+
+#[test]
+fn test_real_playnite_backup_zip_inspection_if_file_exists() {
+    let backup_path = std::path::Path::new("/mnt/d/progetti/omnis/omnis/PlayniteBackup-2026-10-24-10-43-43.zip");
+    if !backup_path.exists() {
+        eprintln!("Playnite backup file not found, skipping real zip test");
+        return;
+    }
+
+    use omnis_core::{Database, PlayniteBackupImportOptions};
+
+    let db = Database::new_in_memory().unwrap();
+    db.migrate().unwrap();
+
+    // Pre-populate with Frozen Flame Playtest (Steam appid 1948950, which has 1080s playtime in the backup)
+    let ff_id = Uuid::new_v4();
+    db.insert_custom_game(
+        ff_id,
+        "Frozen Flame Playtest",
+        "frozen flame playtest",
+        None,
+        vec![],
+        None,
+    ).unwrap();
+
+    {
+        let conn = db.writer();
+        conn.execute(
+            "UPDATE games SET library_id = 'steam', external_id = '1948950', playtime_seconds = 60 WHERE id = ?1;",
+            rusqlite::params![ff_id.to_string()],
+        ).unwrap();
+    }
+
+    // Inspect real backup
+    let inspection = db.inspect_playnite_backup(backup_path).expect("Failed to inspect real backup");
+    assert!(inspection.total_games_in_backup >= 1580 && inspection.total_games_in_backup <= 1590);
+    assert_eq!(inspection.matching_games_in_library, 1);
+    assert_eq!(inspection.non_matching_games, inspection.total_games_in_backup - 1);
+    assert_eq!(inspection.playtime_updates_available, 1);
+    assert!(inspection.missing_covers_available >= 1);
+
+    // Import real backup
+    let temp_cache = std::env::temp_dir().join(format!("omnis_real_cache_{}", Uuid::new_v4()));
+    let options = PlayniteBackupImportOptions {
+        image_cache_dir: Some(temp_cache.clone()),
+        import_images: true,
+        update_playtime: true,
+        dry_run: false,
+    };
+
+    let mut reported_progress = 0;
+    let expected_total = inspection.total_games_in_backup;
+    let stats = db.import_playnite_backup(backup_path, &options, |curr, total, _name| {
+        if curr == total {
+            reported_progress = curr;
+        }
+    }).unwrap();
+
+    assert_eq!(stats.total_read, expected_total);
+    assert_eq!(stats.games_merged, 1);
+    assert_eq!(stats.games_created, 0);
+    assert_eq!(stats.playtime_updated, 1);
+    assert_eq!(reported_progress, expected_total);
+
+    // Verify Frozen Flame Playtest playtime was updated to 1080
+    let game = db.get_game_by_id(ff_id).unwrap().unwrap();
+    assert_eq!(game.playtime_seconds, 1080);
+    assert!(game.cover_image_path.is_some());
+    let cover_path = game.cover_image_path.unwrap();
+    assert!(std::path::Path::new(&cover_path).exists(), "Extracted cover from real backup must exist");
+
+    let _ = fs::remove_dir_all(&temp_cache);
+}

@@ -18,8 +18,10 @@ pub use dynamic_loader::{DynamicNativeMetadataProvider, DynamicPluginHandle, Dyn
 pub use event_bus::EventBus;
 pub use host::PluginHost;
 pub use playnite::{
-    export_csharp_script, map_playnite_plugin_id, PlayniteGameDto, PlayniteImportOptions,
-    PlayniteImportStats, PlayniteImporter,
+    execute_playnite_backup_import, export_csharp_script, inspect_playnite_backup,
+    map_playnite_plugin_id, scan_litedb_games, BsonDocument, BsonValue, LiteDbError,
+    PlayniteBackupImportOptions, PlayniteBackupInspection, PlayniteBackupMatchSample,
+    PlayniteGameDto, PlayniteImportOptions, PlayniteImportStats, PlayniteImporter,
 };
 pub use search::{FuzzyGameSearchIndex, SearchItem};
 pub use launcher::{
