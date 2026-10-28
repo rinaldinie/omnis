@@ -106,85 +106,53 @@ export function StoreIcon({ library, className = "w-3.5 h-3.5" }: { library: str
   return <Gamepad2 className={className} />;
 }
 
+export interface StoreBadgeProps {
+  library: string;
+  showName?: boolean;
+  className?: string;
+  variant?: "subtle" | "brand";
+}
+
 export function StoreBadge({
   library,
   showName = false,
   className = "",
-}: {
-  library: string;
-  showName?: boolean;
-  className?: string;
-}) {
+  variant = "subtle",
+}: StoreBadgeProps) {
   const { t } = useTranslation();
   const lib = library.toLowerCase();
 
+  let storeName = library;
+  let title = library;
+  let icon = <Gamepad2 className="w-3.5 h-3.5 text-white/70 shrink-0" />;
+  let brandStyles = "bg-white/5 border-white/10 hover:bg-white/10 text-white/90";
+
   if (lib.includes("steam")) {
-    return (
-      <span
-        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider border shadow-sm ${className}`}
-        style={{
-          background: "linear-gradient(135deg, rgba(23, 53, 77, 0.9) 0%, rgba(16, 33, 48, 0.9) 100%)",
-          borderColor: "rgba(102, 192, 244, 0.4)",
-          color: "#66c0f4",
-        }}
-        title={t("store_badge.available_on", { store: "Steam" })}
-      >
-        <SteamIcon className="w-3.5 h-3.5 text-[#66c0f4] shrink-0" />
-        {showName && <span className="font-bold">Steam</span>}
-      </span>
-    );
+    storeName = "Steam";
+    title = t("store_badge.available_on", { store: "Steam" });
+    icon = <SteamIcon className="w-3.5 h-3.5 text-[#38bdf8] shrink-0" />;
+    brandStyles = "bg-[#1a9fff]/10 border-[#1a9fff]/25 hover:bg-[#1a9fff]/20 text-white/95";
+  } else if (lib.includes("epic")) {
+    storeName = "Epic";
+    title = t("store_badge.available_on", { store: "Epic Games" });
+    icon = <EpicIcon className="w-3.5 h-3.5 text-white/90 shrink-0" />;
+    brandStyles = "bg-white/10 border-white/20 hover:bg-white/15 text-white/95";
+  } else if (lib.includes("gog")) {
+    storeName = "GOG";
+    title = t("store_badge.available_on", { store: "GOG Galaxy" });
+    icon = <GogIcon className="w-3.5 h-3.5 text-[#c084fc] shrink-0" />;
+    brandStyles = "bg-[#a855f7]/10 border-[#a855f7]/25 hover:bg-[#a855f7]/20 text-white/95";
+  } else if (lib.includes("xbox")) {
+    storeName = "Xbox";
+    title = t("store_badge.available_on", { store: "Xbox / Game Pass" });
+    icon = <XboxIcon className="w-3.5 h-3.5 text-[#4ade80] shrink-0" />;
+    brandStyles = "bg-[#22c55e]/10 border-[#22c55e]/25 hover:bg-[#22c55e]/20 text-white/95";
   }
 
-  if (lib.includes("epic")) {
-    return (
-      <span
-        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider border shadow-sm ${className}`}
-        style={{
-          background: "linear-gradient(135deg, rgba(43, 43, 43, 0.9) 0%, rgba(24, 24, 24, 0.9) 100%)",
-          borderColor: "rgba(255, 255, 255, 0.3)",
-          color: "#ffffff",
-        }}
-        title={t("store_badge.available_on", { store: "Epic Games" })}
-      >
-        <EpicIcon className="w-3.5 h-3.5 text-white shrink-0" />
-        {showName && <span className="font-bold">Epic</span>}
-      </span>
-    );
-  }
-
-  if (lib.includes("gog")) {
-    return (
-      <span
-        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider border shadow-sm ${className}`}
-        style={{
-          background: "linear-gradient(135deg, rgba(72, 18, 84, 0.9) 0%, rgba(38, 5, 48, 0.9) 100%)",
-          borderColor: "rgba(226, 138, 255, 0.45)",
-          color: "#e28aff",
-        }}
-        title={t("store_badge.available_on", { store: "GOG Galaxy" })}
-      >
-        <GogIcon className="w-3.5 h-3.5 text-[#e28aff] shrink-0" />
-        {showName && <span className="font-bold">GOG</span>}
-      </span>
-    );
-  }
-
-  if (lib.includes("xbox")) {
-    return (
-      <span
-        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider border shadow-sm ${className}`}
-        style={{
-          background: "linear-gradient(135deg, rgba(16, 124, 65, 0.9) 0%, rgba(8, 64, 32, 0.9) 100%)",
-          borderColor: "rgba(50, 205, 50, 0.45)",
-          color: "#4ade80",
-        }}
-        title={t("store_badge.available_on", { store: "Xbox / Game Pass" })}
-      >
-        <XboxIcon className="w-3.5 h-3.5 text-[#4ade80] shrink-0" />
-        {showName && <span className="font-bold">Xbox</span>}
-      </span>
-    );
-  }
+  const badgeStyle =
+    variant === "brand"
+      ? brandStyles
+      : "bg-white/5 border-white/10 hover:bg-white/10 text-white/90";
 
   if (lib.includes("amazon") || lib.includes("prime")) {
     return (
@@ -273,15 +241,11 @@ export function StoreBadge({
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider border shadow-sm ${className}`}
-      style={{
-        backgroundColor: "var(--bg-card)",
-        borderColor: "var(--border-color)",
-        color: "var(--text-primary)",
-      }}
+      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold border transition-colors ${badgeStyle} ${className}`}
+      title={title}
     >
-      <Gamepad2 className="w-3.5 h-3.5 shrink-0" />
-      <span>{library}</span>
+      {icon}
+      {showName && <span>{storeName}</span>}
     </span>
   );
 }

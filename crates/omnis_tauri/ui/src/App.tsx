@@ -1184,8 +1184,6 @@ export default function App() {
         color: "var(--text-primary)",
       }}
     >
-      {currentTheme.custom_css && <style>{currentTheme.custom_css}</style>}
-
       {/* FULLSCREEN MODE */}
       {isFullscreen ? (
         <FullscreenView
@@ -1266,20 +1264,14 @@ export default function App() {
             handleToggleSound={handleToggleSound}
             soundEnabled={soundEnabled}
             setShowSettingsModal={setShowSettingsModal}
-            currentLocaleInfo={currentLocaleInfo}
             setShowThemeModal={setShowThemeModal}
             loadProvidersAndConfig={loadProvidersAndConfig}
             setShowPluginModal={setShowPluginModal}
             providers={providers}
             setShowAddCustomModal={setShowAddCustomModal}
-            selectedGame={selectedGame}
-            setGameToEdit={setGameToEdit}
-            setShowEditorModal={setShowEditorModal}
+            setShowBatchEnrichModal={setShowBatchEnrichModal}
             handleSync={handleSync}
             isSyncing={isSyncing}
-            handleDownloadAll={handleDownloadAll}
-            isDownloading={isDownloading}
-            setShowBatchEnrichModal={setShowBatchEnrichModal}
             handleMinimize={handleMinimize}
             handleToggleMaximize={handleToggleMaximize}
             handleClose={handleClose}

@@ -3,15 +3,22 @@
 @tailwind utilities;
 
 :root {
-  --bg-base: #090c14;
-  --bg-surface: #0e1320;
-  --bg-card: #141a2c;
+  --bg-base: #090c15;
+  --bg-surface: #0f1422;
+  --bg-card: #151b2e;
   --text-primary: #f8fafc;
   --text-muted: #94a3b8;
   --accent-primary: #6366f1;
-  --accent-glow: rgba(99, 102, 241, 0.4);
+  --accent-glow: rgba(99, 102, 241, 0.25);
   --border-color: #1e293b;
   --card-radius: 12px;
+
+  /* Semantic discrete surface & pill tokens */
+  --surface-pill-bg: rgba(255, 255, 255, 0.05);
+  --surface-pill-border: rgba(255, 255, 255, 0.10);
+  --surface-pill-hover: rgba(255, 255, 255, 0.10);
+  --surface-overlay: rgba(14, 19, 32, 0.95);
+  --border-subtle: rgba(255, 255, 255, 0.08);
 }
 
 body {
