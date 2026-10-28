@@ -42,6 +42,9 @@ pub trait GameRepository: Send + Sync {
     /// Update the installation status of a game
     fn set_game_installed(&self, game_id: Uuid, is_installed: bool) -> Result<Game>;
 
+    /// Update only the completion status of a game
+    fn set_game_completion_status(&self, game_id: Uuid, status: &str) -> Result<Game>;
+
     /// Delete a game from the database
     fn delete_game(&self, game_id: Uuid) -> Result<bool>;
 
@@ -563,6 +566,19 @@ impl GameRepository for Database {
             .ok_or(rusqlite::Error::QueryReturnedNoRows)
     }
 
+    /// Update only the completion status of a game
+    fn set_game_completion_status(&self, game_id: Uuid, status: &str) -> Result<Game> {
+        let conn = self.writer();
+        let now = Utc::now().to_rfc3339();
+        conn.execute(
+            "UPDATE games SET completion_status = ?2, modified_timestamp = ?3 WHERE id = ?1",
+            params![game_id.to_string(), status, now],
+        )?;
+        drop(conn);
+        self.get_game_by_id(game_id)?
+            .ok_or(rusqlite::Error::QueryReturnedNoRows)
+    }
+
     /// Delete a game from the database
     fn delete_game(&self, game_id: Uuid) -> Result<bool> {
         let conn = self.writer();
@@ -639,6 +655,11 @@ impl Database {
     #[inline]
     pub fn set_game_installed(&self, game_id: Uuid, is_installed: bool) -> Result<Game> {
         GameRepository::set_game_installed(self, game_id, is_installed)
+    }
+
+    #[inline]
+    pub fn set_game_completion_status(&self, game_id: Uuid, status: &str) -> Result<Game> {
+        GameRepository::set_game_completion_status(self, game_id, status)
     }
 
     #[inline]

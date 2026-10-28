@@ -159,11 +159,19 @@ export default function DetailsSplitView({
   React.useEffect(() => {
     if (!showManageMenu) return;
     const handleClose = () => setShowManageMenu(false);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setShowManageMenu(false);
+        manageButtonRef.current?.focus();
+      }
+    };
     window.addEventListener("scroll", handleClose, true);
     window.addEventListener("resize", handleClose);
+    window.addEventListener("keydown", handleKeyDown);
     return () => {
       window.removeEventListener("scroll", handleClose, true);
       window.removeEventListener("resize", handleClose);
+      window.removeEventListener("keydown", handleKeyDown);
     };
   }, [showManageMenu]);
 
@@ -205,48 +213,48 @@ export default function DetailsSplitView({
         return {
           label: t("completion_status.playing"),
           color: "text-sky-300",
-          bg: "bg-sky-500/15",
-          border: "border-sky-500/30",
+          bg: "bg-sky-500/10",
+          border: "border-sky-500/20",
           dot: "bg-sky-400",
         };
       case "Completed":
         return {
           label: t("completion_status.completed"),
           color: "text-emerald-300",
-          bg: "bg-emerald-500/15",
-          border: "border-emerald-500/30",
+          bg: "bg-emerald-500/10",
+          border: "border-emerald-500/20",
           dot: "bg-emerald-400",
         };
       case "Beaten":
         return {
           label: t("completion_status.beaten"),
           color: "text-purple-300",
-          bg: "bg-purple-500/15",
-          border: "border-purple-500/30",
+          bg: "bg-purple-500/10",
+          border: "border-purple-500/20",
           dot: "bg-purple-400",
         };
       case "Backlog":
         return {
           label: t("completion_status.backlog"),
           color: "text-amber-300",
-          bg: "bg-amber-500/15",
-          border: "border-amber-500/30",
+          bg: "bg-amber-500/10",
+          border: "border-amber-500/20",
           dot: "bg-amber-400",
         };
       case "PlanToPlay":
         return {
           label: t("completion_status.plan_to_play"),
           color: "text-indigo-300",
-          bg: "bg-indigo-500/15",
-          border: "border-indigo-500/30",
+          bg: "bg-indigo-500/10",
+          border: "border-indigo-500/20",
           dot: "bg-indigo-400",
         };
       case "Abandoned":
         return {
           label: t("completion_status.abandoned"),
           color: "text-rose-300",
-          bg: "bg-rose-500/15",
-          border: "border-rose-500/30",
+          bg: "bg-rose-500/10",
+          border: "border-rose-500/20",
           dot: "bg-rose-400",
         };
       case "NotPlayed":
@@ -254,8 +262,8 @@ export default function DetailsSplitView({
         return {
           label: t("completion_status.not_played"),
           color: "text-slate-300",
-          bg: "bg-slate-500/15",
-          border: "border-slate-500/30",
+          bg: "bg-slate-500/10",
+          border: "border-slate-500/20",
           dot: "bg-slate-400",
         };
     }
@@ -325,13 +333,13 @@ export default function DetailsSplitView({
 
         {/* Active filter badge if any filter is active */}
         {detailsSidebarOpen && (isFilterActive ? !isFilterActive("all") : activeFilter && activeFilter !== "all") && (
-          <div className="px-3 py-1.5 border-b border-indigo-500/20 bg-indigo-500/10 flex items-center justify-between text-[11px] text-indigo-300">
+          <div className="px-3 py-1.5 border-b border-white/[0.06] bg-white/[0.03] flex items-center justify-between text-[11px] text-slate-300">
             <span className="truncate font-medium">
               Filtro: {activeFilter ? (activeFilter.startsWith("genre:") ? activeFilter.slice(6) : activeFilter.startsWith("completion:") ? activeFilter.slice(11) : activeFilter) : "Attivo"}
             </span>
             <button
               onClick={() => setActiveFilter && setActiveFilter("all")}
-              className="p-0.5 hover:text-white transition-colors cursor-pointer"
+              className="p-0.5 text-slate-400 hover:text-white transition-colors cursor-pointer"
               title={t("tooltips.reset_filters")}
             >
               <X className="w-3 h-3" />
@@ -349,19 +357,25 @@ export default function DetailsSplitView({
               return (
                 <div
                   key={game.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-selected={isSelected}
                   onClick={() => setSelectedGame(game)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setSelectedGame(game);
+                    }
+                  }}
                   onContextMenu={(e) => handleOpenContextMenu(e, game)}
                   className={`p-2.5 flex items-center gap-3 cursor-pointer transition-all ${
                     isSelected
-                      ? "bg-white/[0.06] text-white border-l-2 border-indigo-400 shadow-xs"
-                      : "hover:bg-white/[0.025] text-slate-300 border-l-2 border-transparent"
+                      ? "bg-white/[0.04] text-white border-l-2 border-[var(--accent-primary)] shadow-xs"
+                      : "hover:bg-white/[0.02] text-slate-400 hover:text-slate-200 border-l-2 border-transparent"
                   }`}
                 >
                   <div
-                    className="w-9 h-9 rounded-lg overflow-hidden flex items-center justify-center border border-white/[0.08] shrink-0 shadow-xs"
-                    style={{
-                      backgroundColor: "var(--bg-surface)",
-                    }}
+                    className="w-9 h-9 rounded-lg overflow-hidden flex items-center justify-center border border-white/[0.06] shrink-0 shadow-xs bg-black/40"
                   >
                     <ListThumbCover thumb={thumb} title={game.title} />
                   </div>
@@ -376,7 +390,7 @@ export default function DetailsSplitView({
                       >
                         {game.title}
                       </span>
-                      <StoreBadge library={game.library} className="py-0 px-1 text-[9px] shrink-0" />
+                      <StoreBadge library={game.library} variant="subtle" className="py-0 px-1 text-[9px] shrink-0" />
                     </div>
                     {(activeGame?.game_id === game.id || game.is_installed) && (
                       <div className="flex items-center gap-2 mt-0.5">
@@ -412,7 +426,7 @@ export default function DetailsSplitView({
         >
           <button
             onClick={() => setViewMode("grid")}
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-white/[0.08] bg-white/[0.04] text-xs font-bold text-white transition-all hover:bg-white/[0.08] hover:border-slate-400 active:opacity-90 shadow-sm"
+            className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-white/[0.08] bg-white/[0.04] text-xs font-semibold text-slate-200 transition-all hover:bg-white/[0.08] hover:text-white hover:border-white/20 active:opacity-90 shadow-sm cursor-pointer"
           >
             <ArrowLeft className="w-3.5 h-3.5" style={{ color: "var(--accent-primary)" }} />
             <span>{t("game_details.back_to_grid")}</span>
@@ -424,7 +438,7 @@ export default function DetailsSplitView({
           >
             <span>{t("game_details.breadcrumb_library")}</span>
             <span>/</span>
-            <StoreBadge library={selectedGame.library} showName={true} />
+            <StoreBadge library={selectedGame.library} showName={true} variant="subtle" />
             <span>/</span>
             <span className="text-white font-bold">{selectedGame.title}</span>
           </div>
@@ -480,7 +494,7 @@ export default function DetailsSplitView({
 
           <div className="relative z-10 flex items-end gap-5 md:gap-6 w-full pt-4">
             {/* 3D Boxart Cover with Border & Shadow */}
-            <div className="w-32 sm:w-36 md:w-40 aspect-[2/3] rounded-2xl overflow-hidden shadow-2xl border-2 border-white/20 flex-shrink-0 bg-black/60 [transform:translateZ(0)]">
+            <div className="w-32 sm:w-36 md:w-40 aspect-[2/3] rounded-2xl overflow-hidden shadow-2xl border border-white/20 flex-shrink-0 bg-black/60 [transform:translateZ(0)]">
               <GameCardCover
                 coverImage={selectedGame.cover_image}
                 backgroundImage={selectedGame.background_image}
@@ -493,14 +507,14 @@ export default function DetailsSplitView({
             {/* Title, Badges & Hero Actions */}
             <div className="space-y-3.5 flex-1 min-w-0">
               <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                <StoreBadge library={selectedGame.library} showName={true} className="py-1 px-3 text-xs" />
+                <StoreBadge library={selectedGame.library} showName={true} variant="subtle" className="py-1 px-3 text-xs" />
                 {isSelectedGameRunning && (
-                  <span className={`px-3 py-1 rounded-full text-xs font-black border shadow-lg flex items-center gap-1.5 ${
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold border shadow-sm flex items-center gap-1.5 ${
                     activeGame?.state === "launching"
-                      ? "bg-amber-500/20 text-amber-300 border-amber-500/60 shadow-amber-950/50 animate-pulse"
+                      ? "bg-amber-500/15 text-amber-300 border-amber-500/30 animate-pulse"
                       : activeGame?.state === "stopping"
-                      ? "bg-rose-500/20 text-rose-300 border-rose-500/60 shadow-rose-950/50"
-                      : "bg-emerald-500/20 text-emerald-300 border-emerald-500/60 shadow-emerald-950/50 animate-pulse"
+                      ? "bg-rose-500/15 text-rose-300 border-rose-500/30"
+                      : "bg-emerald-500/15 text-emerald-300 border-emerald-500/30 animate-pulse"
                   }`}>
                     <span className={`w-2 h-2 rounded-full ${
                       activeGame?.state === "launching" ? "bg-amber-400" : activeGame?.state === "stopping" ? "bg-rose-400" : "bg-emerald-400 animate-ping"
@@ -513,17 +527,17 @@ export default function DetailsSplitView({
                   </span>
                 )}
                 {selectedGame.is_installed ? (
-                  <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-sm flex items-center gap-1.5">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 shadow-xs flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                     {t("status.installed")}
                   </span>
                 ) : (
-                  <span className="px-2.5 py-0.5 rounded text-[10px] font-medium bg-slate-800/60 text-slate-400 border border-slate-700/60">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-white/[0.04] text-slate-400 border border-white/[0.08]">
                     {t("status.available")}
                   </span>
                 )}
                 {selectedGame.critic_score && (
-                  <span className="px-2.5 py-0.5 rounded text-[10px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-300 border border-amber-500/20 shadow-xs">
                     ★ {selectedGame.critic_score}
                   </span>
                 )}
@@ -537,9 +551,9 @@ export default function DetailsSplitView({
                     <button
                       type="button"
                       onClick={() => handleFilterByCompletion(selectedGame.completion_status)}
-                      className={`px-2.5 py-0.5 rounded text-[10px] font-bold border shadow-xs flex items-center gap-1.5 cursor-pointer transition-all active:scale-95 ${
+                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold border shadow-xs flex items-center gap-1.5 cursor-pointer transition-all active:scale-95 ${
                         isFiltered
-                          ? "ring-2 ring-indigo-400 " + statusInfo.bg + " " + statusInfo.border + " " + statusInfo.color
+                          ? "ring-1 ring-[var(--accent-primary)] " + statusInfo.bg + " " + statusInfo.border + " " + statusInfo.color
                           : statusInfo.bg + " " + statusInfo.border + " " + statusInfo.color
                       }`}
                       title={t("tooltips.filter_status", { status: statusInfo.label })}
@@ -551,12 +565,7 @@ export default function DetailsSplitView({
                 })()}
                 {selectedGame.series && (
                   <span
-                    className="px-2.5 py-0.5 rounded text-[10px] font-bold border"
-                    style={{
-                      backgroundColor: "var(--bg-card)",
-                      borderColor: "var(--border-color)",
-                      color: "var(--text-primary)",
-                    }}
+                    className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold border border-white/[0.08] bg-white/[0.04] text-slate-300"
                   >
                     {selectedGame.series}
                   </span>
@@ -577,14 +586,14 @@ export default function DetailsSplitView({
                         key={genre}
                         type="button"
                         onClick={() => handleFilterByGenre(genre)}
-                        className={`px-2.5 py-1 rounded-full text-xs font-semibold border transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 shadow-sm ${
+                        className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 ${
                           active
-                            ? "bg-indigo-600 border-indigo-400 text-white shadow-indigo-500/30"
-                            : "bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white border-white/[0.08] hover:border-indigo-400/50"
+                            ? "bg-[var(--accent-primary)] border-[var(--accent-primary)] text-white shadow-xs"
+                            : "bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white border-white/[0.08] hover:border-white/20"
                         }`}
                         title={t("tooltips.filter_genre", { genre })}
                       >
-                        <span className={`w-1.5 h-1.5 rounded-full ${active ? "bg-white" : "bg-indigo-400"}`} />
+                        <span className={`w-1.5 h-1.5 rounded-full ${active ? "bg-white" : "bg-slate-400"}`} />
                         <span>{genre}</span>
                       </button>
                     );
@@ -598,7 +607,7 @@ export default function DetailsSplitView({
                   <>
                     <button
                       disabled
-                      className="flex items-center gap-2.5 px-6 py-3 rounded-xl font-black text-xs text-emerald-200 bg-emerald-600/30 border border-emerald-500/50 shadow-xl cursor-default"
+                      className="flex items-center gap-2.5 px-6 py-3 rounded-xl font-bold text-xs text-emerald-200 bg-emerald-600/30 border border-emerald-500/50 shadow-lg cursor-default"
                     >
                       <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
                       <span>{t("status.running")}... ({formatDuration ? formatDuration(elapsedSeconds || 0) : `${elapsedSeconds || 0}s`})</span>
@@ -608,7 +617,7 @@ export default function DetailsSplitView({
                       <button
                         type="button"
                         onClick={handleKillRunningGame}
-                        className="flex items-center gap-2 px-5 py-3 rounded-xl font-black text-xs text-white bg-rose-600 hover:bg-rose-500 active:bg-rose-700 border border-rose-400/50 shadow-xl shadow-rose-950/40 transition-all hover:scale-105 active:opacity-90 cursor-pointer"
+                        className="flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-xs text-white bg-rose-600 hover:bg-rose-500 active:bg-rose-700 border border-rose-500/50 shadow-lg transition-all hover:scale-105 active:opacity-90 cursor-pointer"
                         title={t("status.kill_game_title")}
                       >
                         <Square className="w-3.5 h-3.5 fill-white" />
@@ -619,11 +628,7 @@ export default function DetailsSplitView({
                 ) : (
                   <button
                     onClick={() => handleLaunch(selectedGame.id)}
-                    className="flex items-center gap-2.5 px-6 py-3 rounded-xl font-black text-xs text-white shadow-xl transition-all hover:brightness-110 active:opacity-90"
-                    style={{
-                      backgroundColor: "var(--accent-primary)",
-                      boxShadow: `0 0 25px var(--accent-glow)`,
-                    }}
+                    className="flex items-center gap-2.5 px-6 py-3 rounded-xl font-bold text-xs text-white shadow-lg transition-all hover:brightness-110 active:scale-95 bg-[var(--accent-primary)] cursor-pointer"
                   >
                     {selectedGame.is_installed ? (
                       <Play className="w-4 h-4 fill-white" />
@@ -641,7 +646,7 @@ export default function DetailsSplitView({
                 <button
                   onClick={() => handleEnrichSingleGame(selectedGame.id)}
                   disabled={isEnrichingSingle}
-                  className="flex items-center gap-2 px-4 py-3 rounded-xl border border-white/[0.08] bg-white/[0.04] text-xs font-bold text-white transition-all backdrop-blur-md hover:bg-white/[0.08] hover:border-slate-400 active:opacity-90"
+                  className="flex items-center gap-2 px-4 py-3 rounded-xl border border-white/[0.08] bg-white/[0.04] text-xs font-semibold text-slate-200 transition-all backdrop-blur-md hover:bg-white/[0.08] hover:border-white/20 hover:text-white active:scale-95 cursor-pointer disabled:opacity-50"
                   title={t("topbar.enrich_tooltip")}
                 >
                   <Sparkles
@@ -659,10 +664,10 @@ export default function DetailsSplitView({
                     setGameToEdit(selectedGame);
                     setShowEditorModal(true);
                   }}
-                  className="flex items-center gap-2 px-4 py-3 rounded-xl border border-white/[0.08] bg-white/[0.04] text-xs font-bold text-white transition-all backdrop-blur-md hover:bg-white/[0.08] hover:border-indigo-400 active:opacity-90"
+                  className="flex items-center gap-2 px-4 py-3 rounded-xl border border-white/[0.08] bg-white/[0.04] text-xs font-semibold text-slate-200 transition-all backdrop-blur-md hover:bg-white/[0.08] hover:border-white/20 hover:text-white active:scale-95 cursor-pointer"
                   title={t("game_details.edit_manual")}
                 >
-                  <Pencil className="w-4 h-4 text-indigo-400" />
+                  <Pencil className="w-4 h-4 text-slate-300" />
                   <span>{t("game_details.edit_manual")}</span>
                 </button>
 
@@ -671,10 +676,10 @@ export default function DetailsSplitView({
                     setGameToResolve(selectedGame);
                     setShowResolutionModal(true);
                   }}
-                  className="flex items-center gap-2 px-4 py-3 rounded-xl border border-white/[0.08] bg-white/[0.04] text-xs font-bold text-white transition-all backdrop-blur-md hover:bg-white/[0.08] hover:border-slate-400 active:opacity-90"
+                  className="flex items-center gap-2 px-4 py-3 rounded-xl border border-white/[0.08] bg-white/[0.04] text-xs font-semibold text-slate-200 transition-all backdrop-blur-md hover:bg-white/[0.08] hover:border-white/20 hover:text-white active:scale-95 cursor-pointer"
                   title={t("game_details.identify_metadata")}
                 >
-                  <Search className="w-3.5 h-3.5 text-sky-400" />
+                  <Search className="w-3.5 h-3.5 text-slate-300" />
                   <span>{t("game_details.identify_metadata")}</span>
                 </button>
 
@@ -683,7 +688,7 @@ export default function DetailsSplitView({
                   ref={manageButtonRef}
                   type="button"
                   onClick={toggleManageMenu}
-                  className="flex items-center gap-2 px-4 py-3 rounded-xl border border-white/[0.08] bg-white/[0.04] text-xs font-bold text-white transition-all backdrop-blur-md hover:bg-white/[0.08] hover:border-slate-400 active:opacity-90 cursor-pointer"
+                  className="flex items-center gap-2 px-4 py-3 rounded-xl border border-white/[0.08] bg-white/[0.04] text-xs font-semibold text-slate-200 transition-all backdrop-blur-md hover:bg-white/[0.08] hover:border-white/20 hover:text-white active:scale-95 cursor-pointer"
                   title={t("game_details.manage")}
                 >
                   <Settings2 className="w-4 h-4 text-slate-300" />
@@ -707,6 +712,7 @@ export default function DetailsSplitView({
                         }}
                       />
                       <div
+                        role="menu"
                         className="fixed z-[9999] w-64 rounded-2xl border shadow-2xl backdrop-blur-xl py-1.5 select-none text-xs animate-in fade-in zoom-in-95 duration-150"
                         style={{
                           top: `${menuPosition.top}px`,
@@ -719,6 +725,7 @@ export default function DetailsSplitView({
                       >
                         {selectedGame.is_installed && handleOpenInstallDir && (
                           <button
+                            role="menuitem"
                             onClick={() => {
                               setShowManageMenu(false);
                               handleOpenInstallDir(selectedGame.id);
@@ -732,6 +739,7 @@ export default function DetailsSplitView({
 
                         {handleCreateShortcut && (
                           <button
+                            role="menuitem"
                             onClick={() => {
                               setShowManageMenu(false);
                               handleCreateShortcut(selectedGame.id);
@@ -745,6 +753,7 @@ export default function DetailsSplitView({
 
                         {["steam", "epic"].includes(selectedGame.library.toLowerCase()) && handleVerifyFiles && (
                           <button
+                            role="menuitem"
                             onClick={() => {
                               setShowManageMenu(false);
                               handleVerifyFiles(selectedGame.id);
@@ -760,6 +769,7 @@ export default function DetailsSplitView({
 
                         {selectedGame.is_installed && handleOpenUninstallModal && (
                           <button
+                            role="menuitem"
                             onClick={() => {
                               setShowManageMenu(false);
                               handleOpenUninstallModal(selectedGame);
@@ -773,6 +783,7 @@ export default function DetailsSplitView({
 
                         {handleRemoveFromLibrary && (
                           <button
+                            role="menuitem"
                             onClick={() => {
                               setShowManageMenu(false);
                               handleRemoveFromLibrary(selectedGame.id);
@@ -841,9 +852,9 @@ export default function DetailsSplitView({
           )}
 
           {/* Card 1: Synopsis & Description */}
-          <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/[0.06] space-y-3">
-            <span className="text-xs font-bold tracking-wider uppercase flex items-center gap-2 text-slate-400">
-              <BookOpen className="w-3.5 h-3.5 text-indigo-400" />
+          <div className="p-6 rounded-xl bg-white/[0.02] border border-white/[0.06] space-y-3">
+            <span className="text-xs font-semibold tracking-wider uppercase flex items-center gap-2 text-[var(--text-muted)]">
+              <BookOpen className="w-3.5 h-3.5 text-slate-400" />
               <span>{t("game_details.description")}</span>
             </span>
             <p className="text-sm leading-relaxed text-slate-300">
@@ -851,29 +862,29 @@ export default function DetailsSplitView({
             </p>
           </div>
 
-          {/* Card 2: Technical Parameters - Unified Clean Grid */}
-          <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/[0.06]">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-4">
+          {/* Card 2: Technical Parameters - Unified Specs Grid */}
+          <div className="p-6 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-5">
               <div className="space-y-1">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                <span className="text-[10px] font-semibold text-[var(--text-muted)] tracking-wider uppercase block">
                   {t("game_details.developers")}
                 </span>
-                <p className="text-xs font-bold text-white truncate">
+                <p className="text-xs font-semibold text-white truncate">
                   {selectedGame.developers.join(", ") || "N/A"}
                 </p>
               </div>
 
               <div className="space-y-1">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                <span className="text-[10px] font-semibold text-[var(--text-muted)] tracking-wider uppercase block">
                   {t("game_details.publishers")}
                 </span>
-                <p className="text-xs font-bold text-white truncate">
+                <p className="text-xs font-semibold text-white truncate">
                   {(selectedGame.publishers && selectedGame.publishers.join(", ")) || "N/A"}
                 </p>
               </div>
 
               <div className="space-y-1.5 sm:col-span-2">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                <span className="text-[10px] font-semibold text-[var(--text-muted)] tracking-wider uppercase block">
                   {t("game_details.genres")}
                 </span>
                 <div className="flex flex-wrap gap-1.5 pt-0.5">
@@ -885,16 +896,16 @@ export default function DetailsSplitView({
                           key={genre}
                           type="button"
                           onClick={() => handleFilterByGenre(genre)}
-                          className={`px-2.5 py-1 rounded-xl text-xs font-medium border transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 ${
+                          className={`bg-white/[0.04] border border-white/[0.08] text-slate-300 text-xs px-2.5 py-1 rounded-lg hover:border-white/20 transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 ${
                             active
-                              ? "bg-indigo-600/30 border-indigo-500 text-indigo-200 shadow-xs shadow-indigo-500/20"
-                              : "bg-white/[0.03] hover:bg-white/[0.08] border-white/[0.06] hover:border-indigo-500/30 text-slate-200 hover:text-white"
+                              ? "bg-[var(--accent-primary)]/20 border-[var(--accent-primary)] text-white shadow-xs"
+                              : ""
                           }`}
                           title={t("tooltips.filter_genre", { genre })}
                         >
                           <span
                             className={`w-1.5 h-1.5 rounded-full ${
-                              active ? "bg-indigo-400" : "bg-slate-500"
+                              active ? "bg-[var(--accent-primary)]" : "bg-slate-400"
                             }`}
                           />
                           <span>{genre}</span>
@@ -902,29 +913,29 @@ export default function DetailsSplitView({
                       );
                     })
                   ) : (
-                    <span className="text-xs font-bold text-slate-400">N/A</span>
+                    <span className="text-xs font-semibold text-slate-400">N/A</span>
                   )}
                 </div>
               </div>
 
               <div className="space-y-1">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                <span className="text-[10px] font-semibold text-[var(--text-muted)] tracking-wider uppercase block">
                   {t("game_details.release_date")}
                 </span>
-                <p className="text-xs font-bold text-white truncate">{selectedGame.release_date || "N/A"}</p>
+                <p className="text-xs font-semibold text-white truncate">{selectedGame.release_date || "N/A"}</p>
               </div>
 
               <div className="space-y-1">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                <span className="text-[10px] font-semibold text-[var(--text-muted)] tracking-wider uppercase block">
                   {t("game_details.playtime")}
                 </span>
-                <p className="text-xs font-bold text-emerald-400 truncate">
+                <p className="text-xs font-semibold text-white truncate">
                   {selectedGame.playtime_formatted}
                 </p>
               </div>
 
               <div className="space-y-1">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                <span className="text-[10px] font-semibold text-[var(--text-muted)] tracking-wider uppercase block">
                   {t("groups.completion_status")}
                 </span>
                 <div className="pt-0.5">
@@ -937,13 +948,13 @@ export default function DetailsSplitView({
                       <button
                         type="button"
                         onClick={() => handleFilterByCompletion(selectedGame.completion_status)}
-                        className={`px-2.5 py-1 rounded-xl text-xs font-semibold border flex items-center gap-1.5 cursor-pointer transition-all active:scale-95 ${
-                          isFiltered ? "ring-2 ring-indigo-400 " : ""
-                        } ${statusInfo.bg} ${statusInfo.border} ${statusInfo.color}`}
+                        className={`bg-white/[0.04] border border-white/[0.08] text-slate-300 text-xs px-2.5 py-1 rounded-lg hover:border-white/20 transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 ${
+                          isFiltered ? "border-[var(--accent-primary)] ring-1 ring-[var(--accent-primary)] text-white" : ""
+                        }`}
                         title={t("tooltips.filter_status", { status: statusInfo.label })}
                       >
                         <span className={`w-1.5 h-1.5 rounded-full ${statusInfo.dot}`} />
-                        <span>{statusInfo.label}</span>
+                        <span className="font-semibold">{statusInfo.label}</span>
                       </button>
                     );
                   })()}
@@ -951,10 +962,10 @@ export default function DetailsSplitView({
               </div>
 
               <div className="space-y-1">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                <span className="text-[10px] font-semibold text-[var(--text-muted)] tracking-wider uppercase block">
                   {t("game_details.critic_score")}
                 </span>
-                <p className="text-xs font-bold text-amber-400 truncate">
+                <p className="text-xs font-semibold text-white truncate">
                   {selectedGame.critic_score ? `★ ${selectedGame.critic_score}` : "N/A"}
                 </p>
               </div>
@@ -965,10 +976,10 @@ export default function DetailsSplitView({
           <GameAchievementsGallery key={selectedGame.id} game={selectedGame} />
 
           {/* Card 3: Key Features (Playnite Parity) */}
-          <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/[0.06] space-y-3">
+          <div className="p-6 rounded-xl bg-white/[0.02] border border-white/[0.06] space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold tracking-wider uppercase flex items-center gap-2 text-slate-400">
-                <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+              <span className="text-xs font-semibold tracking-wider uppercase flex items-center gap-2 text-[var(--text-muted)]">
+                <Sparkles className="w-3.5 h-3.5 text-slate-400" />
                 <span>{t("game_details.features")}</span>
               </span>
               <button
@@ -976,7 +987,7 @@ export default function DetailsSplitView({
                   setGameToEdit(selectedGame);
                   setShowEditorModal(true);
                 }}
-                className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300 transition-colors cursor-pointer"
+                className="text-[10px] font-semibold text-slate-400 hover:text-white transition-colors cursor-pointer"
               >
                 {t("common.edit")}
               </button>
@@ -986,9 +997,9 @@ export default function DetailsSplitView({
                 {selectedGame.features.map((feature, idx) => (
                   <span
                     key={idx}
-                    className="px-3 py-1.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] text-xs font-medium text-slate-200 transition-colors flex items-center gap-2 shadow-xs"
+                    className="px-2.5 py-1 rounded-lg bg-white/[0.04] border border-white/[0.08] text-xs font-medium text-slate-300 flex items-center gap-2"
                   >
-                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-400/80 shrink-0" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
                     <span>{feature}</span>
                   </span>
                 ))}
@@ -1002,9 +1013,9 @@ export default function DetailsSplitView({
 
           {/* Card 4: Custom Links */}
           {selectedGame.custom_links && selectedGame.custom_links.length > 0 && (
-            <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/[0.06] space-y-3">
-              <span className="text-xs font-bold tracking-wider uppercase flex items-center gap-2 text-slate-400">
-                <ExternalLink className="w-3.5 h-3.5 text-indigo-400" />
+            <div className="p-6 rounded-xl bg-white/[0.02] border border-white/[0.06] space-y-3">
+              <span className="text-xs font-semibold tracking-wider uppercase flex items-center gap-2 text-[var(--text-muted)]">
+                <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
                 <span>{t("game_details.custom_links")}</span>
               </span>
               <div className="flex flex-wrap gap-2.5 pt-1">
@@ -1014,10 +1025,10 @@ export default function DetailsSplitView({
                     href={lnk.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-white/[0.08] bg-white/[0.04] text-xs font-bold text-white transition-all hover:bg-white/[0.08] hover:border-indigo-400 active:opacity-90 shadow-sm"
+                    className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-white/[0.08] bg-white/[0.04] text-xs font-semibold text-slate-200 transition-all hover:bg-white/[0.08] hover:text-white hover:border-white/20 active:opacity-90 shadow-sm"
                   >
                     <span>{lnk.title}</span>
-                    <ExternalLink className="w-3 h-3 text-indigo-400" />
+                    <ExternalLink className="w-3 h-3 text-slate-400" />
                   </a>
                 ))}
               </div>

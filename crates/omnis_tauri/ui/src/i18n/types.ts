@@ -38,6 +38,7 @@ export interface TranslationSchema {
     install: string;
     enabled: string;
     disabled: string;
+    reset: string;
   };
   sidebar: {
     library: string;
@@ -87,6 +88,7 @@ export interface TranslationSchema {
     edit_game_title: string;
     search_placeholder: string;
     sync: string;
+    sync_tooltip: string;
     syncing: string;
     enrich_button: string;
     enrich_tooltip: string;
@@ -94,6 +96,7 @@ export interface TranslationSchema {
     all_games: string;
     filtered_count: string;
     options: string;
+    settings: string;
     zoom_ui: string;
     zoom_in: string;
     zoom_out: string;
@@ -114,6 +117,7 @@ export interface TranslationSchema {
     no_games_found_hint: string;
   };
   groups: {
+    group_by: string;
     none: string;
     library: string;
     is_installed: string;
@@ -124,6 +128,24 @@ export interface TranslationSchema {
     installed: string;
     available: string;
     unknown: string;
+  };
+  filter_modal: {
+    title: string;
+    clear_all: string;
+    sort: string;
+    status: string;
+    platform: string;
+    genre: string;
+    features: string;
+  };
+  sort_options: {
+    recent: string;
+    title_asc: string;
+    title_desc: string;
+    release_date: string;
+    playtime: string;
+    score: string;
+    default: string;
   };
   game_details: {
     play_now: string;

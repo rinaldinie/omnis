@@ -74,6 +74,9 @@ import CustomGameModal from "./components/modals/CustomGameModal";
 import BatchEnrichModal from "./components/modals/BatchEnrichModal";
 import { UninstallModal } from "./components/modals/UninstallModal";
 import GlobalContextMenu from "./components/GlobalContextMenu";
+import FilterAndSortPopover from "./components/navigation/FilterAndSortPopover";
+import GroupByPopover from "./components/navigation/GroupByPopover";
+import EmptyGamesView from "./components/common/EmptyGamesView";
 
 export interface SessionToastInfo {
   title: string;
@@ -342,12 +345,17 @@ export default function App() {
     selectedStatuses,
     selectedFlags,
     selectedGenres,
+    selectedFeatures,
+    sortMode,
+    setSortMode,
+    filterCounts,
     activeChips,
     totalActiveFilters,
     toggleStore,
     toggleStatus,
     toggleFlag,
     toggleGenre,
+    toggleFeature,
     clearAllFilters,
     removeFilterChip,
     isFilterActive,
@@ -364,6 +372,30 @@ export default function App() {
     groupedGames,
     detailsFilteredGames,
   } = useLibraryFilters(games);
+
+  const availableGenres = useMemo(() => {
+    const set = new Set<string>();
+    games.forEach((g) =>
+      g.genres.forEach((genre) => {
+        const t = genre.trim();
+        if (t) set.add(t);
+      })
+    );
+    return Array.from(set).sort((a, b) => (filterCounts.genres[b] || 0) - (filterCounts.genres[a] || 0));
+  }, [games, filterCounts.genres]);
+
+  const availableFeatures = useMemo(() => {
+    const set = new Set<string>();
+    games.forEach((g) => {
+      if (g.features) {
+        g.features.forEach((feat) => {
+          const t = feat.trim();
+          if (t) set.add(t);
+        });
+      }
+    });
+    return Array.from(set).sort((a, b) => (filterCounts.features[b] || 0) - (filterCounts.features[a] || 0));
+  }, [games, filterCounts.features]);
 
   // Fullscreen sort order; the sorted list drives gamepad navigation, launch and the fullscreen view
   const [fullscreenSort, setFullscreenSort] = useState<GameSortMode>(readSavedSortMode);
@@ -392,6 +424,43 @@ export default function App() {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [showFilterMenu]);
+
+  // GROUP BY POPOVER MENU
+  const [showGroupByMenu, setShowGroupByMenu] = useState(false);
+  const groupByMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (groupByMenuRef.current && !groupByMenuRef.current.contains(e.target as Node)) {
+        setShowGroupByMenu(false);
+      }
+    };
+    if (showGroupByMenu) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showGroupByMenu]);
+
+  const currentGroupLabel = useMemo(() => {
+    switch (groupBy) {
+      case "completion_status":
+        return t("groups.completion_status") || "Stato completamento";
+      case "library":
+        return t("groups.library") || "Store / Piattaforma";
+      case "is_installed":
+        return t("groups.is_installed") || "Installati";
+      case "genre":
+        return t("groups.genre") || "Genere";
+      case "developer":
+        return t("groups.developer") || "Sviluppatore";
+      case "release_year":
+        return t("groups.release_year") || "Anno di rilascio";
+      default:
+        return t("groups.none") || "Nessuno";
+    }
+  }, [groupBy, t]);
 
   // TOGGLE FULLSCREEN MODE
   const toggleFullscreen = async () => {
@@ -564,6 +633,14 @@ export default function App() {
   };
   const refreshLibrary = loadGames;
 
+  useEffect(() => {
+    if (filteredGames.length > 0) {
+      if (!selectedGame || !filteredGames.some((g) => g.id === selectedGame.id)) {
+        setSelectedGame(filteredGames[0]);
+      }
+    }
+  }, [filteredGames]);
+
   const loadThemes = async () => {
     const loadedThemes = await invokeTauri<ThemeConfig[]>("get_themes");
     if (loadedThemes && loadedThemes.length > 0) {
@@ -724,6 +801,24 @@ export default function App() {
       await handleEnrichSingleGame(gameId);
     } finally {
       setIsEnrichingSingle(false);
+    }
+  };
+
+  const handleUpdateCompletionStatus = async (game: GameDto, newStatus: string) => {
+    try {
+      const updated = await invokeTauri<GameDto>("update_game_completion_status", {
+        gameId: game.id,
+        status: newStatus,
+      });
+      if (updated) {
+        const normalized = normalizeGame(updated);
+        setSelectedGame((prev) => (prev && prev.id === normalized.id ? { ...prev, ...normalized } : prev));
+        setGames((prev) => prev.map((g) => (g.id === normalized.id ? { ...g, ...normalized } : g)));
+        refreshLibrary();
+        setStatusMessage(statusText("edits_saved", { title: normalized.title }));
+      }
+    } catch (err: any) {
+      console.error("Failed to update completion status:", err);
     }
   };
 
@@ -1184,8 +1279,6 @@ export default function App() {
         color: "var(--text-primary)",
       }}
     >
-      {currentTheme.custom_css && <style>{currentTheme.custom_css}</style>}
-
       {/* FULLSCREEN MODE */}
       {isFullscreen ? (
         <FullscreenView
@@ -1266,20 +1359,14 @@ export default function App() {
             handleToggleSound={handleToggleSound}
             soundEnabled={soundEnabled}
             setShowSettingsModal={setShowSettingsModal}
-            currentLocaleInfo={currentLocaleInfo}
             setShowThemeModal={setShowThemeModal}
             loadProvidersAndConfig={loadProvidersAndConfig}
             setShowPluginModal={setShowPluginModal}
             providers={providers}
             setShowAddCustomModal={setShowAddCustomModal}
-            selectedGame={selectedGame}
-            setGameToEdit={setGameToEdit}
-            setShowEditorModal={setShowEditorModal}
+            setShowBatchEnrichModal={setShowBatchEnrichModal}
             handleSync={handleSync}
             isSyncing={isSyncing}
-            handleDownloadAll={handleDownloadAll}
-            isDownloading={isDownloading}
-            setShowBatchEnrichModal={setShowBatchEnrichModal}
             handleMinimize={handleMinimize}
             handleToggleMaximize={handleToggleMaximize}
             handleClose={handleClose}
@@ -1328,230 +1415,174 @@ export default function App() {
                   borderColor: "var(--border-color)",
                 }}
               >
-                {/* Left: Smart Filter Pills & Filter Dropdown */}
-                <div className="flex items-center gap-2.5 min-w-0">
-                  {/* Quick Filter Pills */}
-                  <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 shrink min-w-0">
-                    {[
-                      { id: "all", label: t("common.all") },
-                      { id: "installed", label: t("sidebar.installed") },
-                      { id: "completion:Playing", label: t("completion_status.playing") },
-                      { id: "completion:Completed", label: t("completion_status.completed") },
-                      { id: "favorites", label: t("sidebar.favorites") },
-                    ].map((f) => {
-                      const isActive = isFilterActive(f.id);
-                      return (
-                        <button
-                          key={f.id}
-                          type="button"
-                          onClick={() => {
-                            if (f.id === "all") {
-                              clearAllFilters();
-                            } else {
-                              setActiveFilter(f.id);
-                            }
-                          }}
-                          className={`h-7 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 select-none ${
-                            isActive
-                              ? "bg-indigo-600 text-white shadow-xs shadow-indigo-500/25 border border-indigo-500"
-                              : "bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white border border-white/[0.08]"
-                          }`}
-                        >
-                          <span>{f.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Filter Dropdown Popover */}
+                {/* Left: Filter & Sort Popover and Active Filter Chips */}
+                <div className="flex-1 min-w-0 flex items-center gap-2.5 mr-4">
+                  {/* Filter & Sort Popover (Epic Games style) */}
                   <div className="relative shrink-0" ref={filterMenuRef}>
                     <button
                       type="button"
                       onClick={() => setShowFilterMenu((v) => !v)}
                       className={`h-7 px-2.5 rounded-lg text-xs font-semibold border flex items-center gap-1.5 transition-all cursor-pointer select-none ${
                         totalActiveFilters > 0
-                          ? "bg-indigo-600/30 border-indigo-500 text-indigo-200"
+                          ? "bg-sky-600/30 border-sky-500 text-sky-200"
                           : "bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white border-white/[0.08]"
                       }`}
-                      title={t("app_misc.open_filters")}
+                      title={t("filter_modal.title") || "Filtra e ordina"}
                     >
-                      <Filter className="w-3 h-3 text-indigo-400" />
-                      <span>{t("common.filter")}</span>
+                      <Filter className="w-3.5 h-3.5 text-sky-400" />
+                      <span>{t("filter_modal.title") || "Filtra e ordina"}</span>
                       {totalActiveFilters > 0 && (
-                        <span className="w-4 h-4 rounded-full bg-indigo-500 text-white text-[10px] font-bold flex items-center justify-center">
+                        <span className="w-4 h-4 rounded-full bg-sky-500 text-slate-950 text-[10px] font-black flex items-center justify-center">
                           {totalActiveFilters}
                         </span>
                       )}
                       <ChevronDown className="w-3 h-3 text-slate-400" />
                     </button>
 
-                    {showFilterMenu && (
-                      <div
-                        className="absolute left-0 top-full mt-1.5 w-64 rounded-xl border p-3 shadow-2xl z-50 space-y-3 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150"
-                        style={{
-                          backgroundColor: "var(--bg-surface)",
-                          borderColor: "var(--border-color)",
-                        }}
-                      >
-                        {/* Store / Platform */}
-                        <div className="space-y-1.5">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                            {t("sidebar.stores")}
-                          </span>
-                          <div className="grid grid-cols-2 gap-1 text-xs">
-                            {[
-                              { id: "steam", label: "Steam" },
-                              { id: "gog", label: "GOG" },
-                              { id: "epic", label: "Epic Games" },
-                              { id: "xbox", label: "Xbox" },
-                            ].map((store) => {
-                              const isSelected = selectedStores.includes(store.id);
-                              return (
-                                <button
-                                  key={store.id}
-                                  type="button"
-                                  onClick={() => toggleStore(store.id)}
-                                  className={`px-2 py-1.5 rounded-md text-left font-medium transition-colors flex items-center justify-between cursor-pointer ${
-                                    isSelected
-                                      ? "bg-indigo-600 text-white font-semibold shadow-xs"
-                                      : "bg-white/[0.03] hover:bg-white/[0.08] text-slate-300 hover:text-white"
-                                  }`}
-                                >
-                                  <span>{store.label}</span>
-                                  {isSelected && <Check className="w-3.5 h-3.5 text-white shrink-0 ml-1" />}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
+                    <FilterAndSortPopover
+                      isOpen={showFilterMenu}
+                      onClose={() => setShowFilterMenu(false)}
+                      sortMode={sortMode}
+                      onSortChange={setSortMode}
+                      selectedFlags={selectedFlags}
+                      onToggleFlag={toggleFlag}
+                      selectedStatuses={selectedStatuses}
+                      onToggleStatus={toggleStatus}
+                      selectedStores={selectedStores}
+                      onToggleStore={toggleStore}
+                      selectedGenres={selectedGenres}
+                      onToggleGenre={toggleGenre}
+                      selectedFeatures={selectedFeatures}
+                      onToggleFeature={toggleFeature}
+                      onClearAll={clearAllFilters}
+                      totalActiveFilters={totalActiveFilters}
+                      filterCounts={filterCounts}
+                      availableGenres={availableGenres}
+                      availableFeatures={availableFeatures}
+                    />
+                  </div>
 
-                        {/* Completion Status */}
-                        <div className="space-y-1.5 pt-1 border-t border-white/[0.06]">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                            {t("groups.completion_status")}
-                          </span>
-                          <div className="grid grid-cols-2 gap-1 text-xs">
-                            {[
-                              { id: "Playing", label: t("completion_status.playing") },
-                              { id: "Completed", label: t("completion_status.completed") },
-                              { id: "Beaten", label: t("completion_status.beaten") },
-                              { id: "PlanToPlay", label: t("completion_status.plan_to_play") },
-                              { id: "Backlog", label: t("completion_status.backlog") },
-                              { id: "Abandoned", label: t("completion_status.abandoned") },
-                            ].map((st) => {
-                              const isSelected = selectedStatuses.some((s) => s.toLowerCase() === st.id.toLowerCase());
-                              return (
-                                <button
-                                  key={st.id}
-                                  type="button"
-                                  onClick={() => toggleStatus(st.id)}
-                                  className={`px-2 py-1.5 rounded-md text-left font-medium transition-colors flex items-center justify-between truncate cursor-pointer ${
-                                    isSelected
-                                      ? "bg-indigo-600 text-white font-semibold shadow-xs"
-                                      : "bg-white/[0.03] hover:bg-white/[0.08] text-slate-300 hover:text-white"
-                                  }`}
-                                >
-                                  <span className="truncate">{st.label}</span>
-                                  {isSelected && <Check className="w-3.5 h-3.5 text-white shrink-0 ml-1" />}
-                                </button>
-                              );
-                            })}
-                          </div>
+                  {/* Active filter chips (horizontally scrollable, cannot push or collide with counter/controls) */}
+                  {activeChips.length > 0 && (
+                    <div className="flex-1 min-w-0 flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
+                      {activeChips.map((chip) => (
+                        <div
+                          key={chip.id}
+                          className="h-7 px-2.5 rounded-lg bg-sky-500/15 border border-sky-500/30 text-sky-300 text-xs font-medium flex items-center gap-1.5 shrink-0 animate-in fade-in zoom-in-95 duration-100"
+                        >
+                          <span className="max-w-[140px] truncate">{chip.label}</span>
+                          <button
+                            type="button"
+                            onClick={() => removeFilterChip(chip.id)}
+                            className="hover:text-white transition-colors p-0.5 rounded cursor-pointer"
+                            title={t("filter_chips.remove", { label: chip.label })}
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
                         </div>
+                      ))}
 
-                        {/* Reset Filter Button */}
-                        {totalActiveFilters > 0 && (
-                          <div className="pt-2 border-t border-white/[0.06]">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                clearAllFilters();
-                              }}
-                              className="w-full py-1.5 rounded-lg text-xs font-bold text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition-colors cursor-pointer"
-                            >
-                              {t("app_misc.clear_all_filters_count", { count: totalActiveFilters })}
-                            </button>
-                          </div>
-                        )}
-                      </div>
+                      {totalActiveFilters > 1 && (
+                        <button
+                          type="button"
+                          onClick={clearAllFilters}
+                          className="text-[11px] font-semibold text-rose-300 hover:text-rose-200 underline transition-colors cursor-pointer shrink-0 ml-1 whitespace-nowrap"
+                          title={t("app_misc.clear_filters")}
+                        >
+                          {t("app_misc.clear_all")}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Right: Counter, GroupBy & Zoom Controls */}
+                <div className="flex items-center gap-3.5 shrink-0">
+                  {/* Game Counter ("la somma") - strictly pinned on right side so it never collides */}
+                  <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium shrink-0">
+                    {totalActiveFilters > 0 || searchQuery.trim().length > 0 ? (
+                      <>
+                        <span className="font-semibold text-sky-400">{filteredGames.length}</span>
+                        <span className="text-slate-500 font-normal">/ {games.length} {t("sidebar.all_games")?.toLowerCase() || "giochi"}</span>
+                      </>
+                    ) : (
+                      <span>
+                        {t(filteredGames.length === 1 ? "app_status.games_count_one" : "app_status.games_count_other", { count: filteredGames.length })}
+                      </span>
                     )}
                   </div>
 
-                  {/* Active filter chips (cumulative) */}
-                  {activeChips.map((chip) => (
-                    <div
-                      key={chip.id}
-                      className="h-7 px-2.5 rounded-lg bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-xs font-semibold flex items-center gap-1.5 shrink-0 animate-in fade-in zoom-in-95 duration-100"
-                    >
-                      <span>{chip.label}</span>
-                      <button
-                        type="button"
-                        onClick={() => removeFilterChip(chip.id)}
-                        className="hover:text-white transition-colors p-0.5 rounded cursor-pointer"
-                        title={t("filter_chips.remove", { label: chip.label })}
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ))}
+                  <div className="h-4 w-[1px] bg-white/[0.08] shrink-0" />
 
-                  {totalActiveFilters > 1 && (
+                  {/* Group By Popover (matching FilterAndSortPopover design) */}
+                  <div className="relative shrink-0" ref={groupByMenuRef}>
                     <button
                       type="button"
-                      onClick={clearAllFilters}
-                      className="text-[11px] font-semibold text-rose-300 hover:text-rose-200 underline transition-colors cursor-pointer shrink-0"
-                      title={t("app_misc.clear_filters")}
+                      onClick={() => setShowGroupByMenu((v) => !v)}
+                      className={`h-7 px-2.5 rounded-lg text-xs font-semibold border flex items-center gap-1.5 transition-all cursor-pointer select-none ${
+                        groupBy !== "none"
+                          ? "bg-sky-600/30 border-sky-500 text-sky-200"
+                          : "bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white border-white/[0.08]"
+                      }`}
+                      title={t("groups.group_by") || "Raggruppa per"}
                     >
-                      {t("app_misc.clear_all")}
+                      <Layers className="w-3.5 h-3.5 text-sky-400" />
+                      <span>
+                        {t("views.group_by")}:{" "}
+                        <strong className={groupBy !== "none" ? "text-white font-bold" : "text-slate-400 font-medium"}>
+                          {currentGroupLabel}
+                        </strong>
+                      </span>
+                      <ChevronDown className="w-3 h-3 text-slate-400" />
                     </button>
-                  )}
 
-                  <div className="h-4 w-[1px] shrink-0" style={{ backgroundColor: "var(--border-color)" }} />
-
-                  {/* Filtered Counter */}
-                  <span className="text-[11px] font-semibold shrink-0" style={{ color: "var(--text-muted)" }}>
-                    {t(filteredGames.length === 1 ? "app_status.games_count_one" : "app_status.games_count_other", { count: filteredGames.length })}
-                  </span>
-                </div>
-
-                {/* Right: Zoom Slider for Grid View */}
-                {viewMode === "grid" && (
-                  <div className="flex items-center gap-2.5">
-                    <button
-                      onClick={() => setGridCardWidth((w) => Math.max(140, w - 20))}
-                      className="p-1 hover:text-white transition-colors"
-                      style={{ color: "var(--text-muted)" }}
-                      title={t("tooltips.poster_smaller")}
-                    >
-                      <ZoomOut className="w-3.5 h-3.5" />
-                    </button>
-                    <input
-                      type="range"
-                      min="140"
-                      max="320"
-                      step="10"
-                      value={gridCardWidth}
-                      onChange={(e) => setGridCardWidth(Number(e.target.value))}
-                      className="w-28 h-1.5 rounded-lg cursor-pointer accent-indigo-500"
-                      style={{ backgroundColor: "var(--bg-card)" }}
-                      title={t("tooltips.poster_width", { width: gridCardWidth })}
+                    <GroupByPopover
+                      isOpen={showGroupByMenu}
+                      onClose={() => setShowGroupByMenu(false)}
+                      groupBy={groupBy}
+                      onSelectGroup={(mode) => setGroupBy(mode)}
                     />
-                    <button
-                      onClick={() => setGridCardWidth((w) => Math.min(320, w + 20))}
-                      className="p-1 hover:text-white transition-colors"
-                      style={{ color: "var(--text-muted)" }}
-                      title={t("tooltips.poster_larger")}
-                    >
-                      <ZoomIn className="w-3.5 h-3.5" />
-                    </button>
-                    <span
-                      className="text-[10px] font-mono w-10 text-right"
-                      style={{ color: "var(--text-muted)" }}
-                    >
-                      {gridCardWidth}px
-                    </span>
                   </div>
-                )}
+
+                  {/* Zoom Slider for Grid View */}
+                  {viewMode === "grid" && (
+                    <div className="flex items-center gap-2 pl-2 border-l border-white/[0.08]">
+                      <button
+                        onClick={() => setGridCardWidth((w) => Math.max(140, w - 20))}
+                        className="p-1 hover:text-white transition-colors"
+                        style={{ color: "var(--text-muted)" }}
+                        title={t("tooltips.poster_smaller")}
+                      >
+                        <ZoomOut className="w-3.5 h-3.5" />
+                      </button>
+                      <input
+                        type="range"
+                        min="140"
+                        max="320"
+                        step="10"
+                        value={gridCardWidth}
+                        onChange={(e) => setGridCardWidth(Number(e.target.value))}
+                        className="w-24 h-1.5 rounded-lg cursor-pointer accent-indigo-500"
+                        style={{ backgroundColor: "var(--bg-card)" }}
+                        title={t("tooltips.poster_width", { width: gridCardWidth })}
+                      />
+                      <button
+                        onClick={() => setGridCardWidth((w) => Math.min(320, w + 20))}
+                        className="p-1 hover:text-white transition-colors"
+                        style={{ color: "var(--text-muted)" }}
+                        title={t("tooltips.poster_larger")}
+                      >
+                        <ZoomIn className="w-3.5 h-3.5" />
+                      </button>
+                      <span
+                        className="text-[10px] font-mono w-10 text-right"
+                        style={{ color: "var(--text-muted)" }}
+                      >
+                        {gridCardWidth}px
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* VIEW 1: POSTER GRID VIEW */}
@@ -1574,12 +1605,21 @@ export default function App() {
                   elapsedSeconds={elapsedSeconds}
                   formatDuration={formatDuration}
                   handleKillRunningGame={handleKillRunningGame}
+                  activeFilter={activeFilter}
+                  searchQuery={searchQuery}
+                  onClearFilters={clearAllFilters}
+                  hasActiveFilters={totalActiveFilters > 0 || searchQuery.trim() !== ""}
                 />
               )}
 
               {/* VIEW 2: DETAILS SPLIT-PANEL VIEW */}
               {viewMode === "details" && (
-                selectedGame ? (
+                filteredGames.length === 0 ? (
+                  <EmptyGamesView
+                    onClearFilters={clearAllFilters}
+                    hasActiveFilters={totalActiveFilters > 0 || searchQuery.trim() !== ""}
+                  />
+                ) : selectedGame ? (
                   <DetailsSplitView
                     currentTheme={currentTheme}
                     selectedGame={selectedGame}
@@ -1615,35 +1655,24 @@ export default function App() {
                     handleRemoveFromLibrary={handleRemoveFromLibrary}
                   />
                 ) : (
-                  <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-                    <Gamepad2
-                      className="w-12 h-12 mb-3 opacity-30"
-                      style={{ color: "var(--text-muted)" }}
-                    />
-                    <h3 className="text-base font-bold text-white mb-1">{t("views.no_game_selected")}</h3>
-                    <p className="text-xs text-slate-400 max-w-sm">
-                      {t("views.select_game_hint")}
-                    </p>
-                  </div>
+                  <EmptyGamesView
+                    onClearFilters={clearAllFilters}
+                    hasActiveFilters={totalActiveFilters > 0 || searchQuery.trim() !== ""}
+                  />
                 )
               )}
 
               {/* VIEW 3: HIGH-PERFORMANCE SPREADSHEET LIST VIEW */}
               {viewMode === "list" && (
-                <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                  {filteredGames.length === 0 ? (
-                    <div className="h-64 flex flex-col items-center justify-center text-center p-8">
-                      <Gamepad2
-                        className="w-12 h-12 mb-3 opacity-30"
-                        style={{ color: "var(--text-muted)" }}
-                      />
-                      <span className="text-sm font-bold text-white">{t("views.no_games_found")}</span>
-                      <span className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-                        {t("views.no_games_found_hint")}
-                      </span>
-                    </div>
-                  ) : groupBy === "none" ? (
-                    <ListViewTable
+                filteredGames.length === 0 ? (
+                  <EmptyGamesView
+                    onClearFilters={clearAllFilters}
+                    hasActiveFilters={totalActiveFilters > 0 || searchQuery.trim() !== ""}
+                  />
+                ) : (
+                  <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                    {groupBy === "none" ? (
+                      <ListViewTable
                       games={filteredGames}
                       selectedGameId={selectedGame?.id || null}
                       onSelectGame={setSelectedGame}
@@ -1722,7 +1751,8 @@ export default function App() {
                     })
                   )}
                 </div>
-              )}
+              )
+            )}
             </main>
           </div>
 
@@ -1847,6 +1877,7 @@ export default function App() {
           setSelectedGame(game);
           setViewMode("details");
         }}
+        onUpdateCompletionStatus={handleUpdateCompletionStatus}
         onOpenFolder={(game) => handleOpenInstallDir(game.id)}
         onCreateShortcut={(game) => handleCreateShortcut(game.id)}
         onVerifyFiles={(game) => handleVerifyFiles(game.id)}
