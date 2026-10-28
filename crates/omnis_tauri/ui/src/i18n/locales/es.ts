@@ -22,6 +22,7 @@ export const es: TranslationSchema = {
     install: 'Instalar',
     enabled: 'Activado',
     disabled: 'Desactivado',
+    reset: 'Restablecer',
   },
   sidebar: {
     library: 'Biblioteca',
@@ -71,6 +72,7 @@ export const es: TranslationSchema = {
     edit_game_title: "Editar información de '{title}' manualmente",
     search_placeholder: 'Buscar por título, género, desarrollador o saga...',
     sync: 'Sincronizar biblioteca',
+    sync_tooltip: 'Detectar juegos instalados y sincronizar cuentas vinculadas (Steam, Epic, GOG, Xbox)',
     syncing: 'Sincronizando...',
     enrich_button: 'Descargar Datos y Portadas',
     enrich_tooltip: 'Descargar portadas, fondos, puntuaciones y tiempos de juego',
@@ -78,6 +80,7 @@ export const es: TranslationSchema = {
     all_games: 'Todos los juegos',
     filtered_count: '{count} TÍTULOS FILTRADOS',
     options: 'Opciones',
+    settings: 'Configuración',
     zoom_ui: 'Zoom de interfaz',
     zoom_in: 'Aumentar zoom',
     zoom_out: 'Reducir zoom',

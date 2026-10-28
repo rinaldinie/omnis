@@ -151,9 +151,14 @@ export default function TopBar({
           }}
           onOpenAddCustomModal={() => setShowAddCustomModal(true)}
           onOpenBatchEnrichModal={() => setShowBatchEnrichModal?.(true)}
+          onOpenSettingsModal={() => {
+            soundEffects.playSelect();
+            setShowSettingsModal(true);
+          }}
           onToggleSound={handleToggleSound}
           soundEnabled={soundEnabled}
           hasActiveProviders={providers?.some((p) => p.has_configured_key || !p.requires_api_key)}
+          isUpdateAvailable={isUpdateAvailable}
           t={t}
         />
       </div>
@@ -300,40 +305,9 @@ export default function TopBar({
               borderColor: "var(--surface-pill-border, var(--border-color))",
               color: "var(--text-primary)",
             }}
-            title={t("topbar.sync")}
+            title={t("topbar.sync_tooltip") || t("topbar.sync")}
           >
             <RefreshCw className={`w-4 h-4 ${isSyncing ? "animate-spin text-white" : ""}`} />
-          </button>
-
-          {/* Settings & Options */}
-          <button
-            type="button"
-            onClick={() => {
-              soundEffects.playSelect();
-              setShowSettingsModal(true);
-            }}
-            className="relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-bold transition-all hover:bg-white/10 active:opacity-90 shadow-sm shrink-0 cursor-pointer"
-            style={{
-              backgroundColor: "var(--surface-pill-bg, var(--bg-card))",
-              borderColor: "var(--surface-pill-border, var(--border-color))",
-              color: "var(--text-primary)",
-            }}
-            title={
-              isUpdateAvailable
-                ? `${t("topbar.options")} (${updater?.availableVersion ? `v${updater.availableVersion}` : ""})`
-                : t("topbar.options")
-            }
-          >
-            <div className="relative flex items-center justify-center">
-              <Settings className="w-3.5 h-3.5" style={{ color: "var(--accent-primary)" }} />
-              {isUpdateAvailable && (
-                <span className="absolute -top-1 -right-1 flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-sky-500"></span>
-                </span>
-              )}
-            </div>
-            <span className="hidden xl:inline">{t("topbar.options")}</span>
           </button>
 
           {/* Clean Native Title Bar Separator */}

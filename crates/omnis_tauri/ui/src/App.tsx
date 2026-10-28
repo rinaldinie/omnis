@@ -75,6 +75,8 @@ import BatchEnrichModal from "./components/modals/BatchEnrichModal";
 import { UninstallModal } from "./components/modals/UninstallModal";
 import GlobalContextMenu from "./components/GlobalContextMenu";
 import FilterAndSortPopover from "./components/navigation/FilterAndSortPopover";
+import GroupByPopover from "./components/navigation/GroupByPopover";
+import EmptyGamesView from "./components/common/EmptyGamesView";
 
 export interface SessionToastInfo {
   title: string;
@@ -423,6 +425,43 @@ export default function App() {
     };
   }, [showFilterMenu]);
 
+  // GROUP BY POPOVER MENU
+  const [showGroupByMenu, setShowGroupByMenu] = useState(false);
+  const groupByMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (groupByMenuRef.current && !groupByMenuRef.current.contains(e.target as Node)) {
+        setShowGroupByMenu(false);
+      }
+    };
+    if (showGroupByMenu) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showGroupByMenu]);
+
+  const currentGroupLabel = useMemo(() => {
+    switch (groupBy) {
+      case "completion_status":
+        return t("groups.completion_status") || "Stato completamento";
+      case "library":
+        return t("groups.library") || "Store / Piattaforma";
+      case "is_installed":
+        return t("groups.is_installed") || "Installati";
+      case "genre":
+        return t("groups.genre") || "Genere";
+      case "developer":
+        return t("groups.developer") || "Sviluppatore";
+      case "release_year":
+        return t("groups.release_year") || "Anno di rilascio";
+      default:
+        return t("groups.none") || "Nessuno";
+    }
+  }, [groupBy, t]);
+
   // TOGGLE FULLSCREEN MODE
   const toggleFullscreen = async () => {
     const next = !isFullscreen;
@@ -593,6 +632,14 @@ export default function App() {
     }
   };
   const refreshLibrary = loadGames;
+
+  useEffect(() => {
+    if (filteredGames.length > 0) {
+      if (!selectedGame || !filteredGames.some((g) => g.id === selectedGame.id)) {
+        setSelectedGame(filteredGames[0]);
+      }
+    }
+  }, [filteredGames]);
 
   const loadThemes = async () => {
     const loadedThemes = await invokeTauri<ThemeConfig[]>("get_themes");
@@ -1467,27 +1514,34 @@ export default function App() {
 
                   <div className="h-4 w-[1px] bg-white/[0.08] shrink-0" />
 
-                  {/* Group By selector */}
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[11px] font-medium text-slate-400">
-                      {t("views.group_by")}:
-                    </span>
-                    <select
-                      value={groupBy}
-                      onChange={(e) => setGroupBy(e.target.value as GroupBy)}
-                      className="h-7 px-2.5 py-0.5 rounded-lg text-xs font-semibold border outline-none cursor-pointer transition-colors"
-                      style={{
-                        backgroundColor: "var(--bg-card)",
-                        borderColor: "var(--border-color)",
-                        color: "var(--text-primary)",
-                      }}
+                  {/* Group By Popover (matching FilterAndSortPopover design) */}
+                  <div className="relative shrink-0" ref={groupByMenuRef}>
+                    <button
+                      type="button"
+                      onClick={() => setShowGroupByMenu((v) => !v)}
+                      className={`h-7 px-2.5 rounded-lg text-xs font-semibold border flex items-center gap-1.5 transition-all cursor-pointer select-none ${
+                        groupBy !== "none"
+                          ? "bg-sky-600/30 border-sky-500 text-sky-200"
+                          : "bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white border-white/[0.08]"
+                      }`}
+                      title={t("groups.group_by") || "Raggruppa per"}
                     >
-                      <option value="none">{t("groups.none")}</option>
-                      <option value="completion_status">{t("groups.completion_status")}</option>
-                      <option value="library">{t("groups.library")}</option>
-                      <option value="genre">{t("groups.genre")}</option>
-                      <option value="installed">{t("groups.installed")}</option>
-                    </select>
+                      <Layers className="w-3.5 h-3.5 text-sky-400" />
+                      <span>
+                        {t("views.group_by")}:{" "}
+                        <strong className={groupBy !== "none" ? "text-white font-bold" : "text-slate-400 font-medium"}>
+                          {currentGroupLabel}
+                        </strong>
+                      </span>
+                      <ChevronDown className="w-3 h-3 text-slate-400" />
+                    </button>
+
+                    <GroupByPopover
+                      isOpen={showGroupByMenu}
+                      onClose={() => setShowGroupByMenu(false)}
+                      groupBy={groupBy}
+                      onSelectGroup={(mode) => setGroupBy(mode)}
+                    />
                   </div>
 
                   {/* Zoom Slider for Grid View */}
@@ -1553,12 +1607,19 @@ export default function App() {
                   handleKillRunningGame={handleKillRunningGame}
                   activeFilter={activeFilter}
                   searchQuery={searchQuery}
+                  onClearFilters={clearAllFilters}
+                  hasActiveFilters={totalActiveFilters > 0 || searchQuery.trim() !== ""}
                 />
               )}
 
               {/* VIEW 2: DETAILS SPLIT-PANEL VIEW */}
               {viewMode === "details" && (
-                selectedGame ? (
+                filteredGames.length === 0 ? (
+                  <EmptyGamesView
+                    onClearFilters={clearAllFilters}
+                    hasActiveFilters={totalActiveFilters > 0 || searchQuery.trim() !== ""}
+                  />
+                ) : selectedGame ? (
                   <DetailsSplitView
                     currentTheme={currentTheme}
                     selectedGame={selectedGame}
@@ -1594,35 +1655,24 @@ export default function App() {
                     handleRemoveFromLibrary={handleRemoveFromLibrary}
                   />
                 ) : (
-                  <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-                    <Gamepad2
-                      className="w-12 h-12 mb-3 opacity-30"
-                      style={{ color: "var(--text-muted)" }}
-                    />
-                    <h3 className="text-base font-bold text-white mb-1">{t("views.no_game_selected")}</h3>
-                    <p className="text-xs text-slate-400 max-w-sm">
-                      {t("views.select_game_hint")}
-                    </p>
-                  </div>
+                  <EmptyGamesView
+                    onClearFilters={clearAllFilters}
+                    hasActiveFilters={totalActiveFilters > 0 || searchQuery.trim() !== ""}
+                  />
                 )
               )}
 
               {/* VIEW 3: HIGH-PERFORMANCE SPREADSHEET LIST VIEW */}
               {viewMode === "list" && (
-                <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                  {filteredGames.length === 0 ? (
-                    <div className="h-64 flex flex-col items-center justify-center text-center p-8">
-                      <Gamepad2
-                        className="w-12 h-12 mb-3 opacity-30"
-                        style={{ color: "var(--text-muted)" }}
-                      />
-                      <span className="text-sm font-bold text-white">{t("views.no_games_found")}</span>
-                      <span className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-                        {t("views.no_games_found_hint")}
-                      </span>
-                    </div>
-                  ) : groupBy === "none" ? (
-                    <ListViewTable
+                filteredGames.length === 0 ? (
+                  <EmptyGamesView
+                    onClearFilters={clearAllFilters}
+                    hasActiveFilters={totalActiveFilters > 0 || searchQuery.trim() !== ""}
+                  />
+                ) : (
+                  <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                    {groupBy === "none" ? (
+                      <ListViewTable
                       games={filteredGames}
                       selectedGameId={selectedGame?.id || null}
                       onSelectGame={setSelectedGame}
@@ -1701,7 +1751,8 @@ export default function App() {
                     })
                   )}
                 </div>
-              )}
+              )
+            )}
             </main>
           </div>
 
