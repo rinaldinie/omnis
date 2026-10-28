@@ -9,6 +9,15 @@ use std::path::{Path, PathBuf};
 use tracing::info;
 use uuid::Uuid;
 
+pub mod litedb;
+pub mod backup;
+
+pub use backup::{
+    execute_playnite_backup_import, inspect_playnite_backup, PlayniteBackupImportOptions,
+    PlayniteBackupInspection, PlayniteBackupMatchSample,
+};
+pub use litedb::{scan_litedb_games, BsonDocument, BsonValue, LiteDbError};
+
 /// Return the C# Playnite 10 Generic Plugin export script.
 pub fn export_csharp_script() -> &'static str {
     r#"using System;
@@ -55,17 +64,20 @@ namespace OmnisPlayniteExporter
 /// Official GUIDs taken from Playnite source code:
 pub fn map_playnite_plugin_id(plugin_id: Option<&str>) -> &'static str {
     match plugin_id.map(|s| s.trim().to_ascii_lowercase()).as_deref() {
-        Some("cb91aec9-6843-410e-a02b-a64c48325983") => stores::STEAM,
+        Some("cb91aec9-6843-410e-a02b-a64c48325983") | Some("cb91dfc9-b977-43bf-8e70-55f46e410fab") => stores::STEAM,
         Some("aebe8b7c-6dc3-4a66-af31-e7375c6b5e9e") => stores::GOG,
-        Some("00000002-dbd1-46c6-b5d0-b1cb55d14e34") => stores::EPIC,
-        Some("7e4fbb5e-2304-4c2c-9721-402f4586f6a7") | Some("b5199324-4061-4613-9f4c-1e24749f57d6") => stores::XBOX,
-        Some("85dd7072-76de-42bc-9c2b-000e60e4e843") => "origin",
-        Some("c2f038e5-8b92-4877-9163-0d6e1fa20322") => "ubisoft",
-        Some("e3c26a3d-dce2-4bb7-9ec7-300e12361115") => "battlenet",
+        Some("00000002-dbd1-46c6-b5d0-b1cb55d14e34") | Some("00000002-dbd1-46c6-b5d0-b1ba559d10e4") => stores::EPIC,
+        Some("7e4fbb5e-2304-4c2c-9721-402f4586f6a7")
+        | Some("b5199324-4061-4613-9f4c-1e24749f57d6")
+        | Some("7e4fbb5e-2ae3-48d4-8ba0-6b30e7a4e287") => stores::XBOX,
+        Some("85dd7072-76de-42bc-9c2b-000e60e4e843") | Some("85dd7072-2f20-4e76-a007-41035e390724") => "origin",
+        Some("c2f038e5-8b92-4877-9163-0d6e1fa20322") | Some("c2f038e5-8b92-4877-91f1-da9094155fc5") => "ubisoft",
+        Some("e3c26a3d-dce2-4bb7-9ec7-300e12361115") | Some("e3c26a3d-d695-4cb7-a769-5ff7612c7edd") => "battlenet",
         Some("00000001-ebb0-4663-8a98-3b94e39b52a8") => "itch",
-        Some("4029fdd1-eb23-4e4b-9e58-690a9a4b85c2") => "amazon",
+        Some("4029fdd1-eb23-4e4b-9e58-690a9a4b85c2") | Some("402674cd-4af6-4886-b6ec-0e695bfa0688") => "amazon",
         Some("0e460992-6ff1-4666-a111-000000000001") => "bethesda",
         Some("96e8c4bc-1666-4e5a-a435-0902c3ec0b2b") => "humble",
+        Some("34c3178f-6e1d-4e27-8885-99d4f031b168") => "legacy",
         _ => stores::MANUAL,
     }
 }
@@ -114,7 +126,7 @@ pub struct PlayniteImportOptions {
     pub image_cache_dir: Option<PathBuf>,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PlayniteImportStats {
     pub total_read: usize,
     pub games_created: usize,
@@ -244,7 +256,7 @@ impl PlayniteImporter {
         }
     }
 
-    fn sync_tags_and_categories(
+    pub(crate) fn sync_tags_and_categories(
         conn: &rusqlite::Connection,
         game_id: &str,
         tags: Option<&Vec<String>>,
@@ -507,6 +519,27 @@ impl PlayniteImporter {
         let content = fs::read_to_string(path)?;
         Self::import_from_json(db, &content, options)
     }
+
+    /// Inspect a Playnite backup ZIP archive without mutating database or filesystem.
+    pub fn inspect_backup(
+        zip_path: &Path,
+        db: &Database,
+    ) -> Result<PlayniteBackupInspection, Box<dyn std::error::Error>> {
+        inspect_playnite_backup(zip_path, db)
+    }
+
+    /// Import and merge games from a Playnite backup ZIP archive.
+    pub fn import_backup<F>(
+        zip_path: &Path,
+        db: &Database,
+        options: &PlayniteBackupImportOptions,
+        progress_cb: F,
+    ) -> Result<PlayniteImportStats, Box<dyn std::error::Error>>
+    where
+        F: FnMut(usize, usize, &str),
+    {
+        execute_playnite_backup_import(zip_path, db, options, progress_cb)
+    }
 }
 
 // Inherent forwarders on Database for backward compatibility
@@ -539,5 +572,28 @@ impl Database {
         options: &PlayniteImportOptions,
     ) -> Result<PlayniteImportStats, Box<dyn std::error::Error>> {
         PlayniteImporter::import_from_file(self, path, options)
+    }
+
+    /// Inherent forwarder to inspect_playnite_backup
+    #[inline]
+    pub fn inspect_playnite_backup(
+        &self,
+        zip_path: &Path,
+    ) -> Result<PlayniteBackupInspection, Box<dyn std::error::Error>> {
+        inspect_playnite_backup(zip_path, self)
+    }
+
+    /// Inherent forwarder to execute_playnite_backup_import
+    #[inline]
+    pub fn import_playnite_backup<F>(
+        &self,
+        zip_path: &Path,
+        options: &PlayniteBackupImportOptions,
+        progress_cb: F,
+    ) -> Result<PlayniteImportStats, Box<dyn std::error::Error>>
+    where
+        F: FnMut(usize, usize, &str),
+    {
+        execute_playnite_backup_import(zip_path, self, options, progress_cb)
     }
 }

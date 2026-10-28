@@ -19,12 +19,13 @@ import {
   RefreshCw,
   ArrowDownCircle,
   AlertCircle,
+  FolderArchive,
 } from 'lucide-react';
 import { useTranslation, SUPPORTED_LOCALES, LocaleCode } from '../i18n';
 import soundEffects from '../utils/soundEffects';
 import { useUpdater } from '../hooks/useAppUpdater';
 
-type GeneralSubTab = 'language' | 'audio' | 'window' | 'appearance' | 'updates';
+type GeneralSubTab = 'language' | 'audio' | 'window' | 'appearance' | 'data' | 'updates';
 
 interface GeneralSettingsTabProps {
   onClose?: () => void;
@@ -32,6 +33,7 @@ interface GeneralSettingsTabProps {
   onToggleSound: () => void;
   onOpenThemes: () => void;
   currentThemeName: string;
+  onOpenPlayniteImport?: () => void;
 }
 
 export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
@@ -40,6 +42,7 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
   onToggleSound,
   onOpenThemes,
   currentThemeName,
+  onOpenPlayniteImport,
 }) => {
   const { locale, setLocale, t } = useTranslation();
   const updater = useUpdater();
@@ -190,6 +193,25 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
           <Palette className="w-3.5 h-3.5" />
           <span>{t('general_settings.tab_appearance')}</span>
           {activeSubTab === 'appearance' && (
+            <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-sky-400 rounded-full" />
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            soundEffects.playNav();
+            setActiveSubTab('data');
+          }}
+          className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative flex items-center gap-2 ${
+            activeSubTab === 'data'
+              ? 'text-sky-400 bg-sky-500/10 shadow-xs'
+              : 'text-slate-400 hover:text-white hover:bg-white/5'
+          }`}
+        >
+          <FolderArchive className="w-3.5 h-3.5" />
+          <span>{t('general_settings.tab_data') || 'Dati & Backup'}</span>
+          {activeSubTab === 'data' && (
             <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-sky-400 rounded-full" />
           )}
         </button>
@@ -503,6 +525,54 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
               <Info className="w-4 h-4 shrink-0 text-purple-400 mt-0.5" />
               <div className="leading-relaxed">
                 {t('general_settings.themes_note')}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* SUBTAB: DATI & BACKUP */}
+        {activeSubTab === 'data' && (
+          <div className="space-y-5">
+            <div>
+              <div className="flex items-center gap-2 text-xs font-black tracking-wider uppercase text-slate-300 mb-1">
+                <FolderArchive className="w-4 h-4 text-purple-400" />
+                <span>{t('general_settings.tab_data') || 'Dati & Backup'}</span>
+              </div>
+              <p className="text-xs text-slate-400">
+                Gestisci le origini dati, i salvataggi e l'integrazione da launcher esterni.
+              </p>
+            </div>
+
+            <div className="p-5 rounded-2xl border border-white/10 bg-slate-800/40 space-y-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center border border-purple-500/30 shrink-0 mt-0.5">
+                    <FolderArchive className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-white">
+                      {t('general_settings.playnite_card_title') || 'Importazione Backup Playnite'}
+                    </h4>
+                    <p className="text-xs text-slate-400 max-w-lg leading-relaxed mt-1">
+                      {t('general_settings.playnite_card_desc') ||
+                        'Arricchisci la tua libreria importando statistiche, ore di gioco e cover da un backup Playnite (.zip)'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-2 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    soundEffects.playSelect();
+                    onOpenPlayniteImport?.();
+                  }}
+                  className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition-all shadow-md flex items-center gap-2 cursor-pointer hover:brightness-110 active:opacity-90"
+                >
+                  <FolderArchive className="w-4 h-4" />
+                  <span>{t('general_settings.playnite_card_btn') || 'Importa Backup...'}</span>
+                </button>
               </div>
             </div>
           </div>

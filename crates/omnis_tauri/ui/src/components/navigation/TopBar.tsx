@@ -35,6 +35,7 @@ export interface TopBarProps {
   providers?: ProviderInfo[];
   setShowAddCustomModal: (open: boolean) => void;
   setShowBatchEnrichModal?: (open: boolean) => void;
+  onOpenPlayniteImport?: () => void;
   handleSync: () => void;
   isSyncing: boolean;
   handleMinimize: () => void;
@@ -65,6 +66,7 @@ export default function TopBar({
   providers = [],
   setShowAddCustomModal,
   setShowBatchEnrichModal,
+  onOpenPlayniteImport,
   handleSync,
   isSyncing,
   handleMinimize,
@@ -151,6 +153,7 @@ export default function TopBar({
           }}
           onOpenAddCustomModal={() => setShowAddCustomModal(true)}
           onOpenBatchEnrichModal={() => setShowBatchEnrichModal?.(true)}
+          onOpenPlayniteImport={onOpenPlayniteImport}
           onOpenSettingsModal={() => {
             soundEffects.playSelect();
             setShowSettingsModal(true);

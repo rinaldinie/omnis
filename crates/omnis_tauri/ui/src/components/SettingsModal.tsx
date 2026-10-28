@@ -17,6 +17,7 @@ interface SettingsModalProps {
   currentThemeName: string;
   initialTab?: SettingsTab;
   onSyncComplete?: () => void;
+  onOpenPlayniteImport?: () => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -28,6 +29,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   currentThemeName,
   initialTab = 'general',
   onSyncComplete,
+  onOpenPlayniteImport,
 }) => {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
@@ -168,6 +170,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 onOpenThemes();
               }}
               currentThemeName={currentThemeName}
+              onOpenPlayniteImport={() => {
+                onClose();
+                onOpenPlayniteImport?.();
+              }}
             />
           )}
 
