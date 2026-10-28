@@ -91,7 +91,7 @@ export function StoreIcon({ library, className = "w-3.5 h-3.5" }: { library: str
   if (lib.includes("amazon") || lib.includes("prime")) {
     return <AmazonIcon className={className} />;
   }
-  if (lib.includes("ea") || lib.includes("origin")) {
+  if (lib === "ea" || lib.startsWith("ea_") || lib.startsWith("ea-") || lib.includes("origin") || lib.includes("electronic arts")) {
     return <EaIcon className={className} />;
   }
   if (lib.includes("ubisoft") || lib.includes("uplay")) {
@@ -100,7 +100,7 @@ export function StoreIcon({ library, className = "w-3.5 h-3.5" }: { library: str
   if (lib.includes("battle") || lib.includes("blizzard")) {
     return <BattlenetIcon className={className} />;
   }
-  if (lib.includes("itch")) {
+  if (lib === "itch" || lib.includes("itch.io") || lib.startsWith("itch_") || lib.startsWith("itch-")) {
     return <ItchIcon className={className} />;
   }
   return <Gamepad2 className={className} />;
@@ -147,97 +147,37 @@ export function StoreBadge({
     title = t("store_badge.available_on", { store: "Xbox / Game Pass" });
     icon = <XboxIcon className="w-3.5 h-3.5 text-[#4ade80] shrink-0" />;
     brandStyles = "bg-[#22c55e]/10 border-[#22c55e]/25 hover:bg-[#22c55e]/20 text-white/95";
+  } else if (lib.includes("amazon") || lib.includes("prime")) {
+    storeName = "Amazon";
+    title = t("store_badge.available_on", { store: "Amazon Games" });
+    icon = <AmazonIcon className="w-3.5 h-3.5 text-[#ff9900] shrink-0" />;
+    brandStyles = "bg-[#ff9900]/10 border-[#ff9900]/25 hover:bg-[#ff9900]/20 text-[#ff9900]";
+  } else if (lib === "ea" || lib.startsWith("ea_") || lib.startsWith("ea-") || lib.includes("origin") || lib.includes("electronic arts")) {
+    storeName = "EA";
+    title = t("store_badge.available_on", { store: "EA App" });
+    icon = <EaIcon className="w-3.5 h-3.5 text-[#ff4747] shrink-0" />;
+    brandStyles = "bg-[#ff4747]/10 border-[#ff4747]/25 hover:bg-[#ff4747]/20 text-[#ff4747]";
+  } else if (lib.includes("ubisoft") || lib.includes("uplay")) {
+    storeName = "Ubisoft";
+    title = t("store_badge.available_on", { store: "Ubisoft Connect" });
+    icon = <UbisoftIcon className="w-3.5 h-3.5 text-[#38bdf8] shrink-0" />;
+    brandStyles = "bg-[#0070d1]/10 border-[#0070d1]/25 hover:bg-[#0070d1]/20 text-[#38bdf8]";
+  } else if (lib.includes("battle") || lib.includes("blizzard")) {
+    storeName = "Battle.net";
+    title = t("store_badge.available_on", { store: "Battle.net" });
+    icon = <BattlenetIcon className="w-3.5 h-3.5 text-[#00aeff] shrink-0" />;
+    brandStyles = "bg-[#00aeff]/10 border-[#00aeff]/25 hover:bg-[#00aeff]/20 text-[#00aeff]";
+  } else if (lib === "itch" || lib.includes("itch.io") || lib.startsWith("itch_") || lib.startsWith("itch-")) {
+    storeName = "itch.io";
+    title = t("store_badge.available_on", { store: "itch.io" });
+    icon = <ItchIcon className="w-3.5 h-3.5 text-[#fa5c5c] shrink-0" />;
+    brandStyles = "bg-[#fa5c5c]/10 border-[#fa5c5c]/25 hover:bg-[#fa5c5c]/20 text-[#fa5c5c]";
   }
 
   const badgeStyle =
     variant === "brand"
       ? brandStyles
       : "bg-white/5 border-white/10 hover:bg-white/10 text-white/90";
-
-  if (lib.includes("amazon") || lib.includes("prime")) {
-    return (
-      <span
-        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider border shadow-sm ${className}`}
-        style={{
-          background: "linear-gradient(135deg, rgba(80, 50, 10, 0.9) 0%, rgba(40, 25, 5, 0.9) 100%)",
-          borderColor: "rgba(255, 153, 0, 0.45)",
-          color: "#ff9900",
-        }}
-        title={t("store_badge.available_on", { store: "Amazon Games" })}
-      >
-        <AmazonIcon className="w-3.5 h-3.5 text-[#ff9900] shrink-0" />
-        {showName && <span className="font-bold">Amazon</span>}
-      </span>
-    );
-  }
-
-  if (lib.includes("ea") || lib.includes("origin")) {
-    return (
-      <span
-        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider border shadow-sm ${className}`}
-        style={{
-          background: "linear-gradient(135deg, rgba(90, 20, 20, 0.9) 0%, rgba(45, 10, 10, 0.9) 100%)",
-          borderColor: "rgba(255, 71, 71, 0.45)",
-          color: "#ff4747",
-        }}
-        title={t("store_badge.available_on", { store: "EA App" })}
-      >
-        <EaIcon className="w-3.5 h-3.5 text-[#ff4747] shrink-0" />
-        {showName && <span className="font-bold">EA</span>}
-      </span>
-    );
-  }
-
-  if (lib.includes("ubisoft") || lib.includes("uplay")) {
-    return (
-      <span
-        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider border shadow-sm ${className}`}
-        style={{
-          background: "linear-gradient(135deg, rgba(0, 50, 100, 0.9) 0%, rgba(0, 25, 50, 0.9) 100%)",
-          borderColor: "rgba(0, 112, 209, 0.45)",
-          color: "#38bdf8",
-        }}
-        title={t("store_badge.available_on", { store: "Ubisoft Connect" })}
-      >
-        <UbisoftIcon className="w-3.5 h-3.5 text-[#38bdf8] shrink-0" />
-        {showName && <span className="font-bold">Ubisoft</span>}
-      </span>
-    );
-  }
-
-  if (lib.includes("battle") || lib.includes("blizzard")) {
-    return (
-      <span
-        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider border shadow-sm ${className}`}
-        style={{
-          background: "linear-gradient(135deg, rgba(0, 70, 120, 0.9) 0%, rgba(0, 35, 60, 0.9) 100%)",
-          borderColor: "rgba(0, 174, 255, 0.45)",
-          color: "#00aeff",
-        }}
-        title={t("store_badge.available_on", { store: "Battle.net" })}
-      >
-        <BattlenetIcon className="w-3.5 h-3.5 text-[#00aeff] shrink-0" />
-        {showName && <span className="font-bold">Battle.net</span>}
-      </span>
-    );
-  }
-
-  if (lib.includes("itch")) {
-    return (
-      <span
-        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider border shadow-sm ${className}`}
-        style={{
-          background: "linear-gradient(135deg, rgba(90, 30, 30, 0.9) 0%, rgba(45, 15, 15, 0.9) 100%)",
-          borderColor: "rgba(250, 92, 92, 0.45)",
-          color: "#fa5c5c",
-        }}
-        title={t("store_badge.available_on", { store: "itch.io" })}
-      >
-        <ItchIcon className="w-3.5 h-3.5 text-[#fa5c5c] shrink-0" />
-        {showName && <span className="font-bold">itch.io</span>}
-      </span>
-    );
-  }
 
   return (
     <span
