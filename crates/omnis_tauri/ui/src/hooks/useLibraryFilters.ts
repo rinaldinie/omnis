@@ -1,11 +1,12 @@
 import { useState, useMemo } from "react";
 import { useTranslation } from "../i18n";
 import { GameDto, GroupBy, FILTER_ORDER } from "../types";
+import { sortGames, GameSortMode } from "../utils/sortGames";
 
 export interface FilterChip {
   id: string;
   label: string;
-  type: "store" | "status" | "flag" | "genre";
+  type: "store" | "status" | "flag" | "genre" | "feature";
 }
 
 function matchesGenre(g: GameDto, targetGenre: string): boolean {
@@ -43,6 +44,12 @@ export function useLibraryFilters(games: GameDto[]) {
 
   // Dimension 4: Selected Genres (e.g. ["Action", "RPG"]) - OR within dimension
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
+
+  // Dimension 5: Selected Features (e.g. ["Single-player", "Co-op"]) - AND within dimension
+  const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
+
+  // Dimension 6: Sort Mode
+  const [sortMode, setSortMode] = useState<GameSortMode>("default");
 
   const [groupBy, setGroupBy] = useState<GroupBy>("none");
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -83,11 +90,21 @@ export function useLibraryFilters(games: GameDto[]) {
     );
   };
 
+  const toggleFeature = (feature: string) => {
+    const fClean = feature.startsWith("feature:") ? feature.slice(8).trim() : feature.trim();
+    setSelectedFeatures((prev) =>
+      prev.some((f) => f.toLowerCase() === fClean.toLowerCase())
+        ? prev.filter((f) => f.toLowerCase() !== fClean.toLowerCase())
+        : [...prev, fClean]
+    );
+  };
+
   const clearAllFilters = () => {
     setSelectedStores([]);
     setSelectedStatuses([]);
     setSelectedFlags([]);
     setSelectedGenres([]);
+    setSelectedFeatures([]);
   };
 
   const removeFilterChip = (chipId: string) => {
@@ -103,6 +120,9 @@ export function useLibraryFilters(games: GameDto[]) {
     } else if (chipId.startsWith("genre:")) {
       const genre = chipId.slice(6);
       setSelectedGenres((prev) => prev.filter((g) => g.toLowerCase() !== genre.toLowerCase()));
+    } else if (chipId.startsWith("feature:")) {
+      const feat = chipId.slice(8);
+      setSelectedFeatures((prev) => prev.filter((f) => f.toLowerCase() !== feat.toLowerCase()));
     }
   };
 
@@ -112,7 +132,8 @@ export function useLibraryFilters(games: GameDto[]) {
         selectedStores.length === 0 &&
         selectedStatuses.length === 0 &&
         selectedFlags.length === 0 &&
-        selectedGenres.length === 0
+        selectedGenres.length === 0 &&
+        selectedFeatures.length === 0
       );
     }
     const idLower = id.toLowerCase().trim();
@@ -130,6 +151,10 @@ export function useLibraryFilters(games: GameDto[]) {
       const g = id.slice(6).toLowerCase().trim();
       return selectedGenres.some((x) => x.toLowerCase().trim() === g);
     }
+    if (id.startsWith("feature:")) {
+      const feat = id.slice(8).toLowerCase().trim();
+      return selectedFeatures.some((x) => x.toLowerCase().trim() === feat);
+    }
     if (["action", "rpg", "strategy", "indie"].includes(idLower)) {
       return selectedGenres.some((x) => x.toLowerCase() === idLower);
     }
@@ -142,7 +167,8 @@ export function useLibraryFilters(games: GameDto[]) {
       selectedStores.length +
       selectedStatuses.length +
       selectedFlags.length +
-      selectedGenres.length;
+      selectedGenres.length +
+      selectedFeatures.length;
 
     if (totalActive === 0) return "all";
     if (totalActive === 1) {
@@ -150,9 +176,10 @@ export function useLibraryFilters(games: GameDto[]) {
       if (selectedStores.length === 1) return selectedStores[0];
       if (selectedStatuses.length === 1) return `completion:${selectedStatuses[0]}`;
       if (selectedGenres.length === 1) return `genre:${selectedGenres[0]}`;
+      if (selectedFeatures.length === 1) return `feature:${selectedFeatures[0]}`;
     }
     return "custom";
-  }, [selectedStores, selectedStatuses, selectedFlags, selectedGenres]);
+  }, [selectedStores, selectedStatuses, selectedFlags, selectedGenres, selectedFeatures]);
 
   const setActiveFilter = (filter: string) => {
     if (filter === "all") {
@@ -247,8 +274,17 @@ export function useLibraryFilters(games: GameDto[]) {
       });
     });
 
+    // Features
+    selectedFeatures.forEach((feat) => {
+      chips.push({
+        id: `feature:${feat}`,
+        label: feat,
+        type: "feature",
+      });
+    });
+
     return chips;
-  }, [selectedStores, selectedStatuses, selectedFlags, selectedGenres, t]);
+  }, [selectedStores, selectedStatuses, selectedFlags, selectedGenres, selectedFeatures, t]);
 
   const filteredGames = useMemo(() => {
     const list = games.filter((g) => {
@@ -277,7 +313,15 @@ export function useLibraryFilters(games: GameDto[]) {
         if (!matches) return false;
       }
 
-      // 5. Search Query
+      // 5. Features Filter (AND across selected features)
+      if (selectedFeatures.length > 0) {
+        const matchesFeatures = selectedFeatures.every((targetFeature) =>
+          g.features && g.features.some((f) => f.toLowerCase().includes(targetFeature.toLowerCase()))
+        );
+        if (!matchesFeatures) return false;
+      }
+
+      // 6. Search Query
       if (searchQuery.trim() !== "") {
         const query = searchQuery.toLowerCase();
         return (
@@ -289,20 +333,18 @@ export function useLibraryFilters(games: GameDto[]) {
       return true;
     });
 
-    // When filtering by "recent", sort by last_activity descending (Steam / Playnite behavior)
+    // When a sort mode is chosen, apply it
+    if (sortMode !== "default") {
+      return sortGames(list, sortMode);
+    }
+
+    // Default: When filtering by "recent", sort by last_activity descending (Steam / Playnite behavior)
     if (selectedFlags.includes("recent")) {
-      return [...list].sort((a, b) => {
-        const timeA = a.last_activity ? new Date(a.last_activity).getTime() : 0;
-        const timeB = b.last_activity ? new Date(b.last_activity).getTime() : 0;
-        if (timeA !== timeB) {
-          return timeB - timeA;
-        }
-        return b.playtime_seconds - a.playtime_seconds;
-      });
+      return sortGames(list, "recent");
     }
 
     return list;
-  }, [games, selectedFlags, selectedStores, selectedStatuses, selectedGenres, searchQuery]);
+  }, [games, selectedFlags, selectedStores, selectedStatuses, selectedGenres, selectedFeatures, searchQuery, sortMode]);
 
   const groupedGames = useMemo<Record<string, GameDto[]>>(() => {
     if (groupBy === "none") {
@@ -380,11 +422,64 @@ export function useLibraryFilters(games: GameDto[]) {
     );
   }, [filteredGames, detailsSearchQuery]);
 
+  const filterCounts = useMemo(() => {
+    const storeCounts: Record<string, number> = {};
+    const statusCounts: Record<string, number> = {};
+    const genreCounts: Record<string, number> = {};
+    const featureCounts: Record<string, number> = {};
+    let installedCount = 0;
+    let favoritesCount = 0;
+    let recentCount = 0;
+
+    games.forEach((g) => {
+      if (g.is_installed) installedCount++;
+      if ((g.critic_score || 0) >= 90) favoritesCount++;
+      if (g.last_activity || g.playtime_seconds > 0) recentCount++;
+
+      const lib = (g.library || "other").toLowerCase();
+      storeCounts[lib] = (storeCounts[lib] || 0) + 1;
+
+      const st = (g.completion_status || "NotPlayed").toLowerCase();
+      statusCounts[st] = (statusCounts[st] || 0) + 1;
+
+      g.genres.forEach((genre) => {
+        const trimmed = genre.trim();
+        if (trimmed) {
+          genreCounts[trimmed] = (genreCounts[trimmed] || 0) + 1;
+        }
+      });
+
+      if (g.features) {
+        g.features.forEach((feat) => {
+          const trimmed = feat.trim();
+          if (trimmed) {
+            featureCounts[trimmed] = (featureCounts[trimmed] || 0) + 1;
+          }
+        });
+      }
+    });
+
+    return {
+      total: games.length,
+      installed: installedCount,
+      favorites: favoritesCount,
+      recent: recentCount,
+      stores: storeCounts,
+      statuses: statusCounts,
+      genres: genreCounts,
+      features: featureCounts,
+    };
+  }, [games]);
+
   return {
     selectedStores,
     selectedStatuses,
     selectedFlags,
     selectedGenres,
+    selectedFeatures,
+    sortMode,
+    setSortMode,
+    filterCounts,
     activeChips,
     totalActiveFilters: activeChips.length,
 
@@ -392,6 +487,7 @@ export function useLibraryFilters(games: GameDto[]) {
     toggleStatus,
     toggleFlag,
     toggleGenre,
+    toggleFeature,
     clearAllFilters,
     removeFilterChip,
     isFilterActive,

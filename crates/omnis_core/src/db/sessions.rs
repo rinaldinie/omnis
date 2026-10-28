@@ -77,6 +77,10 @@ impl SessionRepository for Database {
             UPDATE games SET
                 play_count = play_count + 1,
                 last_activity = ?1,
+                completion_status = CASE
+                    WHEN completion_status IS NULL OR completion_status = 'NotPlayed' THEN 'Playing'
+                    ELSE completion_status
+                END,
                 modified_timestamp = ?1
             WHERE id = ?2
             ",
@@ -198,6 +202,10 @@ impl SessionRepository for Database {
                     playtime_seconds = playtime_seconds + ?1,
                     play_count = play_count + 1,
                     last_activity = ?2,
+                    completion_status = CASE
+                        WHEN completion_status IS NULL OR completion_status = 'NotPlayed' THEN 'Playing'
+                        ELSE completion_status
+                    END,
                     modified_timestamp = ?2
                 WHERE id = ?3
                 ",

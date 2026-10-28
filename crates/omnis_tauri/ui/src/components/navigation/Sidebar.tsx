@@ -4,10 +4,6 @@ import {
   CheckCircle2,
   Clock,
   Star,
-  Swords,
-  Scroll,
-  Dices,
-  Sparkles,
   Folder,
   Palette,
   Cloud,
@@ -54,13 +50,6 @@ export default function Sidebar({
     { id: "gog", label: "GOG Galaxy", count: counts.gog, icon: GogIcon },
     { id: "epic", label: "Epic Games", count: counts.epic, icon: EpicIcon },
     { id: "xbox", label: "Xbox / Pass", count: counts.xbox || 0, icon: XboxIcon },
-  ];
-
-  const genreItems = [
-    { id: "action", label: t("sidebar.genre_action"), count: counts.action, icon: Swords },
-    { id: "rpg", label: t("sidebar.genre_rpg"), count: counts.rpg, icon: Scroll },
-    { id: "strategy", label: t("sidebar.genre_strategy"), count: counts.strategy, icon: Dices },
-    { id: "indie", label: t("sidebar.genre_indie"), count: counts.indie, icon: Sparkles },
   ];
 
   return (
@@ -165,50 +154,6 @@ export default function Sidebar({
                   className="text-[9px] font-mono px-1 py-0.2 rounded text-slate-400 bg-black/20 shrink-0"
                 >
                   {store.count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Section: Generi */}
-        <div className="flex flex-col gap-0.5">
-          <span
-            className="text-[9px] font-bold tracking-wider uppercase px-2 pt-1 pb-0.5"
-            style={{ color: "var(--text-muted)" }}
-          >
-            {t("sidebar.genres")}
-          </span>
-          {genreItems.map((genre) => {
-            const Icon = genre.icon;
-            const isActive = checkActive(genre.id);
-            return (
-              <button
-                key={genre.id}
-                data-omnis="sidebar.item"
-                data-state={isActive ? "active" : "idle"}
-                onClick={() => setActiveFilter(genre.id)}
-                className={`flex items-center justify-between px-2 py-1.5 rounded-md text-xs transition-colors group ${
-                  isActive
-                    ? "font-semibold bg-white/10 text-white"
-                    : "font-normal hover:bg-white/5 text-slate-300 hover:text-white"
-                }`}
-                style={{
-                  borderLeft: isActive ? "2.5px solid var(--accent-primary)" : "2.5px solid transparent",
-                  backgroundColor: isActive ? "rgba(255, 255, 255, 0.08)" : undefined,
-                }}
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <Icon
-                    className="w-3.5 h-3.5 shrink-0 transition-transform group-hover:scale-105"
-                    style={{ color: isActive ? "var(--accent-primary)" : undefined }}
-                  />
-                  <span className="truncate">{genre.label}</span>
-                </div>
-                <span
-                  className="text-[9px] font-mono px-1 py-0.2 rounded text-slate-400 bg-black/20 shrink-0"
-                >
-                  {genre.count}
                 </span>
               </button>
             );

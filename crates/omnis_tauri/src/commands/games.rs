@@ -131,6 +131,19 @@ pub async fn update_game_metadata(
 }
 
 #[tauri::command]
+pub async fn update_game_completion_status(
+    game_id: String,
+    status: String,
+    state: State<'_, AppState>,
+) -> Result<Game, String> {
+    let id = Uuid::parse_str(&game_id).map_err(|e| format!("Invalid UUID: {}", e))?;
+    state
+        .db
+        .set_game_completion_status(id, &status)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 pub async fn get_running_game(
     state: State<'_, AppState>,
 ) -> Result<Option<crate::active_game::ActiveGameSession>, String> {

@@ -1,7 +1,17 @@
-import React from "react";
-import { Play, Download, Pencil, Search, Info, FolderOpen, Monitor, ShieldCheck, Trash2, XCircle } from "lucide-react";
+import React, { useState } from "react";
+import { Play, Download, Pencil, Search, Info, FolderOpen, Monitor, ShieldCheck, Trash2, XCircle, CheckCircle2, ChevronRight, Check } from "lucide-react";
 import { GameDto } from "../types";
 import { useTranslation } from "../i18n";
+
+const COMPLETION_STATUS_OPTIONS = [
+  { value: "NotPlayed", key: "not_played", dot: "bg-slate-400" },
+  { value: "Playing", key: "playing", dot: "bg-sky-400" },
+  { value: "Beaten", key: "beaten", dot: "bg-purple-400" },
+  { value: "Completed", key: "completed", dot: "bg-emerald-400" },
+  { value: "PlanToPlay", key: "plan_to_play", dot: "bg-indigo-400" },
+  { value: "Backlog", key: "backlog", dot: "bg-amber-400" },
+  { value: "Abandoned", key: "abandoned", dot: "bg-rose-400" },
+];
 
 interface GlobalContextMenuProps {
   contextMenu: {
@@ -14,6 +24,7 @@ interface GlobalContextMenuProps {
   onEdit: (game: GameDto) => void;
   onResolve: (game: GameDto) => void;
   onShowDetails: (game: GameDto) => void;
+  onUpdateCompletionStatus?: (game: GameDto, status: string) => void;
   onOpenFolder?: (game: GameDto) => void;
   onCreateShortcut?: (game: GameDto) => void;
   onVerifyFiles?: (game: GameDto) => void;
@@ -28,6 +39,7 @@ export default function GlobalContextMenu({
   onEdit,
   onResolve,
   onShowDetails,
+  onUpdateCompletionStatus,
   onOpenFolder,
   onCreateShortcut,
   onVerifyFiles,
@@ -35,7 +47,10 @@ export default function GlobalContextMenu({
   onRemoveFromLibrary,
 }: GlobalContextMenuProps) {
   const { t } = useTranslation();
+  const [showStatusSubmenu, setShowStatusSubmenu] = useState(false);
   if (!contextMenu) return null;
+
+  const currentStatus = contextMenu.game.completion_status || "NotPlayed";
 
   return (
     <>
@@ -125,6 +140,65 @@ export default function GlobalContextMenu({
           <Info className="w-3.5 h-3.5 text-slate-400" />
           <span>{t("context_menu.view_details")}</span>
         </button>
+
+        {/* Completion Status Submenu Trigger */}
+        {onUpdateCompletionStatus && (
+          <div
+            className="relative"
+            onMouseEnter={() => setShowStatusSubmenu(true)}
+            onMouseLeave={() => setShowStatusSubmenu(false)}
+          >
+            <button
+              type="button"
+              onClick={() => setShowStatusSubmenu((v) => !v)}
+              className="w-full flex items-center justify-between px-3.5 py-2 text-left font-medium text-slate-200 hover:bg-white/5 transition-colors"
+            >
+              <div className="flex items-center gap-2.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-indigo-400" />
+                <span>{t("groups.completion_status")}</span>
+              </div>
+              <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+            </button>
+
+            {showStatusSubmenu && (
+              <div
+                className={`absolute top-0 ${
+                  contextMenu.x + 440 > window.innerWidth ? "right-full mr-1" : "left-full ml-1"
+                } w-48 py-1.5 rounded-xl border shadow-2xl backdrop-blur-xl z-[10000]`}
+                style={{
+                  backgroundColor: "var(--bg-surface)",
+                  borderColor: "var(--border-color)",
+                  boxShadow: "0 12px 36px rgba(0,0,0,0.8)",
+                }}
+              >
+                {COMPLETION_STATUS_OPTIONS.map((opt) => {
+                  const isSelected = currentStatus.toLowerCase() === opt.value.toLowerCase();
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => {
+                        onUpdateCompletionStatus(contextMenu.game, opt.value);
+                        onClose();
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-1.5 text-left text-xs transition-colors cursor-pointer ${
+                        isSelected
+                          ? "bg-indigo-600/20 text-white font-semibold"
+                          : "text-slate-300 hover:text-white hover:bg-white/5"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className={`w-2 h-2 rounded-full ${opt.dot}`} />
+                        <span>{t(`completion_status.${opt.key}`)}</span>
+                      </div>
+                      {isSelected && <Check className="w-3.5 h-3.5 text-indigo-400 shrink-0" />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="my-1 border-t" style={{ borderColor: "var(--border-color)" }} />
 
