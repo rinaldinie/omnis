@@ -98,6 +98,7 @@ export const de: TranslationSchema = {
     no_games_found_hint: 'Passen Sie Ihre Filter oder Suchanfrage an.',
   },
   groups: {
+    group_by: 'Gruppieren nach',
     none: 'Keine Gruppierung',
     library: 'Store / Plattform',
     is_installed: 'Installationsstatus',
@@ -108,6 +109,24 @@ export const de: TranslationSchema = {
     installed: 'Installiert',
     available: 'Verfügbar',
     unknown: 'Unbekannt',
+  },
+  filter_modal: {
+    title: 'Filtern und sortieren',
+    clear_all: 'Alles löschen',
+    sort: 'Sortieren',
+    status: 'Status',
+    platform: 'Plattform',
+    genre: 'Genre',
+    features: 'Funktionen',
+  },
+  sort_options: {
+    recent: 'Zuletzt gespielt',
+    title_asc: 'Alphabetisch (A-Z)',
+    title_desc: 'Alphabetisch (Z-A)',
+    release_date: 'Erscheinungsdatum',
+    playtime: 'Spielzeit',
+    score: 'Kritiker-Bewertung',
+    default: 'Standardreihenfolge',
   },
   game_details: {
     play_now: 'JETZT SPIELEN',

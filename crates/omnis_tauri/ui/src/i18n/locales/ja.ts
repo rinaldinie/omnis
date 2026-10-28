@@ -98,6 +98,7 @@ export const ja: TranslationSchema = {
     no_games_found_hint: '検索ワードやフィルターを変更してみてください。',
   },
   groups: {
+    group_by: 'グループ化',
     none: 'グループ化なし',
     library: 'ストア / プラットフォーム',
     is_installed: 'インストール状況',
@@ -108,6 +109,24 @@ export const ja: TranslationSchema = {
     installed: 'インストール済み',
     available: '利用可能',
     unknown: '不明',
+  },
+  filter_modal: {
+    title: 'フィルターと並び替え',
+    clear_all: 'すべてクリア',
+    sort: '並び替え',
+    status: 'ステータス',
+    platform: 'プラットフォーム',
+    genre: 'ジャンル',
+    features: '機能・特徴',
+  },
+  sort_options: {
+    recent: '最近プレイした順',
+    title_asc: '名前順 (A-Z)',
+    title_desc: '名前順 (Z-A)',
+    release_date: '発売日順',
+    playtime: 'プレイ時間順',
+    score: '評価順',
+    default: 'デフォルト順',
   },
   game_details: {
     play_now: '今すぐプレイ',

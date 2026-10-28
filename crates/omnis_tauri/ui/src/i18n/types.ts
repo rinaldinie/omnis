@@ -114,6 +114,7 @@ export interface TranslationSchema {
     no_games_found_hint: string;
   };
   groups: {
+    group_by: string;
     none: string;
     library: string;
     is_installed: string;
@@ -124,6 +125,24 @@ export interface TranslationSchema {
     installed: string;
     available: string;
     unknown: string;
+  };
+  filter_modal: {
+    title: string;
+    clear_all: string;
+    sort: string;
+    status: string;
+    platform: string;
+    genre: string;
+    features: string;
+  };
+  sort_options: {
+    recent: string;
+    title_asc: string;
+    title_desc: string;
+    release_date: string;
+    playtime: string;
+    score: string;
+    default: string;
   };
   game_details: {
     play_now: string;

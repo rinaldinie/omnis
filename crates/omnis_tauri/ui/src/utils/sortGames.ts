@@ -1,6 +1,14 @@
 import { GameDto } from "../types";
 
-export const GAME_SORT_MODES = ["default", "title", "playtime", "recent", "score"] as const;
+export const GAME_SORT_MODES = [
+  "default",
+  "recent",
+  "title",
+  "title_desc",
+  "release_date",
+  "playtime",
+  "score",
+] as const;
 export type GameSortMode = (typeof GAME_SORT_MODES)[number];
 
 const STORAGE_KEY = "omnis_fullscreen_sort";
@@ -34,6 +42,12 @@ export function sortGames(games: GameDto[], mode: GameSortMode): GameDto[] {
   switch (mode) {
     case "title":
       sorted.sort(byTitle);
+      break;
+    case "title_desc":
+      sorted.sort((a, b) => b.title.localeCompare(a.title, undefined, { sensitivity: "base" }));
+      break;
+    case "release_date":
+      sorted.sort((a, b) => (b.release_date || "").localeCompare(a.release_date || "") || byTitle(a, b));
       break;
     case "playtime":
       sorted.sort((a, b) => b.playtime_seconds - a.playtime_seconds || byTitle(a, b));

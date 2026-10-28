@@ -95,6 +95,7 @@ fn main() {
             add_custom_game,
             get_game,
             update_game_metadata,
+            update_game_completion_status,
             search_metadata_candidates,
             apply_metadata_candidate,
             pick_executable_file,
