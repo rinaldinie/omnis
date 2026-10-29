@@ -92,6 +92,14 @@ impl StoreCatalogSyncEngine {
             }
         }
 
+        // Clean up legacy uninstalled items with hash IDs or raw SKUs before ingesting clean catalog
+        if store_id == "epic" && !games.is_empty() {
+            let _ = mgr.db.writer().execute(
+                "DELETE FROM games WHERE library_id = 'epic' AND is_installed = 0",
+                [],
+            );
+        }
+
         let count = match mgr.db.ingest_discovered_batch(&games) {
             Ok(c) => c,
             Err(e) => {

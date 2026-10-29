@@ -215,8 +215,11 @@ impl AppBootstrap {
         }
     }
 
-    /// Handles window close request to minimize to tray if enabled
+    /// Handles window close request to minimize to tray if enabled (main window only)
     pub fn handle_window_event(window: &tauri::Window, event: &tauri::WindowEvent) {
+        if window.label() != "main" {
+            return;
+        }
         if let tauri::WindowEvent::CloseRequested { api, .. } = event {
             let state = window.state::<AppState>();
             if state.minimize_to_tray.load(std::sync::atomic::Ordering::SeqCst) {
