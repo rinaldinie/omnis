@@ -15,6 +15,7 @@ import {
   ArrowRight,
   Library,
   Layers,
+  Search,
 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
@@ -24,6 +25,7 @@ import {
   PlayniteImportStats,
   PlayniteImportProgressPayload,
   PlayniteBackupMatchSample,
+  PlayniteUnmatchedGame,
 } from "../../types";
 import { useTranslation } from "../../i18n";
 import soundEffects from "../../utils/soundEffects";
@@ -58,6 +60,8 @@ export default function PlayniteImportModal({
   const [stats, setStats] = useState<PlayniteImportStats | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [isDragOver, setIsDragOver] = useState<boolean>(false);
+  const [previewTab, setPreviewTab] = useState<"matched" | "unmatched">("matched");
+  const [searchQuery, setSearchQuery] = useState<string>("");
 
   const unlistenRef = useRef<UnlistenFn | null>(null);
 
@@ -73,6 +77,8 @@ export default function PlayniteImportModal({
       setStats(null);
       setErrorMessage("");
       setIsDragOver(false);
+      setPreviewTab("matched");
+      setSearchQuery("");
     }
     return () => {
       if (unlistenRef.current) {
@@ -179,31 +185,229 @@ export default function PlayniteImportModal({
     }
   };
 
-  const renderSamplePills = () => {
-    if (!inspection || !inspection.sample_matches || inspection.sample_matches.length === 0) {
-      return null;
+  const formatPlaytime = (seconds: number = 0) => {
+    if (!seconds || seconds <= 0) return "0m";
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    if (hours > 0) {
+      return `${hours}h ${minutes > 0 ? `${minutes}m` : ""}`.trim();
     }
+    return `${minutes}m`;
+  };
+
+  const getStoreBadge = (store?: string) => {
+    const s = (store || "manual").toLowerCase();
+    switch (s) {
+      case "steam":
+        return "bg-sky-500/20 text-sky-300 border-sky-500/30";
+      case "epic":
+        return "bg-slate-700/60 text-slate-200 border-slate-600/50";
+      case "gog":
+        return "bg-purple-500/20 text-purple-300 border-purple-500/30";
+      case "xbox":
+        return "bg-emerald-500/20 text-emerald-300 border-emerald-500/30";
+      case "amazon":
+        return "bg-amber-500/20 text-amber-300 border-amber-500/30";
+      default:
+        return "bg-slate-800 text-slate-400 border-slate-700";
+    }
+  };
+
+  const renderPreviewSection = () => {
+    if (!inspection) return null;
+
+    const matchedList: PlayniteBackupMatchSample[] = (inspection.sample_matches || []).map((item) =>
+      typeof item === "string" ? { title: item } : item
+    );
+    const unmatchedList: PlayniteUnmatchedGame[] = inspection.unmatched_in_library || [];
+
+    const filteredMatched = matchedList.filter((g) =>
+      g.title.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+    const filteredUnmatched = unmatchedList.filter((g) =>
+      g.title.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
     return (
-      <div className="space-y-2 pt-1">
-        <span className="text-xs font-bold text-slate-300">
-          {t("playnite_import.sample_matches_title")}
-        </span>
-        <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto custom-scrollbar p-1">
-          {inspection.sample_matches.map((item, idx) => {
-            const title = typeof item === "string" ? item : (item as PlayniteBackupMatchSample).title;
-            return (
-              <span
-                key={idx}
-                className="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-800/80 border border-slate-700/60 text-slate-200 flex items-center gap-1.5"
-              >
-                <Check className="w-3 h-3 text-emerald-400 shrink-0" />
-                <span className="truncate max-w-[200px]" title={title}>
-                  {title}
-                </span>
+      <div className="space-y-3 pt-1">
+        {/* TAB BUTTONS & SEARCH */}
+        <div className="flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
+          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-800/60 border border-white/5">
+            <button
+              type="button"
+              onClick={() => {
+                soundEffects.playSelect();
+                setPreviewTab("matched");
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                previewTab === "matched"
+                  ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shadow-sm"
+                  : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>
+                {t("playnite_import.tab_matched_games", {
+                  count: inspection.matching_games_in_library,
+                })}
               </span>
-            );
-          })}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                soundEffects.playSelect();
+                setPreviewTab("unmatched");
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                previewTab === "unmatched"
+                  ? "bg-amber-500/20 text-amber-300 border border-amber-500/30 shadow-sm"
+                  : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              <AlertCircle className="w-3.5 h-3.5" />
+              <span>
+                {t("playnite_import.tab_unmatched_in_library", {
+                  count: unmatchedList.length,
+                })}
+              </span>
+            </button>
+          </div>
+
+          {/* Search input */}
+          <div className="relative flex-1 sm:max-w-xs">
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={t("playnite_import.search_preview_placeholder")}
+              className="w-full pl-8 pr-7 py-1.5 rounded-xl bg-slate-800/80 border border-white/10 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-purple-500"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Tab explanation note */}
+        <p className="text-[11px] text-slate-400">
+          {previewTab === "matched"
+            ? t("playnite_import.matched_explanation")
+            : t("playnite_import.unmatched_explanation")}
+        </p>
+
+        {/* LIST CONTAINER */}
+        <div className="rounded-xl border border-white/5 bg-slate-900/60 p-2 max-h-56 overflow-y-auto custom-scrollbar divide-y divide-white/5 space-y-1">
+          {previewTab === "matched" ? (
+            filteredMatched.length > 0 ? (
+              filteredMatched.map((item, idx) => {
+                const store = item.library_id || "manual";
+                const existingSec = item.existing_playtime_seconds || 0;
+                const backupSec = item.backup_playtime_seconds || 0;
+                const hasPlaytimeUpdate = item.has_playtime_update;
+
+                return (
+                  <div
+                    key={idx}
+                    className="flex items-center justify-between py-2 px-2.5 rounded-lg hover:bg-white/5 transition-colors text-xs gap-3"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      <span className="font-semibold text-slate-200 truncate" title={item.title}>
+                        {item.title}
+                      </span>
+                      <span
+                        className={`px-1.5 py-0.5 rounded text-[10px] uppercase font-bold border shrink-0 ${getStoreBadge(
+                          store
+                        )}`}
+                      >
+                        {store}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      {/* Playtime info */}
+                      {hasPlaytimeUpdate ? (
+                        <span className="text-[11px] text-emerald-400 flex items-center gap-1 font-mono">
+                          <Clock className="w-3 h-3" />
+                          <span>{formatPlaytime(existingSec)}</span>
+                          <span className="text-slate-500">→</span>
+                          <span className="font-bold">{formatPlaytime(backupSec)}</span>
+                        </span>
+                      ) : backupSec > 0 ? (
+                        <span className="text-[11px] text-slate-400 flex items-center gap-1 font-mono">
+                          <Clock className="w-3 h-3 text-slate-500" />
+                          <span>{formatPlaytime(backupSec)}</span>
+                        </span>
+                      ) : null}
+
+                      {/* Image availability badges */}
+                      {item.cover_available && (
+                        <span
+                          className="px-1.5 py-0.5 rounded bg-purple-500/10 border border-purple-500/20 text-[10px] text-purple-300 flex items-center gap-1"
+                          title="Cover disponibile nel backup"
+                        >
+                          <ImageIcon className="w-2.5 h-2.5" />
+                          <span>Cover</span>
+                        </span>
+                      )}
+                      {item.background_available && (
+                        <span
+                          className="px-1.5 py-0.5 rounded bg-purple-500/10 border border-purple-500/20 text-[10px] text-purple-300 flex items-center gap-1"
+                          title="Sfondo disponibile nel backup"
+                        >
+                          <ImageIcon className="w-2.5 h-2.5" />
+                          <span>Sfondo</span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="py-6 text-center text-xs text-slate-500">
+                {t("playnite_import.no_games_found")}
+              </div>
+            )
+          ) : filteredUnmatched.length > 0 ? (
+            filteredUnmatched.map((item, idx) => {
+              const store = item.library_id || "manual";
+              return (
+                <div
+                  key={idx}
+                  className="flex items-center justify-between py-2 px-2.5 rounded-lg hover:bg-white/5 transition-colors text-xs gap-3"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <AlertCircle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                    <span className="font-semibold text-slate-200 truncate" title={item.title}>
+                      {item.title}
+                    </span>
+                    <span
+                      className={`px-1.5 py-0.5 rounded text-[10px] uppercase font-bold border shrink-0 ${getStoreBadge(
+                        store
+                      )}`}
+                    >
+                      {store}
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-slate-500 shrink-0 font-mono">
+                    ID: {item.external_id}
+                  </span>
+                </div>
+              );
+            })
+          ) : (
+            <div className="py-6 text-center text-xs text-slate-500">
+              {t("playnite_import.no_games_found")}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -217,7 +421,7 @@ export default function PlayniteImportModal({
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
       <div
-        className="relative max-w-2xl w-full rounded-3xl border shadow-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+        className="relative max-w-3xl w-full rounded-3xl border shadow-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
         style={{
           backgroundColor: "var(--bg-surface)",
           borderColor: "var(--border-color)",
@@ -465,8 +669,8 @@ export default function PlayniteImportModal({
                 </label>
               </div>
 
-              {/* Sample Matches */}
-              {renderSamplePills()}
+              {/* Enhanced Matches & Unmatched Preview */}
+              {renderPreviewSection()}
             </div>
           )}
 

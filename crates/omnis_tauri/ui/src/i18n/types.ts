@@ -1104,5 +1104,11 @@ export interface TranslationSchema {
     badge_images_available?: string;
     processing_items?: string;
     importing_in_progress?: string;
+    tab_matched_games?: string;
+    tab_unmatched_in_library?: string;
+    search_preview_placeholder?: string;
+    no_games_found?: string;
+    unmatched_explanation?: string;
+    matched_explanation?: string;
   };
 }

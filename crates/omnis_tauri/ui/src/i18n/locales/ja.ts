@@ -1088,5 +1088,11 @@ export const ja: TranslationSchema = {
     badge_images_available: '{count} 件の画像が利用可能',
     processing_items: 'アイテムを処理中...',
     importing_in_progress: 'インポート処理中...',
+    tab_matched_games: '一致したゲーム ({count})',
+    tab_unmatched_in_library: 'バックアップ未検出 ({count})',
+    search_preview_placeholder: 'タイトルでゲームを検索...',
+    no_games_found: 'ゲームが見つかりませんでした',
+    unmatched_explanation: 'これらのゲームはOmnisライブラリに存在しますが、Playniteバックアップには見つかりませんでした。',
+    matched_explanation: 'これらのゲームは一致し、バックアップのデータで更新されます。',
   },
 };
