@@ -677,7 +677,7 @@ fn test_real_playnite_backup_zip_inspection_if_file_exists() {
 
     // Inspect real backup
     let inspection = db.inspect_playnite_backup(backup_path).expect("Failed to inspect real backup");
-    assert!(inspection.total_games_in_backup >= 1580 && inspection.total_games_in_backup <= 1590);
+    assert!(inspection.total_games_in_backup >= 2060 && inspection.total_games_in_backup <= 2070);
     assert_eq!(inspection.matching_games_in_library, 1);
     assert_eq!(inspection.non_matching_games, inspection.total_games_in_backup - 1);
     assert_eq!(inspection.playtime_updates_available, 1);

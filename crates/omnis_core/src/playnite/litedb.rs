@@ -467,11 +467,99 @@ pub fn bson_doc_to_game_dto(doc: &BsonDocument) -> Option<PlayniteGameDto> {
     })
 }
 
+/// Helper to extract a BSON document from LiteDB pages.
+/// If the document fits inside a single page, returns a borrowed slice.
+/// If the document spans across multiple pages (via NextPageID pointer in the page header),
+/// reassembles the chained chunks into an owned byte vector.
+pub fn extract_litedb_document<'a>(
+    data: &'a [u8],
+    doc_start: usize,
+    page_size: usize,
+    header_size: usize,
+) -> Option<std::borrow::Cow<'a, [u8]>> {
+    if doc_start + 4 > data.len() {
+        return None;
+    }
+    let doc_len = u32::from_le_bytes(data[doc_start..doc_start + 4].try_into().ok()?) as usize;
+    if doc_len < 5 || doc_len > 16 * 1024 * 1024 {
+        return None;
+    }
+
+    let curr_page = doc_start / page_size;
+    let curr_page_end = (curr_page + 1) * page_size;
+
+    // Fast path: document fits completely within current page
+    if doc_start + doc_len <= curr_page_end {
+        if doc_start + doc_len <= data.len() && data[doc_start + doc_len - 1] == 0 {
+            return Some(std::borrow::Cow::Borrowed(&data[doc_start..doc_start + doc_len]));
+        }
+        return None;
+    }
+
+    // Slow path: document spans across multiple chained pages
+    if curr_page_end > data.len() {
+        return None;
+    }
+
+    let mut buf = Vec::with_capacity(doc_len);
+    let first_chunk = &data[doc_start..curr_page_end];
+    buf.extend_from_slice(first_chunk);
+    let mut bytes_needed = doc_len.saturating_sub(first_chunk.len());
+
+    let curr_page_start = curr_page * page_size;
+    if curr_page_start + 13 > data.len() {
+        return None;
+    }
+    let mut next_page_id = u32::from_le_bytes(
+        data[curr_page_start + 9..curr_page_start + 13]
+            .try_into()
+            .ok()?,
+    );
+
+    let mut depth = 0;
+    while bytes_needed > 0 && next_page_id != u32::MAX && depth < 100 {
+        depth += 1;
+        let p_start = (next_page_id as usize) * page_size;
+        if p_start + header_size > data.len() {
+            break;
+        }
+
+        let available = (page_size - header_size).min(data.len().saturating_sub(p_start + header_size));
+        let take = bytes_needed.min(available);
+        buf.extend_from_slice(&data[p_start + header_size..p_start + header_size + take]);
+        bytes_needed = bytes_needed.saturating_sub(take);
+
+        if p_start + 13 <= data.len() {
+            next_page_id = u32::from_le_bytes(
+                data[p_start + 9..p_start + 13]
+                    .try_into()
+                    .unwrap_or([0xff, 0xff, 0xff, 0xff]),
+            );
+        } else {
+            break;
+        }
+    }
+
+    if buf.len() == doc_len && buf[doc_len - 1] == 0 {
+        Some(std::borrow::Cow::Owned(buf))
+    } else {
+        None
+    }
+}
+
 /// Scan a LiteDB binary buffer (from `library/games.db`) and extract all game records.
 pub fn scan_litedb_games(data: &[u8]) -> Result<Vec<PlayniteGameDto>, LiteDbError> {
     if !is_litedb_buffer(data) {
         return Err(LiteDbError::InvalidMagic);
     }
+
+    let page_size = detect_page_size(data);
+    let version = if data.len() > LITEDB_HEADER_VERSION_OFFSET {
+        data[LITEDB_HEADER_VERSION_OFFSET]
+    } else {
+        7
+    };
+    let header_size = if version >= 8 { 32 } else { 25 };
 
     let mut games = Vec::new();
     let mut seen_keys = HashSet::new();
@@ -487,14 +575,17 @@ pub fn scan_litedb_games(data: &[u8]) -> Result<Vec<PlayniteGameDto>, LiteDbErro
                 let elem_type = data[doc_start + 4];
                 // Type byte must be Binary (0x05), String (0x02), or ObjectId (0x07)
                 if elem_type == 0x05 || elem_type == 0x02 || elem_type == 0x07 {
-                    if let Some((doc, _)) = parse_bson_document(&data[doc_start..]) {
-                        if let Some(game_dto) = bson_doc_to_game_dto(&doc) {
-                            let key = game_dto
-                                .GameId
-                                .clone()
-                                .unwrap_or_else(|| game_dto.Name.clone());
-                            if seen_keys.insert(key) {
-                                games.push(game_dto);
+                    if let Some(doc_bytes) = extract_litedb_document(data, doc_start, page_size, header_size) {
+                        if let Some((doc, _)) = parse_bson_document(&doc_bytes) {
+                            if let Some(game_dto) = bson_doc_to_game_dto(&doc) {
+                                let key = format!(
+                                    "{}:{}",
+                                    game_dto.PluginId.as_deref().unwrap_or(""),
+                                    game_dto.GameId.as_deref().unwrap_or(&game_dto.Name)
+                                );
+                                if seen_keys.insert(key) {
+                                    games.push(game_dto);
+                                }
                             }
                         }
                     }

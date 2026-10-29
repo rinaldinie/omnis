@@ -1056,5 +1056,11 @@ export const it: TranslationSchema = {
     badge_images_available: '{count} immagini disponibili',
     processing_items: 'Elaborazione elementi...',
     importing_in_progress: 'Importazione in corso...',
+    tab_matched_games: 'Giochi trovati ({count})',
+    tab_unmatched_in_library: 'Non nel backup ({count})',
+    search_preview_placeholder: 'Cerca gioco per titolo...',
+    no_games_found: 'Nessun gioco corrispondente ai filtri di ricerca',
+    unmatched_explanation: 'Questi giochi sono presenti nella libreria Omnis ma non sono stati trovati nell\'archivio di backup Playnite.',
+    matched_explanation: 'Questi giochi sono stati associati e verranno aggiornati con le statistiche e le immagini del backup.',
   },
 };
