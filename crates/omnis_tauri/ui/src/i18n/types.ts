@@ -42,6 +42,8 @@ export interface TranslationSchema {
   };
   sidebar: {
     library: string;
+    analytics?: string;
+    statistics?: string;
     all_games: string;
     installed: string;
     recent: string;

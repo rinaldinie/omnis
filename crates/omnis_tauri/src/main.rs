@@ -53,6 +53,8 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             get_games,
             get_counts,
+            get_global_statistics,
+            get_game_statistics,
             sync_library,
             detect_stores,
             download_metadata,

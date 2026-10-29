@@ -329,6 +329,11 @@ pub struct GameSessionRecord {
 }
 
 pub use crate::achievements::*;
+pub use crate::{
+    BacklogSummaryDto, CategoryShareDto, DayActivityDto, GameStatsDto, GlobalStatsDto,
+    WeekPlaytimeDto,
+};
+
 
 
 

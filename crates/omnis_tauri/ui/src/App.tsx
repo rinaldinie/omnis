@@ -19,6 +19,7 @@ import { listen } from "@tauri-apps/api/event";
 import GameEditorModal from "./components/GameEditorModal";
 import MetadataResolutionModal from "./components/MetadataResolutionModal";
 import ListViewTable from "./components/ListViewTable";
+import StatisticsDashboardView from "./components/views/StatisticsDashboardView";
 import VirtualKeyboard from "./components/VirtualKeyboard";
 import { SettingsModal, SettingsTab } from "./components/SettingsModal";
 import { useTranslation } from "./i18n";
@@ -1420,6 +1421,8 @@ export default function App() {
               gamepadName={gamepadName}
               handleOpenFolder={handleOpenFolder}
               onOpenStoreAccounts={() => handleOpenSettings("accounts")}
+              viewMode={viewMode}
+              setViewMode={setViewMode}
             />
 
             {/* MAIN CATALOG VIEW */}
@@ -1438,8 +1441,9 @@ export default function App() {
                 />
               )}
               {/* CONTEXTUAL TOOLBAR (GROUPBY, ZOOM SLIDER, COUNTER) */}
-              <div
-                className="h-11 min-h-[44px] px-6 border-b flex items-center justify-between select-none shrink-0 relative z-30"
+              {viewMode !== "stats" && (
+                <div
+                  className="h-11 min-h-[44px] px-6 border-b flex items-center justify-between select-none shrink-0 relative z-30"
                 style={{
                   backgroundColor: "var(--bg-surface)",
                   borderColor: "var(--border-color)",
@@ -1614,6 +1618,7 @@ export default function App() {
                   )}
                 </div>
               </div>
+              )}
 
               {/* VIEW 1: POSTER GRID VIEW */}
               {viewMode === "grid" && (
@@ -1782,6 +1787,11 @@ export default function App() {
                   )}
                 </div>
               )
+            )}
+
+            {/* VIEW 4: STATISTICS & ANALYTICS DASHBOARD VIEW */}
+            {viewMode === "stats" && (
+              <StatisticsDashboardView />
             )}
             </main>
           </div>

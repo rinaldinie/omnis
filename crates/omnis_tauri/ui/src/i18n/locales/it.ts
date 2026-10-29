@@ -26,6 +26,8 @@ export const it: TranslationSchema = {
   },
   sidebar: {
     library: 'Libreria',
+    analytics: 'Analisi',
+    statistics: 'Statistiche',
     all_games: 'Tutti i Giochi',
     installed: 'Installati',
     recent: 'Recenti',

@@ -1,6 +1,6 @@
 import { convertFileSrc, invoke, isTauri } from "@tauri-apps/api/core";
 
-export type ViewMode = "grid" | "details" | "list";
+export type ViewMode = "grid" | "details" | "list" | "stats";
 
 export type GroupBy =
   | "none"
@@ -607,5 +607,51 @@ export interface PlayniteImportProgressPayload {
   total: number;
   message: string;
 }
+
+// ============================================================================
+// Game & Library Statistics Types
+// ============================================================================
+
+export interface DayActivityDto {
+  date: string; // "YYYY-MM-DD"
+  count_sessions: number;
+  duration_seconds: number;
+}
+
+export interface CategoryShareDto {
+  name: string;
+  duration_seconds: number;
+  percentage: number;
+}
+
+export interface BacklogSummaryDto {
+  not_played_count: number;
+  in_progress_count: number;
+  completed_count: number;
+  total_games: number;
+  completion_percentage: number;
+}
+
+export interface GlobalStatsDto {
+  total_playtime_year_seconds: number;
+  activity_heatmap: DayActivityDto[];
+  store_distribution: CategoryShareDto[];
+  genre_distribution: CategoryShareDto[];
+  backlog_summary: BacklogSummaryDto;
+}
+
+export interface WeekPlaytimeDto {
+  week_label: string;
+  start_date: string;
+  end_date: string;
+  duration_seconds: number;
+}
+
+export interface GameStatsDto {
+  average_session_seconds: number;
+  longest_session_seconds: number;
+  last_4_weeks_bars: WeekPlaytimeDto[];
+}
+
 
 
