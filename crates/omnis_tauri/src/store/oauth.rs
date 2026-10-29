@@ -97,6 +97,11 @@ impl OAuthLoginService {
                         return false;
                     }
 
+                    // Immediately close the OAuth popup window to prevent UI hang or redirect error screens
+                    if let Some(win) = app_for_nav.get_webview_window(&label_for_nav) {
+                        let _ = win.close();
+                    }
+
                     let app = app_for_nav.clone();
                     let plugin = plugin_for_nav.clone();
                     let sid = store_id_for_nav.clone();
