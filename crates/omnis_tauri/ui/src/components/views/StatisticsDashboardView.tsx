@@ -12,8 +12,10 @@ import {
   Sparkles,
   TrendingUp,
 } from "lucide-react";
+import { useTranslation } from "../../i18n";
 
 export default function StatisticsDashboardView() {
+  const { t } = useTranslation();
   const currentYear = new Date().getUTCFullYear();
   const [selectedYear, setSelectedYear] = useState<number>(currentYear);
   const [stats, setStats] = useState<GlobalStatsDto | null>(null);
@@ -45,11 +47,11 @@ export default function StatisticsDashboardView() {
   };
 
   const formatHours = (seconds: number) => {
-    if (seconds <= 0) return "0 ore";
+    if (seconds <= 0) return `0 ${t("statistics.hours")}`;
     const hours = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
-    if (hours === 0) return `${mins}m`;
-    if (mins === 0) return `${hours} ore`;
+    if (hours === 0) return `${mins}${t("statistics.min")}`;
+    if (mins === 0) return `${hours} ${t("statistics.hours")}`;
     return `${hours}h ${mins}m`;
   };
 
@@ -70,14 +72,14 @@ export default function StatisticsDashboardView() {
           <div className="flex items-center gap-2.5">
             <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
               <TrendingUp className="w-6 h-6 text-emerald-400" />
-              <span>Statistiche di Gioco</span>
+              <span>{t("statistics.title")}</span>
             </h1>
             <span className="text-xs px-2.5 py-0.5 rounded-full font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              Analytics Hub
+              {t("statistics.hub_badge")}
             </span>
           </div>
           <p className="text-xs text-slate-400 mt-1">
-            Analisi approfondita dell'attività, distribuzione del tempo e avanzamento del backlog
+            {t("statistics.subtitle")}
           </p>
         </div>
 
@@ -88,7 +90,7 @@ export default function StatisticsDashboardView() {
               <button
                 key={yr}
                 onClick={() => setSelectedYear(yr)}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                   selectedYear === yr
                     ? "bg-[var(--accent-primary,#6366f1)] text-white shadow"
                     : "text-slate-400 hover:text-white"
@@ -102,8 +104,8 @@ export default function StatisticsDashboardView() {
           <button
             onClick={handleRefresh}
             disabled={refreshing}
-            className="p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-slate-300 hover:text-white transition-all disabled:opacity-50"
-            title="Aggiorna statistiche"
+            className="p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-slate-300 hover:text-white transition-all disabled:opacity-50 cursor-pointer"
+            title={t("statistics.refresh_tooltip")}
           >
             <RefreshCw
               className={`w-4 h-4 ${refreshing ? "animate-spin text-emerald-400" : ""}`}
@@ -136,13 +138,15 @@ export default function StatisticsDashboardView() {
               </div>
               <div className="min-w-0">
                 <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
-                  Tempo nell'Anno ({selectedYear})
+                  {t("statistics.time_in_year", { year: selectedYear })}
                 </span>
                 <p className="text-xl font-extrabold text-white truncate">
                   {formatHours(stats.total_playtime_year_seconds)}
                 </p>
                 <span className="text-[11px] text-emerald-400 font-medium">
-                  {Math.round(stats.total_playtime_year_seconds / 3600)} ore registrate
+                  {t("statistics.hours_registered", {
+                    hours: Math.round(stats.total_playtime_year_seconds / 3600),
+                  })}
                 </span>
               </div>
             </div>
@@ -154,14 +158,16 @@ export default function StatisticsDashboardView() {
               </div>
               <div className="min-w-0">
                 <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
-                  Giorni Giocati
+                  {t("statistics.days_played")}
                 </span>
                 <p className="text-xl font-extrabold text-white truncate">
                   {activeDaysCount}{" "}
                   <span className="text-xs text-slate-400 font-normal">/ 365</span>
                 </p>
                 <span className="text-[11px] text-sky-400 font-medium">
-                  {Math.round((activeDaysCount / 365) * 100)}% dei giorni dell'anno
+                  {t("statistics.percent_of_days", {
+                    percent: Math.round((activeDaysCount / 365) * 100),
+                  })}
                 </span>
               </div>
             </div>
@@ -173,13 +179,16 @@ export default function StatisticsDashboardView() {
               </div>
               <div className="min-w-0">
                 <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
-                  Backlog Smaltito
+                  {t("statistics.backlog_resolved")}
                 </span>
                 <p className="text-xl font-extrabold text-white truncate">
                   {stats.backlog_summary.completion_percentage.toFixed(1)}%
                 </p>
                 <span className="text-[11px] text-amber-400 font-medium">
-                  {stats.backlog_summary.completed_count} su {stats.backlog_summary.total_games} giochi
+                  {t("statistics.games_ratio", {
+                    completed: stats.backlog_summary.completed_count,
+                    total: stats.backlog_summary.total_games,
+                  })}
                 </span>
               </div>
             </div>
@@ -191,13 +200,15 @@ export default function StatisticsDashboardView() {
               </div>
               <div className="min-w-0">
                 <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
-                  Titoli in Libreria
+                  {t("statistics.titles_in_library")}
                 </span>
                 <p className="text-xl font-extrabold text-white truncate">
                   {stats.backlog_summary.total_games}
                 </p>
                 <span className="text-[11px] text-purple-400 font-medium">
-                  {stats.backlog_summary.in_progress_count} in corso
+                  {t("statistics.in_progress", {
+                    count: stats.backlog_summary.in_progress_count,
+                  })}
                 </span>
               </div>
             </div>
@@ -212,12 +223,12 @@ export default function StatisticsDashboardView() {
           {/* Section 2: Distribuzione Store e Distribuzione Generi */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <DistributionBar
-              title="Distribuzione Tempo per Store"
+              title={t("statistics.store_distribution")}
               items={stats.store_distribution}
               type="store"
             />
             <DistributionBar
-              title="Distribuzione Tempo per Genere"
+              title={t("statistics.genre_distribution")}
               items={stats.genre_distribution}
               type="genre"
             />
@@ -229,13 +240,13 @@ export default function StatisticsDashboardView() {
               <div className="flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-amber-400" />
                 <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200">
-                  Avanzamento Smaltimento Backlog
+                  {t("statistics.backlog_progress_title")}
                 </h3>
               </div>
               <span className="text-xs font-semibold text-slate-400">
-                {stats.backlog_summary.completed_count} Completati / Finiti •{" "}
-                {stats.backlog_summary.in_progress_count} Iniziati •{" "}
-                {stats.backlog_summary.not_played_count} Mai Giocati
+                {stats.backlog_summary.completed_count} {t("statistics.completed_beaten")} •{" "}
+                {stats.backlog_summary.in_progress_count} {t("statistics.started_in_progress")} •{" "}
+                {stats.backlog_summary.not_played_count} {t("statistics.not_played")}
               </span>
             </div>
 
@@ -245,7 +256,7 @@ export default function StatisticsDashboardView() {
                 <div className="h-3.5 w-full rounded-full overflow-hidden flex bg-white/[0.04] p-0.5 border border-white/5">
                   {/* Completed / Beaten */}
                   <div
-                    title={`Completati: ${stats.backlog_summary.completed_count} (${stats.backlog_summary.completion_percentage.toFixed(1)}%)`}
+                    title={`${t("statistics.completed_beaten")}: ${stats.backlog_summary.completed_count} (${stats.backlog_summary.completion_percentage.toFixed(1)}%)`}
                     className="h-full bg-emerald-500 rounded-l-full transition-all duration-500"
                     style={{
                       width: `${(stats.backlog_summary.completed_count / stats.backlog_summary.total_games) * 100}%`,
@@ -253,7 +264,7 @@ export default function StatisticsDashboardView() {
                   />
                   {/* In Progress */}
                   <div
-                    title={`In Corso: ${stats.backlog_summary.in_progress_count}`}
+                    title={`${t("statistics.started_in_progress")}: ${stats.backlog_summary.in_progress_count}`}
                     className="h-full bg-amber-500 transition-all duration-500"
                     style={{
                       width: `${(stats.backlog_summary.in_progress_count / stats.backlog_summary.total_games) * 100}%`,
@@ -261,7 +272,7 @@ export default function StatisticsDashboardView() {
                   />
                   {/* Not Played */}
                   <div
-                    title={`Non Giocati: ${stats.backlog_summary.not_played_count}`}
+                    title={`${t("statistics.not_played")}: ${stats.backlog_summary.not_played_count}`}
                     className="h-full bg-slate-600 rounded-r-full transition-all duration-500"
                     style={{
                       width: `${(stats.backlog_summary.not_played_count / stats.backlog_summary.total_games) * 100}%`,
@@ -274,14 +285,14 @@ export default function StatisticsDashboardView() {
                   <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
                     <span>
-                      Completati: <strong>{stats.backlog_summary.completed_count}</strong> (
+                      {t("statistics.completed_beaten")}: <strong>{stats.backlog_summary.completed_count}</strong> (
                       {stats.backlog_summary.completion_percentage.toFixed(1)}%)
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
                     <span>
-                      Iniziati / In Corso: <strong>{stats.backlog_summary.in_progress_count}</strong> (
+                      {t("statistics.started_in_progress")}: <strong>{stats.backlog_summary.in_progress_count}</strong> (
                       {(
                         (stats.backlog_summary.in_progress_count /
                           stats.backlog_summary.total_games) *
@@ -293,7 +304,7 @@ export default function StatisticsDashboardView() {
                   <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-slate-600" />
                     <span>
-                      Non Giocati: <strong>{stats.backlog_summary.not_played_count}</strong> (
+                      {t("statistics.not_played")}: <strong>{stats.backlog_summary.not_played_count}</strong> (
                       {(
                         (stats.backlog_summary.not_played_count /
                           stats.backlog_summary.total_games) *

@@ -13,6 +13,7 @@ import {
   StoreIcon,
 } from "../StoreBadge";
 import { Gamepad2 } from "lucide-react";
+import { useTranslation } from "../../i18n";
 
 interface DistributionBarProps {
   title: string;
@@ -45,11 +46,13 @@ const GENRE_PALETTE = [
 ];
 
 export default function DistributionBar({ title, items, type }: DistributionBarProps) {
+  const { t } = useTranslation();
+
   const formatDuration = (seconds: number) => {
-    if (seconds <= 0) return "0m";
+    if (seconds <= 0) return `0${t("statistics.min")}`;
     const hours = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
-    if (hours === 0) return `${mins}m`;
+    if (hours === 0) return `${mins}${t("statistics.min")}`;
     return `${hours}h ${mins}m`;
   };
 
@@ -73,7 +76,7 @@ export default function DistributionBar({ title, items, type }: DistributionBarP
       if (key.includes("ubisoft") || key.includes("uplay")) return <UbisoftIcon className="w-3.5 h-3.5 shrink-0" />;
       if (key.includes("battle")) return <BattlenetIcon className="w-3.5 h-3.5 shrink-0" />;
       if (key.includes("itch")) return <ItchIcon className="w-3.5 h-3.5 shrink-0" />;
-      return <StoreIcon className="w-3.5 h-3.5 shrink-0 text-slate-400" />;
+      return <StoreIcon library={name} className="w-3.5 h-3.5 shrink-0 text-slate-400" />;
     }
     return <Gamepad2 className="w-3.5 h-3.5 shrink-0 text-slate-400" />;
   };
@@ -85,7 +88,7 @@ export default function DistributionBar({ title, items, type }: DistributionBarP
           {title}
         </span>
         <span className="text-xs text-slate-400 font-mono">
-          {items.length} {type === "store" ? "Store" : "Generi"}
+          {items.length} {type === "store" ? t("statistics.stores_label") : t("statistics.genres_label")}
         </span>
       </div>
 
@@ -142,7 +145,7 @@ export default function DistributionBar({ title, items, type }: DistributionBarP
         </>
       ) : (
         <div className="py-6 text-center text-xs text-slate-500">
-          Nessun dato registrato al momento
+          {t("statistics.no_data")}
         </div>
       )}
     </div>

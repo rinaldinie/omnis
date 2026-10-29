@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { DayActivityDto } from "../../types";
+import { useTranslation } from "../../i18n";
 
 interface ActivityHeatmapCalendarProps {
   activityData: DayActivityDto[];
@@ -10,6 +11,7 @@ export default function ActivityHeatmapCalendar({
   activityData,
   year,
 }: ActivityHeatmapCalendarProps) {
+  const { t, locale } = useTranslation();
   const [hoveredDay, setHoveredDay] = useState<{
     date: string;
     duration: number;
@@ -28,7 +30,6 @@ export default function ActivityHeatmapCalendar({
   // We align weeks starting on Monday (ISO week)
   const startDate = new Date(Date.UTC(year, 0, 1));
   const dayOfWeek = startDate.getUTCDay(); // 0 is Sunday, 1 is Monday
-  // Offset to start on Monday
   const startOffset = (dayOfWeek + 6) % 7;
   const calendarStart = new Date(startDate);
   calendarStart.setUTCDate(startDate.getUTCDate() - startOffset);
@@ -52,7 +53,6 @@ export default function ActivityHeatmapCalendar({
     if (curr.getUTCFullYear() > year && w >= 51) break;
   }
 
-  // Calculate intensity levels (0 to 4)
   const getLevel = (seconds: number) => {
     if (seconds <= 0) return 0;
     if (seconds < 1800) return 1; // < 30m
@@ -67,13 +67,13 @@ export default function ActivityHeatmapCalendar({
       case 0:
         return "rgba(255, 255, 255, 0.05)";
       case 1:
-        return "rgba(16, 185, 129, 0.35)"; // Emerald soft
+        return "rgba(16, 185, 129, 0.35)";
       case 2:
         return "rgba(16, 185, 129, 0.60)";
       case 3:
         return "rgba(16, 185, 129, 0.85)";
       case 4:
-        return "#10b981"; // Emerald solid
+        return "#10b981";
       default:
         return "rgba(255, 255, 255, 0.05)";
     }
@@ -87,12 +87,17 @@ export default function ActivityHeatmapCalendar({
     return `${hours}h ${mins}m`;
   };
 
-  // Month labels positioning
+  // Month labels positioning with locale formatting
   const monthLabels: Array<{ label: string; weekIndex: number }> = [];
-  const monthNames = [
-    "Gen", "Feb", "Mar", "Apr", "Mag", "Giu",
-    "Lug", "Ago", "Set", "Ott", "Nov", "Dic"
-  ];
+  const localeMap: Record<string, string> = {
+    it: "it-IT",
+    de: "de-DE",
+    es: "es-ES",
+    fr: "fr-FR",
+    ja: "ja-JP",
+    en: "en-US",
+  };
+  const localeStr = localeMap[locale] || "en-US";
 
   let lastMonth = -1;
   weeks.forEach((week, wIdx) => {
@@ -100,13 +105,13 @@ export default function ActivityHeatmapCalendar({
     if (firstDay) {
       const m = firstDay.date.getUTCMonth();
       if (m !== lastMonth) {
-        monthLabels.push({ label: monthNames[m], weekIndex: wIdx });
+        const monthLabel = firstDay.date.toLocaleDateString(localeStr, { month: "short" });
+        monthLabels.push({ label: monthLabel, weekIndex: wIdx });
         lastMonth = m;
       }
     }
   });
 
-  // Calculate summary stats
   const activeDays = activityData.filter((d) => d.duration_seconds > 0).length;
   const maxDay = activityData.reduce(
     (max, curr) => (curr.duration_seconds > max.duration_seconds ? curr : max),
@@ -118,22 +123,22 @@ export default function ActivityHeatmapCalendar({
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-3">
           <span className="text-xs font-bold uppercase tracking-wider text-slate-300">
-            Heatmap Attività — {year}
+            {t("statistics.heatmap_title", { year })}
           </span>
           <span className="text-xs font-medium text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-            {activeDays} giorni attivi
+            {t("statistics.active_days", { count: activeDays })}
           </span>
         </div>
 
         {/* Legend */}
         <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
-          <span>Meno</span>
+          <span>{t("statistics.less")}</span>
           <span className="w-3 h-3 rounded-[3px] bg-white/[0.05] border border-white/5" />
           <span className="w-3 h-3 rounded-[3px] bg-emerald-500/35" />
           <span className="w-3 h-3 rounded-[3px] bg-emerald-500/60" />
           <span className="w-3 h-3 rounded-[3px] bg-emerald-500/85" />
           <span className="w-3 h-3 rounded-[3px] bg-emerald-500" />
-          <span>Più</span>
+          <span>{t("statistics.more")}</span>
         </div>
       </div>
 
@@ -145,7 +150,7 @@ export default function ActivityHeatmapCalendar({
             {monthLabels.map((m, idx) => (
               <span
                 key={idx}
-                className="absolute"
+                className="absolute capitalize"
                 style={{ left: `${m.weekIndex * 14.5 + 28}px` }}
               >
                 {m.label}
@@ -156,10 +161,10 @@ export default function ActivityHeatmapCalendar({
           <div className="flex gap-2">
             {/* Weekday indicators */}
             <div className="flex flex-col justify-between text-[9px] text-slate-500 font-medium py-0.5 w-5 text-right shrink-0 select-none">
-              <span>Lun</span>
-              <span>Mer</span>
-              <span>Ven</span>
-              <span>Dom</span>
+              <span>{t("statistics.weekday_mon")}</span>
+              <span>{t("statistics.weekday_wed")}</span>
+              <span>{t("statistics.weekday_fri")}</span>
+              <span>{t("statistics.weekday_sun")}</span>
             </div>
 
             {/* Weeks Columns */}
@@ -202,7 +207,7 @@ export default function ActivityHeatmapCalendar({
         </div>
       </div>
 
-      {/* Floating Tooltip */}
+      {/* Floating Tooltip with Auto-Flip */}
       {hoveredDay && (
         <div
           className={`fixed z-50 pointer-events-none px-2.5 py-1.5 rounded-lg bg-slate-900/95 border border-white/20 shadow-xl backdrop-blur-md text-center text-xs whitespace-nowrap animate-in fade-in zoom-in-95 duration-100 ${
@@ -212,8 +217,8 @@ export default function ActivityHeatmapCalendar({
           }`}
           style={{ left: hoveredDay.x, top: hoveredDay.y }}
         >
-          <div className="font-semibold text-white">
-            {new Date(hoveredDay.date).toLocaleDateString("it-IT", {
+          <div className="font-semibold text-white capitalize">
+            {new Date(hoveredDay.date).toLocaleDateString(localeStr, {
               weekday: "short",
               day: "numeric",
               month: "short",
@@ -222,10 +227,10 @@ export default function ActivityHeatmapCalendar({
           </div>
           <div className="text-[11px] text-emerald-400 font-medium">
             {hoveredDay.duration > 0
-              ? `${formatDuration(hoveredDay.duration)} (${hoveredDay.count} session${
-                  hoveredDay.count === 1 ? "e" : "i"
+              ? `${formatDuration(hoveredDay.duration)} (${hoveredDay.count} ${
+                  t(hoveredDay.count === 1 ? "statistics.session" : "statistics.sessions")
                 })`
-              : "Nessuna sessione di gioco"}
+              : t("statistics.no_sessions")}
           </div>
         </div>
       )}
@@ -234,9 +239,9 @@ export default function ActivityHeatmapCalendar({
       {maxDay.duration_seconds > 0 && (
         <div className="text-[11px] text-slate-400 flex items-center justify-between border-t border-white/[0.04] pt-2 mt-1">
           <span>
-            Giorno con maggior attività:{" "}
-            <strong className="text-white">
-              {new Date(maxDay.date).toLocaleDateString("it-IT", {
+            {t("statistics.highest_day")}:{" "}
+            <strong className="text-white capitalize">
+              {new Date(maxDay.date).toLocaleDateString(localeStr, {
                 day: "numeric",
                 month: "long",
               })}

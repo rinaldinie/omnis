@@ -237,10 +237,10 @@ export default function TopBar({
                 backgroundColor: viewMode === "stats" ? "var(--accent-primary)" : "transparent",
                 color: viewMode === "stats" ? "#ffffff" : "var(--text-muted)",
               }}
-              title={t("sidebar.statistics") || "Statistiche"}
+              title={t("views.stats")}
             >
               <BarChart2 className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">{t("sidebar.statistics") || "Statistiche"}</span>
+              <span className="hidden md:inline">{t("views.stats")}</span>
             </button>
           </div>
         </div>
