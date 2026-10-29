@@ -1299,14 +1299,23 @@ fn test_real_backup_archive_integration() {
 
     // Check inspection results
     assert!(
-        inspection.total_games_in_backup >= 1580 && inspection.total_games_in_backup <= 1590,
-        "Expected ~1582 games in real backup, got {}",
+        inspection.total_games_in_backup >= 2060 && inspection.total_games_in_backup <= 2070,
+        "Expected ~2064 games in real backup, got {}",
         inspection.total_games_in_backup
     );
     assert_eq!(inspection.matching_games_in_library, 2, "Only HLD and First Descendant should match");
     assert_eq!(
         inspection.non_matching_games,
         inspection.total_games_in_backup - 2
+    );
+    assert_eq!(
+        inspection.unmatched_in_library.len(),
+        1,
+        "Only Unmatched Local Game should be unmatched in library"
+    );
+    assert_eq!(
+        inspection.unmatched_in_library[0].title,
+        "Unmatched Local Game"
     );
     assert!(
         inspection.playtime_updates_available >= 1,
@@ -1373,4 +1382,26 @@ fn test_real_backup_archive_integration() {
     let rec_unmatched = fetch_game(&db, id_unmatched);
     assert_eq!(rec_unmatched.playtime_seconds, 999);
     assert_eq!(rec_unmatched.is_favorite, 1);
+}
+
+#[test]
+fn test_steam_library_match_with_user_data_if_available() {
+    let backup_path = PathBuf::from("/mnt/d/progetti/omnis/omnis/PlayniteBackup-2026-10-24-10-43-43.zip");
+    let db_path = PathBuf::from("/mnt/c/Users/rinal/AppData/Roaming/Omnis Game Library/library.db");
+    if !backup_path.exists() || !db_path.exists() {
+        return;
+    }
+
+    let db = Database::open(&db_path).expect("Failed to open user library.db");
+    let inspection = inspect_playnite_backup(&backup_path, &db).expect("Inspection failed");
+
+    // All 368 user Steam games should match properly (368 out of 369)
+    assert!(
+        inspection.matching_games_in_library >= 368,
+        "Expected at least 368 matches, got {}",
+        inspection.matching_games_in_library
+    );
+    assert!(inspection.total_games_in_backup >= 2060);
+    assert_eq!(inspection.unmatched_in_library.len(), 1);
+    assert_eq!(inspection.unmatched_in_library[0].title, "Ubisoft Connect Services");
 }

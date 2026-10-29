@@ -568,6 +568,12 @@ export interface PlayniteBackupMatchSample {
   background_available?: boolean;
 }
 
+export interface PlayniteUnmatchedGame {
+  title: string;
+  library_id: string;
+  external_id: string;
+}
+
 export interface PlayniteBackupInspection {
   total_games_in_backup: number;
   matching_games_in_library: number;
@@ -576,6 +582,7 @@ export interface PlayniteBackupInspection {
   missing_covers_available: number;
   missing_backgrounds_available: number;
   sample_matches: Array<PlayniteBackupMatchSample | string>;
+  unmatched_in_library?: PlayniteUnmatchedGame[];
 }
 
 export interface PlayniteBackupImportOptions {

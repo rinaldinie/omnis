@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs::{self, File};
 use std::io::{BufReader, Read, Seek};
 use std::path::{Path, PathBuf};
@@ -26,6 +26,13 @@ pub struct PlayniteBackupMatchSample {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PlayniteUnmatchedGame {
+    pub title: String,
+    pub library_id: String,
+    pub external_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlayniteBackupInspection {
     pub total_games_in_backup: usize,
     pub matching_games_in_library: usize,
@@ -34,6 +41,8 @@ pub struct PlayniteBackupInspection {
     pub missing_covers_available: usize,
     pub missing_backgrounds_available: usize,
     pub sample_matches: Vec<PlayniteBackupMatchSample>,
+    #[serde(default)]
+    pub unmatched_in_library: Vec<PlayniteUnmatchedGame>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -187,6 +196,7 @@ pub fn inspect_playnite_backup(
     let mut missing_covers_available = 0;
     let mut missing_backgrounds_available = 0;
     let mut sample_matches = Vec::new();
+    let mut matched_existing_ids = HashSet::new();
 
     for item in backup_games {
         let library_id = map_playnite_plugin_id(item.PluginId.as_deref());
@@ -207,6 +217,7 @@ pub fn inspect_playnite_backup(
 
         if let Some(existing_id) = matched_id {
             matching_games_in_library += 1;
+            matched_existing_ids.insert(existing_id.clone());
             if let Some(existing) = all_existing.get(existing_id) {
                 let backup_playtime = item.PlaytimeSeconds.unwrap_or(0);
                 let has_playtime_update = backup_playtime > existing.playtime_seconds;
@@ -230,7 +241,7 @@ pub fn inspect_playnite_backup(
                     missing_backgrounds_available += 1;
                 }
 
-                if sample_matches.len() < 10 {
+                if sample_matches.len() < 500 {
                     sample_matches.push(PlayniteBackupMatchSample {
                         title: existing.title.clone(),
                         library_id: existing.library_id.clone(),
@@ -248,6 +259,20 @@ pub fn inspect_playnite_backup(
         }
     }
 
+    sample_matches.sort_by(|a, b| a.title.to_lowercase().cmp(&b.title.to_lowercase()));
+
+    let mut unmatched_in_library = Vec::new();
+    for (id, game) in &all_existing {
+        if !matched_existing_ids.contains(id) {
+            unmatched_in_library.push(PlayniteUnmatchedGame {
+                title: game.title.clone(),
+                library_id: game.library_id.clone(),
+                external_id: game.external_id.clone(),
+            });
+        }
+    }
+    unmatched_in_library.sort_by(|a, b| a.title.to_lowercase().cmp(&b.title.to_lowercase()));
+
     Ok(PlayniteBackupInspection {
         total_games_in_backup,
         matching_games_in_library,
@@ -256,6 +281,7 @@ pub fn inspect_playnite_backup(
         missing_covers_available,
         missing_backgrounds_available,
         sample_matches,
+        unmatched_in_library,
     })
 }
 

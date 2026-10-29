@@ -14,7 +14,7 @@ pub mod backup;
 
 pub use backup::{
     execute_playnite_backup_import, inspect_playnite_backup, PlayniteBackupImportOptions,
-    PlayniteBackupInspection, PlayniteBackupMatchSample,
+    PlayniteBackupInspection, PlayniteBackupMatchSample, PlayniteUnmatchedGame,
 };
 pub use litedb::{scan_litedb_games, BsonDocument, BsonValue, LiteDbError};
 
