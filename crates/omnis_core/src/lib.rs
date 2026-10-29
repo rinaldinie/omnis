@@ -13,7 +13,10 @@ pub mod theme;
 pub mod wasm_host;
 
 pub use achievements::*;
-pub use db::{AchievementRepository, CatalogMaintenanceRepository, Database, DatabaseError, GameRepository, GameSearchRepository, LibraryCounts, SecretRepository, SessionRepository};
+pub use db::{
+    AchievementRepository, CatalogMaintenanceRepository, Database, DatabaseError, GameRepository,
+    GameSearchRepository, LibraryCounts, SecretRepository, SessionRepository, StatsRepository,
+};
 pub use dynamic_loader::{DynamicNativeMetadataProvider, DynamicPluginHandle, DynamicPluginLoader};
 pub use event_bus::EventBus;
 pub use host::PluginHost;

@@ -30,6 +30,7 @@ import { VideoBackdrop } from "../common/VideoBackdrop";
 import { Slot } from "../common/Slot";
 import { GameCardCover } from "../common/GameCardCover";
 import { GameAchievementsGallery } from "../achievements";
+import GameStatisticsCard from "../stats/GameStatisticsCard";
 
 function ListThumbCover({ thumb, title }: { thumb?: string | null; title: string }) {
   const [hasError, setHasError] = React.useState(false);
@@ -974,6 +975,9 @@ export default function DetailsSplitView({
 
           {/* Native Achievements Showcase */}
           <GameAchievementsGallery key={selectedGame.id} game={selectedGame} />
+
+          {/* Game Statistics & Session Analytics */}
+          <GameStatisticsCard game={selectedGame} />
 
           {/* Card 3: Key Features (Playnite Parity) */}
           <div className="p-6 rounded-xl bg-white/[0.02] border border-white/[0.06] space-y-3">

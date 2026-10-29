@@ -7,8 +7,9 @@ import {
   Folder,
   Palette,
   Cloud,
+  BarChart2,
 } from "lucide-react";
-import { LibraryCounts } from "../../types";
+import { LibraryCounts, ViewMode } from "../../types";
 import { SteamIcon, EpicIcon, GogIcon, XboxIcon } from "../StoreBadge";
 import { useTranslation } from "../../i18n";
 
@@ -21,6 +22,8 @@ interface SidebarProps {
   gamepadName?: string;
   handleOpenFolder: (folderType: string) => void;
   onOpenStoreAccounts?: () => void;
+  viewMode?: ViewMode;
+  setViewMode?: (mode: ViewMode) => void;
 }
 
 export default function Sidebar({
@@ -32,6 +35,8 @@ export default function Sidebar({
   gamepadName: _gamepadName,
   handleOpenFolder,
   onOpenStoreAccounts,
+  viewMode,
+  setViewMode,
 }: SidebarProps) {
   const { t } = useTranslation();
   const installedRatio = counts.total > 0 ? (counts.installed / counts.total) * 100 : 0;
@@ -78,7 +83,12 @@ export default function Sidebar({
                 key={item.id}
                 data-omnis="sidebar.item"
                 data-state={isActive ? "active" : "idle"}
-                onClick={() => setActiveFilter(item.id)}
+                onClick={() => {
+                  if (viewMode === "stats" && setViewMode) {
+                    setViewMode("grid");
+                  }
+                  setActiveFilter(item.id);
+                }}
                 className={`flex items-center justify-between px-2 py-1.5 rounded-md text-xs transition-colors group ${
                   isActive
                     ? "font-semibold bg-white/10 text-white"
@@ -104,6 +114,46 @@ export default function Sidebar({
               </button>
             );
           })}
+        </div>
+
+        {/* Section: Statistiche & Insights */}
+        <div className="flex flex-col gap-0.5">
+          <span
+            className="text-[9px] font-bold tracking-wider uppercase px-2 pt-1 pb-0.5"
+            style={{ color: "var(--text-muted)" }}
+          >
+            {t("sidebar.analytics") || "Insights"}
+          </span>
+          <button
+            type="button"
+            data-omnis="sidebar.item"
+            data-state={viewMode === "stats" ? "active" : "idle"}
+            onClick={() => {
+              if (setViewMode) {
+                setViewMode("stats");
+              }
+            }}
+            className={`flex items-center justify-between px-2 py-1.5 rounded-md text-xs transition-colors group cursor-pointer ${
+              viewMode === "stats"
+                ? "font-semibold bg-white/10 text-white"
+                : "font-normal hover:bg-white/5 text-slate-300 hover:text-white"
+            }`}
+            style={{
+              borderLeft: viewMode === "stats" ? "2.5px solid var(--accent-primary)" : "2.5px solid transparent",
+              backgroundColor: viewMode === "stats" ? "rgba(255, 255, 255, 0.08)" : undefined,
+            }}
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <BarChart2
+                className="w-3.5 h-3.5 shrink-0 transition-transform group-hover:scale-105"
+                style={{ color: viewMode === "stats" ? "var(--accent-primary)" : undefined }}
+              />
+              <span className="truncate">{t("sidebar.statistics") || "Statistiche"}</span>
+            </div>
+            <span className="text-[9px] font-mono px-1.5 py-0.2 rounded text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 shrink-0">
+              Hub
+            </span>
+          </button>
         </div>
 
         {/* Section: Store Accounts */}
@@ -135,7 +185,12 @@ export default function Sidebar({
                 key={store.id}
                 data-omnis="sidebar.item"
                 data-state={isActive ? "active" : "idle"}
-                onClick={() => setActiveFilter(store.id)}
+                onClick={() => {
+                  if (viewMode === "stats" && setViewMode) {
+                    setViewMode("grid");
+                  }
+                  setActiveFilter(store.id);
+                }}
                 className={`flex items-center justify-between px-2 py-1.5 rounded-md text-xs transition-colors group ${
                   isActive
                     ? "font-semibold bg-white/10 text-white"

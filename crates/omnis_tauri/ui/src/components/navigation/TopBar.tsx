@@ -12,6 +12,7 @@ import {
   Settings,
   Minus,
   Square,
+  BarChart2,
 } from "lucide-react";
 import { ActiveGameSession, ProviderInfo, ThemeConfig, ViewMode } from "../../types";
 import soundEffects from "../../utils/soundEffects";
@@ -224,6 +225,22 @@ export default function TopBar({
             >
               <TableProperties className="w-3.5 h-3.5" />
               <span className="hidden md:inline">{t("views.list")}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                soundEffects.playNav();
+                setViewMode("stats");
+              }}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold transition-all cursor-pointer"
+              style={{
+                backgroundColor: viewMode === "stats" ? "var(--accent-primary)" : "transparent",
+                color: viewMode === "stats" ? "#ffffff" : "var(--text-muted)",
+              }}
+              title={t("sidebar.statistics") || "Statistiche"}
+            >
+              <BarChart2 className="w-3.5 h-3.5" />
+              <span className="hidden md:inline">{t("sidebar.statistics") || "Statistiche"}</span>
             </button>
           </div>
         </div>
