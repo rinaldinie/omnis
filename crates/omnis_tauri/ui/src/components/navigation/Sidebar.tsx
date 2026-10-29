@@ -122,7 +122,7 @@ export default function Sidebar({
             className="text-[9px] font-bold tracking-wider uppercase px-2 pt-1 pb-0.5"
             style={{ color: "var(--text-muted)" }}
           >
-            {t("sidebar.analytics") || "Insights"}
+            {t("sidebar.analytics")}
           </span>
           <button
             type="button"
@@ -148,7 +148,7 @@ export default function Sidebar({
                 className="w-3.5 h-3.5 shrink-0 transition-transform group-hover:scale-105"
                 style={{ color: viewMode === "stats" ? "var(--accent-primary)" : undefined }}
               />
-              <span className="truncate">{t("sidebar.statistics") || "Statistiche"}</span>
+              <span className="truncate">{t("sidebar.statistics")}</span>
             </div>
             <span className="text-[9px] font-mono px-1.5 py-0.2 rounded text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 shrink-0">
               Hub

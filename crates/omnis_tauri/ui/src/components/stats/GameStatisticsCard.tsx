@@ -3,12 +3,14 @@ import { invoke } from "@tauri-apps/api/core";
 import { GameDto, GameStatsDto } from "../../types";
 import WeeklyBarChart from "./WeeklyBarChart";
 import { Clock, Trophy, Activity } from "lucide-react";
+import { useTranslation } from "../../i18n";
 
 interface GameStatisticsCardProps {
   game: GameDto;
 }
 
 export default function GameStatisticsCard({ game }: GameStatisticsCardProps) {
+  const { t } = useTranslation();
   const [stats, setStats] = useState<GameStatsDto | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -36,10 +38,10 @@ export default function GameStatisticsCard({ game }: GameStatisticsCardProps) {
   }, [game.id]);
 
   const formatDuration = (seconds: number) => {
-    if (seconds <= 0) return "0m";
+    if (seconds <= 0) return `0${t("statistics.min")}`;
     const hours = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
-    if (hours === 0) return `${mins}m`;
+    if (hours === 0) return `${mins}${t("statistics.min")}`;
     if (mins === 0) return `${hours}h`;
     return `${hours}h ${mins}m`;
   };
@@ -69,11 +71,11 @@ export default function GameStatisticsCard({ game }: GameStatisticsCardProps) {
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold tracking-wider uppercase flex items-center gap-2 text-[var(--text-muted)]">
           <Activity className="w-3.5 h-3.5 text-emerald-400" />
-          <span>Statistiche & Attività</span>
+          <span>{t("statistics.title")}</span>
         </span>
         {hasData && (
           <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 font-medium">
-            Sessioni tracciate
+            {t("statistics.tracked_sessions")}
           </span>
         )}
       </div>
@@ -87,10 +89,10 @@ export default function GameStatisticsCard({ game }: GameStatisticsCardProps) {
           </div>
           <div className="min-w-0">
             <span className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider block truncate">
-              Durata Media Sessione
+              {t("statistics.avg_session_duration")}
             </span>
             <p className="text-sm font-bold text-white truncate">
-              {stats ? formatDuration(stats.average_session_seconds) : "0m"}
+              {stats ? formatDuration(stats.average_session_seconds) : `0${t("statistics.min")}`}
             </p>
           </div>
         </div>
@@ -102,10 +104,10 @@ export default function GameStatisticsCard({ game }: GameStatisticsCardProps) {
           </div>
           <div className="min-w-0">
             <span className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider block truncate">
-              Sessione Più Lunga
+              {t("statistics.longest_session")}
             </span>
             <p className="text-sm font-bold text-white truncate">
-              {stats ? formatDuration(stats.longest_session_seconds) : "0m"}
+              {stats ? formatDuration(stats.longest_session_seconds) : `0${t("statistics.min")}`}
             </p>
           </div>
         </div>
@@ -114,10 +116,10 @@ export default function GameStatisticsCard({ game }: GameStatisticsCardProps) {
       {game.playtime_seconds > 0 && stats?.longest_session_seconds === 0 && (
         <div className="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04] text-[11px] text-slate-400 flex items-center justify-between">
           <span>
-            Tempo complessivo: <strong className="text-white">{game.playtime_formatted}</strong>
+            {t("statistics.total_imported_time")}: <strong className="text-white">{game.playtime_formatted}</strong>
           </span>
           <span className="text-slate-500">
-            Sessioni dettagliate al prossimo avvio
+            {t("statistics.detailed_sessions_hint")}
           </span>
         </div>
       )}
@@ -127,7 +129,7 @@ export default function GameStatisticsCard({ game }: GameStatisticsCardProps) {
         <WeeklyBarChart weeks={stats.last_4_weeks_bars} />
       ) : (
         <p className="text-xs text-slate-500 text-center py-2">
-          Nessuna attività registrata nelle ultime 4 settimane
+          {t("statistics.no_activity_4_weeks")}
         </p>
       )}
     </div>

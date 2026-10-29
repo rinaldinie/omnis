@@ -1,18 +1,20 @@
 import React from "react";
 import { WeekPlaytimeDto } from "../../types";
+import { useTranslation } from "../../i18n";
 
 interface WeeklyBarChartProps {
   weeks: WeekPlaytimeDto[];
 }
 
 export default function WeeklyBarChart({ weeks }: WeeklyBarChartProps) {
-  const maxSeconds = Math.max(...weeks.map((w) => w.duration_seconds), 3600); // at least 1h for scale
+  const { t } = useTranslation();
+  const maxSeconds = Math.max(...weeks.map((w) => w.duration_seconds), 3600);
 
   const formatDuration = (seconds: number) => {
-    if (seconds <= 0) return "0m";
+    if (seconds <= 0) return `0${t("statistics.min")}`;
     const hours = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
-    if (hours === 0) return `${mins}m`;
+    if (hours === 0) return `${mins}${t("statistics.min")}`;
     if (mins === 0) return `${hours}h`;
     return `${hours}h ${mins}m`;
   };
@@ -21,10 +23,10 @@ export default function WeeklyBarChart({ weeks }: WeeklyBarChartProps) {
     <div className="flex flex-col gap-2 w-full">
       <div className="flex items-center justify-between text-xs text-slate-400">
         <span className="font-semibold uppercase tracking-wider text-[10px] text-[var(--text-muted)]">
-          Ultime 4 Settimane
+          {t("statistics.last_4_weeks")}
         </span>
         <span className="text-[10px] text-slate-500 font-mono">
-          Totale: {formatDuration(weeks.reduce((acc, w) => acc + w.duration_seconds, 0))}
+          {t("statistics.total")}: {formatDuration(weeks.reduce((acc, w) => acc + w.duration_seconds, 0))}
         </span>
       </div>
 
@@ -40,7 +42,7 @@ export default function WeeklyBarChart({ weeks }: WeeklyBarChartProps) {
               key={idx}
               className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end group relative"
             >
-              {/* Duration popup label on hover or if duration > 0 */}
+              {/* Duration label */}
               <span className="text-[10px] font-semibold text-slate-300 group-hover:text-emerald-400 transition-colors whitespace-nowrap">
                 {formatDuration(week.duration_seconds)}
               </span>
@@ -62,7 +64,7 @@ export default function WeeklyBarChart({ weeks }: WeeklyBarChartProps) {
               {/* Week label */}
               <div className="text-center">
                 <span className="text-[10px] font-medium text-slate-400 group-hover:text-white transition-colors block">
-                  {week.week_label}
+                  {t("statistics.week_num", { num: idx + 1 })}
                 </span>
                 <span className="text-[8px] text-slate-500 block -mt-0.5">
                   {week.start_date.slice(5)} - {week.end_date.slice(5)}
