@@ -59,6 +59,18 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
     return saved !== null ? JSON.parse(saved) : true;
   });
 
+  const [autoScanOnStartup, setAutoScanOnStartup] = useState<boolean>(() => {
+    const saved = localStorage.getItem('omnis_auto_scan_on_startup');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+
+  const handleToggleAutoScan = () => {
+    soundEffects.playSelect();
+    const next = !autoScanOnStartup;
+    setAutoScanOnStartup(next);
+    localStorage.setItem('omnis_auto_scan_on_startup', JSON.stringify(next));
+  };
+
   const handleToggleMinimizeToTray = async () => {
     soundEffects.playSelect();
     const next = !minimizeToTray;
@@ -110,6 +122,8 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
     }
     setAnimationsEnabled(true);
     localStorage.setItem('omnis_ui_animations', JSON.stringify(true));
+    setAutoScanOnStartup(true);
+    localStorage.setItem('omnis_auto_scan_on_startup', JSON.stringify(true));
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 2000);
   };
@@ -518,6 +532,33 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
                 }`}
               >
                 {animationsEnabled ? t('common.enabled') : t('common.disabled')}
+              </button>
+            </div>
+
+            {/* Auto-scan on startup toggle */}
+            <div
+              className="flex items-center justify-between gap-4 p-4 rounded-xl border bg-slate-800/30"
+              style={{ borderColor: 'var(--border-color)' }}
+            >
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center border border-sky-500/30 shrink-0 mt-0.5">
+                  <RefreshCw className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-white">{t('onboarding.auto_scan_label')}</h4>
+                  <p className="text-[11px] text-slate-400 mt-0.5 max-w-xs">{t('onboarding.auto_scan_desc')}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleToggleAutoScan}
+                className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all shrink-0 cursor-pointer ${
+                  autoScanOnStartup
+                    ? 'bg-sky-500/20 text-sky-300 border-sky-500/40 hover:bg-sky-500/30 shadow-md'
+                    : 'bg-white/5 text-slate-400 border-white/10 hover:bg-white/10'
+                }`}
+              >
+                {autoScanOnStartup ? t('common.enabled') : t('common.disabled')}
               </button>
             </div>
 

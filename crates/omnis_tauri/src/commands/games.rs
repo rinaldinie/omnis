@@ -4,7 +4,7 @@ use omnis_core::LibraryCounts;
 use omnis_plugin_epic::EpicLibraryPlugin;
 use omnis_sdk::constants::events;
 use omnis_sdk::{Game, LaunchConfiguration, LibraryPlugin, PluginEvent, ProcessTrackingMode};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tauri::State;
 use uuid::Uuid;
@@ -79,6 +79,85 @@ pub async fn sync_library(
 
     tokio::time::sleep(tokio::time::Duration::from_millis(300)).await;
     state.db.count_games().map_err(|e| e.to_string())
+}
+
+/// Result of a per-store installation detection check, used by the onboarding wizard.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StoreDetectionResult {
+    pub id: String,
+    pub name: String,
+    pub detected: bool,
+    pub requires_login: bool,
+    pub icon: String,
+}
+
+/// Detect which game stores are installed on the system without performing any import.
+/// Used by the first-launch onboarding wizard to pre-populate the store selection list.
+#[tauri::command]
+pub async fn detect_stores() -> Vec<StoreDetectionResult> {
+    let mut results = Vec::new();
+
+    // Steam: detect via VDF library folders scan
+    let steam_detected = omnis_plugin_steam::vdf_parser::detect_steam_installation().is_some();
+    results.push(StoreDetectionResult {
+        id: "steam".to_string(),
+        name: "Steam".to_string(),
+        detected: steam_detected,
+        requires_login: false,
+        icon: "steam".to_string(),
+    });
+
+    // Epic Games Store: detect via default manifests directory
+    let epic_plugin = EpicLibraryPlugin::new();
+    let epic_detected = epic_plugin.detect_manifests_dir().exists();
+    results.push(StoreDetectionResult {
+        id: "epic".to_string(),
+        name: "Epic Games Store".to_string(),
+        detected: epic_detected,
+        requires_login: false,
+        icon: "epic".to_string(),
+    });
+
+    // GOG Galaxy: detect via standard installation paths on Windows
+    #[cfg(target_os = "windows")]
+    let gog_detected = [
+        std::path::Path::new("C:\\ProgramData\\GOG.com\\Galaxy\\storage"),
+        std::path::Path::new("C:\\Program Files (x86)\\GOG Galaxy"),
+    ]
+    .iter()
+    .any(|p| p.exists());
+    #[cfg(not(target_os = "windows"))]
+    let gog_detected = false;
+
+    results.push(StoreDetectionResult {
+        id: "gog".to_string(),
+        name: "GOG Galaxy".to_string(),
+        detected: gog_detected,
+        requires_login: true,
+        icon: "gog".to_string(),
+    });
+
+    // Xbox Game Pass: detect via UWP app package directory
+    #[cfg(target_os = "windows")]
+    let xbox_detected = std::env::var("LOCALAPPDATA")
+        .map(|local| {
+            let packages = std::path::Path::new(&local).join("Packages");
+            packages.join("Microsoft.GamingApp_8wekyb3d8bbwe").exists()
+                || packages.join("Microsoft.XboxApp_8wekyb3d8bbwe").exists()
+        })
+        .unwrap_or(false);
+    #[cfg(not(target_os = "windows"))]
+    let xbox_detected = false;
+
+    results.push(StoreDetectionResult {
+        id: "xbox".to_string(),
+        name: "Xbox Game Pass".to_string(),
+        detected: xbox_detected,
+        requires_login: true,
+        icon: "xbox".to_string(),
+    });
+
+    results
 }
 
 #[tauri::command]

@@ -74,6 +74,7 @@ import CustomGameModal from "./components/modals/CustomGameModal";
 import BatchEnrichModal from "./components/modals/BatchEnrichModal";
 import PlayniteImportModal from "./components/modals/PlayniteImportModal";
 import { UninstallModal } from "./components/modals/UninstallModal";
+import OnboardingModal, { shouldShowOnboarding, shouldAutoScanOnStartup } from "./components/modals/OnboardingModal";
 import GlobalContextMenu from "./components/GlobalContextMenu";
 import FilterAndSortPopover from "./components/navigation/FilterAndSortPopover";
 import GroupByPopover from "./components/navigation/GroupByPopover";
@@ -157,6 +158,9 @@ export default function App() {
   gamesRef.current = games;
   const activeGameRef = useRef<ActiveGameSession | null>(null);
   activeGameRef.current = activeGame;
+
+  // ONBOARDING WIZARD – shown only on first launch (empty library + never completed)
+  const [showOnboarding, setShowOnboarding] = useState<boolean>(false);
 
   // ONLINE APP UPDATER
   const updater = useAppUpdater();
@@ -627,6 +631,10 @@ export default function App() {
       const loadedCounts = await invokeTauri<LibraryCounts>("get_counts");
       if (loadedCounts) {
         setCounts(loadedCounts);
+        // Show onboarding wizard on first launch when library is empty
+        if (loadedCounts.total === 0 && shouldShowOnboarding()) {
+          setShowOnboarding(true);
+        }
       }
     } catch (err) {
       console.error("Failed to load games or counts", err);
@@ -853,6 +861,15 @@ export default function App() {
     refreshLibrary();
     loadThemes();
     loadProvidersAndConfig();
+
+    // Auto-scan on startup: silently sync library if user opted in and library is not empty
+    if (shouldAutoScanOnStartup() && !shouldShowOnboarding()) {
+      invokeTauri("sync_library")
+        .then(() => refreshLibrary())
+        .catch((err) => {
+          console.warn("Auto-scan on startup failed:", err);
+        });
+    }
 
     // Check if a game is already running on mount
     (async () => {
@@ -1274,6 +1291,16 @@ export default function App() {
       }}
     >
     <ControllerTypeContext.Provider value={effectiveFamily}>
+      {/* ONBOARDING WIZARD – rendered outside the main layout to cover everything */}
+      {showOnboarding && (
+        <OnboardingModal
+          onComplete={() => {
+            setShowOnboarding(false);
+            refreshLibrary();
+          }}
+          onSkip={() => setShowOnboarding(false)}
+        />
+      )}
       <div
         className="flex flex-col h-screen w-screen select-none overflow-hidden transition-colors duration-300"
       style={{

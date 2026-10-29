@@ -1111,4 +1111,19 @@ export interface TranslationSchema {
     unmatched_explanation?: string;
     matched_explanation?: string;
   };
+  onboarding: {
+    title: string;
+    subtitle: string;
+    detecting: string;
+    detected_badge: string;
+    not_found_badge: string;
+    requires_login: string;
+    import_btn: string;
+    importing_btn: string;
+    skip_btn: string;
+    success_title: string;
+    success_desc: string;
+    auto_scan_label: string;
+    auto_scan_desc: string;
+  };
 }
