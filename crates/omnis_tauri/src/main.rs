@@ -54,6 +54,7 @@ fn main() {
             get_games,
             get_counts,
             sync_library,
+            detect_stores,
             download_metadata,
             download_all_metadata,
             download_batch_metadata,
