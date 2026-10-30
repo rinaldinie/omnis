@@ -600,6 +600,7 @@ export interface PlayniteImportStats {
   images_cached: number;
   tags_added: number;
   categories_added: number;
+  sessions_imported?: number;
 }
 
 export interface PlayniteImportProgressPayload {
@@ -634,6 +635,8 @@ export interface BacklogSummaryDto {
 
 export interface GlobalStatsDto {
   total_playtime_year_seconds: number;
+  total_playtime_lifetime_seconds?: number;
+  available_years?: number[];
   activity_heatmap: DayActivityDto[];
   store_distribution: CategoryShareDto[];
   genre_distribution: CategoryShareDto[];

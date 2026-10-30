@@ -102,8 +102,13 @@ fn test_global_statistics_and_game_metrics() {
     // Check backlog summary: 1 completed out of 2 total -> 50%
     assert_eq!(global_stats.backlog_summary.total_games, 2);
     assert_eq!(global_stats.backlog_summary.completed_count, 1);
-    assert_eq!(global_stats.backlog_summary.not_played_count, 1);
+    assert_eq!(global_stats.backlog_summary.in_progress_count, 1);
+    assert_eq!(global_stats.backlog_summary.not_played_count, 0);
     assert!((global_stats.backlog_summary.completion_percentage - 50.0).abs() < 0.1);
+
+    // Lifetime playtime across all games (g1: 7200 + 3600 + 7200 + g2: 3600 = 21600)
+    assert_eq!(global_stats.total_playtime_lifetime_seconds, 21600);
+    assert!(!global_stats.available_years.is_empty());
 
     // Check store distribution contains steam and gog
     assert!(!global_stats.store_distribution.is_empty());
@@ -111,4 +116,18 @@ fn test_global_statistics_and_game_metrics() {
     // Check genre distribution contains RPG
     let rpg_genre = global_stats.genre_distribution.iter().find(|g| g.name == "RPG");
     assert!(rpg_genre.is_some());
+
+    // 5. Test Reset Statistics (clear sessions only)
+    db.reset_statistics(false).expect("Failed to reset sessions");
+    let after_reset = db
+        .get_global_statistics(Some(now.format("%Y").to_string().parse().unwrap()))
+        .expect("Failed to get global stats after reset");
+    assert_eq!(after_reset.activity_heatmap.len(), 0);
+
+    // 6. Test Reset Statistics with playtime
+    db.reset_statistics(true).expect("Failed to reset playtime");
+    let after_full_reset = db
+        .get_global_statistics(Some(now.format("%Y").to_string().parse().unwrap()))
+        .expect("Failed to get global stats after full reset");
+    assert_eq!(after_full_reset.total_playtime_lifetime_seconds, 0);
 }

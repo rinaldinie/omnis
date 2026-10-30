@@ -751,6 +751,17 @@ export default function PlayniteImportModal({
                     {stats.images_cached}
                   </div>
                 </div>
+
+                {typeof stats.sessions_imported === "number" && stats.sessions_imported > 0 && (
+                  <div className="p-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5 space-y-1 text-center">
+                    <span className="text-[11px] text-slate-400 font-medium">
+                      {t("statistics.sessions") || "Sessioni"}
+                    </span>
+                    <div className="text-2xl font-black text-emerald-400">
+                      {stats.sessions_imported}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

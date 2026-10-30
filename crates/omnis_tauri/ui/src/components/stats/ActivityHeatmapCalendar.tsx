@@ -62,20 +62,20 @@ export default function ActivityHeatmapCalendar({
   };
 
   const getCellColor = (level: number, inYear: boolean) => {
-    if (!inYear) return "rgba(255, 255, 255, 0.02)";
+    if (!inYear) return "transparent";
     switch (level) {
       case 0:
-        return "rgba(255, 255, 255, 0.05)";
+        return "color-mix(in srgb, var(--border-color) 45%, transparent)";
       case 1:
-        return "rgba(16, 185, 129, 0.35)";
+        return "color-mix(in srgb, var(--accent-primary, #6366f1) 30%, transparent)";
       case 2:
-        return "rgba(16, 185, 129, 0.60)";
+        return "color-mix(in srgb, var(--accent-primary, #6366f1) 55%, transparent)";
       case 3:
-        return "rgba(16, 185, 129, 0.85)";
+        return "color-mix(in srgb, var(--accent-primary, #6366f1) 80%, transparent)";
       case 4:
-        return "#10b981";
+        return "var(--accent-primary, #6366f1)";
       default:
-        return "rgba(255, 255, 255, 0.05)";
+        return "color-mix(in srgb, var(--border-color) 45%, transparent)";
     }
   };
 
@@ -119,25 +119,62 @@ export default function ActivityHeatmapCalendar({
   );
 
   return (
-    <div className="flex flex-col gap-3 p-5 rounded-2xl bg-white/[0.02] border border-white/[0.06] relative">
+    <div
+      className="flex flex-col gap-3 p-5 rounded-2xl border relative transition-colors duration-300"
+      style={{
+        backgroundColor: "var(--bg-card)",
+        borderColor: "var(--border-color)",
+      }}
+    >
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-3">
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-300">
+          <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]">
             {t("statistics.heatmap_title", { year })}
           </span>
-          <span className="text-xs font-medium text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+          <span
+            className="text-xs font-medium px-2 py-0.5 rounded-full border transition-colors"
+            style={{
+              backgroundColor: "color-mix(in srgb, var(--accent-primary, #6366f1) 15%, transparent)",
+              borderColor: "color-mix(in srgb, var(--accent-primary, #6366f1) 30%, transparent)",
+              color: "var(--accent-primary, #6366f1)",
+            }}
+          >
             {t("statistics.active_days", { count: activeDays })}
           </span>
         </div>
 
         {/* Legend */}
-        <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
+        <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-muted)]">
           <span>{t("statistics.less")}</span>
-          <span className="w-3 h-3 rounded-[3px] bg-white/[0.05] border border-white/5" />
-          <span className="w-3 h-3 rounded-[3px] bg-emerald-500/35" />
-          <span className="w-3 h-3 rounded-[3px] bg-emerald-500/60" />
-          <span className="w-3 h-3 rounded-[3px] bg-emerald-500/85" />
-          <span className="w-3 h-3 rounded-[3px] bg-emerald-500" />
+          <span
+            className="w-3 h-3 rounded-[3px] border"
+            style={{
+              backgroundColor: "color-mix(in srgb, var(--border-color) 45%, transparent)",
+              borderColor: "var(--border-color)",
+            }}
+          />
+          <span
+            className="w-3 h-3 rounded-[3px]"
+            style={{
+              backgroundColor: "color-mix(in srgb, var(--accent-primary, #6366f1) 30%, transparent)",
+            }}
+          />
+          <span
+            className="w-3 h-3 rounded-[3px]"
+            style={{
+              backgroundColor: "color-mix(in srgb, var(--accent-primary, #6366f1) 55%, transparent)",
+            }}
+          />
+          <span
+            className="w-3 h-3 rounded-[3px]"
+            style={{
+              backgroundColor: "color-mix(in srgb, var(--accent-primary, #6366f1) 80%, transparent)",
+            }}
+          />
+          <span
+            className="w-3 h-3 rounded-[3px]"
+            style={{ backgroundColor: "var(--accent-primary, #6366f1)" }}
+          />
           <span>{t("statistics.more")}</span>
         </div>
       </div>
@@ -146,7 +183,7 @@ export default function ActivityHeatmapCalendar({
       <div className="overflow-x-auto pb-2 custom-scrollbar">
         <div className="min-w-[760px] flex flex-col gap-1.5">
           {/* Months Header */}
-          <div className="flex text-[10px] text-slate-400 font-medium pl-7 h-4 relative">
+          <div className="flex text-[10px] text-[var(--text-muted)] font-medium pl-7 h-4 relative">
             {monthLabels.map((m, idx) => (
               <span
                 key={idx}
@@ -160,7 +197,7 @@ export default function ActivityHeatmapCalendar({
 
           <div className="flex gap-2">
             {/* Weekday indicators */}
-            <div className="flex flex-col justify-between text-[9px] text-slate-500 font-medium py-0.5 w-5 text-right shrink-0 select-none">
+            <div className="flex flex-col justify-between text-[9px] text-[var(--text-muted)] opacity-75 font-medium py-0.5 w-5 text-right shrink-0 select-none">
               <span>{t("statistics.weekday_mon")}</span>
               <span>{t("statistics.weekday_wed")}</span>
               <span>{t("statistics.weekday_fri")}</span>
@@ -192,7 +229,9 @@ export default function ActivityHeatmapCalendar({
                         }}
                         onMouseLeave={() => setHoveredDay(null)}
                         className={`w-3 h-3 rounded-[3px] transition-all duration-150 cursor-pointer ${
-                          day.inYear ? "hover:ring-1 hover:ring-white/80 hover:scale-125 hover:z-10" : "opacity-30"
+                          day.inYear
+                            ? "hover:ring-1 hover:ring-[var(--accent-primary)] hover:scale-125 hover:z-10"
+                            : "opacity-20 pointer-events-none"
                         }`}
                         style={{
                           backgroundColor: getCellColor(level, day.inYear),
@@ -210,14 +249,20 @@ export default function ActivityHeatmapCalendar({
       {/* Floating Tooltip with Auto-Flip */}
       {hoveredDay && (
         <div
-          className={`fixed z-50 pointer-events-none px-2.5 py-1.5 rounded-lg bg-slate-900/95 border border-white/20 shadow-xl backdrop-blur-md text-center text-xs whitespace-nowrap animate-in fade-in zoom-in-95 duration-100 ${
+          className={`fixed z-50 pointer-events-none px-2.5 py-1.5 rounded-xl border shadow-2xl backdrop-blur-md text-center text-xs whitespace-nowrap animate-in fade-in zoom-in-95 duration-100 ${
             hoveredDay.y < 60
               ? "transform -translate-x-1/2 translate-y-3"
               : "transform -translate-x-1/2 -translate-y-full"
           }`}
-          style={{ left: hoveredDay.x, top: hoveredDay.y }}
+          style={{
+            left: hoveredDay.x,
+            top: hoveredDay.y,
+            backgroundColor: "var(--bg-card)",
+            borderColor: "var(--border-color)",
+            color: "var(--text-primary)",
+          }}
         >
-          <div className="font-semibold text-white capitalize">
+          <div className="font-semibold text-[var(--text-primary)] capitalize">
             {new Date(hoveredDay.date).toLocaleDateString(localeStr, {
               weekday: "short",
               day: "numeric",
@@ -225,7 +270,10 @@ export default function ActivityHeatmapCalendar({
               year: "numeric",
             })}
           </div>
-          <div className="text-[11px] text-emerald-400 font-medium">
+          <div
+            className="text-[11px] font-medium"
+            style={{ color: "var(--accent-primary, #6366f1)" }}
+          >
             {hoveredDay.duration > 0
               ? `${formatDuration(hoveredDay.duration)} (${hoveredDay.count} ${
                   t(hoveredDay.count === 1 ? "statistics.session" : "statistics.sessions")
@@ -237,10 +285,13 @@ export default function ActivityHeatmapCalendar({
 
       {/* Footer Info */}
       {maxDay.duration_seconds > 0 && (
-        <div className="text-[11px] text-slate-400 flex items-center justify-between border-t border-white/[0.04] pt-2 mt-1">
+        <div
+          className="text-[11px] text-[var(--text-muted)] flex items-center justify-between border-t pt-2 mt-1"
+          style={{ borderColor: "var(--border-color)" }}
+        >
           <span>
             {t("statistics.highest_day")}:{" "}
-            <strong className="text-white capitalize">
+            <strong className="text-[var(--text-primary)] capitalize">
               {new Date(maxDay.date).toLocaleDateString(localeStr, {
                 day: "numeric",
                 month: "long",
@@ -248,7 +299,7 @@ export default function ActivityHeatmapCalendar({
             </strong>{" "}
             ({formatDuration(maxDay.duration_seconds)})
           </span>
-          <span className="text-slate-500 font-mono">
+          <span className="text-[var(--text-muted)] font-mono">
             {year}
           </span>
         </div>

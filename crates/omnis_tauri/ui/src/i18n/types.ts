@@ -1174,5 +1174,19 @@ export interface TranslationSchema {
     weekday_fri: string;
     weekday_sun: string;
     week_num: string;
+    lifetime_playtime: string;
+    all_time: string;
+    reset_button: string;
+    reset_title: string;
+    reset_confirm_msg: string;
+    reset_sessions_only: string;
+    reset_sessions_only_desc: string;
+    reset_all_playtime: string;
+    reset_all_playtime_desc: string;
+    reset_success: string;
+    cancel: string;
+    confirm: string;
+    no_sessions_recorded_title: string;
+    no_sessions_recorded_desc: string;
   };
 }

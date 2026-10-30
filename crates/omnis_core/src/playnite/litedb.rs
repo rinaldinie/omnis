@@ -464,6 +464,7 @@ pub fn bson_doc_to_game_dto(doc: &BsonDocument) -> Option<PlayniteGameDto> {
         InstallDirectory: install_directory,
         Cover: cover,
         Background: background,
+        Sessions: None,
     })
 }
 

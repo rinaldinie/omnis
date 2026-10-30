@@ -76,18 +76,24 @@ export default function DistributionBar({ title, items, type }: DistributionBarP
       if (key.includes("ubisoft") || key.includes("uplay")) return <UbisoftIcon className="w-3.5 h-3.5 shrink-0" />;
       if (key.includes("battle")) return <BattlenetIcon className="w-3.5 h-3.5 shrink-0" />;
       if (key.includes("itch")) return <ItchIcon className="w-3.5 h-3.5 shrink-0" />;
-      return <StoreIcon library={name} className="w-3.5 h-3.5 shrink-0 text-slate-400" />;
+      return <StoreIcon library={name} className="w-3.5 h-3.5 shrink-0 text-[var(--text-muted)]" />;
     }
-    return <Gamepad2 className="w-3.5 h-3.5 shrink-0 text-slate-400" />;
+    return <Gamepad2 className="w-3.5 h-3.5 shrink-0 text-[var(--text-muted)]" />;
   };
 
   return (
-    <div className="flex flex-col gap-3 p-5 rounded-2xl bg-white/[0.02] border border-white/[0.06]">
+    <div
+      className="flex flex-col gap-3 p-5 rounded-2xl border transition-colors duration-300"
+      style={{
+        backgroundColor: "var(--bg-card)",
+        borderColor: "var(--border-color)",
+      }}
+    >
       <div className="flex items-center justify-between">
-        <span className="text-xs font-bold uppercase tracking-wider text-slate-300">
+        <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]">
           {title}
         </span>
-        <span className="text-xs text-slate-400 font-mono">
+        <span className="text-xs text-[var(--text-muted)] font-mono">
           {items.length} {type === "store" ? t("statistics.stores_label") : t("statistics.genres_label")}
         </span>
       </div>
@@ -95,7 +101,13 @@ export default function DistributionBar({ title, items, type }: DistributionBarP
       {/* Segmented Horizontal Progress Bar */}
       {items.length > 0 ? (
         <>
-          <div className="h-3 w-full rounded-full overflow-hidden flex bg-white/[0.04] p-0.5 border border-white/5">
+          <div
+            className="h-3 w-full rounded-full overflow-hidden flex p-0.5 border"
+            style={{
+              backgroundColor: "var(--bg-surface)",
+              borderColor: "var(--border-color)",
+            }}
+          >
             {items.map((item, idx) => (
               <div
                 key={idx}
@@ -118,7 +130,11 @@ export default function DistributionBar({ title, items, type }: DistributionBarP
               return (
                 <div
                   key={idx}
-                  className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-white/[0.02] border border-white/[0.04] text-xs hover:border-white/10 transition-colors"
+                  className="flex items-center justify-between px-2.5 py-1.5 rounded-lg border text-xs transition-colors"
+                  style={{
+                    backgroundColor: "color-mix(in srgb, var(--bg-surface) 60%, transparent)",
+                    borderColor: "var(--border-color)",
+                  }}
                 >
                   <div className="flex items-center gap-2 min-w-0">
                     <span
@@ -126,15 +142,21 @@ export default function DistributionBar({ title, items, type }: DistributionBarP
                       style={{ backgroundColor: color }}
                     />
                     {renderIcon(item.name)}
-                    <span className="truncate font-medium text-slate-200 capitalize">
+                    <span className="truncate font-medium text-[var(--text-primary)] capitalize">
                       {item.name}
                     </span>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-slate-400 text-[11px] font-mono">
+                    <span className="text-[var(--text-muted)] text-[11px] font-mono">
                       {formatDuration(item.duration_seconds)}
                     </span>
-                    <span className="text-emerald-400 font-semibold text-[11px] bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                    <span
+                      className="font-semibold text-[11px] px-1.5 py-0.5 rounded"
+                      style={{
+                        backgroundColor: "color-mix(in srgb, var(--accent-primary, #6366f1) 15%, transparent)",
+                        color: "var(--accent-primary, #6366f1)",
+                      }}
+                    >
                       {item.percentage.toFixed(0)}%
                     </span>
                   </div>
@@ -144,7 +166,7 @@ export default function DistributionBar({ title, items, type }: DistributionBarP
           </div>
         </>
       ) : (
-        <div className="py-6 text-center text-xs text-slate-500">
+        <div className="py-6 text-center text-xs text-[var(--text-muted)]">
           {t("statistics.no_data")}
         </div>
       )}

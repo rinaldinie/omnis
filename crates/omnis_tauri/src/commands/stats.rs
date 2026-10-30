@@ -1,4 +1,3 @@
-use omnis_core::StatsRepository;
 use omnis_sdk::{GameStatsDto, GlobalStatsDto};
 use tauri::State;
 use uuid::Uuid;
@@ -27,5 +26,17 @@ pub async fn get_game_statistics(
     state
         .db
         .get_game_statistics(id)
+        .map_err(|e| e.to_string())
+}
+
+/// Reset game session history and optionally zero out playtime across all library games
+#[tauri::command]
+pub async fn reset_statistics(
+    reset_playtime: bool,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    state
+        .db
+        .reset_statistics(reset_playtime)
         .map_err(|e| e.to_string())
 }
