@@ -430,28 +430,7 @@ impl PlayniteImporter {
         )?;
 
         if !options.dry_run {
-            if let Some(sessions) = &item.Sessions {
-                for s in sessions {
-                    if let (Some(date_str), Some(dur)) = (&s.date, s.elapsed_seconds) {
-                        if dur > 0 && !date_str.trim().is_empty() {
-                            let session_id = Uuid::new_v4().to_string();
-                            let inserted = conn.execute(
-                                "INSERT INTO game_sessions (id, game_id, started_at, ended_at, duration_seconds)
-                                 SELECT ?1, ?2, ?3, ?3, ?4
-                                 WHERE NOT EXISTS (
-                                     SELECT 1 FROM game_sessions WHERE game_id = ?2 AND started_at = ?3
-                                 );",
-                                params![session_id, existing.id, date_str.trim(), dur as i64],
-                            );
-                            if let Ok(n) = inserted {
-                                if n > 0 {
-                                    stats.sessions_imported += 1;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            Self::insert_game_sessions(conn, &existing.id, item.Sessions.as_deref(), stats);
         }
 
         Ok(())
@@ -536,31 +515,40 @@ impl PlayniteImporter {
         )?;
 
         if !options.dry_run {
-            if let Some(sessions) = &item.Sessions {
-                for s in sessions {
-                    if let (Some(date_str), Some(dur)) = (&s.date, s.elapsed_seconds) {
-                        if dur > 0 && !date_str.trim().is_empty() {
-                            let session_id = Uuid::new_v4().to_string();
-                            let inserted = conn.execute(
-                                "INSERT INTO game_sessions (id, game_id, started_at, ended_at, duration_seconds)
-                                 SELECT ?1, ?2, ?3, ?3, ?4
-                                 WHERE NOT EXISTS (
-                                     SELECT 1 FROM game_sessions WHERE game_id = ?2 AND started_at = ?3
-                                 );",
-                                params![session_id, new_id, date_str.trim(), dur as i64],
-                            );
-                            if let Ok(n) = inserted {
-                                if n > 0 {
-                                    stats.sessions_imported += 1;
-                                }
+            Self::insert_game_sessions(conn, &new_id, item.Sessions.as_deref(), stats);
+        }
+
+        Ok(())
+    }
+
+    fn insert_game_sessions(
+        conn: &rusqlite::Connection,
+        game_id: &str,
+        sessions: Option<&[PlayniteSessionDto]>,
+        stats: &mut PlayniteImportStats,
+    ) {
+        if let Some(sessions) = sessions {
+            for s in sessions {
+                if let (Some(date_str), Some(dur)) = (&s.date, s.elapsed_seconds) {
+                    if dur > 0 && !date_str.trim().is_empty() {
+                        let session_id = Uuid::new_v4().to_string();
+                        let inserted = conn.execute(
+                            "INSERT INTO game_sessions (id, game_id, started_at, ended_at, duration_seconds)
+                             SELECT ?1, ?2, ?3, ?3, ?4
+                             WHERE NOT EXISTS (
+                                 SELECT 1 FROM game_sessions WHERE game_id = ?2 AND started_at = ?3
+                             );",
+                            params![session_id, game_id, date_str.trim(), dur as i64],
+                        );
+                        if let Ok(n) = inserted {
+                            if n > 0 {
+                                stats.sessions_imported += 1;
                             }
                         }
                     }
                 }
             }
         }
-
-        Ok(())
     }
 
     /// Import games from a JSON string payload.

@@ -464,7 +464,7 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
             <div className="p-3.5 rounded-xl border border-cyan-500/20 bg-cyan-500/5 text-cyan-300 flex items-start gap-3 text-xs">
               <Info className="w-4 h-4 shrink-0 text-cyan-400 mt-0.5" />
               <div className="leading-relaxed">
-                {t('general_settings.fullscreen_shortcut_note') || t('general_settings.big_picture_shortcut_note')}
+                {t('general_settings.fullscreen_shortcut_note')}
               </div>
             </div>
           </div>

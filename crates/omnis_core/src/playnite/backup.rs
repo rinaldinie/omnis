@@ -155,6 +155,16 @@ struct GameActivityItem {
     elapsed_seconds: Option<u64>,
 }
 
+fn filter_activity_items(items: impl IntoIterator<Item = GameActivityItem>) -> Vec<(String, u64)> {
+    items
+        .into_iter()
+        .filter_map(|it| match (it.date_session, it.elapsed_seconds) {
+            (Some(d), Some(s)) if s > 0 && !d.trim().is_empty() => Some((d, s)),
+            _ => None,
+        })
+        .collect()
+}
+
 /// Extract sessions from Playnite GameActivity extension files (e.g. `ExtensionsData/.../GameActivity/<guid>.json`)
 fn extract_playnite_game_activities<R: Read + Seek>(
     archive: &mut ZipArchive<R>,
@@ -172,23 +182,11 @@ fn extract_playnite_game_activities<R: Read + Seek>(
                         let sessions: Vec<(String, u64)> = if let Ok(doc) =
                             serde_json::from_str::<GameActivityFile>(&content)
                         {
-                            doc.items
-                                .into_iter()
-                                .filter_map(|it| match (it.date_session, it.elapsed_seconds) {
-                                    (Some(d), Some(s)) if s > 0 && !d.is_empty() => Some((d, s)),
-                                    _ => None,
-                                })
-                                .collect()
+                            filter_activity_items(doc.items)
                         } else if let Ok(items) =
                             serde_json::from_str::<Vec<GameActivityItem>>(&content)
                         {
-                            items
-                                .into_iter()
-                                .filter_map(|it| match (it.date_session, it.elapsed_seconds) {
-                                    (Some(d), Some(s)) if s > 0 && !d.is_empty() => Some((d, s)),
-                                    _ => None,
-                                })
-                                .collect()
+                            filter_activity_items(items)
                         } else {
                             Vec::new()
                         };
