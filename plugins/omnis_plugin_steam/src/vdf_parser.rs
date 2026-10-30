@@ -429,7 +429,7 @@ mod tests {
         assert!(game.is_installed);
         assert_eq!(
             game.install_dir,
-            Some(PathBuf::from("C:\\Steam\\steamapps\\common\\dota 2 beta"))
+            Some(dummy_dir.join("common").join("dota 2 beta"))
         );
     }
 }

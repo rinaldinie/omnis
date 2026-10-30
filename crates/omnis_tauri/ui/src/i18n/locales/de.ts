@@ -1138,5 +1138,12 @@ export const de: TranslationSchema = {
     confirm: 'Bestätigen',
     no_sessions_recorded_title: 'Keine detaillierten Sitzungen für dieses Jahr erfasst',
     no_sessions_recorded_desc: 'Der Aktivitätskalender und die Sitzungsmetriken werden automatisch erfasst, wenn Spiele über Omnis gestartet werden, oder durch den Import eines Playnite-Backups mit der GameActivity-Erweiterung.',
+    day_details_title: 'Aktivitätsdetails für {date}',
+    day_sessions_count: '{count} Sitzungen erfasst',
+    click_to_view_details: 'Klicken für Details',
+    close_details: 'Details schließen',
+    session_time_range: '{start} – {end}',
+    view_game_in_library: 'In Bibliothek öffnen',
+    and_more_sessions: '+{count} weitere Sitzungen...',
   },
 };

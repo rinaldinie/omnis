@@ -1,5 +1,6 @@
 use chrono::{Duration, Utc};
 use omnis_core::db::Database;
+use omnis_core::StatsRepository;
 use omnis_sdk::DiscoveredGame;
 use rusqlite::params;
 use std::path::PathBuf;
@@ -98,6 +99,20 @@ fn test_global_statistics_and_game_metrics() {
 
     assert_eq!(global_stats.total_playtime_year_seconds, 10800);
     assert!(!global_stats.activity_heatmap.is_empty());
+    let today_activity = &global_stats.activity_heatmap[0];
+    assert_eq!(today_activity.count_sessions, 2);
+    assert_eq!(today_activity.sessions.len(), 2);
+    assert_eq!(today_activity.sessions[0].game_title, "Witcher 3");
+    assert_eq!(today_activity.sessions[0].library_id.as_deref(), Some("steam"));
+    assert_eq!(today_activity.sessions[0].duration_seconds, 3600);
+    assert_eq!(today_activity.sessions[1].duration_seconds, 7200);
+
+    // Test get_day_sessions directly
+    let day_sessions = db
+        .get_day_sessions(&today_activity.date)
+        .expect("Failed to get day sessions");
+    assert_eq!(day_sessions.len(), 2);
+    assert_eq!(day_sessions[0].game_title, "Witcher 3");
     
     // Check backlog summary: 1 completed out of 2 total -> 50%
     assert_eq!(global_stats.backlog_summary.total_games, 2);
@@ -130,4 +145,62 @@ fn test_global_statistics_and_game_metrics() {
         .get_global_statistics(Some(now.format("%Y").to_string().parse().unwrap()))
         .expect("Failed to get global stats after full reset");
     assert_eq!(after_full_reset.total_playtime_lifetime_seconds, 0);
+}
+
+#[test]
+fn test_ingest_external_sessions_idempotency_and_metrics() {
+    use omnis_sdk::ExternalSessionDto;
+
+    let db = Database::open_in_memory().expect("Failed to open DB");
+
+    // Pre-populate with Steam game "Prince of Persia The Lost Crown" (appid: 2751000)
+    let games = vec![DiscoveredGame {
+        library_id: "steam".to_string(),
+        external_id: "2751000".to_string(),
+        title: "Prince of Persia The Lost Crown".to_string(),
+        install_dir: Some(PathBuf::from("D:\\SteamLibrary\\steamapps\\common\\Prince of Persia The Lost Crown")),
+        is_installed: true,
+        play_action: None,
+        playtime_seconds: 3600,
+        play_count: 1,
+        last_activity: Some(Utc::now() - Duration::days(10)),
+        cover_image_path: None,
+        background_image_path: None,
+    }];
+
+    db.ingest_discovered_batch(&games).expect("Failed to ingest games");
+
+    let sample_sessions = vec![
+        ExternalSessionDto {
+            external_id: "2751000".to_string(),
+            started_at: "2026-10-27T19:58:27Z".to_string(),
+            ended_at: "2026-10-27T22:33:52Z".to_string(),
+            duration_seconds: 9325,
+        },
+        ExternalSessionDto {
+            external_id: "9999999".to_string(), // Unowned/untracked game
+            started_at: "2026-10-28T21:58:39Z".to_string(),
+            ended_at: "2026-10-28T22:20:20Z".to_string(),
+            duration_seconds: 1301,
+        },
+    ];
+
+    // 1. Initial ingest: should import 1 session for 2751000 and skip 9999999
+    let added = db.ingest_external_sessions("steam", &sample_sessions).expect("Ingest failed");
+    assert_eq!(added, 1, "Must import 1 session for Prince of Persia");
+
+    // Verify session in database
+    let all_games = db.get_all_games().unwrap();
+    let pop = all_games.iter().find(|g| g.external_id == "2751000").unwrap();
+    assert!(pop.playtime_seconds >= 9325, "Playtime must be updated to at least the session duration (9325s)");
+    assert_eq!(pop.play_count, 1);
+
+    // Verify game statistics shows session metrics
+    let game_stats = db.get_game_statistics(pop.id).unwrap();
+    assert_eq!(game_stats.longest_session_seconds, 9325);
+    assert_eq!(game_stats.average_session_seconds, 9325);
+
+    // 2. Second ingest: must be strictly idempotent (0 duplicate sessions added)
+    let added_second = db.ingest_external_sessions("steam", &sample_sessions).expect("Second ingest failed");
+    assert_eq!(added_second, 0, "Second ingest must be idempotent and add 0 duplicate sessions");
 }

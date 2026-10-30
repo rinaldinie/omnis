@@ -613,10 +613,22 @@ export interface PlayniteImportProgressPayload {
 // Game & Library Statistics Types
 // ============================================================================
 
+export interface DaySessionDto {
+  id: string;
+  game_id: string;
+  game_title: string;
+  library_id?: string;
+  cover_image?: string;
+  started_at: string;
+  ended_at: string;
+  duration_seconds: number;
+}
+
 export interface DayActivityDto {
   date: string; // "YYYY-MM-DD"
   count_sessions: number;
   duration_seconds: number;
+  sessions?: DaySessionDto[];
 }
 
 export interface CategoryShareDto {

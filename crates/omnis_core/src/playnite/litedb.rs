@@ -399,6 +399,8 @@ pub fn bson_doc_to_game_dto(doc: &BsonDocument) -> Option<PlayniteGameDto> {
     }
 
     // Must be a Playnite game document: games have GameId or PluginId
+    let internal_id = doc.get_guid_string("_id");
+
     let game_id = doc
         .get_str("GameId")
         .map(|s| s.to_string())
@@ -412,7 +414,7 @@ pub fn bson_doc_to_game_dto(doc: &BsonDocument) -> Option<PlayniteGameDto> {
         return None;
     }
 
-    let final_game_id = game_id.or_else(|| doc.get_guid_string("_id"));
+    let final_game_id = game_id.or_else(|| internal_id.clone());
 
     let playtime = doc
         .get_u64("Playtime")
@@ -448,6 +450,7 @@ pub fn bson_doc_to_game_dto(doc: &BsonDocument) -> Option<PlayniteGameDto> {
     let categories = doc.get_str_array("Categories");
 
     Some(PlayniteGameDto {
+        Id: internal_id,
         Name: name,
         GameId: final_game_id,
         PluginId: plugin_id,

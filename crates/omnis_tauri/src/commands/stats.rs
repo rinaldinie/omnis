@@ -1,8 +1,21 @@
-use omnis_sdk::{GameStatsDto, GlobalStatsDto};
+use omnis_core::StatsRepository;
+use omnis_sdk::{DaySessionDto, GameStatsDto, GlobalStatsDto};
 use tauri::State;
 use uuid::Uuid;
 
 use crate::types::AppState;
+
+/// Retrieve detailed session records for a single calendar day (YYYY-MM-DD)
+#[tauri::command]
+pub async fn get_day_sessions(
+    date: String,
+    state: State<'_, AppState>,
+) -> Result<Vec<DaySessionDto>, String> {
+    state
+        .db
+        .get_day_sessions(&date)
+        .map_err(|e| e.to_string())
+}
 
 /// Retrieve aggregated global statistics across all library games and sessions
 #[tauri::command]
@@ -39,4 +52,24 @@ pub async fn reset_statistics(
         .db
         .reset_statistics(reset_playtime)
         .map_err(|e| e.to_string())
+}
+
+/// Synchronize unrecorded local Steam sessions from gameprocess_log.txt into the database
+#[tauri::command]
+pub async fn sync_steam_sessions(
+    state: State<'_, AppState>,
+    app_handle: tauri::AppHandle,
+) -> Result<usize, String> {
+    let db = state.db.clone();
+    let count = tokio::task::spawn_blocking(move || {
+        crate::steam_sync::sync_local_steam_sessions(&db).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+
+    if count > 0 {
+        use tauri::Emitter;
+        let _ = app_handle.emit(omnis_sdk::constants::events::LIBRARY_UPDATED, ());
+    }
+    Ok(count)
 }

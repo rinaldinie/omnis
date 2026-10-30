@@ -19,12 +19,38 @@ pub use plugin::*;
 pub use settings_schema::*;
 pub use widget::*;
 
+/// Individual session summary within a day
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DaySessionDto {
+    pub id: String,
+    pub game_id: String,
+    pub game_title: String,
+    #[serde(default)]
+    pub library_id: Option<String>,
+    #[serde(default)]
+    pub cover_image: Option<String>,
+    pub started_at: String,
+    pub ended_at: String,
+    pub duration_seconds: u64,
+}
+
+/// External session payload to ingest into game_sessions
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ExternalSessionDto {
+    pub external_id: String,
+    pub started_at: String,
+    pub ended_at: String,
+    pub duration_seconds: u64,
+}
+
 /// Heatmap activity record for a single day
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DayActivityDto {
     pub date: String,
     pub count_sessions: u32,
     pub duration_seconds: u64,
+    #[serde(default)]
+    pub sessions: Vec<DaySessionDto>,
 }
 
 /// Category share for store or genre distributions

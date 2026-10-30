@@ -1154,5 +1154,12 @@ export interface TranslationSchema {
     confirm: string;
     no_sessions_recorded_title: string;
     no_sessions_recorded_desc: string;
+    day_details_title: string;
+    day_sessions_count: string;
+    click_to_view_details: string;
+    close_details: string;
+    session_time_range: string;
+    view_game_in_library: string;
+    and_more_sessions: string;
   };
 }

@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use omnis_sdk::GameSessionRecord;
+use omnis_sdk::{ExternalSessionDto, GameSessionRecord};
 use rusqlite::{params, OptionalExtension, Result};
 use uuid::Uuid;
 
@@ -48,6 +48,14 @@ pub trait SessionRepository: Send + Sync {
         &self,
         game_id: Uuid,
     ) -> Result<Vec<GameSessionRecord>, DatabaseError>;
+
+    /// Ingest external historical sessions for games matching the given library_id,
+    /// deduplicating against existing sessions and updating playtime metrics.
+    fn ingest_external_sessions(
+        &self,
+        library_id: &str,
+        sessions: &[ExternalSessionDto],
+    ) -> Result<usize, DatabaseError>;
 }
 
 impl SessionRepository for Database {
@@ -286,10 +294,120 @@ impl SessionRepository for Database {
         }
         Ok(sessions)
     }
+
+    fn ingest_external_sessions(
+        &self,
+        library_id: &str,
+        sessions: &[ExternalSessionDto],
+    ) -> Result<usize, DatabaseError> {
+        if sessions.is_empty() {
+            return Ok(0);
+        }
+
+        let mut conn = self.writer();
+
+        let mut stmt = conn.prepare(
+            "SELECT id, external_id FROM games WHERE library_id = ?1;",
+        )?;
+
+        let mut store_games: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+        let rows = stmt.query_map(params![library_id], |row| {
+            Ok((row.get::<_, String>(1)?, row.get::<_, String>(0)?))
+        })?;
+
+        for r in rows {
+            let (ext_id, id) = r?;
+            store_games.insert(ext_id, id);
+        }
+        drop(stmt);
+
+        let tx = conn.transaction()?;
+        let mut total_inserted = 0;
+        let mut updated_game_ids: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+
+        for s in sessions {
+            if let Some(game_id) = store_games.get(&s.external_id) {
+                let session_id = uuid::Uuid::new_v4().to_string();
+                let inserted = tx.execute(
+                    "INSERT INTO game_sessions (id, game_id, started_at, ended_at, duration_seconds)
+                     SELECT ?1, ?2, ?3, ?4, ?5
+                     WHERE NOT EXISTS (
+                         SELECT 1 FROM game_sessions
+                         WHERE game_id = ?2
+                           AND (
+                               started_at = ?3
+                               OR (ABS(duration_seconds - ?5) <= 5 AND SUBSTR(started_at, 1, 16) = SUBSTR(?3, 1, 16))
+                           )
+                     );",
+                    params![
+                        session_id,
+                        game_id,
+                        s.started_at,
+                        s.ended_at,
+                        s.duration_seconds as i64
+                    ],
+                )?;
+
+                if inserted > 0 {
+                    total_inserted += 1;
+                    let entry = updated_game_ids.entry(game_id.clone()).or_insert_with(|| s.ended_at.clone());
+                    if s.ended_at > *entry {
+                        *entry = s.ended_at.clone();
+                    }
+                }
+            }
+        }
+
+        // Update play_count, playtime_seconds, and last_activity for touched games
+        for (gid, last_ended) in updated_game_ids {
+            let session_count: i64 = tx
+                .query_row(
+                    "SELECT COUNT(*) FROM game_sessions WHERE game_id = ?1;",
+                    params![gid],
+                    |r| r.get(0),
+                )
+                .unwrap_or(0);
+
+            let sum_duration: i64 = tx
+                .query_row(
+                    "SELECT COALESCE(SUM(duration_seconds), 0) FROM game_sessions WHERE game_id = ?1;",
+                    params![gid],
+                    |r| r.get(0),
+                )
+                .unwrap_or(0);
+
+            tx.execute(
+                "UPDATE games SET
+                    play_count = MAX(play_count, ?1),
+                    playtime_seconds = MAX(playtime_seconds, ?2),
+                    last_activity = CASE
+                        WHEN last_activity IS NULL OR ?3 > last_activity THEN ?3
+                        ELSE last_activity
+                    END,
+                    completion_status = CASE
+                        WHEN (completion_status IS NULL OR completion_status = 'NotPlayed') AND ?2 > 0 THEN 'Playing'
+                        ELSE completion_status
+                    END
+                 WHERE id = ?4;",
+                params![session_count as i32, sum_duration, last_ended, gid],
+            )?;
+        }
+
+        tx.commit()?;
+        Ok(total_inserted)
+    }
 }
 
 // Inherent methods forwarding to SessionRepository for backward compatibility
 impl Database {
+    #[inline]
+    pub fn ingest_external_sessions(
+        &self,
+        library_id: &str,
+        sessions: &[ExternalSessionDto],
+    ) -> Result<usize, DatabaseError> {
+        SessionRepository::ingest_external_sessions(self, library_id, sessions)
+    }
     #[inline]
     pub fn start_play_session(
         &self,

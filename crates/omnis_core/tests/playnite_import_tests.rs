@@ -76,6 +76,7 @@ fn test_dry_run_does_not_mutate_database() {
 
     let items = vec![
         PlayniteGameDto {
+            Id: None,
             Name: "Hades II".to_string(),
             GameId: Some("1145350".to_string()),
             PluginId: Some("cb91aec9-6843-410e-a02b-a64c48325983".to_string()),
@@ -117,6 +118,7 @@ fn test_playnite_import_and_idempotency() {
 
     let items = vec![
         PlayniteGameDto {
+            Id: None,
             Name: "The Witcher 3".to_string(),
             GameId: Some("witcher-3-wild-hunt".to_string()),
             PluginId: Some("aebe8b7c-6dc3-4a66-af31-e7375c6b5e9e".to_string()),
@@ -136,6 +138,7 @@ fn test_playnite_import_and_idempotency() {
             Sessions: None,
         },
         PlayniteGameDto {
+            Id: None,
             Name: "Celeste".to_string(),
             GameId: Some("celeste".to_string()),
             PluginId: Some("00000000-0000-0000-0000-000000000000".to_string()), // Manual custom game
@@ -228,6 +231,7 @@ fn test_playtime_merge_with_historical_sessions() {
 
     // 1. Playnite import with lower playtime (1200s) when Omnis already has sessions
     let playnite_lower = vec![PlayniteGameDto {
+        Id: None,
         Name: "Counter-Strike 2".to_string(),
         GameId: Some("730".to_string()),
         PluginId: Some("cb91aec9-6843-410e-a02b-a64c48325983".to_string()),
@@ -256,6 +260,7 @@ fn test_playtime_merge_with_historical_sessions() {
 
     // 2. Playnite import with higher playtime (10000s)
     let playnite_higher = vec![PlayniteGameDto {
+        Id: None,
         Name: "Counter-Strike 2".to_string(),
         GameId: Some("730".to_string()),
         PluginId: Some("cb91aec9-6843-410e-a02b-a64c48325983".to_string()),
@@ -299,6 +304,7 @@ fn test_image_caching_on_import() {
     };
 
     let items = vec![PlayniteGameDto {
+        Id: None,
         Name: "Portal 2".to_string(),
         GameId: Some("620".to_string()),
         PluginId: Some("cb91aec9-6843-410e-a02b-a64c48325983".to_string()),
@@ -560,6 +566,18 @@ fn test_synthetic_playnite_backup_inspection_and_import() {
         zip_writer.start_file("libraryfiles/p2/cover.jpg", zip_opts).unwrap();
         zip_writer.write_all(b"FAKE_JPEG_DATA_COVER").unwrap();
 
+        zip_writer
+            .start_file(
+                "extensiondata/afbb1a0d-04a1-4d0c-9afa-c6e42ca855b4/GameActivity/01010101-0101-0101-0101-010101010101.json",
+                zip_opts,
+            )
+            .unwrap();
+        zip_writer
+            .write_all(
+                br#"{"Id":"01010101-0101-0101-0101-010101010101","Name":"Portal 2","Items":[{"DateSession":"2026-10-25T14:00:00Z","ElapsedSeconds":1800}]}"#,
+            )
+            .unwrap();
+
         zip_writer.finish().unwrap();
     }
 
@@ -631,6 +649,7 @@ fn test_synthetic_playnite_backup_inspection_and_import() {
     assert_eq!(live_stats.games_created, 0);
     assert_eq!(live_stats.playtime_updated, 1);
     assert_eq!(live_stats.images_cached, 1);
+    assert_eq!(live_stats.sessions_imported, 1);
 
     // Verify DB WAS updated
     let game_after = db.get_game_by_id(p2_id).unwrap().unwrap();
@@ -651,7 +670,7 @@ fn test_synthetic_playnite_backup_inspection_and_import() {
 
 #[test]
 fn test_real_playnite_backup_zip_inspection_if_file_exists() {
-    let backup_path = std::path::Path::new("/mnt/d/progetti/omnis/omnis/PlayniteBackup-2026-10-24-10-43-43.zip");
+    let backup_path = std::path::Path::new("/mnt/d/progetti/omnis/omnis/PlayniteBackup-2026-10-30-18-39-17.zip");
     if !backup_path.exists() {
         eprintln!("Playnite backup file not found, skipping real zip test");
         return;
@@ -662,12 +681,23 @@ fn test_real_playnite_backup_zip_inspection_if_file_exists() {
     let db = Database::new_in_memory().unwrap();
     db.migrate().unwrap();
 
-    // Pre-populate with Frozen Flame Playtest (Steam appid 1948950, which has 1080s playtime in the backup)
+    // Pre-populate with Frozen Flame Playtest (Steam appid 1948950)
     let ff_id = Uuid::new_v4();
     db.insert_custom_game(
         ff_id,
         "Frozen Flame Playtest",
         "frozen flame playtest",
+        None,
+        vec![],
+        None,
+    ).unwrap();
+
+    // Pre-populate with Dead Cells (Steam appid 588650, which has 9 sessions in GameActivity)
+    let dc_id = Uuid::new_v4();
+    db.insert_custom_game(
+        dc_id,
+        "Dead Cells",
+        "dead cells",
         None,
         vec![],
         None,
@@ -679,14 +709,18 @@ fn test_real_playnite_backup_zip_inspection_if_file_exists() {
             "UPDATE games SET library_id = 'steam', external_id = '1948950', playtime_seconds = 60 WHERE id = ?1;",
             rusqlite::params![ff_id.to_string()],
         ).unwrap();
+        conn.execute(
+            "UPDATE games SET library_id = 'steam', external_id = '588650', playtime_seconds = 100 WHERE id = ?1;",
+            rusqlite::params![dc_id.to_string()],
+        ).unwrap();
     }
 
     // Inspect real backup
     let inspection = db.inspect_playnite_backup(backup_path).expect("Failed to inspect real backup");
     assert!(inspection.total_games_in_backup >= 2060 && inspection.total_games_in_backup <= 2070);
-    assert_eq!(inspection.matching_games_in_library, 1);
-    assert_eq!(inspection.non_matching_games, inspection.total_games_in_backup - 1);
-    assert_eq!(inspection.playtime_updates_available, 1);
+    assert_eq!(inspection.matching_games_in_library, 2);
+    assert_eq!(inspection.non_matching_games, inspection.total_games_in_backup - 2);
+    assert_eq!(inspection.playtime_updates_available, 2);
     assert!(inspection.missing_covers_available >= 1);
 
     // Import real backup
@@ -707,10 +741,11 @@ fn test_real_playnite_backup_zip_inspection_if_file_exists() {
     }).unwrap();
 
     assert_eq!(stats.total_read, expected_total);
-    assert_eq!(stats.games_merged, 1);
+    assert_eq!(stats.games_merged, 2);
     assert_eq!(stats.games_created, 0);
-    assert_eq!(stats.playtime_updated, 1);
+    assert_eq!(stats.playtime_updated, 2);
     assert_eq!(reported_progress, expected_total);
+    assert_eq!(stats.sessions_imported, 9, "Must import all 9 GameActivity sessions for Dead Cells");
 
     // Verify Frozen Flame Playtest playtime was updated to 1080
     let game = db.get_game_by_id(ff_id).unwrap().unwrap();
@@ -730,6 +765,7 @@ fn test_playnite_session_activity_import() {
     db.migrate().expect("DB migration failed");
 
     let items = vec![PlayniteGameDto {
+        Id: None,
         Name: "Dark Souls III".to_string(),
         GameId: Some("374320".to_string()),
         PluginId: Some("cb91aec9-6843-410e-a02b-a64c48325983".to_string()),

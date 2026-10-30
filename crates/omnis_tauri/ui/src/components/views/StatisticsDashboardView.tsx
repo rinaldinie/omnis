@@ -10,7 +10,13 @@ import { RefreshCw, Sparkles, TrendingUp, Trash2, Check } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import soundEffects from "../../utils/soundEffects";
 
-export default function StatisticsDashboardView() {
+interface StatisticsDashboardViewProps {
+  onSelectGame?: (gameId: string) => void;
+}
+
+export default function StatisticsDashboardView({
+  onSelectGame,
+}: StatisticsDashboardViewProps = {}) {
   const { t } = useTranslation();
   const currentYear = new Date().getUTCFullYear();
   const [selectedYear, setSelectedYear] = useState<number>(currentYear);
@@ -278,6 +284,7 @@ export default function StatisticsDashboardView() {
           <ActivityHeatmapCalendar
             activityData={stats.activity_heatmap}
             year={selectedYear}
+            onSelectGame={onSelectGame}
           />
 
           {/* Section 2: Store & Genre Distributions */}

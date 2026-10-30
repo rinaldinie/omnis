@@ -1138,5 +1138,12 @@ export const ja: TranslationSchema = {
     confirm: '確定',
     no_sessions_recorded_title: '今年の詳細なセッションは記録されていません',
     no_sessions_recorded_desc: 'アクティビティカレンダーとセッション指標は、Omnisからゲームを起動するか、GameActivity拡張機能を含むPlayniteバックアップをインポートすることで自動的に記録されます。',
+    day_details_title: '{date} のアクティビティ詳細',
+    day_sessions_count: '{count} 件のセッションが記録されました',
+    click_to_view_details: 'クリックして詳細を表示',
+    close_details: '詳細を閉じる',
+    session_time_range: '{start} ～ {end}',
+    view_game_in_library: 'ライブラリで開く',
+    and_more_sessions: '他 {count} 件のセッション...',
   },
 };

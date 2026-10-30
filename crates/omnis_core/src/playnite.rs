@@ -36,6 +36,7 @@ namespace OmnisPlayniteExporter
         public void ExportLibrary(string outputPath)
         {
             var export = PlayniteApi.Database.Games.Select(g => new {
+                Id = g.Id.ToString(),
                 g.Name,
                 g.GameId,
                 g.PluginId,
@@ -95,6 +96,8 @@ pub struct PlayniteSessionDto {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[allow(non_snake_case)]
 pub struct PlayniteGameDto {
+    #[serde(alias = "id", alias = "Id", default)]
+    pub Id: Option<String>,
     #[serde(alias = "name")]
     pub Name: String,
     #[serde(alias = "game_id", alias = "gameId", default)]
@@ -536,7 +539,9 @@ impl PlayniteImporter {
                             "INSERT INTO game_sessions (id, game_id, started_at, ended_at, duration_seconds)
                              SELECT ?1, ?2, ?3, ?3, ?4
                              WHERE NOT EXISTS (
-                                 SELECT 1 FROM game_sessions WHERE game_id = ?2 AND started_at = ?3
+                                 SELECT 1 FROM game_sessions
+                                 WHERE game_id = ?2
+                                   AND (started_at = ?3 OR (ABS(duration_seconds - ?4) <= 5 AND SUBSTR(started_at, 1, 16) = SUBSTR(?3, 1, 16)))
                              );",
                             params![session_id, game_id, date_str.trim(), dur as i64],
                         );

@@ -1,21 +1,27 @@
 import React, { useState } from "react";
-import { DayActivityDto } from "../../types";
+import { DayActivityDto, DaySessionDto, formatImageUrl } from "../../types";
 import { useTranslation } from "../../i18n";
+import { Clock, Calendar, X, ExternalLink } from "lucide-react";
+import soundEffects from "../../utils/soundEffects";
 
 interface ActivityHeatmapCalendarProps {
   activityData: DayActivityDto[];
   year: number;
+  onSelectGame?: (gameId: string) => void;
 }
 
 export default function ActivityHeatmapCalendar({
   activityData,
   year,
+  onSelectGame,
 }: ActivityHeatmapCalendarProps) {
   const { t, locale } = useTranslation();
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [hoveredDay, setHoveredDay] = useState<{
     date: string;
     duration: number;
     count: number;
+    sessions: DaySessionDto[];
     x: number;
     y: number;
   } | null>(null);
@@ -99,6 +105,19 @@ export default function ActivityHeatmapCalendar({
   };
   const localeStr = localeMap[locale] || "en-US";
 
+  const formatTime = (isoStr: string) => {
+    try {
+      const d = new Date(isoStr);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleTimeString(localeStr, {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      }
+    } catch (_) {}
+    return isoStr.slice(11, 16) || isoStr;
+  };
+
   let lastMonth = -1;
   weeks.forEach((week, wIdx) => {
     const firstDay = week.find((d) => d.inYear);
@@ -117,6 +136,8 @@ export default function ActivityHeatmapCalendar({
     (max, curr) => (curr.duration_seconds > max.duration_seconds ? curr : max),
     { date: "N/A", duration_seconds: 0, count_sessions: 0 }
   );
+
+  const selectedAct = selectedDate ? activityMap.get(selectedDate) : null;
 
   return (
     <div
@@ -213,24 +234,38 @@ export default function ActivityHeatmapCalendar({
                     const duration = act ? act.duration_seconds : 0;
                     const count = act ? act.count_sessions : 0;
                     const level = getLevel(duration);
+                    const isSelected = selectedDate === day.dateStr;
 
                     return (
                       <div
                         key={dIdx}
+                        onClick={() => {
+                          if (day.inYear && count > 0) {
+                            soundEffects.playSelect();
+                            setSelectedDate(isSelected ? null : day.dateStr);
+                          }
+                        }}
                         onMouseEnter={(e) => {
                           const rect = e.currentTarget.getBoundingClientRect();
                           setHoveredDay({
                             date: day.dateStr,
                             duration,
                             count,
+                            sessions: act?.sessions || [],
                             x: rect.left + rect.width / 2,
                             y: rect.top - 8,
                           });
                         }}
                         onMouseLeave={() => setHoveredDay(null)}
-                        className={`w-3 h-3 rounded-[3px] transition-all duration-150 cursor-pointer ${
+                        className={`w-3 h-3 rounded-[3px] transition-all duration-150 ${
                           day.inYear
-                            ? "hover:ring-1 hover:ring-[var(--accent-primary)] hover:scale-125 hover:z-10"
+                            ? count > 0
+                              ? `cursor-pointer hover:ring-2 hover:ring-[var(--accent-primary)] hover:scale-125 hover:z-10 ${
+                                  isSelected
+                                    ? "ring-2 ring-[var(--accent-primary)] scale-125 z-10 shadow-lg"
+                                    : ""
+                                }`
+                              : "cursor-default opacity-40 hover:opacity-80"
                             : "opacity-20 pointer-events-none"
                         }`}
                         style={{
@@ -249,7 +284,7 @@ export default function ActivityHeatmapCalendar({
       {/* Floating Tooltip with Auto-Flip */}
       {hoveredDay && (
         <div
-          className={`fixed z-50 pointer-events-none px-2.5 py-1.5 rounded-xl border shadow-2xl backdrop-blur-md text-center text-xs whitespace-nowrap animate-in fade-in zoom-in-95 duration-100 ${
+          className={`fixed z-50 pointer-events-none px-3 py-2 rounded-xl border shadow-2xl backdrop-blur-md text-left text-xs whitespace-nowrap animate-in fade-in zoom-in-95 duration-100 max-w-xs ${
             hoveredDay.y < 60
               ? "transform -translate-x-1/2 translate-y-3"
               : "transform -translate-x-1/2 -translate-y-full"
@@ -262,7 +297,7 @@ export default function ActivityHeatmapCalendar({
             color: "var(--text-primary)",
           }}
         >
-          <div className="font-semibold text-[var(--text-primary)] capitalize">
+          <div className="font-semibold text-[var(--text-primary)] capitalize text-center">
             {new Date(hoveredDay.date).toLocaleDateString(localeStr, {
               weekday: "short",
               day: "numeric",
@@ -271,7 +306,7 @@ export default function ActivityHeatmapCalendar({
             })}
           </div>
           <div
-            className="text-[11px] font-medium"
+            className="text-[11px] font-medium text-center mb-0.5"
             style={{ color: "var(--accent-primary, #6366f1)" }}
           >
             {hoveredDay.duration > 0
@@ -279,6 +314,205 @@ export default function ActivityHeatmapCalendar({
                   t(hoveredDay.count === 1 ? "statistics.session" : "statistics.sessions")
                 })`
               : t("statistics.no_sessions")}
+          </div>
+
+          {/* Individual Sessions Mini-Preview in Tooltip */}
+          {hoveredDay.sessions && hoveredDay.sessions.length > 0 && (
+            <div
+              className="border-t pt-1.5 mt-1 space-y-1 text-[11px]"
+              style={{ borderColor: "var(--border-color)" }}
+            >
+              {hoveredDay.sessions.slice(0, 3).map((s, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center justify-between gap-3 text-[var(--text-secondary)]"
+                >
+                  <span className="truncate max-w-[150px] font-medium text-[var(--text-primary)]">
+                    {s.game_title}
+                  </span>
+                  <span className="font-mono text-[10px] shrink-0 opacity-80">
+                    {formatDuration(s.duration_seconds)}
+                  </span>
+                </div>
+              ))}
+              {hoveredDay.sessions.length > 3 && (
+                <div className="text-[10px] text-[var(--text-muted)] italic text-center">
+                  {t("statistics.and_more_sessions", {
+                    count: hoveredDay.sessions.length - 3,
+                  })}
+                </div>
+              )}
+              <div className="text-[10px] text-[var(--accent-primary)] font-medium text-center pt-0.5 opacity-90">
+                {t("statistics.click_to_view_details")}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Selected Day Sessions Inspector Panel */}
+      {selectedDate && selectedAct && selectedAct.count_sessions > 0 && (
+        <div
+          className="p-4 rounded-xl border animate-in fade-in slide-in-from-top-2 duration-200 mt-2"
+          style={{
+            backgroundColor: "var(--bg-surface)",
+            borderColor: "var(--border-color)",
+          }}
+        >
+          <div
+            className="flex items-center justify-between gap-3 pb-3 border-b"
+            style={{ borderColor: "var(--border-color)" }}
+          >
+            <div className="flex items-center gap-2.5">
+              <div
+                className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                style={{
+                  backgroundColor:
+                    "color-mix(in srgb, var(--accent-primary, #6366f1) 15%, transparent)",
+                  color: "var(--accent-primary, #6366f1)",
+                }}
+              >
+                <Calendar className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-[var(--text-primary)]">
+                  {t("statistics.day_details_title", {
+                    date: new Date(selectedDate).toLocaleDateString(localeStr, {
+                      weekday: "long",
+                      day: "numeric",
+                      month: "long",
+                      year: "numeric",
+                    }),
+                  })}
+                </h3>
+                <span className="text-[11px] text-[var(--text-muted)]">
+                  {t("statistics.day_sessions_count", {
+                    count: selectedAct.count_sessions,
+                  })}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span
+                className="text-xs font-semibold px-2.5 py-1 rounded-full border"
+                style={{
+                  backgroundColor:
+                    "color-mix(in srgb, var(--accent-primary, #6366f1) 15%, transparent)",
+                  borderColor:
+                    "color-mix(in srgb, var(--accent-primary, #6366f1) 30%, transparent)",
+                  color: "var(--accent-primary, #6366f1)",
+                }}
+              >
+                {formatDuration(selectedAct.duration_seconds)}
+              </span>
+              <button
+                onClick={() => {
+                  soundEffects.playSelect();
+                  setSelectedDate(null);
+                }}
+                className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] transition-colors cursor-pointer"
+                title={t("statistics.close_details")}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* List of Sessions */}
+          <div className="mt-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {selectedAct.sessions?.map((session, sIdx) => {
+              const coverUrl = formatImageUrl(session.cover_image);
+              const startTime = formatTime(session.started_at);
+              const endTime = formatTime(session.ended_at);
+
+              return (
+                <div
+                  key={session.id || sIdx}
+                  className="flex items-center gap-3 p-3 rounded-xl border transition-all duration-200"
+                  style={{
+                    backgroundColor: "var(--bg-card)",
+                    borderColor: "var(--border-color)",
+                  }}
+                >
+                  {/* Cover image or initials fallback */}
+                  <div className="w-12 h-16 rounded-lg overflow-hidden shrink-0 bg-slate-900 border border-white/5 relative">
+                    {coverUrl ? (
+                      <img
+                        src={coverUrl}
+                        alt={session.game_title}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).style.display = "none";
+                        }}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center font-bold text-xs text-[var(--accent-primary)] bg-[var(--accent-glow)]">
+                        {session.game_title.slice(0, 2).toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Session Information */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-1">
+                      <h4
+                        className="text-xs font-bold text-[var(--text-primary)] truncate transition-colors"
+                        title={session.game_title}
+                      >
+                        {session.game_title}
+                      </h4>
+                      {session.library_id && (
+                        <span
+                          className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded border text-[var(--text-muted)] shrink-0"
+                          style={{ borderColor: "var(--border-color)" }}
+                        >
+                          {session.library_id}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-muted)] mt-1">
+                      <Clock className="w-3 h-3 shrink-0 opacity-70" />
+                      <span>
+                        {t("statistics.session_time_range", {
+                          start: startTime,
+                          end: endTime,
+                        })}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2 mt-2">
+                      <span
+                        className="text-[10px] font-semibold px-2 py-0.5 rounded-md"
+                        style={{
+                          backgroundColor:
+                            "color-mix(in srgb, var(--accent-primary, #6366f1) 12%, transparent)",
+                          color: "var(--accent-primary, #6366f1)",
+                        }}
+                      >
+                        {formatDuration(session.duration_seconds)}
+                      </span>
+
+                      {onSelectGame && session.game_id && (
+                        <button
+                          onClick={() => {
+                            soundEffects.playSelect();
+                            onSelectGame(session.game_id);
+                          }}
+                          className="text-[10px] font-medium text-[var(--text-muted)] hover:text-[var(--accent-primary)] flex items-center gap-1 cursor-pointer transition-colors"
+                          title={t("statistics.view_game_in_library")}
+                        >
+                          <span>{t("statistics.view_game_in_library")}</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

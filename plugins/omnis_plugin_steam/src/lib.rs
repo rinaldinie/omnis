@@ -1,9 +1,11 @@
 pub mod achievements;
 pub mod client;
 pub mod vdf_parser;
+pub mod gameprocess_log;
 
 pub use achievements::*;
 pub use client::*;
+pub use gameprocess_log::*;
 
 use async_trait::async_trait;
 use omnis_sdk::{

@@ -143,6 +143,10 @@ fn build_zip_image_index<R: Read + Seek>(archive: &mut ZipArchive<R>) -> HashMap
 
 #[derive(Debug, Deserialize)]
 struct GameActivityFile {
+    #[serde(alias = "id", alias = "Id", default)]
+    id: Option<String>,
+    #[serde(alias = "name", alias = "Name", default)]
+    name: Option<String>,
     #[serde(alias = "items", alias = "Items", default)]
     items: Vec<GameActivityItem>,
 }
@@ -176,22 +180,39 @@ fn extract_playnite_game_activities<R: Read + Seek>(
             if (name.contains("gameactivity") || name.contains("af129c15-0960-449e-b9ef-6910db9f187a"))
                 && name.ends_with(".json")
             {
-                if let Some(file_stem) = Path::new(&name).file_stem().and_then(|s| s.to_str()) {
-                    let mut content = String::new();
-                    if file.read_to_string(&mut content).is_ok() {
-                        let sessions: Vec<(String, u64)> = if let Ok(doc) =
-                            serde_json::from_str::<GameActivityFile>(&content)
-                        {
-                            filter_activity_items(doc.items)
-                        } else if let Ok(items) =
-                            serde_json::from_str::<Vec<GameActivityItem>>(&content)
-                        {
-                            filter_activity_items(items)
-                        } else {
-                            Vec::new()
-                        };
-                        if !sessions.is_empty() {
-                            map.insert(file_stem.to_ascii_lowercase(), sessions);
+                let file_stem = Path::new(&name)
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .map(|s| s.to_ascii_lowercase());
+                let mut content = String::new();
+                if file.read_to_string(&mut content).is_ok() {
+                    let (sessions, doc_id, doc_name) = if let Ok(doc) =
+                        serde_json::from_str::<GameActivityFile>(&content)
+                    {
+                        (filter_activity_items(doc.items), doc.id, doc.name)
+                    } else if let Ok(items) =
+                        serde_json::from_str::<Vec<GameActivityItem>>(&content)
+                    {
+                        (filter_activity_items(items), None, None)
+                    } else {
+                        (Vec::new(), None, None)
+                    };
+
+                    if !sessions.is_empty() {
+                        if let Some(stem) = file_stem {
+                            map.insert(stem, sessions.clone());
+                        }
+                        if let Some(id) = doc_id {
+                            let clean_id = id.trim().to_ascii_lowercase();
+                            if !clean_id.is_empty() {
+                                map.insert(clean_id, sessions.clone());
+                            }
+                        }
+                        if let Some(n) = doc_name {
+                            let clean_n = normalize_title(&n);
+                            if !clean_n.is_empty() {
+                                map.insert(format!("title:{}", clean_n), sessions);
+                            }
                         }
                     }
                 }
@@ -587,15 +608,44 @@ where
                 )?;
 
                 if !options.dry_run {
-                    let playnite_guid = item.GameId.as_deref().unwrap_or("").to_ascii_lowercase();
-                    if let Some(sessions) = activity_sessions.get(&playnite_guid) {
+                    let mut found_sessions = None;
+
+                    // 1. Try Playnite internal GUID (_id)
+                    if let Some(ref pid) = item.Id {
+                        let clean_pid = pid.trim().to_ascii_lowercase();
+                        if let Some(s) = activity_sessions.get(&clean_pid) {
+                            found_sessions = Some(s);
+                        }
+                    }
+
+                    // 2. Try store GameId
+                    if found_sessions.is_none() {
+                        if let Some(ref gid) = item.GameId {
+                            let clean_gid = gid.trim().to_ascii_lowercase();
+                            if let Some(s) = activity_sessions.get(&clean_gid) {
+                                found_sessions = Some(s);
+                            }
+                        }
+                    }
+
+                    // 3. Try normalized game title
+                    if found_sessions.is_none() {
+                        let title_key = format!("title:{}", normalize_title(&item.Name));
+                        if let Some(s) = activity_sessions.get(&title_key) {
+                            found_sessions = Some(s);
+                        }
+                    }
+
+                    if let Some(sessions) = found_sessions {
                         for (date_str, dur) in sessions {
                             let session_id = Uuid::new_v4().to_string();
                             let inserted = tx.execute(
                                 "INSERT INTO game_sessions (id, game_id, started_at, ended_at, duration_seconds)
                                  SELECT ?1, ?2, ?3, ?3, ?4
                                  WHERE NOT EXISTS (
-                                     SELECT 1 FROM game_sessions WHERE game_id = ?2 AND started_at = ?3
+                                     SELECT 1 FROM game_sessions
+                                     WHERE game_id = ?2
+                                       AND (started_at = ?3 OR (ABS(duration_seconds - ?4) <= 5 AND SUBSTR(started_at, 1, 16) = SUBSTR(?3, 1, 16)))
                                  );",
                                 params![session_id, existing.id, date_str, *dur as i64],
                             );
@@ -616,7 +666,9 @@ where
                                         "INSERT INTO game_sessions (id, game_id, started_at, ended_at, duration_seconds)
                                          SELECT ?1, ?2, ?3, ?3, ?4
                                          WHERE NOT EXISTS (
-                                             SELECT 1 FROM game_sessions WHERE game_id = ?2 AND started_at = ?3
+                                             SELECT 1 FROM game_sessions
+                                             WHERE game_id = ?2
+                                               AND (started_at = ?3 OR (ABS(duration_seconds - ?4) <= 5 AND SUBSTR(started_at, 1, 16) = SUBSTR(?3, 1, 16)))
                                          );",
                                         params![session_id, existing.id, date_str.trim(), dur as i64],
                                     );

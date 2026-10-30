@@ -1138,5 +1138,12 @@ export const it: TranslationSchema = {
     confirm: 'Conferma',
     no_sessions_recorded_title: 'Nessuna sessione dettagliata registrata per questo anno',
     no_sessions_recorded_desc: 'Il calendario e la cronologia delle sessioni vengono tracciati automaticamente quando avvii i giochi tramite Omnis, oppure importando un backup Playnite con l\'estensione GameActivity.',
+    day_details_title: 'Dettaglio Attività del {date}',
+    day_sessions_count: '{count} sessioni registrate',
+    click_to_view_details: 'Clicca per visualizzare i dettagli',
+    close_details: 'Chiudi dettagli',
+    session_time_range: '{start} – {end}',
+    view_game_in_library: 'Apri nella libreria',
+    and_more_sessions: '+{count} altre sessioni...',
   },
 };

@@ -4,7 +4,7 @@ use rusqlite::params;
 use uuid::Uuid;
 
 use omnis_sdk::{
-    BacklogSummaryDto, CategoryShareDto, DayActivityDto, GameStatsDto, GlobalStatsDto,
+    BacklogSummaryDto, CategoryShareDto, DayActivityDto, DaySessionDto, GameStatsDto, GlobalStatsDto,
     WeekPlaytimeDto,
 };
 use crate::db::{Database, DatabaseError};
@@ -108,6 +108,59 @@ fn query_activity_heatmap(
     conn: &rusqlite::Connection,
     year_str: &str,
 ) -> Result<Vec<DayActivityDto>, DatabaseError> {
+    // 1. Fetch all detailed sessions for this year with their game metadata
+    let mut session_stmt = conn.prepare(
+        "
+        SELECT
+            s.id,
+            s.game_id,
+            COALESCE(g.title, 'Unknown Game') AS game_title,
+            g.library_id,
+            g.cover_image_path AS cover_image,
+            s.started_at,
+            s.ended_at,
+            s.duration_seconds,
+            strftime('%Y-%m-%d', s.started_at) AS day
+        FROM game_sessions s
+        LEFT JOIN games g ON s.game_id = g.id
+        WHERE strftime('%Y', s.started_at) = ?1
+        ORDER BY s.started_at ASC
+        ",
+    )?;
+
+    let mut sessions_by_day: HashMap<String, Vec<DaySessionDto>> = HashMap::new();
+
+    let session_rows = session_stmt.query_map(params![year_str], |row| {
+        let id: String = row.get(0)?;
+        let game_id: String = row.get(1)?;
+        let game_title: String = row.get(2)?;
+        let library_id: Option<String> = row.get(3)?;
+        let cover_image: Option<String> = row.get(4)?;
+        let started_at: String = row.get(5)?;
+        let ended_at: String = row.get(6)?;
+        let duration_seconds: u64 = row.get::<_, i64>(7)?.max(0) as u64;
+        let day: String = row.get(8)?;
+
+        Ok((
+            day,
+            DaySessionDto {
+                id,
+                game_id,
+                game_title,
+                library_id,
+                cover_image,
+                started_at,
+                ended_at,
+                duration_seconds,
+            },
+        ))
+    })?;
+
+    for item in session_rows {
+        let (day, session) = item?;
+        sessions_by_day.entry(day).or_default().push(session);
+    }
+
     let mut heatmap_stmt = conn.prepare(
         "
         SELECT
@@ -127,15 +180,65 @@ fn query_activity_heatmap(
             let date: String = row.get(0)?;
             let count_sessions: u32 = row.get::<_, i64>(1)?.max(0) as u32;
             let duration_seconds: u64 = row.get::<_, i64>(2)?.max(0) as u64;
+            let sessions = sessions_by_day.remove(&date).unwrap_or_default();
             Ok(DayActivityDto {
                 date,
                 count_sessions,
                 duration_seconds,
+                sessions,
             })
         })?
         .collect::<Result<Vec<_>, _>>()?;
 
     Ok(activity_heatmap)
+}
+
+pub fn query_day_sessions(
+    conn: &rusqlite::Connection,
+    date_str: &str,
+) -> Result<Vec<DaySessionDto>, DatabaseError> {
+    let mut stmt = conn.prepare(
+        "
+        SELECT
+            s.id,
+            s.game_id,
+            COALESCE(g.title, 'Unknown Game') AS game_title,
+            g.library_id,
+            g.cover_image_path AS cover_image,
+            s.started_at,
+            s.ended_at,
+            s.duration_seconds
+        FROM game_sessions s
+        LEFT JOIN games g ON s.game_id = g.id
+        WHERE strftime('%Y-%m-%d', s.started_at) = ?1
+        ORDER BY s.started_at ASC
+        ",
+    )?;
+
+    let rows = stmt.query_map(params![date_str], |row| {
+        let id: String = row.get(0)?;
+        let game_id: String = row.get(1)?;
+        let game_title: String = row.get(2)?;
+        let library_id: Option<String> = row.get(3)?;
+        let cover_image: Option<String> = row.get(4)?;
+        let started_at: String = row.get(5)?;
+        let ended_at: String = row.get(6)?;
+        let duration_seconds: u64 = row.get::<_, i64>(7)?.max(0) as u64;
+
+        Ok(DaySessionDto {
+            id,
+            game_id,
+            game_title,
+            library_id,
+            cover_image,
+            started_at,
+            ended_at,
+            duration_seconds,
+        })
+    })?;
+
+    let sessions = rows.collect::<Result<Vec<_>, _>>()?;
+    Ok(sessions)
 }
 
 fn query_store_distribution(
@@ -372,11 +475,19 @@ pub trait StatsRepository: Send + Sync {
     /// Retrieve detailed session analytics and 4-week bar chart for a single game
     fn get_game_statistics(&self, game_id: Uuid) -> Result<GameStatsDto, DatabaseError>;
 
+    /// Retrieve all recorded play sessions for a given day (YYYY-MM-DD)
+    fn get_day_sessions(&self, date_str: &str) -> Result<Vec<DaySessionDto>, DatabaseError>;
+
     /// Reset game statistics (clears session history, and optionally zeroes games playtime/last_activity)
     fn reset_statistics(&self, reset_playtime: bool) -> Result<(), DatabaseError>;
 }
 
 impl StatsRepository for Database {
+    fn get_day_sessions(&self, date_str: &str) -> Result<Vec<DaySessionDto>, DatabaseError> {
+        let conn = self.reader();
+        query_day_sessions(&conn, date_str)
+    }
+
     fn get_global_statistics(&self, year: Option<i32>) -> Result<GlobalStatsDto, DatabaseError> {
         let conn = self.reader();
         let target_year = year.unwrap_or_else(|| Utc::now().year());

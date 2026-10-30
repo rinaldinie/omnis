@@ -158,12 +158,34 @@ impl AppBootstrap {
 
         let active_mgr = state.active_game_manager.clone();
         let db_ref = state.db.clone();
+        let db_steam = state.db.clone();
 
         app.manage(state);
 
         // Check if an installed game is already running and re-attach session on startup
         tauri::async_runtime::spawn(async move {
             active_mgr.check_and_reattach(&db_ref).await;
+        });
+
+        // Sync unrecorded Steam sessions from local gameprocess_log.txt on startup
+        let app_handle_steam = app.handle().clone();
+        tauri::async_runtime::spawn(async move {
+            let res = tokio::task::spawn_blocking(move || {
+                crate::steam_sync::sync_local_steam_sessions(&db_steam).map_err(|e| e.to_string())
+            })
+            .await;
+
+            match res {
+                Ok(Ok(count)) if count > 0 => {
+                    tracing::info!("Synchronized {} unrecorded Steam sessions on startup", count);
+                    use tauri::Emitter;
+                    let _ = app_handle_steam.emit(events::LIBRARY_UPDATED, ());
+                }
+                Ok(Err(e)) => {
+                    tracing::warn!("Steam session startup sync error: {}", e);
+                }
+                _ => {}
+            }
         });
 
         // If started with --fullscreen, enter fullscreen mode immediately
