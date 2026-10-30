@@ -7,6 +7,7 @@ use chrono::Utc;
 use omnis_sdk::constants::stores;
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 use zip::ZipArchive;
 
 use crate::db::Database;
@@ -138,6 +139,68 @@ fn build_zip_image_index<R: Read + Seek>(archive: &mut ZipArchive<R>) -> HashMap
         }
     }
     index
+}
+
+#[derive(Debug, Deserialize)]
+struct GameActivityFile {
+    #[serde(alias = "items", alias = "Items", default)]
+    items: Vec<GameActivityItem>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GameActivityItem {
+    #[serde(alias = "date_session", alias = "DateSession", alias = "date", alias = "Date", default)]
+    date_session: Option<String>,
+    #[serde(alias = "elapsed_seconds", alias = "ElapsedSeconds", alias = "duration_seconds", alias = "duration", default)]
+    elapsed_seconds: Option<u64>,
+}
+
+/// Extract sessions from Playnite GameActivity extension files (e.g. `ExtensionsData/.../GameActivity/<guid>.json`)
+fn extract_playnite_game_activities<R: Read + Seek>(
+    archive: &mut ZipArchive<R>,
+) -> HashMap<String, Vec<(String, u64)>> {
+    let mut map: HashMap<String, Vec<(String, u64)>> = HashMap::new();
+    for i in 0..archive.len() {
+        if let Ok(mut file) = archive.by_index(i) {
+            let name = file.name().replace('\\', "/").to_ascii_lowercase();
+            if (name.contains("gameactivity") || name.contains("af129c15-0960-449e-b9ef-6910db9f187a"))
+                && name.ends_with(".json")
+            {
+                if let Some(file_stem) = Path::new(&name).file_stem().and_then(|s| s.to_str()) {
+                    let mut content = String::new();
+                    if file.read_to_string(&mut content).is_ok() {
+                        let sessions: Vec<(String, u64)> = if let Ok(doc) =
+                            serde_json::from_str::<GameActivityFile>(&content)
+                        {
+                            doc.items
+                                .into_iter()
+                                .filter_map(|it| match (it.date_session, it.elapsed_seconds) {
+                                    (Some(d), Some(s)) if s > 0 && !d.is_empty() => Some((d, s)),
+                                    _ => None,
+                                })
+                                .collect()
+                        } else if let Ok(items) =
+                            serde_json::from_str::<Vec<GameActivityItem>>(&content)
+                        {
+                            items
+                                .into_iter()
+                                .filter_map(|it| match (it.date_session, it.elapsed_seconds) {
+                                    (Some(d), Some(s)) if s > 0 && !d.is_empty() => Some((d, s)),
+                                    _ => None,
+                                })
+                                .collect()
+                        } else {
+                            Vec::new()
+                        };
+                        if !sessions.is_empty() {
+                            map.insert(file_stem.to_ascii_lowercase(), sessions);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    map
 }
 
 /// Inspect a Playnite backup ZIP without modifying database or filesystem.
@@ -350,6 +413,7 @@ where
     let total_backup = backup_games.len();
 
     let zip_images = build_zip_image_index(&mut archive);
+    let activity_sessions = extract_playnite_game_activities(&mut archive);
 
     if let Some(ref dir) = options.image_cache_dir {
         if !options.dry_run {
@@ -523,6 +587,51 @@ where
                     options.dry_run,
                     &mut stats,
                 )?;
+
+                if !options.dry_run {
+                    let playnite_guid = item.GameId.as_deref().unwrap_or("").to_ascii_lowercase();
+                    if let Some(sessions) = activity_sessions.get(&playnite_guid) {
+                        for (date_str, dur) in sessions {
+                            let session_id = Uuid::new_v4().to_string();
+                            let inserted = tx.execute(
+                                "INSERT INTO game_sessions (id, game_id, started_at, ended_at, duration_seconds)
+                                 SELECT ?1, ?2, ?3, ?3, ?4
+                                 WHERE NOT EXISTS (
+                                     SELECT 1 FROM game_sessions WHERE game_id = ?2 AND started_at = ?3
+                                 );",
+                                params![session_id, existing.id, date_str, *dur as i64],
+                            );
+                            if let Ok(n) = inserted {
+                                if n > 0 {
+                                    stats.sessions_imported += 1;
+                                }
+                            }
+                        }
+                    }
+
+                    if let Some(sessions) = &item.Sessions {
+                        for s in sessions {
+                            if let (Some(date_str), Some(dur)) = (&s.date, s.elapsed_seconds) {
+                                if dur > 0 && !date_str.trim().is_empty() {
+                                    let session_id = Uuid::new_v4().to_string();
+                                    let inserted = tx.execute(
+                                        "INSERT INTO game_sessions (id, game_id, started_at, ended_at, duration_seconds)
+                                         SELECT ?1, ?2, ?3, ?3, ?4
+                                         WHERE NOT EXISTS (
+                                             SELECT 1 FROM game_sessions WHERE game_id = ?2 AND started_at = ?3
+                                         );",
+                                        params![session_id, existing.id, date_str.trim(), dur as i64],
+                                    );
+                                    if let Ok(n) = inserted {
+                                        if n > 0 {
+                                            stats.sessions_imported += 1;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
 
                 // Update in-memory record
                 existing.playtime_seconds = new_playtime;

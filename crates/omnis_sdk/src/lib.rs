@@ -49,6 +49,10 @@ pub struct BacklogSummaryDto {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GlobalStatsDto {
     pub total_playtime_year_seconds: u64,
+    #[serde(default)]
+    pub total_playtime_lifetime_seconds: u64,
+    #[serde(default)]
+    pub available_years: Vec<i32>,
     pub activity_heatmap: Vec<DayActivityDto>,
     pub store_distribution: Vec<CategoryShareDto>,
     pub genre_distribution: Vec<CategoryShareDto>,

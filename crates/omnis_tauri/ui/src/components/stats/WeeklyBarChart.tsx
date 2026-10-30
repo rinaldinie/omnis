@@ -21,16 +21,22 @@ export default function WeeklyBarChart({ weeks }: WeeklyBarChartProps) {
 
   return (
     <div className="flex flex-col gap-2 w-full">
-      <div className="flex items-center justify-between text-xs text-slate-400">
+      <div className="flex items-center justify-between text-xs text-[var(--text-muted)]">
         <span className="font-semibold uppercase tracking-wider text-[10px] text-[var(--text-muted)]">
           {t("statistics.last_4_weeks")}
         </span>
-        <span className="text-[10px] text-slate-500 font-mono">
+        <span className="text-[10px] text-[var(--text-muted)] opacity-80 font-mono">
           {t("statistics.total")}: {formatDuration(weeks.reduce((acc, w) => acc + w.duration_seconds, 0))}
         </span>
       </div>
 
-      <div className="h-32 w-full flex items-end justify-between gap-3 pt-4 pb-1 px-2 rounded-xl bg-white/[0.02] border border-white/[0.05]">
+      <div
+        className="h-32 w-full flex items-end justify-between gap-3 pt-4 pb-1 px-2 rounded-xl border transition-colors duration-300"
+        style={{
+          backgroundColor: "var(--bg-card)",
+          borderColor: "var(--border-color)",
+        }}
+      >
         {weeks.map((week, idx) => {
           const heightPercent = Math.max(
             Math.round((week.duration_seconds / maxSeconds) * 100),
@@ -43,12 +49,15 @@ export default function WeeklyBarChart({ weeks }: WeeklyBarChartProps) {
               className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end group relative"
             >
               {/* Duration label */}
-              <span className="text-[10px] font-semibold text-slate-300 group-hover:text-emerald-400 transition-colors whitespace-nowrap">
+              <span className="text-[10px] font-semibold text-[var(--text-muted)] group-hover:text-[var(--accent-primary)] transition-colors whitespace-nowrap">
                 {formatDuration(week.duration_seconds)}
               </span>
 
               {/* Bar */}
-              <div className="w-full max-w-[48px] bg-white/[0.05] rounded-t-md overflow-hidden flex items-end h-full">
+              <div
+                className="w-full max-w-[48px] rounded-t-md overflow-hidden flex items-end h-full"
+                style={{ backgroundColor: "var(--bg-surface)" }}
+              >
                 <div
                   className="w-full rounded-t-md transition-all duration-500 group-hover:brightness-125"
                   style={{
@@ -56,17 +65,17 @@ export default function WeeklyBarChart({ weeks }: WeeklyBarChartProps) {
                     backgroundColor:
                       week.duration_seconds > 0
                         ? "var(--accent-primary, #6366f1)"
-                        : "rgba(255, 255, 255, 0.04)",
+                        : "color-mix(in srgb, var(--border-color) 40%, transparent)",
                   }}
                 />
               </div>
 
               {/* Week label */}
               <div className="text-center">
-                <span className="text-[10px] font-medium text-slate-400 group-hover:text-white transition-colors block">
+                <span className="text-[10px] font-medium text-[var(--text-muted)] group-hover:text-[var(--text-primary)] transition-colors block">
                   {t("statistics.week_num", { num: idx + 1 })}
                 </span>
-                <span className="text-[8px] text-slate-500 block -mt-0.5">
+                <span className="text-[8px] text-[var(--text-muted)] opacity-70 block -mt-0.5">
                   {week.start_date.slice(5)} - {week.end_date.slice(5)}
                 </span>
               </div>

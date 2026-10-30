@@ -92,6 +92,7 @@ fn test_dry_run_does_not_mutate_database() {
             InstallDirectory: Some("C:\\Games\\Hades2".to_string()),
             Cover: None,
             Background: None,
+            Sessions: None,
         },
     ];
 
@@ -132,6 +133,7 @@ fn test_playnite_import_and_idempotency() {
             InstallDirectory: Some("C:\\GOG Games\\The Witcher 3".to_string()),
             Cover: None,
             Background: None,
+            Sessions: None,
         },
         PlayniteGameDto {
             Name: "Celeste".to_string(),
@@ -150,6 +152,7 @@ fn test_playnite_import_and_idempotency() {
             InstallDirectory: None,
             Cover: None,
             Background: None,
+            Sessions: None,
         },
     ];
 
@@ -241,6 +244,7 @@ fn test_playtime_merge_with_historical_sessions() {
         InstallDirectory: None,
         Cover: None,
         Background: None,
+        Sessions: None,
     }];
 
     let options = PlayniteImportOptions::default();
@@ -268,6 +272,7 @@ fn test_playtime_merge_with_historical_sessions() {
         InstallDirectory: None,
         Cover: None,
         Background: None,
+        Sessions: None,
     }];
 
     let stats_higher = db.import_playnite_games(&playnite_higher, &options).expect("Import higher playtime failed");
@@ -310,6 +315,7 @@ fn test_image_caching_on_import() {
         InstallDirectory: None,
         Cover: Some(cover_file.to_string_lossy().to_string()),
         Background: None,
+        Sessions: None,
     }];
 
     let stats = db.import_playnite_games(&items, &options).expect("Import failed");
@@ -714,4 +720,52 @@ fn test_real_playnite_backup_zip_inspection_if_file_exists() {
     assert!(std::path::Path::new(&cover_path).exists(), "Extracted cover from real backup must exist");
 
     let _ = fs::remove_dir_all(&temp_cache);
+}
+
+#[test]
+fn test_playnite_session_activity_import() {
+    use omnis_core::playnite::PlayniteSessionDto;
+
+    let db = Database::new_in_memory().expect("In-memory DB creation failed");
+    db.migrate().expect("DB migration failed");
+
+    let items = vec![PlayniteGameDto {
+        Name: "Dark Souls III".to_string(),
+        GameId: Some("374320".to_string()),
+        PluginId: Some("cb91aec9-6843-410e-a02b-a64c48325983".to_string()),
+        PlaytimeSeconds: Some(7200),
+        PlayCount: Some(2),
+        LastActivity: Some("2026-10-20T15:00:00Z".to_string()),
+        Added: None,
+        Favorite: None,
+        Hidden: None,
+        Tags: None,
+        Features: None,
+        Categories: None,
+        Completion: None,
+        InstallDirectory: None,
+        Cover: None,
+        Background: None,
+        Sessions: Some(vec![
+            PlayniteSessionDto {
+                date: Some("2026-10-18T10:00:00Z".to_string()),
+                elapsed_seconds: Some(3600),
+            },
+            PlayniteSessionDto {
+                date: Some("2026-10-20T14:00:00Z".to_string()),
+                elapsed_seconds: Some(3600),
+            },
+        ]),
+    }];
+
+    let options = PlayniteImportOptions::default();
+    let stats = db.import_playnite_games(&items, &options).expect("Import failed");
+    assert_eq!(stats.games_created, 1);
+    assert_eq!(stats.sessions_imported, 2);
+
+    let games = db.get_all_games().unwrap();
+    let ds3 = games.iter().find(|g| g.title == "Dark Souls III").unwrap();
+    let sessions = db.get_game_sessions(ds3.id).unwrap();
+    assert_eq!(sessions.len(), 2);
+    assert_eq!(sessions[0].duration_seconds, 3600);
 }

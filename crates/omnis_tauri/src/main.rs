@@ -55,6 +55,7 @@ fn main() {
             get_counts,
             get_global_statistics,
             get_game_statistics,
+            reset_statistics,
             sync_library,
             detect_stores,
             download_metadata,

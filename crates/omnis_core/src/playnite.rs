@@ -82,8 +82,17 @@ pub fn map_playnite_plugin_id(plugin_id: Option<&str>) -> &'static str {
     }
 }
 
-/// Serialized representation of a Playnite 10 game export item.
+/// Play session representation from Playnite (or GameActivity extension)
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PlayniteSessionDto {
+    #[serde(alias = "date_session", alias = "DateSession", alias = "date", alias = "started_at", default)]
+    pub date: Option<String>,
+    #[serde(alias = "elapsed_seconds", alias = "ElapsedSeconds", alias = "duration_seconds", alias = "duration", default)]
+    pub elapsed_seconds: Option<u64>,
+}
+
+/// Serialized representation of a Playnite 10 game export item.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[allow(non_snake_case)]
 pub struct PlayniteGameDto {
     #[serde(alias = "name")]
@@ -118,6 +127,8 @@ pub struct PlayniteGameDto {
     pub Cover: Option<String>,
     #[serde(alias = "background", default)]
     pub Background: Option<String>,
+    #[serde(alias = "sessions", alias = "Sessions", alias = "activity", alias = "Activity", default)]
+    pub Sessions: Option<Vec<PlayniteSessionDto>>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -135,6 +146,8 @@ pub struct PlayniteImportStats {
     pub images_cached: usize,
     pub tags_added: usize,
     pub categories_added: usize,
+    #[serde(default)]
+    pub sessions_imported: usize,
 }
 
 struct ExistingGameRow {
@@ -416,6 +429,31 @@ impl PlayniteImporter {
             stats,
         )?;
 
+        if !options.dry_run {
+            if let Some(sessions) = &item.Sessions {
+                for s in sessions {
+                    if let (Some(date_str), Some(dur)) = (&s.date, s.elapsed_seconds) {
+                        if dur > 0 && !date_str.trim().is_empty() {
+                            let session_id = Uuid::new_v4().to_string();
+                            let inserted = conn.execute(
+                                "INSERT INTO game_sessions (id, game_id, started_at, ended_at, duration_seconds)
+                                 SELECT ?1, ?2, ?3, ?3, ?4
+                                 WHERE NOT EXISTS (
+                                     SELECT 1 FROM game_sessions WHERE game_id = ?2 AND started_at = ?3
+                                 );",
+                                params![session_id, existing.id, date_str.trim(), dur as i64],
+                            );
+                            if let Ok(n) = inserted {
+                                if n > 0 {
+                                    stats.sessions_imported += 1;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         Ok(())
     }
 
@@ -496,6 +534,31 @@ impl PlayniteImporter {
             options.dry_run,
             stats,
         )?;
+
+        if !options.dry_run {
+            if let Some(sessions) = &item.Sessions {
+                for s in sessions {
+                    if let (Some(date_str), Some(dur)) = (&s.date, s.elapsed_seconds) {
+                        if dur > 0 && !date_str.trim().is_empty() {
+                            let session_id = Uuid::new_v4().to_string();
+                            let inserted = conn.execute(
+                                "INSERT INTO game_sessions (id, game_id, started_at, ended_at, duration_seconds)
+                                 SELECT ?1, ?2, ?3, ?3, ?4
+                                 WHERE NOT EXISTS (
+                                     SELECT 1 FROM game_sessions WHERE game_id = ?2 AND started_at = ?3
+                                 );",
+                                params![session_id, new_id, date_str.trim(), dur as i64],
+                            );
+                            if let Ok(n) = inserted {
+                                if n > 0 {
+                                    stats.sessions_imported += 1;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         Ok(())
     }

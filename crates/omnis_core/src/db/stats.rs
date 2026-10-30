@@ -43,6 +43,9 @@ pub trait StatsRepository: Send + Sync {
 
     /// Retrieve detailed session analytics and 4-week bar chart for a single game
     fn get_game_statistics(&self, game_id: Uuid) -> Result<GameStatsDto, DatabaseError>;
+
+    /// Reset game statistics (clears session history, and optionally zeroes games playtime/last_activity)
+    fn reset_statistics(&self, reset_playtime: bool) -> Result<(), DatabaseError>;
 }
 
 impl StatsRepository for Database {
@@ -50,6 +53,36 @@ impl StatsRepository for Database {
         let conn = self.reader();
         let target_year = year.unwrap_or_else(|| Utc::now().year());
         let year_str = format!("{:04}", target_year);
+
+        // 0. Total lifetime playtime across all games in the library
+        let total_playtime_lifetime_seconds: u64 = conn
+            .query_row(
+                "SELECT COALESCE(SUM(playtime_seconds), 0) FROM games",
+                [],
+                |row| row.get::<_, i64>(0),
+            )?
+            .max(0) as u64;
+
+        // Dynamic available years from game_sessions and games
+        let mut years_set = std::collections::BTreeSet::new();
+        years_set.insert(target_year);
+        years_set.insert(Utc::now().year());
+
+        if let Ok(mut year_stmt) = conn.prepare(
+            "SELECT DISTINCT CAST(strftime('%Y', started_at) AS INTEGER) FROM game_sessions WHERE started_at IS NOT NULL
+             UNION
+             SELECT DISTINCT CAST(strftime('%Y', last_activity) AS INTEGER) FROM games WHERE last_activity IS NOT NULL;"
+        ) {
+            if let Ok(year_rows) = year_stmt.query_map([], |row| row.get::<_, Option<i32>>(0)) {
+                for yr in year_rows.flatten().flatten() {
+                    if yr >= 1990 && yr <= 2100 {
+                        years_set.insert(yr);
+                    }
+                }
+            }
+        }
+        let mut available_years: Vec<i32> = years_set.into_iter().collect();
+        available_years.sort_by(|a, b| b.cmp(a));
 
         // 1. Total playtime in year: sum of duration_seconds of sessions in that year
         let mut total_playtime_year_seconds: u64 = conn
@@ -191,7 +224,7 @@ impl StatsRepository for Database {
         });
 
         // 5. Backlog summary: count games by completion_status (NotPlayed vs Beaten/Completed/Played/InProgress)
-        // and compute percentage (beaten + completed) / total * 100
+        // Games with playtime > 0 that haven't been completed are realistically considered in-progress.
         let (total_games, completed_count, in_progress_count): (i64, i64, i64) = conn.query_row(
             "
             SELECT
@@ -202,6 +235,7 @@ impl StatsRepository for Database {
                 END), 0),
                 COALESCE(SUM(CASE
                     WHEN LOWER(REPLACE(REPLACE(REPLACE(COALESCE(completion_status, ''), ' ', ''), '_', ''), '-', '')) IN ('playing', 'inprogress', 'played') THEN 1
+                    WHEN (completion_status IS NULL OR LOWER(TRIM(completion_status)) = 'notplayed') AND playtime_seconds > 0 THEN 1
                     ELSE 0
                 END), 0)
             FROM games
@@ -232,11 +266,27 @@ impl StatsRepository for Database {
 
         Ok(GlobalStatsDto {
             total_playtime_year_seconds,
+            total_playtime_lifetime_seconds,
+            available_years,
             activity_heatmap,
             store_distribution,
             genre_distribution,
             backlog_summary,
         })
+    }
+
+    fn reset_statistics(&self, reset_playtime: bool) -> Result<(), DatabaseError> {
+        let mut conn = self.writer();
+        let tx = conn.transaction()?;
+        tx.execute("DELETE FROM game_sessions;", [])?;
+        if reset_playtime {
+            tx.execute(
+                "UPDATE games SET playtime_seconds = 0, play_count = 0, last_activity = NULL;",
+                [],
+            )?;
+        }
+        tx.commit()?;
+        Ok(())
     }
 
     fn get_game_statistics(&self, game_id: Uuid) -> Result<GameStatsDto, DatabaseError> {
@@ -335,5 +385,10 @@ impl Database {
     #[inline]
     pub fn get_game_statistics(&self, game_id: Uuid) -> Result<GameStatsDto, DatabaseError> {
         StatsRepository::get_game_statistics(self, game_id)
+    }
+
+    #[inline]
+    pub fn reset_statistics(&self, reset_playtime: bool) -> Result<(), DatabaseError> {
+        StatsRepository::reset_statistics(self, reset_playtime)
     }
 }
