@@ -168,7 +168,7 @@ impl CloudStorePlugin for EpicLibraryPlugin {
 
     fn is_redirect_url(&self, url: &str) -> bool {
         (url.contains("epicgames.com/id/api/redirect") || url.contains("localhost/launcher/authorized"))
-            && (url.contains("code=") || url.contains("authorizationCode=") || url.contains("exchangeCode="))
+            && (url.contains("code=") || url.contains("authorizationCode=") || url.contains("exchangeCode=") || url.contains("sid="))
     }
 
     async fn exchange_code(&self, redirect_url: &str) -> Result<StoreAccountSession, PluginError> {
@@ -194,7 +194,8 @@ impl CloudStorePlugin for EpicLibraryPlugin {
 mod tests {
     use super::*;
     use crate::client::{
-        extract_exchange_code, normalize_epic_entitlement, EpicEntitlement,
+        extract_exchange_code, is_valid_game, normalize_epic_entitlement, sanitize_epic_title,
+        EpicCatalogCategory, EpicCatalogItem, EpicEntitlement, EpicMainGameItem,
         EpicOAuthTokenResponse,
     };
 
@@ -319,6 +320,12 @@ mod tests {
             Some("MOCK_CODE_ABC".to_string())
         );
 
+        let url_sid = "https://www.epicgames.com/id/api/redirect?sid=MOCK_SID_XYZ";
+        assert_eq!(
+            extract_exchange_code(url_sid),
+            Some("MOCK_SID_XYZ".to_string())
+        );
+
         let url_invalid = "https://www.epicgames.com/id/api/redirect";
         assert_eq!(extract_exchange_code(url_invalid), None);
     }
@@ -433,7 +440,109 @@ mod tests {
         assert!(plugin.is_redirect_url("https://www.epicgames.com/id/api/redirect#exchangeCode=MOCK_CODE"));
         assert!(plugin.is_redirect_url("https://localhost/launcher/authorized?code=MOCK_CODE"));
         assert!(plugin.is_redirect_url("https://www.epicgames.com/id/api/redirect?authorizationCode=MOCK_CODE"));
+        assert!(plugin.is_redirect_url("https://www.epicgames.com/id/api/redirect?sid=MOCK_SID"));
         assert!(!plugin.is_redirect_url("https://www.epicgames.com/id/api/redirect"));
         assert!(!plugin.is_redirect_url("https://store.epicgames.com/browse"));
+    }
+
+    #[test]
+    fn test_sanitize_epic_title() {
+        assert_eq!(
+            sanitize_epic_title("Death Stranding™ Director's Cut®"),
+            "Death Stranding Director's Cut"
+        );
+        assert_eq!(
+            sanitize_epic_title("Salt 2: Shores of Gold\u{00a0} "),
+            "Salt 2: Shores of Gold"
+        );
+        assert_eq!(sanitize_epic_title("Grand Theft Auto V"), "Grand Theft Auto V");
+    }
+
+    #[test]
+    fn test_is_valid_game_filtering() {
+        // Standard game: has "applications" or "games"
+        let game_item = EpicCatalogItem {
+            id: "cat_001".to_string(),
+            title: Some("Control".to_string()),
+            categories: Some(vec![
+                EpicCatalogCategory { path: "applications".to_string() },
+                EpicCatalogCategory { path: "games".to_string() },
+            ]),
+            main_game_item: None,
+            ..Default::default()
+        };
+        assert!(is_valid_game(&game_item));
+
+        // Add-on / DLC without launchable addon flag: rejected
+        let dlc_item = EpicCatalogItem {
+            id: "cat_dlc_001".to_string(),
+            title: Some("Control - Season Pass".to_string()),
+            categories: Some(vec![
+                EpicCatalogCategory { path: "addons".to_string() },
+            ]),
+            main_game_item: Some(EpicMainGameItem { id: Some("cat_001".to_string()) }),
+            ..Default::default()
+        };
+        assert!(!is_valid_game(&dlc_item));
+
+        // Launchable addon (e.g. standalone expansion): accepted
+        let launchable_addon = EpicCatalogItem {
+            id: "cat_addon_002".to_string(),
+            title: Some("Standalone Expansion".to_string()),
+            categories: Some(vec![
+                EpicCatalogCategory { path: "addons/launchable".to_string() },
+                EpicCatalogCategory { path: "games".to_string() },
+            ]),
+            main_game_item: Some(EpicMainGameItem { id: Some("cat_001".to_string()) }),
+            ..Default::default()
+        };
+        assert!(is_valid_game(&launchable_addon));
+
+        // Digital extras / plugins: rejected
+        let plugin_item = EpicCatalogItem {
+            id: "cat_plugin_001".to_string(),
+            title: Some("Soundtrack & Artbook".to_string()),
+            categories: Some(vec![
+                EpicCatalogCategory { path: "digitalextras".to_string() },
+            ]),
+            main_game_item: None,
+            ..Default::default()
+        };
+        assert!(!is_valid_game(&plugin_item));
+    }
+
+    #[test]
+    fn test_bulk_catalog_item_deserialization() {
+        let json = r#"{
+            "002dae58227b461ea5cc889cb9a249f2": {
+                "id": "002dae58227b461ea5cc889cb9a249f2",
+                "title": "Death Stranding™",
+                "description": "Legendary game from Hideo Kojima",
+                "categories": [
+                    { "path": "applications" },
+                    { "path": "games" }
+                ],
+                "keyImages": [
+                    { "type": "DieselGameBoxTall", "url": "https://cdn1.epicgames.com/cover.jpg" },
+                    { "type": "DieselGameBoxWide", "url": "https://cdn1.epicgames.com/bg.jpg" }
+                ],
+                "releaseInfo": [
+                    { "appId": "DeathStranding", "platform": ["Windows"] }
+                ]
+            }
+        }"#;
+
+        let map: std::collections::HashMap<String, EpicCatalogItem> =
+            serde_json::from_str(json).expect("Should deserialize catalog item map");
+
+        let item = map.get("002dae58227b461ea5cc889cb9a249f2").expect("Item must exist");
+        assert_eq!(item.title, Some("Death Stranding™".to_string()));
+        assert!(is_valid_game(item));
+
+        let clean = sanitize_epic_title(item.title.as_deref().unwrap());
+        assert_eq!(clean, "Death Stranding");
+
+        let release = item.release_info.as_ref().unwrap().first().unwrap();
+        assert_eq!(release.app_id, Some("DeathStranding".to_string()));
     }
 }

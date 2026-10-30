@@ -65,9 +65,9 @@ impl OAuthLoginService {
                     function extractAndForwardEpicCode() {
                         try {
                             const bodyText = document.body ? document.body.innerText : '';
-                            if (bodyText && (bodyText.includes('authorizationCode') || bodyText.includes('exchangeCode'))) {
+                            if (bodyText && (bodyText.includes('authorizationCode') || bodyText.includes('exchangeCode') || bodyText.includes('sid'))) {
                                 const parsed = JSON.parse(bodyText);
-                                const code = parsed.authorizationCode || parsed.exchangeCode;
+                                const code = parsed.authorizationCode || parsed.exchangeCode || parsed.sid;
                                 if (code) {
                                     window.location.href = 'https://localhost/launcher/authorized?code=' + encodeURIComponent(code);
                                 } else if (parsed.redirectUrl && parsed.redirectUrl.includes('code=')) {
@@ -81,8 +81,8 @@ impl OAuthLoginService {
                     } else {
                         extractAndForwardEpicCode();
                     }
-                    setTimeout(extractAndForwardEpicCode, 1000);
-                    setTimeout(extractAndForwardEpicCode, 3000);
+                    const timer = setInterval(extractAndForwardEpicCode, 300);
+                    setTimeout(() => clearInterval(timer), 30000);
                 })();
             "#;
             builder = builder.initialization_script(epic_script);
@@ -97,9 +97,10 @@ impl OAuthLoginService {
                         return false;
                     }
 
-                    // Immediately close the OAuth popup window to prevent UI hang or redirect error screens
+                    // Immediately hide the OAuth popup window to prevent UI hang or redirect error screens
+                    // without synchronously destroying the webview controller during navigation (which causes native crash in WebView2)
                     if let Some(win) = app_for_nav.get_webview_window(&label_for_nav) {
-                        let _ = win.close();
+                        let _ = win.hide();
                     }
 
                     let app = app_for_nav.clone();
@@ -109,18 +110,18 @@ impl OAuthLoginService {
                     let handler_clone = handler.clone();
                     let url_str = url.as_str().to_string();
 
-                    tokio::spawn(async move {
+                    tauri::async_runtime::spawn(async move {
                         match plugin.exchange_code(&url_str).await {
                             Ok(session) => {
                                 if let Some(win) = app.get_webview_window(&lbl) {
-                                    let _ = win.close();
+                                    let _ = win.destroy();
                                 }
                                 handler_clone.on_session_authenticated(&app, &sid, session).await;
                             }
                             Err(e) => {
                                 tracing::error!("Errore scambio codice OAuth per {}: {}", sid, e);
                                 if let Some(win) = app.get_webview_window(&lbl) {
-                                    let _ = win.close();
+                                    let _ = win.destroy();
                                 }
                                 let _ = app.emit(
                                     "store-sync-progress",
