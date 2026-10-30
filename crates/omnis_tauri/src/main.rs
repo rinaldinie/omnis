@@ -12,6 +12,7 @@ pub mod migration;
 pub mod slot_resolver;
 pub mod store_actions;
 pub mod store_manager;
+pub mod steam_sync;
 pub mod trailer_service;
 pub mod tray;
 pub mod types;
@@ -23,6 +24,7 @@ pub use candidate_applier::*;
 pub use commands::*;
 pub use launcher_service::*;
 pub use slot_resolver::*;
+pub use steam_sync::*;
 pub use store_actions::*;
 pub use trailer_service::*;
 pub use tray::*;
@@ -55,7 +57,9 @@ fn main() {
             get_counts,
             get_global_statistics,
             get_game_statistics,
+            get_day_sessions,
             reset_statistics,
+            sync_steam_sessions,
             sync_library,
             detect_stores,
             download_metadata,

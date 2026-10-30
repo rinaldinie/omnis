@@ -1791,7 +1791,15 @@ export default function App() {
 
             {/* VIEW 4: STATISTICS & ANALYTICS DASHBOARD VIEW */}
             {viewMode === "stats" && (
-              <StatisticsDashboardView />
+              <StatisticsDashboardView
+                onSelectGame={(gameId) => {
+                  const target = games.find((g) => g.id === gameId);
+                  if (target) {
+                    setSelectedGame(target);
+                    setViewMode("details");
+                  }
+                }}
+              />
             )}
             </main>
           </div>
