@@ -126,6 +126,11 @@ fn main() {
             inspect_playnite_backup,
             execute_playnite_import,
             pick_playnite_backup_file,
+            create_backup,
+            restore_backup,
+            inspect_backup,
+            pick_backup_destination_folder,
+            pick_backup_file_to_restore,
         ])
         .run(tauri::generate_context!())
         .expect("Errore durante l'esecuzione dell'applicazione Tauri");

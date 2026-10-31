@@ -799,6 +799,7 @@ export const de: TranslationSchema = {
     tab_general: 'Allgemein',
     tab_accounts: 'Cloud-Konten',
     tab_achievements: 'Erfolge',
+    tab_backup: 'Sicherung & Wiederherstellung',
     tray_section: 'Infobereich & Fenster',
     minimize_to_tray: 'Beim Schließen in den Infobereich minimieren',
     minimize_to_tray_desc: 'Wenn aktiviert, wird Omnis beim Klick auf das X-Symbol in den Infobereich neben der Uhr minimiert.',

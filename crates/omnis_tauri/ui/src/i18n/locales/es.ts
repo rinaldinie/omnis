@@ -799,6 +799,7 @@ export const es: TranslationSchema = {
     tab_general: 'General',
     tab_accounts: 'Cuentas en la nube',
     tab_achievements: 'Logros',
+    tab_backup: 'Copia de seguridad y restauración',
     tray_section: 'Bandeja del sistema y ventana',
     minimize_to_tray: 'Minimizar a la bandeja al cerrar',
     minimize_to_tray_desc: 'Al cerrar con la X, Omnis permanecerá activo en la bandeja del sistema junto al reloj.',

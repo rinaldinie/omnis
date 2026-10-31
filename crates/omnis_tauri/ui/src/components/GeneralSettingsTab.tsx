@@ -24,6 +24,7 @@ import {
 import { useTranslation, SUPPORTED_LOCALES, LocaleCode } from '../i18n';
 import soundEffects from '../utils/soundEffects';
 import { useUpdater } from '../hooks/useAppUpdater';
+import { BackupSettingsTab } from './BackupSettingsTab';
 
 type GeneralSubTab = 'language' | 'audio' | 'window' | 'appearance' | 'data' | 'updates';
 
@@ -573,16 +574,8 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
 
         {/* SUBTAB: DATI & BACKUP */}
         {activeSubTab === 'data' && (
-          <div className="space-y-5">
-            <div>
-              <div className="flex items-center gap-2 text-xs font-black tracking-wider uppercase text-slate-300 mb-1">
-                <FolderArchive className="w-4 h-4 text-purple-400" />
-                <span>{t('general_settings.tab_data') || 'Dati & Backup'}</span>
-              </div>
-              <p className="text-xs text-slate-400">
-                Gestisci le origini dati, i salvataggi e l'integrazione da launcher esterni.
-              </p>
-            </div>
+          <div className="space-y-6">
+            <BackupSettingsTab onClose={onClose} />
 
             <div className="p-5 rounded-2xl border border-white/10 bg-slate-800/40 space-y-4">
               <div className="flex items-start justify-between gap-4">
