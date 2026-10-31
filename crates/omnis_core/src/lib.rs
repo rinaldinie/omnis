@@ -1,4 +1,5 @@
 pub mod achievements;
+pub mod backup;
 pub mod db;
 pub mod dynamic_loader;
 pub mod event_bus;
@@ -13,6 +14,7 @@ pub mod theme;
 pub mod wasm_host;
 
 pub use achievements::*;
+pub use backup::*;
 pub use db::{
     AchievementRepository, CatalogMaintenanceRepository, Database, DatabaseError, GameRepository,
     GameSearchRepository, LibraryCounts, SecretRepository, SessionRepository, StatsRepository,

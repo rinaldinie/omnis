@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from '../i18n';
-import { Settings, Sliders, Cloud, Trophy } from 'lucide-react';
+import { Settings, Sliders, Cloud, Trophy, Archive } from 'lucide-react';
 import { soundEffects } from '../utils/soundEffects';
 import { GeneralSettingsTab } from './GeneralSettingsTab';
 import { StoreAccountsTab } from './StoreAccountsTab';
 import { AchievementsSettingsTab } from './achievements';
+import { BackupSettingsTab } from './BackupSettingsTab';
 
-export type SettingsTab = 'general' | 'accounts' | 'achievements';
+export type SettingsTab = 'general' | 'accounts' | 'achievements' | 'backup';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -154,6 +155,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <Trophy className="w-4 h-4" />
               <span>{t('settings_modal.tab_achievements')}</span>
             </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                soundEffects.playSelect();
+                setActiveTab('backup');
+              }}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeTab === 'backup'
+                ? 'text-white shadow-md'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                }`}
+              style={{
+                backgroundColor: activeTab === 'backup' ? 'var(--accent-primary)' : 'transparent',
+              }}
+            >
+              <Archive className="w-4 h-4" />
+              <span>{t('settings_modal.tab_backup') || 'Backup & Ripristino'}</span>
+            </button>
           </div>
         </div>
 
@@ -188,6 +207,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {/* TAB 3: OBIETTIVI */}
           {activeTab === 'achievements' && (
             <AchievementsSettingsTab onClose={handleClose} />
+          )}
+
+          {/* TAB 4: BACKUP & RIPRISTINO */}
+          {activeTab === 'backup' && (
+            <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+              <BackupSettingsTab
+                onClose={handleClose}
+                onRestoreComplete={() => {
+                  handleClose();
+                  if (onSyncComplete) onSyncComplete();
+                }}
+              />
+            </div>
           )}
         </div>
       </div>

@@ -800,6 +800,7 @@ export const fr: TranslationSchema = {
     tab_general: 'Général',
     tab_accounts: 'Comptes Cloud',
     tab_achievements: 'Succès',
+    tab_backup: 'Sauvegarde & Restauration',
     tray_section: 'Zone de notification & Fenêtre',
     minimize_to_tray: 'Réduire dans la zone de notification à la fermeture',
     minimize_to_tray_desc: 'Si activé, cliquer sur la croix X réduira Omnis dans la barre d\'état système près de l\'horloge.',

@@ -1,6 +1,6 @@
 use rusqlite::{Connection, OpenFlags, Result};
 use serde::{Deserialize, Serialize};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard, RwLock};
 
 use crate::search::FuzzyGameSearchIndex;
@@ -124,6 +124,117 @@ impl Database {
     pub fn migrate(&self) -> Result<()> {
         let conn = self.writer();
         migrations::run_migrations(&conn)
+    }
+
+    /// Create a consolidated hot SQLite snapshot using VACUUM INTO.
+    /// This writes out a clean single-file database with all WAL/SHM changes committed.
+    pub fn snapshot_to<P: AsRef<Path>>(&self, dest: P) -> Result<()> {
+        let dest_ref = dest.as_ref();
+        if dest_ref.exists() {
+            let _ = std::fs::remove_file(dest_ref);
+        }
+        let dest_str = dest_ref.to_str().ok_or_else(|| {
+            rusqlite::Error::InvalidPath(dest_ref.to_path_buf())
+        })?;
+        let conn = self.writer();
+        conn.execute("VACUUM INTO ?1;", rusqlite::params![dest_str])?;
+        Ok(())
+    }
+
+    /// Safely suspend active database connections, backup current database to `.pre_restore_bak`,
+    /// replace target database with `source_db`, clean WAL/SHM, reopen connections with WAL mode,
+    /// run migrations, and refresh the search index.
+    pub fn close_and_reopen_from_file<P: AsRef<Path>, Q: AsRef<Path>>(
+        &self,
+        source_db: P,
+        target_db: Q,
+    ) -> Result<()> {
+        let source_path = source_db.as_ref();
+        let target_path = target_db.as_ref();
+
+        // 1. Acquire locks on both writer and reader to block concurrent operations
+        let mut writer_guard = self.writer.lock().unwrap();
+        let mut reader_guard = self.reader.as_ref().map(|r| r.lock().unwrap());
+
+        // 2. Temporarily swap connections to in-memory to release file locks on Windows
+        *writer_guard = Connection::open_in_memory()?;
+        if let Some(ref mut r_guard) = reader_guard {
+            **r_guard = Connection::open_in_memory()?;
+        }
+
+        // 3. Backup active database file
+        let bak_path = target_path.with_extension("db.pre_restore_bak");
+        if target_path.exists() {
+            let _ = std::fs::copy(target_path, &bak_path);
+        }
+
+        // 4. Remove lingering -wal and -shm files
+        let wal_path = PathBuf::from(format!("{}-wal", target_path.display()));
+        let shm_path = PathBuf::from(format!("{}-shm", target_path.display()));
+        let _ = std::fs::remove_file(&wal_path);
+        let _ = std::fs::remove_file(&shm_path);
+
+        // 5. Replace target DB with source DB
+        if let Err(err) = std::fs::copy(source_path, target_path) {
+            // Attempt rollback if backup exists
+            if bak_path.exists() {
+                let _ = std::fs::copy(&bak_path, target_path);
+            }
+            return Err(rusqlite::Error::FromSqlConversionFailure(
+                0,
+                rusqlite::types::Type::Text,
+                Box::new(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!("Failed replacing database file: {}", err),
+                )),
+            ));
+        }
+
+        // 6. Reopen writer on restored target DB
+        let new_writer = Connection::open(target_path)?;
+        new_writer.execute_batch(
+            "
+            PRAGMA journal_mode = WAL;
+            PRAGMA synchronous = NORMAL;
+            PRAGMA temp_store = MEMORY;
+            PRAGMA cache_size = -64000;
+            PRAGMA foreign_keys = ON;
+            PRAGMA busy_timeout = 5000;
+            ",
+        )?;
+
+        // 7. Reopen reader if previously configured
+        if let Some(ref mut r_guard) = reader_guard {
+            let new_reader = Connection::open_with_flags(
+                target_path,
+                OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_URI,
+            )?;
+            new_reader.execute_batch(
+                "
+                PRAGMA synchronous = NORMAL;
+                PRAGMA temp_store = MEMORY;
+                PRAGMA cache_size = -64000;
+                PRAGMA foreign_keys = ON;
+                PRAGMA busy_timeout = 5000;
+                PRAGMA query_only = ON;
+                ",
+            )?;
+            **r_guard = new_reader;
+        }
+
+        *writer_guard = new_writer;
+
+        // 8. Run migrations on restored database
+        migrations::run_migrations(&writer_guard)?;
+
+        // Drop locks before search index reload
+        drop(writer_guard);
+        drop(reader_guard);
+
+        // 9. Reload search index
+        let _ = self.reload_search_index();
+
+        Ok(())
     }
 
     /// Retrieve the column names for a given table via PRAGMA table_info

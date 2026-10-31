@@ -668,5 +668,29 @@ export interface GameStatsDto {
   last_4_weeks_bars: WeekPlaytimeDto[];
 }
 
+export interface BackupResultDto {
+  backup_path: string;
+  file_size_bytes: number;
+  total_games: number;
+  artwork_included: boolean;
+  timestamp: string;
+}
+
+export interface BackupInspectionDto {
+  format_version: number;
+  created_at_utc: string;
+  omnis_version: string;
+  schema_version: number;
+  hostname: string;
+  include_artwork: boolean;
+  total_games: number;
+  backup_size_bytes: number;
+  has_database: boolean;
+  has_settings: boolean;
+  has_artwork: boolean;
+  custom_themes_count: number;
+}
+
+
 
 
