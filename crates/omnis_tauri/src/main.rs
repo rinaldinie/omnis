@@ -127,6 +127,7 @@ fn main() {
             get_game_achievements,
             refresh_game_achievements,
             start_library_achievement_sync,
+            set_sync_achievements_on_game_exit,
             inspect_playnite_backup,
             execute_playnite_import,
             pick_playnite_backup_file,

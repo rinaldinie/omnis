@@ -56,3 +56,14 @@ pub async fn start_library_achievement_sync(app: tauri::AppHandle) -> Result<(),
     tauri::async_runtime::spawn(crate::achievement_sync::run_library_sync(app));
     Ok(())
 }
+
+#[tauri::command]
+pub fn set_sync_achievements_on_game_exit(
+    enabled: bool,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    state
+        .sync_achievements_on_game_exit
+        .store(enabled, std::sync::atomic::Ordering::SeqCst);
+    Ok(())
+}

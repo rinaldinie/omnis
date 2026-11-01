@@ -138,6 +138,7 @@ pub struct AppState {
     pub active_game_manager: Arc<crate::active_game::ActiveGameManager>,
     pub minimize_to_tray: Arc<std::sync::atomic::AtomicBool>,
     pub achievement_service: Arc<crate::achievement_service::AchievementService>,
+    pub sync_achievements_on_game_exit: Arc<std::sync::atomic::AtomicBool>,
 }
 
 pub fn game_to_dto(g: Game, _cache: &ImageCache) -> GameDto {
