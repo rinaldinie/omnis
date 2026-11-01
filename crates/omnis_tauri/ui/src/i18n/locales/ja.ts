@@ -273,6 +273,7 @@ export const ja: TranslationSchema = {
     empty_title: 'ゲームが見つかりません',
     empty_search: '「{query}」の検索結果はありません',
     empty_category: 'このカテゴリにゲームはありません',
+    custom_filter: 'カスタムフィルター',
     search_filter: '検索: 「{query}」',
     about: '概要',
     controller_ready: 'コントローラーなし',

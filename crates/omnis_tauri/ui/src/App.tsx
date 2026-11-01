@@ -53,6 +53,7 @@ import {
   BUILTIN_THEMES,
   SAMPLE_GAMES,
 } from "./types";
+import { getVisibleCategories } from "./utils/consoleCategories";
 import { useWindowControls } from "./hooks/useWindowControls";
 import { useLibraryFilters } from "./hooks/useLibraryFilters";
 import { useGamepadNavigation, ControllerType } from "./hooks/useGamepadNavigation";
@@ -373,11 +374,17 @@ export default function App() {
     setDetailsSearchQuery,
     collapsedGroups,
     toggleGroup,
+    selectFilter,
     cycleFilter,
     filteredGames,
     groupedGames,
     detailsFilteredGames,
   } = useLibraryFilters(games);
+
+  // LB / RB cycles only through the categories shown as tabs (skips empty libraries and genres)
+  const visibleCategories = useMemo(() => getVisibleCategories(counts, activeFilter), [counts, activeFilter]);
+  const cycleCategory = (direction: number, onCycle?: (nextFilter: string) => void) =>
+    cycleFilter(direction, onCycle, visibleCategories);
 
   const availableGenres = useMemo(() => {
     const set = new Set<string>();
@@ -516,7 +523,7 @@ export default function App() {
     setShowVirtualKeyboard,
     setShowThemeModal,
     handleLaunch: (id) => handleLaunch(id),
-    cycleFilter,
+    cycleFilter: cycleCategory,
     isSuspended: isGameRunning,
     fullscreenGridColumns: isFullscreen ? fullscreenGridColumns : 0,
     hasRecentRow: isFullscreen && fullscreenHasRecentRow,
@@ -1319,8 +1326,8 @@ export default function App() {
           setSelectedGame={setSelectedGame}
           counts={counts}
           activeFilter={activeFilter}
-          setActiveFilter={setActiveFilter}
-          cycleFilter={cycleFilter}
+          setActiveFilter={selectFilter}
+          cycleFilter={cycleCategory}
           gamepadConnected={gamepadConnected}
           gamepadName={gamepadName}
           searchQuery={searchQuery}

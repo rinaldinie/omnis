@@ -273,6 +273,7 @@ export const fr: TranslationSchema = {
     empty_title: 'Aucun jeu trouvé',
     empty_search: 'Aucun résultat pour « {query} »',
     empty_category: 'Aucun jeu dans cette catégorie',
+    custom_filter: 'Filtre personnalisé',
     search_filter: 'Recherche : « {query} »',
     about: 'À propos',
     controller_ready: 'Aucune manette',

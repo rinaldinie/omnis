@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { useTranslation } from "../i18n";
 import { GameDto, GroupBy, FILTER_ORDER } from "../types";
 import { sortGames, GameSortMode } from "../utils/sortGames";
+import { toCategoryId } from "../utils/consoleCategories";
 
 export interface FilterChip {
   id: string;
@@ -202,14 +203,29 @@ export function useLibraryFilters(games: GameDto[]) {
     }
   };
 
-  const cycleFilter = (direction: number, onCycle?: (nextFilter: string) => void) => {
-    const currentIndex = FILTER_ORDER.indexOf(activeFilter);
-    const nextIndex = (currentIndex + direction + FILTER_ORDER.length) % FILTER_ORDER.length;
-    const nextFilter = FILTER_ORDER[nextIndex];
+  // Replaces every active filter with a single category
+  const selectFilter = (filter: string) => {
     clearAllFilters();
-    if (nextFilter !== "all") {
-      setActiveFilter(nextFilter);
+    if (filter !== "all") {
+      setActiveFilter(filter);
     }
+  };
+
+  const cycleFilter = (
+    direction: number,
+    onCycle?: (nextFilter: string) => void,
+    order: string[] = FILTER_ORDER
+  ) => {
+    if (order.length === 0) return;
+    const currentIndex = order.indexOf(toCategoryId(activeFilter));
+    const nextIndex =
+      currentIndex === -1
+        ? direction > 0
+          ? 0
+          : order.length - 1
+        : (currentIndex + direction + order.length) % order.length;
+    const nextFilter = order[nextIndex];
+    selectFilter(nextFilter);
     if (onCycle) onCycle(nextFilter);
   };
 
@@ -495,6 +511,7 @@ export function useLibraryFilters(games: GameDto[]) {
 
     activeFilter,
     setActiveFilter,
+    selectFilter,
     cycleFilter,
 
     groupBy,

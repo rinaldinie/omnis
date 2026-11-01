@@ -289,6 +289,7 @@ export interface TranslationSchema {
     empty_title: string;
     empty_search: string;
     empty_category: string;
+    custom_filter: string;
     search_filter: string;
     about: string;
     controller_ready: string;

@@ -33,12 +33,12 @@ import {
 import type { LucideIcon } from "lucide-react";
 import {
   ActiveGameSession,
-  FILTER_ORDER,
   GameDto,
   LibraryCounts,
   ThemeConfig,
   formatImageUrl,
 } from "../../types";
+import { categoryCount, getVisibleCategories, toCategoryId } from "../../utils/consoleCategories";
 import { StoreIcon } from "../StoreBadge";
 import soundEffects from "../../utils/soundEffects";
 import { VideoBackdrop } from "../common/VideoBackdrop";
@@ -176,9 +176,6 @@ const FILTER_LABEL_KEYS: Record<string, string> = {
   strategy: "sidebar.genre_strategy",
   indie: "sidebar.genre_indie",
 };
-
-// Filters always shown as tabs, even when empty
-const PINNED_FILTERS = ["all", "installed", "recent", "favorites"];
 
 function resolveImage(src: string | null | undefined): string | null {
   if (!src) return null;
@@ -654,13 +651,18 @@ export default function FullscreenView({
   // ---------------------------------------------------------------------------
   // Category tabs (same order LB / RB cycles through)
   // ---------------------------------------------------------------------------
-  const filterLabel = (id: string) =>
-    STORE_LABELS[id] ?? (FILTER_LABEL_KEYS[id] ? t(FILTER_LABEL_KEYS[id]) : id);
-  const filterCount = (id: string) =>
-    (counts as unknown as Record<string, number>)[id === "all" ? "total" : id] ?? 0;
-  const visibleFilters = FILTER_ORDER.filter(
-    (id) => PINNED_FILTERS.includes(id) || id === activeFilter || filterCount(id) > 0
-  );
+  const activeCategory = toCategoryId(activeFilter);
+  const filterLabel = (id: string) => {
+    if (STORE_LABELS[id]) return STORE_LABELS[id];
+    if (FILTER_LABEL_KEYS[id]) return t(FILTER_LABEL_KEYS[id]);
+    // Filters applied outside the tabs (e.g. a genre picked in the details view)
+    if (id.startsWith("genre:")) return id.slice(6);
+    if (id.startsWith("feature:")) return id.slice(8);
+    if (id === "custom") return t("console_ui.custom_filter");
+    return id;
+  };
+  const filterCount = (id: string) => categoryCount(counts, id);
+  const visibleFilters = React.useMemo(() => getVisibleCategories(counts, activeFilter), [counts, activeFilter]);
 
   const cycleFilter = React.useCallback(
     (direction: number, onCycle?: (nextFilter: string) => void) => {
@@ -668,7 +670,7 @@ export default function FullscreenView({
         propCycleFilter(direction, onCycle);
         return;
       }
-      const currentIndex = visibleFilters.indexOf(activeFilter);
+      const currentIndex = visibleFilters.indexOf(activeCategory);
       const nextIndex =
         currentIndex === -1
           ? 0
@@ -677,13 +679,13 @@ export default function FullscreenView({
       setActiveFilter(nextFilter);
       if (onCycle) onCycle(nextFilter);
     },
-    [propCycleFilter, visibleFilters, activeFilter, setActiveFilter]
+    [propCycleFilter, visibleFilters, activeCategory, setActiveFilter]
   );
 
   const tabRefs = React.useRef<Record<string, HTMLElement | null>>({});
   React.useEffect(() => {
-    tabRefs.current[activeFilter]?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
-  }, [activeFilter]);
+    tabRefs.current[activeCategory]?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+  }, [activeCategory]);
 
   // ---------------------------------------------------------------------------
   // Game details page
@@ -1393,7 +1395,7 @@ export default function FullscreenView({
           </button>
           <div className="flex items-center gap-1 overflow-x-auto no-scrollbar min-w-0">
             {visibleFilters.map((id) => {
-              const isActive = id === activeFilter;
+              const isActive = id === activeCategory;
               return (
                 <button
                   type="button"
@@ -1410,7 +1412,7 @@ export default function FullscreenView({
                       : { color: "rgba(255, 255, 255, 0.55)", backgroundColor: "transparent" }
                   }
                   onClick={() => {
-                    if (id !== activeFilter) {
+                    if (id !== activeCategory) {
                       soundEffects.playNav();
                       setActiveFilter(id);
                       setFocusedIndex(0);
@@ -1519,7 +1521,7 @@ export default function FullscreenView({
           )}
 
           <h2 className="px-10 mb-4 text-3xl font-semibold text-white tracking-tight drop-shadow">
-            {filterLabel(activeFilter)}
+            {filterLabel(activeCategory)}
             <span className="ml-3 text-lg font-normal text-white/50">{filteredGames.length}</span>
             {sortMode !== "default" && (
               <span className="ml-4 text-sm font-semibold uppercase tracking-wider text-white/45">
@@ -1575,7 +1577,7 @@ export default function FullscreenView({
       ) : (
         <section className="relative z-10 flex-1 min-h-0 flex flex-col">
           <h2 className="px-10 pt-4 text-3xl font-semibold text-white tracking-tight drop-shadow">
-            {filterLabel(activeFilter)}
+            {filterLabel(activeCategory)}
             <span className="ml-3 text-lg font-normal text-white/50">{filteredGames.length}</span>
             {sortMode !== "default" && (
               <span className="ml-4 text-sm font-semibold uppercase tracking-wider text-white/45">
