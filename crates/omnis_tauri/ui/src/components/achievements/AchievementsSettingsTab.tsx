@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import soundEffects from "../../utils/soundEffects";
 import { useTranslation } from "../../i18n";
+import { invokeTauri } from "../../types";
 
 export interface AchievementsConfig {
   // Provider sources
@@ -123,10 +124,15 @@ interface AchievementsSettingsTabProps {
 export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = ({
   onClose,
 }) => {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const [activeSubTab, setActiveSubTab] = useState<SubTab>("sources");
   const [config, setConfig] = useState<AchievementsConfig>(loadAchievementsConfig);
   const [savedSuccess, setSavedSuccess] = useState(false);
+
+  // Sync state with backend on mount
+  useEffect(() => {
+    invokeTauri("set_sync_achievements_on_game_exit", { enabled: config.syncOnGameExit });
+  }, []);
 
   // Accordion state matching settings_01.jpg
   const [openSections, setOpenSections] = useState({
@@ -146,9 +152,15 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
     setConfig((prev) => ({ ...prev, [key]: val }));
   };
 
+  const handleToggleSyncOnGameExit = (next: boolean) => {
+    update("syncOnGameExit", next);
+    invokeTauri("set_sync_achievements_on_game_exit", { enabled: next });
+  };
+
   const handleSave = () => {
     soundEffects.playSelect();
     saveAchievementsConfig(config);
+    invokeTauri("set_sync_achievements_on_game_exit", { enabled: config.syncOnGameExit });
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 2500);
   };
@@ -157,6 +169,7 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
     soundEffects.playSelect();
     setConfig(DEFAULT_CONFIG);
     saveAchievementsConfig(DEFAULT_CONFIG);
+    invokeTauri("set_sync_achievements_on_game_exit", { enabled: DEFAULT_CONFIG.syncOnGameExit });
   };
 
   return (
@@ -517,61 +530,128 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
 
         {/* SUBTAB 3: MISC & CACHE */}
         {activeSubTab === "misc" && (
-          <div className="space-y-5 text-xs font-sans">
-            <h4 className="font-bold text-slate-300 uppercase tracking-wider text-[11px]">
-              {t("achievements_settings.cache_heading")}
-            </h4>
-
+          <div className="space-y-6 text-xs font-sans">
+            {/* Synchronization Section */}
             <div className="space-y-4">
-              <label className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] cursor-pointer hover:bg-white/[0.04]">
-                <div>
-                  <span className="font-bold text-white block">{t("achievements_settings.cache_enable")}</span>
-                  <span className="text-slate-400">
-                    {t("achievements_settings.cache_enable_desc")}
-                  </span>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={config.enableLocalIconCache}
-                  onChange={(e) => update("enableLocalIconCache", e.target.checked)}
-                  className="w-4 h-4 rounded border-white/20 bg-slate-900 text-sky-500"
-                />
-              </label>
+              <h4 className="font-bold text-slate-300 uppercase tracking-wider text-[11px]">
+                {t("achievements_settings.sync_heading")}
+              </h4>
 
               <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] space-y-2">
                 <div className="flex items-center justify-between">
                   <div>
-                    <span className="font-bold text-white block">{t("achievements_settings.concurrency")}</span>
+                    <span className="font-bold text-white block">
+                      {t("achievements_settings.startup_sync_interval")}
+                    </span>
                     <span className="text-slate-400">
-                      {t("achievements_settings.concurrency_desc")}
+                      {t("achievements_settings.startup_sync_interval_desc")}
                     </span>
                   </div>
-                  <span className="font-mono font-bold text-sky-400 text-sm">
-                    {t("achievements_settings.threads", { count: config.concurrencyLimit })}
-                  </span>
+                  <select
+                    value={config.startupSyncInterval}
+                    onChange={(e) =>
+                      update(
+                        "startupSyncInterval",
+                        e.target.value as AchievementsConfig["startupSyncInterval"]
+                      )
+                    }
+                    className="px-3 py-1.5 rounded-lg bg-slate-900 border border-white/10 text-white font-medium"
+                  >
+                    <option value="always">{t("achievements_settings.opt_sync_always")}</option>
+                    <option value="1">{t("achievements_settings.opt_sync_1_day")}</option>
+                    <option value="3">{t("achievements_settings.opt_sync_3_days")}</option>
+                    <option value="7">{t("achievements_settings.opt_sync_7_days")}</option>
+                    <option value="never">{t("achievements_settings.opt_sync_never")}</option>
+                  </select>
                 </div>
-                <input
-                  type="range"
-                  min={1}
-                  max={16}
-                  value={config.concurrencyLimit}
-                  onChange={(e) => update("concurrencyLimit", Number(e.target.value))}
-                  className="w-full accent-sky-500 cursor-pointer"
-                />
+                <div className="text-[11px] text-slate-400 pt-1.5 border-t border-white/[0.04]">
+                  {config.lastLibrarySyncTimestamp
+                    ? t("achievements_settings.last_sync", {
+                        time: new Date(
+                          config.lastLibrarySyncTimestamp > 1e11
+                            ? config.lastLibrarySyncTimestamp
+                            : config.lastLibrarySyncTimestamp * 1000
+                        ).toLocaleString(locale),
+                      })
+                    : t("achievements_settings.last_sync_never")}
+                </div>
               </div>
 
               <label className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] cursor-pointer hover:bg-white/[0.04]">
                 <div>
-                  <span className="font-bold text-white block">{t("achievements_settings.sounds")}</span>
-                  <span className="text-slate-400">{t("achievements_settings.sounds_desc")}</span>
+                  <span className="font-bold text-white block">
+                    {t("achievements_settings.sync_on_game_exit")}
+                  </span>
+                  <span className="text-slate-400">
+                    {t("achievements_settings.sync_on_game_exit_desc")}
+                  </span>
                 </div>
                 <input
                   type="checkbox"
-                  checked={config.playSounds}
-                  onChange={(e) => update("playSounds", e.target.checked)}
+                  checked={config.syncOnGameExit}
+                  onChange={(e) => handleToggleSyncOnGameExit(e.target.checked)}
                   className="w-4 h-4 rounded border-white/20 bg-slate-900 text-sky-500"
                 />
               </label>
+            </div>
+
+            {/* Cache & Performance Section */}
+            <div className="space-y-4">
+              <h4 className="font-bold text-slate-300 uppercase tracking-wider text-[11px]">
+                {t("achievements_settings.cache_heading")}
+              </h4>
+
+              <div className="space-y-4">
+                <label className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] cursor-pointer hover:bg-white/[0.04]">
+                  <div>
+                    <span className="font-bold text-white block">{t("achievements_settings.cache_enable")}</span>
+                    <span className="text-slate-400">
+                      {t("achievements_settings.cache_enable_desc")}
+                    </span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={config.enableLocalIconCache}
+                    onChange={(e) => update("enableLocalIconCache", e.target.checked)}
+                    className="w-4 h-4 rounded border-white/20 bg-slate-900 text-sky-500"
+                  />
+                </label>
+
+                <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="font-bold text-white block">{t("achievements_settings.concurrency")}</span>
+                      <span className="text-slate-400">
+                        {t("achievements_settings.concurrency_desc")}
+                      </span>
+                    </div>
+                    <span className="font-mono font-bold text-sky-400 text-sm">
+                      {t("achievements_settings.threads", { count: config.concurrencyLimit })}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={1}
+                    max={16}
+                    value={config.concurrencyLimit}
+                    onChange={(e) => update("concurrencyLimit", Number(e.target.value))}
+                    className="w-full accent-sky-500 cursor-pointer"
+                  />
+                </div>
+
+                <label className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] cursor-pointer hover:bg-white/[0.04]">
+                  <div>
+                    <span className="font-bold text-white block">{t("achievements_settings.sounds")}</span>
+                    <span className="text-slate-400">{t("achievements_settings.sounds_desc")}</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={config.playSounds}
+                    onChange={(e) => update("playSounds", e.target.checked)}
+                    className="w-4 h-4 rounded border-white/20 bg-slate-900 text-sky-500"
+                  />
+                </label>
+              </div>
             </div>
           </div>
         )}
