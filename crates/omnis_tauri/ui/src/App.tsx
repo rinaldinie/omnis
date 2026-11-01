@@ -40,6 +40,7 @@ import {
 } from "./components/StoreBadge";
 import {
   GameDto,
+  AchievementSyncProgress,
   ActiveGameSession,
   ViewMode,
   GroupBy,
@@ -78,6 +79,7 @@ import PlayniteImportModal from "./components/modals/PlayniteImportModal";
 import { UninstallModal } from "./components/modals/UninstallModal";
 import OnboardingModal, { shouldShowOnboarding, shouldAutoScanOnStartup } from "./components/modals/OnboardingModal";
 import GlobalContextMenu from "./components/GlobalContextMenu";
+import { AchievementSyncIndicator } from "./components/achievements";
 import FilterAndSortPopover from "./components/navigation/FilterAndSortPopover";
 import GroupByPopover from "./components/navigation/GroupByPopover";
 import EmptyGamesView from "./components/common/EmptyGamesView";
@@ -156,6 +158,10 @@ export default function App() {
   const [showKillConfirmModal, setShowKillConfirmModal] = useState<boolean>(false);
   const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const syncBannerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Background achievement sync (startup library pass or post-session refresh), shown in the bottom bar
+  const [achievementSync, setAchievementSync] = useState<AchievementSyncProgress | null>(null);
+  const achievementSyncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const achievementSyncStartedRef = useRef<boolean>(false);
   const gamesRef = useRef<GameDto[]>([]);
   gamesRef.current = games;
   const activeGameRef = useRef<ActiveGameSession | null>(null);
@@ -176,6 +182,18 @@ export default function App() {
     }, 4000);
     return () => clearTimeout(timer);
   }, [updater.checkForUpdates]);
+
+  // Align achievements with the stores in the background once the UI has settled after startup
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (achievementSyncStartedRef.current) return;
+      achievementSyncStartedRef.current = true;
+      invokeTauri("start_library_achievement_sync").catch((err) => {
+        console.warn("Background achievement sync could not start:", err);
+      });
+    }, 8000);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Live timer for active game session (counts from process detection, Requirement A6)
   useEffect(() => {
@@ -199,6 +217,7 @@ export default function App() {
     return () => {
       if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
       if (syncBannerTimeoutRef.current) clearTimeout(syncBannerTimeoutRef.current);
+      if (achievementSyncTimeoutRef.current) clearTimeout(achievementSyncTimeoutRef.current);
     };
   }, []);
 
@@ -902,6 +921,7 @@ export default function App() {
     let unlistenMetaProgress: (() => void) | null = null;
     let unlistenTrayLaunch: (() => void) | null = null;
     let unlistenTraySettings: (() => void) | null = null;
+    let unlistenAchievementSync: (() => void) | null = null;
 
     // Sync minimize to tray setting to backend
     const savedTray = localStorage.getItem("omnis_minimize_to_tray");
@@ -1099,6 +1119,32 @@ export default function App() {
           handleOpenSettings("general");
         });
         if (!isMounted) { hTraySettings(); } else { unlistenTraySettings = hTraySettings; }
+
+        const hAchievementSync = await listen<AchievementSyncProgress>("achievement-sync-progress", (event) => {
+          const p = event.payload;
+          if (achievementSyncTimeoutRef.current) {
+            clearTimeout(achievementSyncTimeoutRef.current);
+            achievementSyncTimeoutRef.current = null;
+          }
+          if (p.status === "syncing") {
+            // A running library pass already covers the game that just closed
+            setAchievementSync((prev) =>
+              p.scope === "game" && prev?.scope === "library" && prev.status === "syncing" ? prev : p
+            );
+            return;
+          }
+          if (p.failed > 0) {
+            console.warn(`Background achievement sync (${p.scope}): ${p.failed} of ${p.total} games failed`);
+          }
+          // Briefly confirm what was refreshed; a failed single-game refresh just disappears
+          if (p.updated > 0) {
+            setAchievementSync(p);
+            achievementSyncTimeoutRef.current = setTimeout(() => setAchievementSync(null), 4000);
+          } else {
+            setAchievementSync(null);
+          }
+        });
+        if (!isMounted) { hAchievementSync(); } else { unlistenAchievementSync = hAchievementSync; }
       } catch (e) {
         console.warn("Failed to register store sync listener in App:", e);
       }
@@ -1120,6 +1166,7 @@ export default function App() {
       if (unlistenMetaProgress) unlistenMetaProgress();
       if (unlistenTrayLaunch) unlistenTrayLaunch();
       if (unlistenTraySettings) unlistenTraySettings();
+      if (unlistenAchievementSync) unlistenAchievementSync();
     };
   }, []);
 
@@ -1866,6 +1913,7 @@ export default function App() {
             </div>
 
             <div className="flex items-center gap-4 shrink-0">
+              {achievementSync && <AchievementSyncIndicator sync={achievementSync} variant="footer" />}
               <span>{t("app_misc.fullscreen_hint")}</span>
               <span>
                 {t("app_misc.active_theme")} <strong className="text-white">{currentTheme.name}</strong>
@@ -2092,6 +2140,9 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* BACKGROUND ACHIEVEMENT SYNC (console mode has no status bar) */}
+      {isFullscreen && achievementSync && <AchievementSyncIndicator sync={achievementSync} variant="console" />}
 
       {/* CLOUD STORE SYNC TOAST / FLOATING NOTIFICATION */}
       {syncBanner && (

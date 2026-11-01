@@ -36,6 +36,10 @@ pub mod events {
     pub const GAME_DELETED: &str = "game-deleted";
     /// Emitted during bulk metadata downloads with progress info
     pub const METADATA_PROGRESS: &str = "metadata-progress";
+    /// Emitted while a background achievement sync (library-wide or single game) runs
+    pub const ACHIEVEMENT_SYNC_PROGRESS: &str = "achievement-sync-progress";
+    /// Emitted when the stored achievements of a single game have been refreshed
+    pub const ACHIEVEMENTS_UPDATED: &str = "achievements-updated";
 }
 
 /// Standard file and directory names across Omnis storage

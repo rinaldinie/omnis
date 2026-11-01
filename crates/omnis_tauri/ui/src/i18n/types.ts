@@ -844,6 +844,10 @@ export interface TranslationSchema {
     sync_success: string;
     loading: string;
     unknown_sync_error: string;
+    auto_sync_progress: string;
+    auto_sync_done: string;
+    auto_sync_game: string;
+    auto_sync_game_done: string;
   };
   store_accounts: {
     import_installed: string;

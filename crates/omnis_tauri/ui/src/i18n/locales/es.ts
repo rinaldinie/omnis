@@ -828,6 +828,10 @@ export const es: TranslationSchema = {
     sync_success: '¡Logros sincronizados con éxito desde la tienda!',
     loading: 'Cargando logros...',
     unknown_sync_error: 'Error desconocido durante la sincronización.',
+    auto_sync_progress: 'Sincronizando logros… {current}/{total}',
+    auto_sync_done: 'Logros al día ({updated}/{total})',
+    auto_sync_game: 'Actualizando logros: {title}…',
+    auto_sync_game_done: 'Logros actualizados: {title}',
   },
   store_accounts: {
     import_installed: 'Importar juegos instalados',

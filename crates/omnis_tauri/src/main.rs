@@ -2,6 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 pub mod achievement_service;
+pub mod achievement_sync;
 pub mod active_game;
 pub mod bootstrap;
 pub mod builtin_themes;
@@ -123,6 +124,7 @@ fn main() {
             get_slot_widgets,
             get_game_achievements,
             refresh_game_achievements,
+            start_library_achievement_sync,
             inspect_playnite_backup,
             execute_playnite_import,
             pick_playnite_backup_file,

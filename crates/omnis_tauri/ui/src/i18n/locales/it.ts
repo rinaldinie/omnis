@@ -828,6 +828,10 @@ export const it: TranslationSchema = {
     sync_success: 'Obiettivi sincronizzati con successo dallo store!',
     loading: 'Caricamento obiettivi in corso...',
     unknown_sync_error: 'Errore sconosciuto durante la sincronizzazione.',
+    auto_sync_progress: 'Allineamento obiettivi… {current}/{total}',
+    auto_sync_done: 'Obiettivi allineati ({updated}/{total})',
+    auto_sync_game: 'Aggiornamento obiettivi: {title}…',
+    auto_sync_game_done: 'Obiettivi aggiornati: {title}',
   },
   store_accounts: {
     import_installed: 'Importa i giochi installati',

@@ -48,3 +48,11 @@ pub async fn refresh_game_achievements(
         .sync_game_achievements(&state.db, &state.store_account_manager, &state.app_dir, gid)
         .await
 }
+
+/// Starts the library-wide achievement sync in the background and returns immediately.
+/// Progress is reported through `achievement-sync-progress` events.
+#[tauri::command]
+pub async fn start_library_achievement_sync(app: tauri::AppHandle) -> Result<(), String> {
+    tauri::async_runtime::spawn(crate::achievement_sync::run_library_sync(app));
+    Ok(())
+}
