@@ -220,8 +220,20 @@ impl AppBootstrap {
             tray::update_tray_menu(&h2);
         });
         let h3 = app_handle.clone();
-        app.listen(events::GAME_STOPPED, move |_| {
+        app.listen(events::GAME_STOPPED, move |event| {
             tray::update_tray_menu(&h3);
+
+            // Refresh the achievements of the game that just closed
+            let game_id = serde_json::from_str::<serde_json::Value>(event.payload())
+                .ok()
+                .and_then(|v| v.get("game_id")?.as_str().map(str::to_owned))
+                .and_then(|id| uuid::Uuid::parse_str(&id).ok());
+            if let Some(game_id) = game_id {
+                tauri::async_runtime::spawn(crate::achievement_sync::run_post_session_sync(
+                    h3.clone(),
+                    game_id,
+                ));
+            }
         });
 
         Ok(())

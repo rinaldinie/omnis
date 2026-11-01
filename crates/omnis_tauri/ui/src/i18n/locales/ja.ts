@@ -890,6 +890,10 @@ export const ja: TranslationSchema = {
     sync_success: 'ストアから実績を正常に同期しました！',
     loading: '実績を読み込み中...',
     unknown_sync_error: '同期中に不明なエラーが発生しました。',
+    auto_sync_progress: '実績を同期中… {current}/{total}',
+    auto_sync_done: '実績を更新しました（{updated}/{total}）',
+    auto_sync_game: '実績を更新中: {title}…',
+    auto_sync_game_done: '実績を更新しました: {title}',
   },
   store_accounts: {
     import_installed: 'インストール済みゲームをインポート',

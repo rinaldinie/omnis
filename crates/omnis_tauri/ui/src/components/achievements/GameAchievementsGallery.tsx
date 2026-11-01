@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { Trophy, RefreshCw, Sparkles, Award, Lock, CheckCircle2, AlertCircle, Settings } from "lucide-react";
 import { Achievement, GameAchievementsSummary, GameDto } from "../../types";
 import { AchievementBadge } from "./AchievementBadge";
@@ -131,6 +132,32 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
       }
     };
   }, [fetchAchievements, game.id]);
+
+  // Pick up background syncs (startup pass, post-session refresh) without a loading flicker
+  useEffect(() => {
+    if (!isSupportedStore) return;
+    const targetGameId = game.id;
+    let unlisten: (() => void) | null = null;
+    let disposed = false;
+    listen<{ game_id: string }>("achievements-updated", async (event) => {
+      if (event.payload.game_id !== targetGameId) return;
+      try {
+        const result = await invoke<GameAchievementsSummary>("get_game_achievements", { gameId: targetGameId });
+        if (activeGameIdRef.current === targetGameId) setSummary(result);
+      } catch (err) {
+        console.debug("Achievement reload after background sync failed:", err);
+      }
+    })
+      .then((fn) => {
+        if (disposed) fn();
+        else unlisten = fn;
+      })
+      .catch(() => {});
+    return () => {
+      disposed = true;
+      if (unlisten) unlisten();
+    };
+  }, [game.id, isSupportedStore]);
 
   // Statistics calculation
   const stats = useMemo(() => {

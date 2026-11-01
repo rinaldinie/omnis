@@ -890,6 +890,10 @@ export const en: TranslationSchema = {
     sync_success: 'Achievements successfully synced from store!',
     loading: 'Loading achievements...',
     unknown_sync_error: 'Unknown error during synchronization.',
+    auto_sync_progress: 'Syncing achievements… {current}/{total}',
+    auto_sync_done: 'Achievements up to date ({updated}/{total})',
+    auto_sync_game: 'Updating achievements: {title}…',
+    auto_sync_game_done: 'Achievements updated: {title}',
   },
   store_accounts: {
     import_installed: 'Import installed games',

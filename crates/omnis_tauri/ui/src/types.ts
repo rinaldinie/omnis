@@ -557,6 +557,18 @@ export interface GameAchievementsSummary {
   achievements: Achievement[];
 }
 
+/** Payload of the backend `achievement-sync-progress` event */
+export interface AchievementSyncProgress {
+  /** "library" for the startup pass, "game" for the refresh after a play session */
+  scope: "library" | "game";
+  status: "syncing" | "completed";
+  current: number;
+  total: number;
+  updated: number;
+  failed: number;
+  title?: string | null;
+}
+
 export interface PlayniteBackupMatchSample {
   title: string;
   library_id?: string;

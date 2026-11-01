@@ -8,8 +8,9 @@ use omnis_plugin_steam::SteamPlugin;
 use omnis_plugin_xbox::XboxCloudPlugin;
 use omnis_sdk::constants::{storage, stores};
 use omnis_sdk::{Achievement, AchievementProvider, Game, GameAchievementsSummary};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tracing::warn;
 use uuid::Uuid;
@@ -20,12 +21,14 @@ use crate::store_manager::StoreAccountManager;
 /// local persistence, and background icon caching.
 pub struct AchievementService {
     providers: HashMap<String, Box<dyn AchievementProvider>>,
+    library_sync_running: AtomicBool,
 }
 
 impl AchievementService {
     pub fn new() -> Self {
         let mut service = Self {
             providers: HashMap::new(),
+            library_sync_running: AtomicBool::new(false),
         };
         service.register_provider(Box::new(SteamPlugin::new()));
         service.register_provider(Box::new(XboxCloudPlugin::new()));
@@ -37,6 +40,54 @@ impl AchievementService {
     pub fn register_provider(&mut self, provider: Box<dyn AchievementProvider>) {
         self.providers
             .insert(provider.provider_id().to_string(), provider);
+    }
+
+    /// Returns true when an achievement provider is registered for the given store
+    pub fn supports_store(&self, library_id: &str) -> bool {
+        self.providers.contains_key(library_id)
+    }
+
+    /// Marks the library-wide sync as running; returns false if one is already in progress
+    pub fn try_begin_library_sync(&self) -> bool {
+        self.library_sync_running
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .is_ok()
+    }
+
+    pub fn end_library_sync(&self) {
+        self.library_sync_running.store(false, Ordering::SeqCst);
+    }
+
+    /// Selects the games worth refreshing in a background library sync: supported store with a
+    /// connected account, and some recorded play activity (unplayed games cannot have new unlocks
+    /// and still get their achievement list lazily when opened). Most recently played first.
+    pub fn library_sync_candidates(
+        &self,
+        db: &Database,
+        store_account_manager: &StoreAccountManager,
+    ) -> Result<Vec<Game>, String> {
+        let configured: HashSet<&str> = self
+            .providers
+            .keys()
+            .map(String::as_str)
+            .filter(|store_id| {
+                matches!(store_account_manager.load_session(store_id), Ok(Some(_)))
+            })
+            .collect();
+
+        if configured.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let mut games: Vec<Game> = db
+            .get_all_games()
+            .map_err(|e| format!("Database error listing games: {e}"))?
+            .into_iter()
+            .filter(|g| configured.contains(g.library_id.as_str()))
+            .filter(|g| g.playtime_seconds > 0 || g.play_count > 0 || g.last_activity.is_some())
+            .collect();
+        games.sort_by(|a, b| b.last_activity.cmp(&a.last_activity));
+        Ok(games)
     }
 
     /// Dispatches achievement fetching to the registered store provider
