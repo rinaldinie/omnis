@@ -18,6 +18,7 @@ import {
 import soundEffects from "../../utils/soundEffects";
 import { useTranslation } from "../../i18n";
 import { invokeTauri } from "../../types";
+import { listen } from "@tauri-apps/api/event";
 
 export interface AchievementsConfig {
   // Provider sources
@@ -129,9 +130,26 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
   const [config, setConfig] = useState<AchievementsConfig>(loadAchievementsConfig);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
-  // Sync state with backend on mount
+  // Sync state with backend on mount and listen for completed library syncs
   useEffect(() => {
     invokeTauri("set_sync_achievements_on_game_exit", { enabled: config.syncOnGameExit });
+
+    let unlisten: (() => void) | undefined;
+    listen<{ status: string; scope: string }>("achievement-sync-progress", (event) => {
+      if (event.payload?.status === "completed" && event.payload?.scope === "library") {
+        setConfig((prev) => ({ ...prev, lastLibrarySyncTimestamp: Date.now() }));
+      }
+    })
+      .then((fn) => {
+        unlisten = fn;
+      })
+      .catch((err) => {
+        console.warn("Could not attach achievement-sync-progress listener in modal:", err);
+      });
+
+    return () => {
+      if (unlisten) unlisten();
+    };
   }, []);
 
   // Accordion state matching settings_01.jpg
@@ -154,7 +172,6 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
 
   const handleToggleSyncOnGameExit = (next: boolean) => {
     update("syncOnGameExit", next);
-    invokeTauri("set_sync_achievements_on_game_exit", { enabled: next });
   };
 
   const handleSave = () => {
@@ -548,7 +565,7 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                     </span>
                   </div>
                   <select
-                    value={config.startupSyncInterval}
+                    value={config.startupSyncInterval ?? "3"}
                     onChange={(e) =>
                       update(
                         "startupSyncInterval",
