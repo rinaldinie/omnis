@@ -51,6 +51,11 @@ export interface AchievementsConfig {
 
   // Ignored games (IDs)
   ignoredGameIds: string[];
+
+  // Sync settings
+  startupSyncInterval: "always" | "1" | "3" | "7" | "never";
+  syncOnGameExit: boolean;
+  lastLibrarySyncTimestamp?: number | null;
 }
 
 const DEFAULT_CONFIG: AchievementsConfig = {
@@ -81,6 +86,10 @@ const DEFAULT_CONFIG: AchievementsConfig = {
   playSounds: true,
 
   ignoredGameIds: [],
+
+  startupSyncInterval: "3",
+  syncOnGameExit: true,
+  lastLibrarySyncTimestamp: null,
 };
 
 const STORAGE_KEY = "omnis_achievements_config";
