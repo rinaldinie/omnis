@@ -79,7 +79,7 @@ import PlayniteImportModal from "./components/modals/PlayniteImportModal";
 import { UninstallModal } from "./components/modals/UninstallModal";
 import OnboardingModal, { shouldShowOnboarding, shouldAutoScanOnStartup } from "./components/modals/OnboardingModal";
 import GlobalContextMenu from "./components/GlobalContextMenu";
-import { AchievementSyncIndicator } from "./components/achievements";
+import { AchievementSyncIndicator, loadAchievementsConfig, saveAchievementsConfig } from "./components/achievements";
 import FilterAndSortPopover from "./components/navigation/FilterAndSortPopover";
 import GroupByPopover from "./components/navigation/GroupByPopover";
 import EmptyGamesView from "./components/common/EmptyGamesView";
@@ -183,10 +183,36 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [updater.checkForUpdates]);
 
+  // Synchronize backend achievement exit-sync setting on startup
+  useEffect(() => {
+    try {
+      const cfg = loadAchievementsConfig();
+      invokeTauri("set_sync_achievements_on_game_exit", { enabled: cfg.syncOnGameExit }).catch((err) => {
+        console.warn("Failed to set achievement sync on game exit:", err);
+      });
+    } catch (e) {
+      console.warn("Failed to synchronize achievements config on mount:", e);
+    }
+  }, []);
+
   // Align achievements with the stores in the background once the UI has settled after startup
   useEffect(() => {
     const timer = setTimeout(() => {
       if (achievementSyncStartedRef.current) return;
+      const cfg = loadAchievementsConfig();
+      const interval = cfg.startupSyncInterval ?? "3";
+      if (interval === "never") return;
+
+      if (interval !== "always") {
+        const days = parseInt(interval, 10);
+        if (!isNaN(days) && days > 0 && cfg.lastLibrarySyncTimestamp) {
+          const thresholdMs = days * 24 * 60 * 60 * 1000;
+          if (Date.now() - cfg.lastLibrarySyncTimestamp < thresholdMs) {
+            return;
+          }
+        }
+      }
+
       achievementSyncStartedRef.current = true;
       invokeTauri("start_library_achievement_sync").catch((err) => {
         console.warn("Background achievement sync could not start:", err);
@@ -1132,6 +1158,11 @@ export default function App() {
               p.scope === "game" && prev?.scope === "library" && prev.status === "syncing" ? prev : p
             );
             return;
+          }
+          if (p.status === "completed" && p.scope === "library") {
+            const cfg = loadAchievementsConfig();
+            cfg.lastLibrarySyncTimestamp = Date.now();
+            saveAchievementsConfig(cfg);
           }
           if (p.failed > 0) {
             console.warn(`Background achievement sync (${p.scope}): ${p.failed} of ${p.total} games failed`);
