@@ -163,7 +163,7 @@ pub fn create_backup(
         // 9. Prune older backups if retention limit configured
         if let Some(keep) = options.keep_last {
             if keep > 0 {
-                let _ = rotate_backups(&options.destination_dir, &clean_host, keep);
+                let _ = rotate_backups(&options.destination_dir, &clean_host, keep.min(10));
             }
         }
 

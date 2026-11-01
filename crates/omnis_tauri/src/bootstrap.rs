@@ -159,8 +159,13 @@ impl AppBootstrap {
         let active_mgr = state.active_game_manager.clone();
         let db_ref = state.db.clone();
         let db_steam = state.db.clone();
+        let db_backup = state.db.clone();
+        let app_dir_backup = state.app_dir.clone();
 
         app.manage(state);
+
+        // Spawn automated background backup scheduler
+        crate::backup_scheduler::spawn_backup_scheduler(db_backup, app_dir_backup, app.handle().clone());
 
         // Check if an installed game is already running and re-attach session on startup
         tauri::async_runtime::spawn(async move {
