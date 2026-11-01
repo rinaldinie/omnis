@@ -561,6 +561,18 @@ export interface TranslationSchema {
     ignored_heading: string;
     ignored_desc: string;
     ignored_empty: string;
+    sync_heading: string;
+    startup_sync_interval: string;
+    startup_sync_interval_desc: string;
+    opt_sync_always: string;
+    opt_sync_1_day: string;
+    opt_sync_3_days: string;
+    opt_sync_7_days: string;
+    opt_sync_never: string;
+    last_sync: string;
+    last_sync_never: string;
+    sync_on_game_exit: string;
+    sync_on_game_exit_desc: string;
     reset: string;
     saved: string;
   },
