@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use uuid::Uuid;
 use omnis_sdk::DiscoveredGame;
 
+use crate::backup::{BackupFrequency, BackupScheduleConfig};
 use crate::db::{Database, LibraryCounts};
 
 /// Repository trait for library counts, sample game seeding, and image cache path relocation
@@ -22,6 +23,15 @@ pub trait CatalogMaintenanceRepository: Send + Sync {
 
     /// Safely realigns cached image and achievement paths to the active app directory
     fn relocate_image_paths(&self, new_base_dir: &str) -> Result<usize>;
+
+    /// Retrieve current backup schedule configuration
+    fn get_backup_schedule(&self) -> Result<BackupScheduleConfig>;
+
+    /// Save or update backup schedule configuration
+    fn save_backup_schedule(&self, config: &BackupScheduleConfig) -> Result<()>;
+
+    /// Record the completion of an automated or manual backup
+    fn record_backup_completed(&self, timestamp_utc: &str) -> Result<()>;
 }
 
 impl CatalogMaintenanceRepository for Database {
@@ -301,6 +311,94 @@ impl CatalogMaintenanceRepository for Database {
         Ok(n1 + n2)
     }
 
+    fn get_backup_schedule(&self) -> Result<BackupScheduleConfig> {
+        let conn = self.reader();
+        let mut stmt = conn.prepare(
+            "SELECT frequency, destination_dir, max_rotations, last_backup_utc, include_artwork, updated_at
+             FROM backup_schedule WHERE id = 1;",
+        )?;
+
+        let res = stmt.query_row([], |row| {
+            let freq_str: String = row.get(0)?;
+            let dest_dir_str: Option<String> = row.get(1)?;
+            let max_rotations: i64 = row.get(2)?;
+            let last_backup_utc: Option<String> = row.get(3)?;
+            let include_artwork_val: i64 = row.get(4)?;
+            let updated_at: String = row.get(5)?;
+
+            let frequency = BackupFrequency::from_str_name(&freq_str);
+            let destination_dir = dest_dir_str.map(PathBuf::from);
+            let max_rotations = (max_rotations as usize).clamp(1, 10);
+            let include_artwork = include_artwork_val != 0;
+
+            Ok(BackupScheduleConfig {
+                frequency,
+                destination_dir,
+                max_rotations,
+                last_backup_utc,
+                include_artwork,
+                updated_at,
+            })
+        });
+
+        match res {
+            Ok(config) => Ok(config),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(BackupScheduleConfig::default()),
+            Err(err) => Err(err),
+        }
+    }
+
+    fn save_backup_schedule(&self, config: &BackupScheduleConfig) -> Result<()> {
+        let conn = self.writer();
+        let freq_str = config.frequency.as_str();
+        let dest_dir_str = config
+            .destination_dir
+            .as_ref()
+            .map(|p| p.to_string_lossy().to_string());
+        let max_rotations = config.clamped_max_rotations() as i64;
+        let include_artwork = if config.include_artwork { 1 } else { 0 };
+        let updated_at = if config.updated_at.trim().is_empty() {
+            Utc::now().to_rfc3339()
+        } else {
+            config.updated_at.clone()
+        };
+
+        conn.execute(
+            "INSERT INTO backup_schedule (id, frequency, destination_dir, max_rotations, last_backup_utc, include_artwork, updated_at)
+             VALUES (1, ?1, ?2, ?3, ?4, ?5, ?6)
+             ON CONFLICT(id) DO UPDATE SET
+                 frequency = excluded.frequency,
+                 destination_dir = excluded.destination_dir,
+                 max_rotations = excluded.max_rotations,
+                 last_backup_utc = COALESCE(excluded.last_backup_utc, backup_schedule.last_backup_utc),
+                 include_artwork = excluded.include_artwork,
+                 updated_at = excluded.updated_at;",
+            params![
+                freq_str,
+                dest_dir_str,
+                max_rotations,
+                config.last_backup_utc,
+                include_artwork,
+                updated_at,
+            ],
+        )?;
+
+        Ok(())
+    }
+
+    fn record_backup_completed(&self, timestamp_utc: &str) -> Result<()> {
+        let conn = self.writer();
+        let now = Utc::now().to_rfc3339();
+        conn.execute(
+            "INSERT INTO backup_schedule (id, frequency, destination_dir, max_rotations, last_backup_utc, include_artwork, updated_at)
+             VALUES (1, 'disabled', NULL, 10, ?1, 0, ?2)
+             ON CONFLICT(id) DO UPDATE SET
+                 last_backup_utc = excluded.last_backup_utc,
+                 updated_at = excluded.updated_at;",
+            params![timestamp_utc, now],
+        )?;
+        Ok(())
+    }
 }
 
 // Inherent forwarders on Database for backward compatibility
@@ -328,5 +426,84 @@ impl Database {
     #[inline]
     pub fn relocate_image_paths(&self, new_base_dir: &str) -> Result<usize> {
         CatalogMaintenanceRepository::relocate_image_paths(self, new_base_dir)
+    }
+
+    #[inline]
+    pub fn get_backup_schedule(&self) -> Result<BackupScheduleConfig, rusqlite::Error> {
+        CatalogMaintenanceRepository::get_backup_schedule(self)
+    }
+
+    #[inline]
+    pub fn save_backup_schedule(&self, config: &BackupScheduleConfig) -> Result<(), rusqlite::Error> {
+        CatalogMaintenanceRepository::save_backup_schedule(self, config)
+    }
+
+    #[inline]
+    pub fn record_backup_completed(&self, timestamp_utc: &str) -> Result<(), rusqlite::Error> {
+        CatalogMaintenanceRepository::record_backup_completed(self, timestamp_utc)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_backup_schedule_crud_and_defaults() {
+        let db = Database::open_in_memory().expect("Failed to open test in-memory DB");
+
+        // 1. Initial seeded schedule must be default (disabled, max 10)
+        let initial = db.get_backup_schedule().expect("Failed to get initial schedule");
+        assert_eq!(initial.frequency, BackupFrequency::Disabled);
+        assert_eq!(initial.destination_dir, None);
+        assert_eq!(initial.max_rotations, 10);
+        assert_eq!(initial.last_backup_utc, None);
+        assert!(!initial.include_artwork);
+
+        // 2. Update schedule config (e.g. Daily, with destination dir, max 5, include artwork)
+        let custom_cfg = BackupScheduleConfig {
+            frequency: BackupFrequency::Daily,
+            destination_dir: Some(PathBuf::from("/backups/omnis")),
+            max_rotations: 5,
+            last_backup_utc: None,
+            include_artwork: true,
+            updated_at: "2026-11-01T08:00:00Z".to_string(),
+        };
+        db.save_backup_schedule(&custom_cfg).expect("Failed to save schedule");
+
+        let saved = db.get_backup_schedule().expect("Failed to reload schedule");
+        assert_eq!(saved.frequency, BackupFrequency::Daily);
+        assert_eq!(saved.destination_dir, Some(PathBuf::from("/backups/omnis")));
+        assert_eq!(saved.max_rotations, 5);
+        assert_eq!(saved.last_backup_utc, None);
+        assert!(saved.include_artwork);
+
+        // 3. Record backup completed should update last_backup_utc
+        let completed_ts = "2026-11-01T12:00:00Z";
+        db.record_backup_completed(completed_ts).expect("Failed to record completion");
+
+        let after_completed = db.get_backup_schedule().expect("Failed to read after completed");
+        assert_eq!(after_completed.last_backup_utc, Some(completed_ts.to_string()));
+        assert_eq!(after_completed.frequency, BackupFrequency::Daily);
+        assert_eq!(after_completed.max_rotations, 5);
+        assert!(after_completed.include_artwork);
+
+        // 4. Saving again with last_backup_utc = None should preserve existing last_backup_utc via COALESCE
+        let update_without_ts = BackupScheduleConfig {
+            frequency: BackupFrequency::Weekly,
+            destination_dir: Some(PathBuf::from("/backups/omnis_weekly")),
+            max_rotations: 15, // should be clamped to 10
+            last_backup_utc: None,
+            include_artwork: false,
+            updated_at: "2026-11-01T13:00:00Z".to_string(),
+        };
+        db.save_backup_schedule(&update_without_ts).expect("Failed to save update");
+
+        let preserved = db.get_backup_schedule().expect("Failed to reload after preserve");
+        assert_eq!(preserved.frequency, BackupFrequency::Weekly);
+        assert_eq!(preserved.max_rotations, 10); // clamped to 10
+        assert_eq!(preserved.last_backup_utc, Some(completed_ts.to_string()));
+        assert!(!preserved.include_artwork);
     }
 }

@@ -11,11 +11,19 @@ import {
   Layers,
   Image as ImageIcon,
   RotateCcw,
+  Calendar,
+  Clock,
+  Save,
 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import { useTranslation } from '../i18n';
 import soundEffects from '../utils/soundEffects';
-import { BackupResultDto, BackupInspectionDto } from '../types';
+import {
+  BackupResultDto,
+  BackupInspectionDto,
+  BackupScheduleConfigDto,
+} from '../types';
 
 interface BackupSettingsTabProps {
   onClose?: () => void;
@@ -33,6 +41,10 @@ export const BackupSettingsTab: React.FC<BackupSettingsTabProps> = ({
   const [includeArtwork, setIncludeArtwork] = useState<boolean>(false);
   const [isCreatingBackup, setIsCreatingBackup] = useState<boolean>(false);
   const [lastBackupResult, setLastBackupResult] = useState<BackupResultDto | null>(null);
+
+  // Automated backup & scheduling state
+  const [scheduleConfig, setScheduleConfig] = useState<BackupScheduleConfigDto | null>(null);
+  const [isSavingSchedule, setIsSavingSchedule] = useState<boolean>(false);
 
   // Restore state
   const [isInspecting, setIsInspecting] = useState<boolean>(false);
@@ -53,6 +65,61 @@ export const BackupSettingsTab: React.FC<BackupSettingsTabProps> = ({
     }
   }, [toastMessage]);
 
+  // Load schedule configuration
+  const loadSchedule = useCallback(async () => {
+    try {
+      const cfg = await invoke<BackupScheduleConfigDto>('get_backup_schedule');
+      setScheduleConfig(cfg);
+    } catch (err) {
+      console.error('Failed to load backup schedule:', err);
+    }
+  }, []);
+
+  // On component mount: fetch current schedule
+  useEffect(() => {
+    loadSchedule();
+  }, [loadSchedule]);
+
+  // Listen to Tauri event "omnis://backup-completed"
+  useEffect(() => {
+    let unlisten: (() => void) | null = null;
+    let isMounted = true;
+
+    listen<BackupResultDto>('omnis://backup-completed', (event) => {
+      if (!isMounted) return;
+      loadSchedule();
+      const res = event.payload;
+      const sizeMb = (res.file_size_bytes / (1024 * 1024)).toFixed(1);
+      const successTemplate = t('backup_settings.backup_created_success', {
+        count: res.total_games,
+        size: sizeMb,
+        path: res.backup_path,
+      });
+      setToastMessage(
+        successTemplate !== 'backup_settings.backup_created_success'
+          ? successTemplate
+          : `Backup .zip creato con successo (${res.total_games} giochi, ${sizeMb} MB)! Salvato in: ${res.backup_path}`
+      );
+    })
+      .then((fn) => {
+        if (isMounted) {
+          unlisten = fn;
+        } else {
+          fn();
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to attach omnis://backup-completed listener:', err);
+      });
+
+    return () => {
+      isMounted = false;
+      if (unlisten) {
+        unlisten();
+      }
+    };
+  }, [loadSchedule, t]);
+
   // Handle ESC key to close confirm modal
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -65,7 +132,7 @@ export const BackupSettingsTab: React.FC<BackupSettingsTabProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isConfirmModalOpen, isRestoring]);
 
-  // Pick destination folder
+  // Pick destination folder for manual backup
   const handlePickDestinationFolder = useCallback(async (): Promise<string | null> => {
     try {
       soundEffects.playSelect();
@@ -82,7 +149,33 @@ export const BackupSettingsTab: React.FC<BackupSettingsTabProps> = ({
     }
   }, []);
 
-  // Create backup action
+  // Pick destination folder for automated backup
+  const handlePickAutoDestinationFolder = useCallback(async (): Promise<string | null> => {
+    try {
+      soundEffects.playSelect();
+      setErrorMessage(null);
+      const chosen = await invoke<string | null>('pick_backup_destination_folder');
+      if (chosen) {
+        setScheduleConfig((prev) =>
+          prev
+            ? { ...prev, destination_dir: chosen }
+            : {
+                frequency: 'disabled',
+                destination_dir: chosen,
+                max_rotations: 5,
+                include_artwork: false,
+              }
+        );
+      }
+      return chosen;
+    } catch (err) {
+      console.error('Error picking auto backup destination folder:', err);
+      setErrorMessage(String(err));
+      return null;
+    }
+  }, []);
+
+  // Create manual backup action
   const handleCreateBackup = async () => {
     let destDir = selectedDestination;
     if (!destDir) {
@@ -99,9 +192,11 @@ export const BackupSettingsTab: React.FC<BackupSettingsTabProps> = ({
       const result = await invoke<BackupResultDto>('create_backup', {
         destinationDir: destDir,
         includeArtwork,
+        keepLast: scheduleConfig?.max_rotations,
       });
 
       setLastBackupResult(result);
+      loadSchedule();
       const sizeMb = (result.file_size_bytes / (1024 * 1024)).toFixed(1);
       const successTemplate = t('backup_settings.backup_created_success', {
         count: result.total_games,
@@ -123,6 +218,43 @@ export const BackupSettingsTab: React.FC<BackupSettingsTabProps> = ({
       );
     } finally {
       setIsCreatingBackup(false);
+    }
+  };
+
+  // Save schedule configuration
+  const handleSaveSchedule = async () => {
+    if (!scheduleConfig) return;
+    try {
+      setIsSavingSchedule(true);
+      setErrorMessage(null);
+      soundEffects.playSelect();
+
+      const saved = await invoke<BackupScheduleConfigDto>('save_backup_schedule', {
+        config: {
+          frequency: scheduleConfig.frequency,
+          destination_dir: scheduleConfig.destination_dir || null,
+          max_rotations: Number(scheduleConfig.max_rotations) || 5,
+          last_backup_utc: scheduleConfig.last_backup_utc || null,
+          next_backup_utc: scheduleConfig.next_backup_utc || null,
+          include_artwork: Boolean(scheduleConfig.include_artwork),
+        },
+      });
+
+      setScheduleConfig(saved);
+      const successMsg =
+        t('backup_settings.schedule_saved_success') ||
+        'Configurazione di schedulazione e rotazione salvata con successo!';
+      setToastMessage(successMsg);
+    } catch (err) {
+      console.error('Failed to save backup schedule:', err);
+      const errTemplate = t('backup_settings.err_create_failed', { error: String(err) });
+      setErrorMessage(
+        errTemplate !== 'backup_settings.err_create_failed'
+          ? errTemplate
+          : `Errore durante il salvataggio della configurazione: ${err}`
+      );
+    } finally {
+      setIsSavingSchedule(false);
     }
   };
 
@@ -196,7 +328,7 @@ export const BackupSettingsTab: React.FC<BackupSettingsTabProps> = ({
   };
 
   // Helper to format date
-  const formatDate = (isoString?: string) => {
+  const formatDate = (isoString?: string | null) => {
     if (!isoString) return '-';
     try {
       const d = new Date(isoString);
@@ -207,6 +339,56 @@ export const BackupSettingsTab: React.FC<BackupSettingsTabProps> = ({
     } catch {
       return isoString;
     }
+  };
+
+  // Frequency options list
+  const frequencyOptions: Array<{
+    key: 'disabled' | 'daily' | 'weekly' | 'monthly';
+    label: string;
+  }> = [
+    { key: 'disabled', label: t('backup_settings.freq_disabled') || 'Disattivato (Manuale)' },
+    { key: 'daily', label: t('backup_settings.freq_daily') || 'Ogni Giorno (24h)' },
+    { key: 'weekly', label: t('backup_settings.freq_weekly') || 'Ogni Settimana (7gg)' },
+    { key: 'monthly', label: t('backup_settings.freq_monthly') || 'Ogni Mese (30gg)' },
+  ];
+
+  // Render next scheduled backup badge
+  const renderNextBackupBadge = () => {
+    if (!scheduleConfig || scheduleConfig.frequency === 'disabled') {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-800 text-slate-400 border border-slate-700 font-medium">
+          <Clock className="w-3.5 h-3.5" />
+          <span>
+            {t('backup_settings.next_backup_disabled') || 'Nessun backup programmato (modalità manuale)'}
+          </span>
+        </span>
+      );
+    }
+
+    if (!scheduleConfig.destination_dir || scheduleConfig.destination_dir.trim() === '') {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/30 font-medium">
+          <AlertTriangle className="w-3.5 h-3.5" />
+          <span>
+            {t('backup_settings.next_backup_pending_folder') || 'In attesa di configurazione cartella'}
+          </span>
+        </span>
+      );
+    }
+
+    const nextUtc = scheduleConfig.next_backup_utc;
+    const isOverdue = nextUtc ? new Date(nextUtc).getTime() <= Date.now() : true;
+
+    return (
+      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-medium">
+        <CheckCircle2 className="w-3.5 h-3.5" />
+        <span>
+          {isOverdue
+            ? `${formatDate(nextUtc)} (${t('backup_settings.next_backup_overdue') || 'Pianificato a breve / In esecuzione...'})`
+            : formatDate(nextUtc)}
+        </span>
+      </span>
+    );
   };
 
   return (
@@ -367,7 +549,270 @@ export const BackupSettingsTab: React.FC<BackupSettingsTabProps> = ({
         )}
       </section>
 
-      {/* CARD 2: RIPRISTINA BACKUP */}
+      {/* CARD 2: BACKUP AUTOMATICO & SCHEDULAZIONE */}
+      <section
+        className="p-6 rounded-3xl border shadow-xl space-y-6 transition-all"
+        style={{
+          backgroundColor: 'var(--bg-card)',
+          borderColor: 'var(--border-color)',
+        }}
+      >
+        <div className="flex items-start justify-between">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 flex items-center justify-center shrink-0 shadow-md">
+              <Calendar className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-black text-white flex items-center gap-2">
+                <span>
+                  {t('backup_settings.schedule_card_title') || 'Backup Automatico & Schedulazione'}
+                </span>
+              </h3>
+              <p className="text-xs text-slate-400 mt-1 max-w-xl leading-relaxed">
+                {t('backup_settings.schedule_card_desc') ||
+                  'Configura la frequenza dei salvataggi automatici, la rotazione delle copie e monitora il prossimo backup programmato.'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* PROMINENT NEXT BACKUP STATUS CARD */}
+        <div
+          className="p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-inner"
+          style={{
+            backgroundColor: 'var(--bg-surface)',
+            borderColor: 'var(--border-color)',
+          }}
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 flex items-center justify-center shrink-0">
+              <Clock className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="text-[11px] uppercase tracking-wider text-slate-400 font-bold block">
+                {t('backup_settings.next_backup_label') || 'Prossimo backup previsto:'}
+              </span>
+              <div className="text-xs mt-1">
+                {renderNextBackupBadge()}
+              </div>
+            </div>
+          </div>
+
+          {scheduleConfig?.last_backup_utc && (
+            <div className="text-right text-[11px] text-slate-400 sm:self-center">
+              <span>
+                {t('backup_settings.last_backup_prefix') || 'Ultimo backup:'}{' '}
+                <strong className="text-slate-300 font-mono">
+                  {formatDate(scheduleConfig.last_backup_utc)}
+                </strong>
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* FREQUENCY SELECTOR */}
+        <div className="space-y-2">
+          <label className="text-xs font-bold text-slate-300 block">
+            {t('backup_settings.frequency_label') || 'Frequenza di backup:'}
+          </label>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {frequencyOptions.map((opt) => {
+              const isSelected = (scheduleConfig?.frequency ?? 'disabled') === opt.key;
+              return (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => {
+                    soundEffects.playSelect();
+                    setScheduleConfig((prev) =>
+                      prev
+                        ? { ...prev, frequency: opt.key }
+                        : {
+                            frequency: opt.key,
+                            max_rotations: 5,
+                            include_artwork: false,
+                          }
+                    );
+                  }}
+                  className={`px-3 py-2.5 rounded-xl text-xs font-semibold transition-all border text-center flex items-center justify-center gap-1.5 cursor-pointer ${
+                    isSelected
+                      ? 'bg-indigo-600 border-indigo-400 text-white shadow-md shadow-indigo-600/30 font-bold'
+                      : 'bg-white/5 border-white/10 hover:bg-white/10 text-slate-300 hover:text-white'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ROTATION SELECTOR */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <label htmlFor="maxRotationsInput" className="text-xs font-bold text-slate-300">
+              {t('backup_settings.rotation_label') || 'Copie rotanti da conservare:'}
+            </label>
+            <span className="px-2.5 py-0.5 rounded-lg bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 font-bold font-mono text-xs">
+              {scheduleConfig?.max_rotations ?? 5} / 10
+            </span>
+          </div>
+          <div className="flex items-center gap-4">
+            <input
+              type="range"
+              min={1}
+              max={10}
+              step={1}
+              value={scheduleConfig?.max_rotations ?? 5}
+              onChange={(e) => {
+                const val = Number(e.target.value);
+                setScheduleConfig((prev) =>
+                  prev
+                    ? { ...prev, max_rotations: val }
+                    : {
+                        frequency: 'disabled',
+                        max_rotations: val,
+                        include_artwork: false,
+                      }
+                );
+              }}
+              className="flex-1 h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+            />
+            <input
+              id="maxRotationsInput"
+              type="number"
+              min={1}
+              max={10}
+              value={scheduleConfig?.max_rotations ?? 5}
+              onChange={(e) => {
+                const val = Math.max(1, Math.min(10, Number(e.target.value) || 1));
+                setScheduleConfig((prev) =>
+                  prev
+                    ? { ...prev, max_rotations: val }
+                    : {
+                        frequency: 'disabled',
+                        max_rotations: val,
+                        include_artwork: false,
+                      }
+                );
+              }}
+              className="w-16 px-2.5 py-1.5 text-center bg-slate-900 border border-white/20 rounded-xl text-white font-bold font-mono text-xs focus:outline-none focus:border-indigo-500"
+            />
+          </div>
+          <p className="text-[11px] text-slate-400 leading-relaxed">
+            {t('backup_settings.rotation_desc', { count: scheduleConfig?.max_rotations ?? 5 }) ||
+              `Conserva al massimo ${scheduleConfig?.max_rotations ?? 5} backup su disco. I backup più vecchi verranno eliminati automaticamente per liberare spazio (limite massimo: 10 copie).`}
+          </p>
+        </div>
+
+        {/* DESTINATION FOLDER FOR AUTO-BACKUP */}
+        <div className="space-y-2">
+          <label className="text-xs font-bold text-slate-300 block">
+            {t('backup_settings.auto_destination_label') ||
+              'Cartella di destinazione per backup automatici:'}
+          </label>
+          <div className="flex items-center gap-2">
+            <div
+              className="flex-1 px-4 py-2.5 rounded-xl border text-xs font-mono text-slate-200 truncate select-all"
+              style={{
+                backgroundColor: 'var(--bg-surface)',
+                borderColor: 'var(--border-color)',
+              }}
+              title={scheduleConfig?.destination_dir || ''}
+            >
+              {scheduleConfig?.destination_dir ||
+                t('backup_settings.destination_folder_placeholder') ||
+                'Nessuna cartella selezionata (fai clic su Scegli cartella per selezionare dove salvare)...'}
+            </div>
+            <button
+              type="button"
+              onClick={handlePickAutoDestinationFolder}
+              className="px-4 py-2.5 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 text-white text-xs font-bold flex items-center gap-2 transition-all cursor-pointer hover:border-white/30 active:scale-95"
+            >
+              <FolderOpen className="w-4 h-4 text-indigo-400" />
+              <span>{t('backup_settings.btn_choose_folder') || 'Scegli cartella...'}</span>
+            </button>
+          </div>
+
+          {/* WARNING WHEN FREQUENCY ACTIVE BUT NO DESTINATION DIR */}
+          {scheduleConfig?.frequency &&
+            scheduleConfig.frequency !== 'disabled' &&
+            (!scheduleConfig.destination_dir || scheduleConfig.destination_dir.trim() === '') && (
+              <div className="p-3.5 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-200 text-xs flex items-center gap-2.5">
+                <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                <span className="font-medium leading-relaxed">
+                  {t('backup_settings.auto_destination_warning') ||
+                    'Cartella non impostata: seleziona una cartella di destinazione per attivare il backup automatico.'}
+                </span>
+              </div>
+            )}
+        </div>
+
+        {/* OPTIONS & SAVE BUTTON */}
+        <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-t border-white/5">
+          <div className="flex items-center gap-3">
+            <input
+              id="autoIncludeArtworkCheckbox"
+              type="checkbox"
+              checked={scheduleConfig?.include_artwork ?? false}
+              onChange={(e) => {
+                soundEffects.playSelect();
+                setScheduleConfig((prev) =>
+                  prev
+                    ? { ...prev, include_artwork: e.target.checked }
+                    : {
+                        frequency: 'disabled',
+                        max_rotations: 5,
+                        include_artwork: e.target.checked,
+                      }
+                );
+              }}
+              className="w-4 h-4 rounded text-indigo-500 bg-slate-900 border-white/20 focus:ring-indigo-500 cursor-pointer"
+            />
+            <label
+              htmlFor="autoIncludeArtworkCheckbox"
+              className="text-xs text-slate-300 cursor-pointer select-none"
+            >
+              <span className="font-bold text-white">
+                {t('backup_settings.auto_include_artwork_title') ||
+                  'Includi artwork nei backup automatici'}
+              </span>
+              <span className="block text-[11px] text-slate-400">
+                {t('backup_settings.auto_include_artwork_desc') ||
+                  'Aumenta la dimensione dei file .zip salvando anche cover e sfondi della cache'}
+              </span>
+            </label>
+          </div>
+
+          {/* SAVE SCHEDULE BUTTON */}
+          <button
+            type="button"
+            disabled={isSavingSchedule}
+            onClick={handleSaveSchedule}
+            className={`px-6 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-lg cursor-pointer ${
+              isSavingSchedule
+                ? 'bg-slate-700 text-slate-400 cursor-not-allowed opacity-60'
+                : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/30 hover:scale-[1.02] active:scale-95'
+            }`}
+          >
+            {isSavingSchedule ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin text-white" />
+                <span>{t('backup_settings.saving_schedule') || 'Salvataggio...'}</span>
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4" />
+                <span>
+                  {t('backup_settings.btn_save_schedule') || 'Salva Impostazioni Schedulazione'}
+                </span>
+              </>
+            )}
+          </button>
+        </div>
+      </section>
+
+      {/* CARD 3: RIPRISTINA BACKUP */}
       <section
         className="p-6 rounded-3xl border shadow-xl space-y-6 transition-all"
         style={{

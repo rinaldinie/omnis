@@ -106,6 +106,18 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
         CREATE INDEX IF NOT EXISTS idx_game_achievements_game ON game_achievements(game_id);
         CREATE INDEX IF NOT EXISTS idx_game_achievements_unlocked ON game_achievements(game_id, is_unlocked);
         CREATE INDEX IF NOT EXISTS idx_game_achievements_rarity ON game_achievements(game_id, rarity_percentage);
+
+        CREATE TABLE IF NOT EXISTS backup_schedule (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            frequency TEXT NOT NULL DEFAULT 'disabled',
+            destination_dir TEXT,
+            max_rotations INTEGER NOT NULL DEFAULT 10,
+            last_backup_utc TEXT,
+            include_artwork INTEGER NOT NULL DEFAULT 0,
+            updated_at TEXT NOT NULL
+        );
+        INSERT OR IGNORE INTO backup_schedule (id, frequency, destination_dir, max_rotations, last_backup_utc, include_artwork, updated_at)
+        VALUES (1, 'disabled', NULL, 10, NULL, 0, datetime('now'));
         ",
     )?;
 

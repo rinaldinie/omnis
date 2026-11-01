@@ -3,6 +3,7 @@
 
 pub mod achievement_service;
 pub mod active_game;
+pub mod backup_scheduler;
 pub mod bootstrap;
 pub mod builtin_themes;
 pub mod candidate_applier;
@@ -19,6 +20,7 @@ pub mod types;
 
 pub use achievement_service::*;
 pub use active_game::*;
+pub use backup_scheduler::*;
 pub use bootstrap::*;
 pub use candidate_applier::*;
 pub use commands::*;
@@ -131,6 +133,8 @@ fn main() {
             inspect_backup,
             pick_backup_destination_folder,
             pick_backup_file_to_restore,
+            get_backup_schedule,
+            save_backup_schedule,
         ])
         .run(tauri::generate_context!())
         .expect("Errore durante l'esecuzione dell'applicazione Tauri");

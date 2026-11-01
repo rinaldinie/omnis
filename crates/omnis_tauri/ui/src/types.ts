@@ -691,6 +691,15 @@ export interface BackupInspectionDto {
   custom_themes_count: number;
 }
 
+export interface BackupScheduleConfigDto {
+  frequency: 'disabled' | 'daily' | 'weekly' | 'monthly';
+  destination_dir?: string | null;
+  max_rotations: number;
+  last_backup_utc?: string | null;
+  next_backup_utc?: string | null;
+  include_artwork: boolean;
+}
+
 
 
 

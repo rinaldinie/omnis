@@ -16,6 +16,7 @@ pub fn rotate_backups(destination_dir: &Path, hostname: &str, keep_last: usize) 
         return Ok(0);
     }
 
+    let keep_last = keep_last.min(10);
     let sanitized = sanitize_hostname(hostname);
     let prefix = format!("omnis_backup_{}_", sanitized);
 
@@ -55,4 +56,32 @@ pub fn rotate_backups(destination_dir: &Path, hostname: &str, keep_last: usize) 
     }
 
     Ok(pruned_count)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_rotate_backups_caps_at_10() {
+        let temp_dir = std::env::temp_dir().join(format!("omnis_rotation_cap_{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&temp_dir).unwrap();
+        let hostname = "test-host";
+
+        // Create 15 synthetic backup files
+        for i in 0..15 {
+            let path = temp_dir.join(format!("omnis_backup_test-host_202601{:02}_100000.zip", i + 1));
+            fs::write(&path, b"dummy").unwrap();
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+
+        // Requesting 15 should be capped at 10, pruning 5
+        let pruned = rotate_backups(&temp_dir, hostname, 15).unwrap();
+        assert_eq!(pruned, 5);
+
+        let remaining: Vec<_> = fs::read_dir(&temp_dir).unwrap().collect();
+        assert_eq!(remaining.len(), 10);
+
+        let _ = fs::remove_dir_all(&temp_dir);
+    }
 }
