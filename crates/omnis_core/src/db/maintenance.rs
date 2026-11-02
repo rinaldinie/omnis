@@ -64,8 +64,16 @@ impl CatalogMaintenanceRepository for Database {
                 )
                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?14)
                 ON CONFLICT(library_id, external_id) DO UPDATE SET
-                    title = excluded.title,
-                    sorting_title = excluded.sorting_title,
+                    title = CASE
+                        WHEN excluded.title LIKE 'GOG Game %' AND games.title NOT LIKE 'GOG Game %'
+                        THEN games.title
+                        ELSE excluded.title
+                    END,
+                    sorting_title = CASE
+                        WHEN excluded.title LIKE 'GOG Game %' AND games.title NOT LIKE 'GOG Game %'
+                        THEN games.sorting_title
+                        ELSE excluded.sorting_title
+                    END,
                     install_dir = COALESCE(excluded.install_dir, games.install_dir),
                     is_installed = MAX(games.is_installed, excluded.is_installed),
                     playtime_seconds = MAX(games.playtime_seconds, excluded.playtime_seconds),
@@ -77,6 +85,8 @@ impl CatalogMaintenanceRepository for Database {
                     END,
                     cover_image_path = CASE
                         WHEN (games.cover_image_path LIKE '%/header.jpg' OR games.cover_image_path LIKE '%/header.jpg') AND excluded.cover_image_path IS NOT NULL AND excluded.cover_image_path NOT LIKE '%/header.jpg' AND excluded.cover_image_path NOT LIKE '%/header.jpg'
+                        THEN excluded.cover_image_path
+                        WHEN (games.cover_image_path LIKE '%_glx_logo%' OR games.cover_image_path LIKE '%icon.png') AND excluded.cover_image_path IS NOT NULL AND excluded.cover_image_path NOT LIKE '%_glx_logo%' AND excluded.cover_image_path NOT LIKE '%icon.png'
                         THEN excluded.cover_image_path
                         ELSE COALESCE(games.cover_image_path, excluded.cover_image_path)
                     END,

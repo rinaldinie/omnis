@@ -18,3 +18,7 @@ tracing.workspace = true
 chrono.workspace = true
 url.workspace = true
 urlencoding.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+winreg = "0.56"
+

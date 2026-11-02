@@ -3533,6 +3533,7 @@ dependencies = [
  "clap",
  "omnis_core",
  "omnis_plugin_epic",
+ "omnis_plugin_gog",
  "omnis_plugin_steam",
  "omnis_sdk",
  "serde_json",
@@ -3607,6 +3608,7 @@ dependencies = [
  "tracing",
  "url",
  "urlencoding",
+ "winreg",
 ]
 
 [[package]]

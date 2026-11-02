@@ -63,6 +63,7 @@ fn test_gog_cloud_plugin_contract_and_normalization() {
         id: 1207658691,
         title: "The Witcher 3: Wild Hunt".to_string(),
         image: Some("//images-3.gog.com/witcher3.jpg".to_string()),
+        background: Some("//images-3.gog.com/witcher3_bg.jpg".to_string()),
     };
 
     let discovered = normalize_gog_game(&gog_details);
@@ -77,6 +78,10 @@ fn test_gog_cloud_plugin_contract_and_normalization() {
     assert_eq!(
         discovered.cover_image_path,
         Some("https://images-3.gog.com/witcher3.jpg".to_string())
+    );
+    assert_eq!(
+        discovered.background_image_path,
+        Some("https://images-3.gog.com/witcher3_bg.jpg".to_string())
     );
 
     let play_action = discovered
