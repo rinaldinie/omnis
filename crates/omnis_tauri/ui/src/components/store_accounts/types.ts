@@ -1,5 +1,5 @@
-import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
+import { invokeTauri, listenTauri } from "../../api/client";
+export { invokeTauri, listenTauri };
 
 export interface StoreAccount {
   store_id: string;
@@ -32,24 +32,6 @@ export interface StoreIntegrationSettings {
   import_family_sharing?: boolean | null;
   import_game_pass?: boolean | null;
   custom_client_path?: string | null;
-}
-
-export async function invokeTauri<T>(cmd: string, args?: Record<string, unknown>): Promise<T | null> {
-  try {
-    return await invoke<T>(cmd, args);
-  } catch (err) {
-    console.warn(`Tauri command '${cmd}' not available:`, err);
-  }
-  return null;
-}
-
-export async function listenTauri<T>(event: string, handler: (payload: T) => void): Promise<(() => void) | null> {
-  try {
-    return await listen<T>(event, (e) => handler(e.payload));
-  } catch (err) {
-    console.warn(`Tauri listen '${event}' not available:`, err);
-  }
-  return null;
 }
 
 export function formatLastSync(isoStr: string | null | undefined, locale: string, neverLabel: string): string {

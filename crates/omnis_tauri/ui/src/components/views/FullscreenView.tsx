@@ -45,6 +45,7 @@ import { VideoBackdrop } from "../common/VideoBackdrop";
 import { Slot } from "../common/Slot";
 import { GameAchievementsGallery } from "../achievements";
 import { useTranslation } from "../../i18n/i18nContext";
+import { useActiveGameTimer } from "../../context/ActiveGameTimerContext";
 import { SUPPORTED_LOCALES } from "../../i18n/types";
 import { GAME_SORT_MODES, GameSortMode } from "../../utils/sortGames";
 import { useUpdater } from "../../hooks/useAppUpdater";
@@ -58,6 +59,23 @@ import {
   useInputPrompt,
 } from "../fullscreen/ConsoleChrome";
 import type { ControllerStyleSetting } from "../fullscreen/ConsoleChrome";
+import {
+  CARD_W_REM,
+  CARD_FOCUSED_W_REM,
+  CARD_H_REM,
+  CARD_GAP_REM,
+  GRID_CARD_W_REM,
+  GRID_GAP_REM,
+  RECENT_CARD_W_REM,
+  RECENT_ROW_SIZE,
+  RECENT_ROW_MIN_VIEWPORT_REM,
+  ShelfCard,
+  RecentCard,
+  GridCard,
+} from "../fullscreen/FullscreenCards";
+import { FullscreenQuickMenu } from "../fullscreen/FullscreenQuickMenu";
+import { FullscreenConfirmDialog } from "../fullscreen/FullscreenConfirmDialog";
+import { FullscreenDetailsOverlay } from "../fullscreen/FullscreenDetailsOverlay";
 
 interface FullscreenViewProps {
   focusedGame: GameDto | null;
@@ -118,18 +136,6 @@ interface FullscreenViewProps {
   onSelectTheme?: (theme: ThemeConfig) => void;
 }
 
-// Shelf geometry in rem, so the whole shelf follows the interface scale
-const CARD_W_REM = 12;
-const CARD_FOCUSED_W_REM = 32;
-const CARD_H_REM = 18;
-const CARD_GAP_REM = 1.25;
-const GRID_CARD_W_REM = 10.5;
-const GRID_GAP_REM = 1.25;
-const RECENT_CARD_W_REM = 13;
-const RECENT_ROW_SIZE = 6;
-// The row is hidden when the window is too short (in rem, so it follows the interface scale)
-const RECENT_ROW_MIN_VIEWPORT_REM = 54;
-
 export type GameAction = "folder" | "verify" | "shortcut" | "uninstall";
 type HeroButton = "launch" | GameAction | "back";
 type ConfirmKind = "exit" | "desktop" | "uninstall";
@@ -176,194 +182,6 @@ const FILTER_LABEL_KEYS: Record<string, string> = {
   strategy: "sidebar.genre_strategy",
   indie: "sidebar.genre_indie",
 };
-
-function resolveImage(src: string | null | undefined): string | null {
-  if (!src) return null;
-  // Remote art is used as-is so landscape headers are not swapped for portrait capsules
-  if (/^(https?:|data:|asset:)/.test(src)) return src;
-  return formatImageUrl(src);
-}
-
-/** Image that walks a list of candidate sources on error, then falls back to a title block. */
-const ArtImage = React.memo(function ArtImage({
-  sources,
-  title,
-  library,
-  showFallbackTitle = true,
-}: {
-  sources: Array<string | null | undefined>;
-  title: string;
-  library: string;
-  /** Off when the caller already overlays the title */
-  showFallbackTitle?: boolean;
-}) {
-  const sourcesKey = sources.join("|");
-  const candidates = React.useMemo(() => {
-    const out: string[] = [];
-    for (const src of sources) {
-      const url = resolveImage(src);
-      if (!url || out.includes(url)) continue;
-      out.push(url);
-      if (url.includes("library_600x900_2x.jpg")) {
-        const header = url.replace("library_600x900_2x.jpg", "header.jpg");
-        if (!out.includes(header)) out.push(header);
-      }
-    }
-    return out;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sourcesKey]);
-
-  const [index, setIndex] = React.useState(0);
-  React.useEffect(() => setIndex(0), [candidates]);
-
-  if (index >= candidates.length) {
-    return (
-      <div
-        className="w-full h-full flex flex-col justify-between p-4"
-        style={{ background: "linear-gradient(160deg, var(--bg-card), var(--bg-surface))" }}
-      >
-        <StoreIcon library={library} className="w-5 h-5 text-white/70" />
-        {showFallbackTitle && (
-          <span className="text-lg font-semibold text-white leading-snug line-clamp-4 break-words">{title}</span>
-        )}
-      </div>
-    );
-  }
-
-  return (
-    <img
-      key={candidates[index]}
-      src={candidates[index]}
-      alt={title}
-      className="w-full h-full object-cover [transform:translateZ(0)]"
-      loading="lazy"
-      draggable={false}
-      onError={() => setIndex((i) => i + 1)}
-    />
-  );
-});
-
-interface ShelfCardProps {
-  game: GameDto;
-  isFocused: boolean;
-  isRunning: boolean;
-  /** False while focus is elsewhere (menu button, recent row): the card stays wide but loses its ring */
-  hasFocusRing?: boolean;
-  liveLabel?: string;
-  onClick?: () => void;
-}
-
-const ShelfCard = React.memo(function ShelfCard({
-  game,
-  isFocused,
-  isRunning,
-  hasFocusRing = true,
-  liveLabel = "Live",
-  onClick,
-}: ShelfCardProps) {
-  const widthRem = isFocused ? CARD_FOCUSED_W_REM : CARD_W_REM;
-  return (
-    <div
-      onClick={onClick}
-      className="cursor-pointer relative shrink-0 rounded-md overflow-hidden transition-[width,box-shadow,opacity] duration-200 ease-out"
-      style={{
-        width: `${widthRem}rem`,
-        height: `${CARD_H_REM}rem`,
-        backgroundColor: "var(--bg-card)",
-        opacity: isFocused ? 1 : 0.85,
-        boxShadow:
-          isFocused && hasFocusRing
-            ? "0 0 0 0.2rem rgba(255, 255, 255, 0.92), 0 1.5rem 3rem -1rem rgba(0, 0, 0, 0.85)"
-            : "0 1rem 2rem -1.25rem rgba(0, 0, 0, 0.8)",
-        contentVisibility: "auto",
-        containIntrinsicSize: `${widthRem}rem ${CARD_H_REM}rem`,
-      }}
-    >
-      <ArtImage
-        sources={isFocused ? [game.background_image, game.cover_image] : [game.cover_image, game.background_image]}
-        title={game.title}
-        library={game.library}
-      />
-
-      {isRunning && (
-        <span className="absolute top-3 left-3 flex items-center gap-1.5 px-2 py-1 rounded bg-emerald-500 text-white text-xs font-bold uppercase tracking-wider">
-          <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-          {liveLabel}
-        </span>
-      )}
-
-      {isFocused && (
-        <span className="absolute bottom-3 right-3 w-9 h-9 rounded-full bg-black/65 flex items-center justify-center">
-          <StoreIcon library={game.library} className="w-4 h-4 text-white" />
-        </span>
-      )}
-    </div>
-  );
-});
-
-const RecentCard = React.memo(function RecentCard({
-  game,
-  isFocused,
-  onClick,
-}: {
-  game: GameDto;
-  isFocused: boolean;
-  onClick?: () => void;
-}) {
-  return (
-    <div
-      onClick={onClick}
-      className="cursor-pointer relative shrink-0 rounded-md overflow-hidden transition-[transform,box-shadow,opacity] duration-150 ease-out"
-      style={{
-        width: `${RECENT_CARD_W_REM}rem`,
-        height: `${(RECENT_CARD_W_REM * 9) / 16}rem`,
-        backgroundColor: "var(--bg-card)",
-        opacity: isFocused ? 1 : 0.8,
-        transform: isFocused ? "scale(1.05)" : "none",
-        boxShadow: isFocused
-          ? "0 0 0 0.2rem rgba(255, 255, 255, 0.92), 0 1rem 2rem -0.75rem rgba(0, 0, 0, 0.85)"
-          : "0 0.75rem 1.5rem -1rem rgba(0, 0, 0, 0.8)",
-      }}
-    >
-      <ArtImage
-        sources={[game.background_image, game.cover_image]}
-        title={game.title}
-        library={game.library}
-        showFallbackTitle={false}
-      />
-      <div className="absolute inset-x-0 bottom-0 px-3 pt-6 pb-2 bg-gradient-to-t from-black/85 to-transparent">
-        <span className="block text-sm font-semibold text-white truncate">{game.title}</span>
-      </div>
-    </div>
-  );
-});
-
-const GridCard = React.memo(function GridCard({ game, isFocused, isRunning, onClick }: ShelfCardProps) {
-  return (
-    <div
-      onClick={onClick}
-      className="cursor-pointer relative rounded-md overflow-hidden transition-[transform,box-shadow,opacity] duration-150 ease-out"
-      style={{
-        // 2:3 cover box via padding: aspect-ratio items collapse grid row tracks
-        paddingTop: "150%",
-        backgroundColor: "var(--bg-card)",
-        opacity: isFocused ? 1 : 0.8,
-        transform: isFocused ? "scale(1.05)" : "none",
-        zIndex: isFocused ? 10 : undefined,
-        boxShadow: isFocused
-          ? "0 0 0 0.2rem rgba(255, 255, 255, 0.92), 0 1.25rem 2.5rem -0.75rem rgba(0, 0, 0, 0.85)"
-          : "0 0.75rem 1.5rem -1rem rgba(0, 0, 0, 0.8)",
-      }}
-    >
-      <div className="absolute inset-0">
-        <ArtImage sources={[game.cover_image, game.background_image]} title={game.title} library={game.library} />
-      </div>
-      {isRunning && (
-        <span className="absolute top-2 left-2 w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse ring-2 ring-black/50" />
-      )}
-    </div>
-  );
-});
 
 interface ConsoleMenuItem {
   id: string;
@@ -424,6 +242,8 @@ export default function FullscreenView({
   onSelectTheme,
 }: FullscreenViewProps) {
   const { locale, setLocale } = useTranslation();
+  const timerContextSeconds = useActiveGameTimer();
+  const actualElapsed = elapsedSeconds ?? timerContextSeconds;
   const { activeDevice, styleSetting, setStyleSetting, effectiveFamily } = useInputPrompt();
   const updater = useUpdater();
   const clock = useClock(locale);
@@ -1319,7 +1139,7 @@ export default function FullscreenView({
       {activeGame?.game_id === game.id ? (
         <span className="flex items-center gap-2 text-emerald-300">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          {t("status.running")} · {duration(elapsedSeconds || 0)}
+          {t("status.running")} · {duration(actualElapsed)}
         </span>
       ) : (
         <span className="flex items-center gap-2">
@@ -1448,7 +1268,7 @@ export default function FullscreenView({
             >
               <span className="w-2 h-2 rounded-full bg-current animate-pulse" />
               <span className="max-w-[14rem] truncate">{activeGame.title}</span>
-              {activeGame.state === "running" && <span className="text-white/60">{duration(elapsedSeconds || 0)}</span>}
+              {activeGame.state === "running" && <span className="text-white/60">{duration(actualElapsed)}</span>}
             </span>
           )}
           {hasUpdate && <Sparkles className="w-5 h-5 text-sky-300" />}
@@ -1631,354 +1451,70 @@ export default function FullscreenView({
       )}
 
       {/* GAME DETAILS PAGE */}
-      {showFullscreenDetails && activeDetailGame && (
-        <div className="fixed inset-0 z-40 flex flex-col omnis-fade-in" style={{ backgroundColor: "var(--bg-base)" }}>
-          <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute inset-x-0 top-0 h-[75vh]">
-              <ArtImage
-                sources={[activeDetailGame.background_image, activeDetailGame.cover_image]}
-                title={activeDetailGame.title}
-                library={activeDetailGame.library}
-              />
-            </div>
-            <div
-              className="absolute inset-0"
-              style={{
-                background:
-                  "linear-gradient(to bottom, rgba(0, 0, 0, 0.25) 0%, rgba(0, 0, 0, 0.35) 35%, var(--bg-base) 75%), linear-gradient(to right, rgba(0, 0, 0, 0.6) 0%, transparent 60%)",
-              }}
-            />
-          </div>
-
-          <div ref={detailsScrollRef} className="relative z-10 flex-1 overflow-y-auto no-scrollbar pb-24">
-            {/* Hero */}
-            <section className="min-h-[62vh] flex flex-col justify-end px-16 pb-10 gap-5">
-              <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-wider text-white/70">
-                <StoreIcon library={activeDetailGame.library} className="w-4 h-4" />
-                <span>{STORE_LABELS[activeDetailGame.library] ?? activeDetailGame.library}</span>
-                {activeDetailGame.genres.length > 0 && <span>· {activeDetailGame.genres.slice(0, 3).join(" · ")}</span>}
-              </div>
-
-              <div>
-                <h1 className="text-6xl font-bold text-white tracking-tight leading-tight drop-shadow-lg max-w-5xl">
-                  {activeDetailGame.title}
-                </h1>
-                {activeDetailGame.developers.length > 0 && (
-                  <p className="mt-2 text-lg text-white/70">
-                    {activeDetailGame.developers.join(", ")}
-                    {activeDetailGame.publishers && activeDetailGame.publishers.length > 0 && (
-                      <span className="text-white/45"> · {activeDetailGame.publishers.join(", ")}</span>
-                    )}
-                  </p>
-                )}
-              </div>
-
-              <div className="flex items-center gap-4 flex-wrap">
-                {(() => {
-                  const isFocused = detailsFocusedSection === "hero" && heroFocusedButton === "launch";
-                  const isStop = isFocusedGameRunning && !!handleKillRunningGame;
-                  return (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        soundEffects.playSelect();
-                        if (isFocusedGameRunning && handleKillRunningGame) {
-                          handleKillRunningGame();
-                        } else {
-                          handleLaunch(activeDetailGame.id);
-                        }
-                        setShowFullscreenDetails(false);
-                      }}
-                      className="cursor-pointer flex items-center gap-3 px-10 py-4 rounded-md text-lg font-semibold uppercase tracking-wider transition-all duration-150 border-none"
-                      style={{
-                        backgroundColor: isStop ? "#e11d48" : "var(--accent-primary)",
-                        color: "#ffffff",
-                        boxShadow: isFocused ? "0 0 0 0.2rem #ffffff, 0 0 2.5rem var(--accent-glow)" : "none",
-                        transform: isFocused ? "scale(1.04)" : "none",
-                        opacity: isFocused ? 1 : 0.75,
-                      }}
-                    >
-                      {isStop ? (
-                        <>
-                          <span className="w-2.5 h-2.5 rounded-full bg-white animate-pulse" />
-                          {activeGame?.state === "launching" ? t("fullscreen.cancel_launch") : t("console_ui.stop")}
-                          <span className="text-sm font-medium opacity-80">{duration(elapsedSeconds || 0)}</span>
-                        </>
-                      ) : (
-                        <>
-                          <Play className="w-5 h-5 fill-white" />
-                          {activeDetailGame.is_installed ? t("console_ui.play") : t("console_ui.install")}
-                        </>
-                      )}
-                    </button>
-                  );
-                })()}
-
-                {heroButtons.map((button) => {
-                  if (button === "launch" || button === "back") return null;
-                  const action = HERO_ACTIONS[button];
-                  const Icon = action.icon;
-                  const isFocused = detailsFocusedSection === "hero" && heroFocusedButton === button;
-                  return (
-                    <button
-                      type="button"
-                      key={button}
-                      onClick={() => {
-                        soundEffects.playSelect();
-                        if (button === "uninstall") {
-                          openConfirm("uninstall", activeDetailGame);
-                        } else if (onGameAction) {
-                          onGameAction(button, activeDetailGame.id);
-                          setNotice(t(`console_ui.notice_${button}`));
-                        }
-                      }}
-                      className="cursor-pointer flex items-center gap-2.5 px-5 py-4 rounded-md text-base font-semibold transition-all duration-150 border-none"
-                      style={
-                        isFocused
-                          ? {
-                              backgroundColor: action.danger ? "#e11d48" : "#ffffff",
-                              color: action.danger ? "#ffffff" : "#0b0f19",
-                              transform: "scale(1.04)",
-                            }
-                          : { backgroundColor: "rgba(255, 255, 255, 0.1)", color: "rgba(255, 255, 255, 0.85)" }
-                      }
-                    >
-                      <Icon className="w-5 h-5" />
-                      {t(action.labelKey)}
-                    </button>
-                  );
-                })}
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    soundEffects.playSelect();
-                    setShowFullscreenDetails(false);
-                  }}
-                  className="cursor-pointer px-8 py-4 rounded-md text-lg font-semibold uppercase tracking-wider transition-all duration-150 border-none"
-                  style={
-                    detailsFocusedSection === "hero" && heroFocusedButton === "back"
-                      ? { backgroundColor: "#ffffff", color: "#0b0f19", transform: "scale(1.04)" }
-                      : { backgroundColor: "rgba(255, 255, 255, 0.1)", color: "rgba(255, 255, 255, 0.85)" }
-                  }
-                >
-                  {t("console_ui.back")}
-                </button>
-              </div>
-
-              <dl className="flex items-start gap-12 pt-2">
-                {[
-                  { label: t("game_details.playtime"), value: playtimeLabel(activeDetailGame) },
-                  { label: t("game_details.release_date"), value: activeDetailGame.release_date },
-                  {
-                    label: "Metacritic",
-                    value: activeDetailGame.critic_score ? `★ ${activeDetailGame.critic_score}` : null,
-                  },
-                ]
-                  .filter((stat) => stat.value)
-                  .map((stat) => (
-                    <div key={stat.label}>
-                      <dt className="text-xs font-semibold uppercase tracking-widest text-white/50">{stat.label}</dt>
-                      <dd className="mt-1 text-xl font-medium text-white">{stat.value}</dd>
-                    </div>
-                  ))}
-              </dl>
-            </section>
-
-            {/* About */}
-            <section className="px-16 pb-10 max-w-5xl">
-              <h3 className="text-sm font-semibold uppercase tracking-widest text-white/50 mb-3">
-                {t("console_ui.about")}
-              </h3>
-              <p className="text-lg leading-relaxed whitespace-pre-line text-white/85">
-                {activeDetailGame.description || t("fullscreen.no_desc")}
-              </p>
-            </section>
-
-            {/* Achievements */}
-            <section
-              className="mx-16 p-6 rounded-lg transition-shadow duration-200"
-              style={{
-                backgroundColor: "rgba(255, 255, 255, 0.04)",
-                boxShadow: detailsFocusedSection === "achievements" ? "0 0 0 0.15rem rgba(255, 255, 255, 0.6)" : "none",
-              }}
-            >
-              <GameAchievementsGallery
-                key={activeDetailGame.id}
-                game={activeDetailGame}
-                isFullscreen={true}
-                focusedIndex={achievementsFocusedIndex}
-                onFocusIndexChange={setAchievementsFocusedIndex}
-                onTotalAchievementsChange={setTotalAchievements}
-              />
-            </section>
-          </div>
-        </div>
-      )}
+      <FullscreenDetailsOverlay
+        showFullscreenDetails={showFullscreenDetails}
+        activeDetailGame={activeDetailGame}
+        detailsScrollRef={detailsScrollRef}
+        isFocusedGameRunning={isFocusedGameRunning}
+        activeGame={activeGame}
+        elapsedSeconds={actualElapsed}
+        duration={duration}
+        handleLaunch={handleLaunch}
+        handleKillRunningGame={handleKillRunningGame}
+        setShowFullscreenDetails={setShowFullscreenDetails}
+        detailsFocusedSection={detailsFocusedSection}
+        heroFocusedButton={heroFocusedButton}
+        heroButtons={heroButtons}
+        heroActions={HERO_ACTIONS}
+        onGameAction={onGameAction}
+        openConfirm={openConfirm}
+        setNotice={setNotice}
+        soundEffects={soundEffects}
+        playtimeLabel={playtimeLabel}
+        achievementsFocusedIndex={achievementsFocusedIndex}
+        setAchievementsFocusedIndex={setAchievementsFocusedIndex}
+        setTotalAchievements={setTotalAchievements}
+        storeLabels={STORE_LABELS}
+        renderStoreIcon={(lib) => <StoreIcon library={lib} className="w-4 h-4" />}
+        t={t}
+      />
 
       {/* SIDE MENU */}
-      {isMenuOpen && (
-        <div className="fixed inset-0 z-40 flex">
-          <div
-            className="absolute inset-0 bg-black/55 omnis-fade-in cursor-pointer"
-            onClick={() => setIsMenuOpen?.(false)}
-          />
-          <aside
-            className="relative h-full w-[26rem] max-w-[85vw] flex flex-col pt-8 pb-24 shadow-2xl omnis-slide-in-left"
-            style={{ backgroundColor: "var(--bg-surface)" }}
-          >
-            <div className="flex items-baseline justify-between px-8 pb-6">
-              <span className="text-2xl font-bold tracking-tight text-white">
-                Omnis
-                {updater?.currentVersion && (
-                  <span className="ml-2 text-sm font-medium text-white/40">v{updater.currentVersion}</span>
-                )}
-              </span>
-              <span className="text-lg font-medium tabular-nums text-white/60">{clock}</span>
-            </div>
-
-            <ul className="flex-1 overflow-y-auto no-scrollbar px-4">
-              {menuItems.map((item, idx) => {
-                const isFocused = idx === safeMenuIndex;
-                const Icon = item.icon;
-                const sectionLabelKey =
-                  menuItems[idx - 1]?.section !== item.section ? MENU_SECTION_LABEL_KEYS[item.section] : undefined;
-                const focusedStyle =
-                  item.tone === "danger"
-                    ? { backgroundColor: "#e11d48", color: "#ffffff" }
-                    : { backgroundColor: "#ffffff", color: "#0b0f19" };
-                return (
-                  <React.Fragment key={item.id}>
-                    {sectionLabelKey && (
-                      <li
-                        className={`px-4 pb-2 text-xs font-semibold uppercase tracking-widest text-white/40 ${idx > 0 ? "pt-6" : ""}`}
-                      >
-                        {t(sectionLabelKey)}
-                      </li>
-                    )}
-                    <li
-                      ref={(el) => {
-                        menuItemRefs.current[item.id] = el;
-                      }}
-                      onClick={() => {
-                        setMenuFocusedIndex(idx);
-                        soundEffects.playSelect();
-                        item.onActivate();
-                      }}
-                      className="cursor-pointer flex items-center gap-4 px-4 py-3 rounded-md transition-colors duration-100"
-                      style={
-                        isFocused
-                          ? focusedStyle
-                          : { color: item.tone === "accent" ? "#7dd3fc" : "rgba(255, 255, 255, 0.85)" }
-                      }
-                    >
-                      <Icon className={`w-5 h-5 shrink-0 ${item.spinning ? "animate-spin" : ""}`} />
-                      <span className="flex-1 min-w-0 truncate text-base font-medium">{item.label}</span>
-                      {item.value && (
-                        <span className={`flex items-center gap-1 text-sm shrink-0 ${isFocused ? "opacity-80" : "opacity-55"}`}>
-                          {isFocused && item.onAdjust && (
-                            <button
-                              type="button"
-                              className="p-0.5 hover:opacity-100 cursor-pointer bg-transparent border-none text-inherit inline-flex"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                item.onAdjust?.(-1);
-                              }}
-                            >
-                              <ChevronLeft className="w-4 h-4" />
-                            </button>
-                          )}
-                          <span className="max-w-[9rem] truncate">{item.value}</span>
-                          {isFocused && item.onAdjust && (
-                            <button
-                              type="button"
-                              className="p-0.5 hover:opacity-100 cursor-pointer bg-transparent border-none text-inherit inline-flex"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                item.onAdjust?.(1);
-                              }}
-                            >
-                              <ChevronRight className="w-4 h-4" />
-                            </button>
-                          )}
-                        </span>
-                      )}
-                    </li>
-                  </React.Fragment>
-                );
-              })}
-            </ul>
-          </aside>
-        </div>
-      )}
+      <FullscreenQuickMenu
+        isMenuOpen={!!isMenuOpen}
+        onClose={() => setIsMenuOpen?.(false)}
+        updater={updater}
+        clock={clock}
+        menuItems={menuItems}
+        safeMenuIndex={safeMenuIndex}
+        setMenuFocusedIndex={setMenuFocusedIndex}
+        soundEffects={soundEffects}
+        t={t}
+        menuSectionLabelKeys={MENU_SECTION_LABEL_KEYS}
+        menuItemRefs={menuItemRefs}
+      />
 
       {/* CONFIRMATION DIALOG */}
-      {confirm && (
-        <div className="fixed inset-0 z-[45] flex items-center justify-center bg-black/60 omnis-fade-in">
-          <div
-            className="w-[30rem] max-w-[90vw] rounded-xl p-8 flex flex-col gap-6 shadow-2xl omnis-rise-in"
-            style={{ backgroundColor: "var(--bg-surface)" }}
-          >
-            <div>
-              <h2 className="text-2xl font-semibold text-white">
-                {confirm.kind === "exit"
-                  ? t("console_ui.confirm_exit")
-                  : confirm.kind === "desktop"
-                  ? t("console_ui.confirm_desktop")
-                  : t("console_ui.confirm_uninstall", { title: confirm.game?.title ?? "" })}
-              </h2>
-              {confirm.kind === "uninstall" && (
-                <p className="mt-2 text-base text-white/65">{t("console_ui.confirm_uninstall_desc")}</p>
-              )}
-            </div>
-            <div className="flex justify-end gap-3">
-              {(["cancel", "confirm"] as const).map((button) => {
-                const isFocused = confirmFocus === button;
-                const isDanger = button === "confirm" && confirm.kind !== "desktop";
-                return (
-                  <button
-                    type="button"
-                    key={button}
-                    onClick={() => {
-                      soundEffects.playSelect();
-                      setConfirm(null);
-                      if (button === "cancel") return;
-                      if (confirm.kind === "exit") {
-                        setIsMenuOpen?.(false);
-                        handleClose();
-                      } else if (confirm.kind === "desktop") {
-                        setIsMenuOpen?.(false);
-                        toggleFullscreen();
-                      } else if (confirm.game && onGameAction) {
-                        onGameAction("uninstall", confirm.game.id);
-                        setNotice(t("console_ui.notice_uninstall"));
-                      }
-                    }}
-                    className="cursor-pointer px-6 py-3 rounded-md text-base font-semibold uppercase tracking-wider transition-all duration-150 border-none"
-                    style={
-                      isFocused
-                        ? {
-                            backgroundColor: isDanger ? "#e11d48" : "#ffffff",
-                            color: isDanger ? "#ffffff" : "#0b0f19",
-                            transform: "scale(1.04)",
-                          }
-                        : { backgroundColor: "rgba(255, 255, 255, 0.1)", color: "rgba(255, 255, 255, 0.85)" }
-                    }
-                  >
-                    {button === "cancel"
-                      ? t("common.cancel")
-                      : confirm.kind === "exit"
-                      ? t("console_ui.exit")
-                      : confirm.kind === "desktop"
-                      ? t("console_ui.desktop_mode")
-                      : t("console_ui.action_uninstall")}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
+      <FullscreenConfirmDialog
+        confirm={confirm}
+        confirmFocus={confirmFocus}
+        onSelectButton={(button) => {
+          setConfirm(null);
+          if (button === "cancel") return;
+          if (confirm?.kind === "exit") {
+            setIsMenuOpen?.(false);
+            handleClose();
+          } else if (confirm?.kind === "desktop") {
+            setIsMenuOpen?.(false);
+            toggleFullscreen();
+          } else if (confirm?.game && onGameAction) {
+            onGameAction("uninstall", confirm.game.id);
+            setNotice(t("console_ui.notice_uninstall"));
+          }
+        }}
+        soundEffects={soundEffects}
+        t={t}
+      />
 
       {/* ACTION NOTICE */}
       {notice && (

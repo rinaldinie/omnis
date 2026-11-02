@@ -16,7 +16,8 @@ import {
   BookOpen,
 } from "lucide-react";
 import { listen } from "@tauri-apps/api/event";
-import { GameDto, formatImageUrl, invokeTauri } from "../../types";
+import { GameDto, formatImageUrl } from "../../types";
+import { api } from "../../api";
 import { useTranslation } from "../../i18n";
 import { StoreBadge } from "../StoreBadge";
 
@@ -225,7 +226,7 @@ export default function BatchEnrichModal({
       // Step 1: Run Metadata & Artwork Batch Download if selected
       if (fetchMetadata && !isCancelledRef.current) {
         const gameIds = targetGameList.map((g) => g.id);
-        await invokeTauri<number>("download_batch_metadata", { gameIds });
+        await api.metadata.downloadBatchMetadata(gameIds);
       }
 
       // Step 2: Run HowLongToBeat if selected and metadata was not run (since metadata includes HLTB plugin)
@@ -239,7 +240,7 @@ export default function BatchEnrichModal({
             title: `HowLongToBeat: ${game.title}`,
           });
           try {
-            await invokeTauri("refresh_game_howlongtobeat", { gameId: game.id });
+            await api.games.refreshGameHowlongtobeat(game.id);
           } catch (e) {
             console.debug(`HLTB fetch skipped for ${game.title}:`, e);
           }
@@ -267,7 +268,7 @@ export default function BatchEnrichModal({
             title: `${t("batch_enrich.type_achievements")}: ${game.title}`,
           });
           try {
-            await invokeTauri("refresh_game_achievements", { gameId: game.id });
+            await api.achievements.refreshGameAchievements(game.id);
           } catch (e) {
             console.debug(`Achievements fetch skipped for ${game.title}:`, e);
           }
@@ -300,7 +301,7 @@ export default function BatchEnrichModal({
   const handleCancel = async () => {
     isCancelledRef.current = true;
     try {
-      await invokeTauri("cancel_metadata_download");
+      await api.metadata.cancelMetadataDownload();
       setResultMessage({
         type: "info",
         text: t("batch_enrich.cancel_requested"),

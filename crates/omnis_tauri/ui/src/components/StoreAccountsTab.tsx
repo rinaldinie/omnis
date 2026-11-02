@@ -15,12 +15,12 @@ import { SteamIcon, EpicIcon, GogIcon, XboxIcon, AmazonIcon } from "./StoreBadge
 import soundEffects from "../utils/soundEffects";
 import { openExternalUrl } from "../utils/openUrl";
 import { useTranslation } from "../i18n/i18nContext";
+import { api } from "../api";
 import {
   StoreAccount,
   StoreSyncProgress,
   StoreIntegrationSettings,
   DEFAULT_ACCOUNTS,
-  invokeTauri,
   listenTauri,
   formatLastSync,
 } from "./store_accounts/types";
@@ -97,7 +97,7 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
   // Helper to load settings for a store
   const loadSettingsForStore = async (storeId: string) => {
     try {
-      const res = await invokeTauri<StoreIntegrationSettings>("get_store_integration_settings", { storeId });
+      const res = await api.stores.getIntegrationSettings(storeId);
       if (res) {
         setSettingsMap((prev) => ({ ...prev, [storeId]: res }));
       } else {
@@ -126,7 +126,7 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
   const loadAccounts = async () => {
     setIsLoading(true);
     try {
-      const res = await invokeTauri<StoreAccount[]>("get_store_accounts");
+      const res = await api.stores.getStoreAccounts();
       if (res && Array.isArray(res) && res.length > 0) {
         setAccounts(res);
       } else {
@@ -142,7 +142,7 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
 
   const checkVaultStatus = async () => {
     try {
-      const res = await invokeTauri<VaultStatus>("get_vault_status");
+      const res = await api.stores.getVaultStatus();
       if (res) setVaultStatus(res);
     } catch (e) {
       console.debug("Failed getting vault status:", e);
@@ -291,7 +291,7 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
     }
 
     try {
-      await invokeTauri("save_store_integration_settings", { settings: currentSettings });
+      await api.stores.saveIntegrationSettings(currentSettings);
       const storeName = STORE_LIST.find((s) => s.id === selectedStoreId)?.name || selectedStoreId;
       setBanner({
         type: "success",
@@ -325,7 +325,7 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
     }));
 
     try {
-      await invokeTauri("sync_store_library", { storeId: selectedStoreId });
+      await api.stores.syncStoreLibrary(selectedStoreId);
       setBanner({
         type: "info",
         message: t("store_accounts.sync_started", { store: selectedStoreId.toUpperCase() }),
@@ -348,7 +348,7 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
         type: "info",
         message: t("store_accounts.login_opening", { store: selectedStoreId.toUpperCase() }),
       });
-      await invokeTauri("start_store_login", { storeId: selectedStoreId });
+      await api.stores.startStoreLogin(selectedStoreId);
     } catch (err: any) {
       setBanner({
         type: "error",
@@ -363,7 +363,7 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
     soundEffects.playSelect();
     setActionLoading((prev) => ({ ...prev, [selectedStoreId]: true }));
     try {
-      await invokeTauri("disconnect_store_account", { storeId: selectedStoreId });
+      await api.stores.disconnectStoreAccount(selectedStoreId);
       updateSetting("connect_account", false);
       setBanner({
         type: "info",

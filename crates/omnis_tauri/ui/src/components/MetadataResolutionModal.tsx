@@ -16,7 +16,8 @@ import {
   Layers,
 } from "lucide-react";
 import { useTranslation } from "../i18n";
-import { GameDto, invokeTauri } from "../types";
+import { GameDto } from "../types";
+import { api } from "../api";
 
 export interface MetadataCandidateDto {
   provider_id: string;
@@ -44,8 +45,8 @@ export interface MetadataCandidateDto {
 export interface MetadataResolutionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  game: any;
-  onApply: (updated: any) => void;
+  game: GameDto | null;
+  onApply: (updated: GameDto) => void;
 }
 
 interface FieldOption {
@@ -202,10 +203,10 @@ export default function MetadataResolutionModal({
     setSelectedCandidate(null);
 
     try {
-      const result = await invokeTauri<MetadataCandidateDto[]>("search_metadata_candidates", {
-        title: term,
-        providerId: prov === "all" ? null : prov,
-      });
+      const result = await api.metadata.searchMetadataCandidates(
+        term,
+        prov === "all" ? undefined : prov
+      );
 
       if (result && result.length > 0) {
         setCandidates(result);
@@ -253,11 +254,11 @@ export default function MetadataResolutionModal({
         ? [...selectedFields, "publishers"]
         : selectedFields;
 
-      const updated = await invokeTauri<GameDto>("apply_metadata_candidate", {
-        gameId: game.id,
-        candidate: selectedCandidate,
-        fields: fieldsToSend,
-      });
+      const updated = await api.metadata.applyMetadataCandidate(
+        game.id,
+        selectedCandidate,
+        fieldsToSend
+      );
 
       if (!updated) {
         throw new Error(t("metadata_resolution.save_failed"));

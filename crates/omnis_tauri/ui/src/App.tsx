@@ -21,7 +21,8 @@ import MetadataResolutionModal from "./components/MetadataResolutionModal";
 import ListViewTable from "./components/ListViewTable";
 import StatisticsDashboardView from "./components/views/StatisticsDashboardView";
 import VirtualKeyboard from "./components/VirtualKeyboard";
-import { SettingsModal, SettingsTab } from "./components/SettingsModal";
+import { SettingsModal, SettingsTab } from "./components/settings";
+import { api } from "./api";
 import { useTranslation } from "./i18n";
 import soundEffects from "./utils/soundEffects";
 import { openExternalUrl } from "./utils/openUrl";
@@ -58,6 +59,7 @@ import { getVisibleCategories } from "./utils/consoleCategories";
 import { useWindowControls } from "./hooks/useWindowControls";
 import { useLibraryFilters } from "./hooks/useLibraryFilters";
 import { useGamepadNavigation, ControllerType } from "./hooks/useGamepadNavigation";
+import { ActiveGameTimerProvider, ActiveGameStatusBarTicker } from "./context/ActiveGameTimerContext";
 import { useAppUpdater, UpdaterContext } from "./hooks/useAppUpdater";
 import FullscreenView from "./components/views/FullscreenView";
 import {
@@ -187,7 +189,7 @@ export default function App() {
   useEffect(() => {
     try {
       const cfg = loadAchievementsConfig();
-      invokeTauri("set_sync_achievements_on_game_exit", { enabled: cfg.syncOnGameExit }).catch((err) => {
+      api.games.setSyncAchievementsOnGameExit(cfg.syncOnGameExit).catch((err) => {
         console.warn("Failed to set achievement sync on game exit:", err);
       });
     } catch (e) {
@@ -214,7 +216,7 @@ export default function App() {
       }
 
       achievementSyncStartedRef.current = true;
-      invokeTauri("start_library_achievement_sync").catch((err) => {
+      api.games.startLibraryAchievementSync().catch((err) => {
         console.warn("Background achievement sync could not start:", err);
       });
     }, 8000);
@@ -294,8 +296,8 @@ export default function App() {
   // METADATA MODALS
   const [showEditorModal, setShowEditorModal] = useState<boolean>(false);
   const [showResolutionModal, setShowResolutionModal] = useState<boolean>(false);
-  const [gameToEdit, setGameToEdit] = useState<any>(null);
-  const [gameToResolve, setGameToResolve] = useState<any>(null);
+  const [gameToEdit, setGameToEdit] = useState<GameDto | null>(null);
+  const [gameToResolve, setGameToResolve] = useState<GameDto | null>(null);
 
   // THEME ENGINE
   const [themes, setThemes] = useState<ThemeConfig[]>(BUILTIN_THEMES);
@@ -326,7 +328,7 @@ export default function App() {
   useEffect(() => {
     const checkFullscreenLaunch = async () => {
       try {
-        const isFsCli = await invokeTauri<boolean>("is_fullscreen_launch");
+        const isFsCli = await api.window.isFullscreenLaunch();
         let isWindowFs = false;
         try {
           const { getCurrentWindow } = await import("@tauri-apps/api/window");
@@ -345,7 +347,7 @@ export default function App() {
           } catch {
             // Dev or fallback
           }
-          await invokeTauri("window_set_fullscreen", { fullscreen: true });
+          await api.window.setFullscreen(true);
         }
       } catch (err) {
         console.warn("Error detecting fullscreen CLI argument:", err);
@@ -530,7 +532,7 @@ export default function App() {
     } catch {
       // Dev or test environment fallback
     }
-    await invokeTauri("window_set_fullscreen", { fullscreen: next });
+    await api.window.setFullscreen(next);
     if (next) {
       setFocusedIndex(0);
       setShowFullscreenDetails(false);
@@ -669,7 +671,7 @@ export default function App() {
   // LOAD GAMES & THEMES
   const loadGames = async () => {
     try {
-      const loadedGames = await invokeTauri<GameDto[]>("get_games");
+      const loadedGames = await api.games.getGames();
       if (loadedGames) {
         const normalized = loadedGames.map(normalizeGame);
         setGames(normalized);
@@ -681,7 +683,7 @@ export default function App() {
           return normalized.length > 0 ? normalized[0] : null;
         });
       }
-      const loadedCounts = await invokeTauri<LibraryCounts>("get_counts");
+      const loadedCounts = await api.games.getCounts();
       if (loadedCounts) {
         setCounts(loadedCounts);
         // Show onboarding wizard on first launch when library is empty
@@ -704,18 +706,22 @@ export default function App() {
   }, [filteredGames]);
 
   const loadThemes = async () => {
-    const loadedThemes = await invokeTauri<ThemeConfig[]>("get_themes");
-    if (loadedThemes && loadedThemes.length > 0) {
-      setThemes(loadedThemes);
-      const savedThemeId = localStorage.getItem("omnis_selected_theme_id");
-      if (savedThemeId) {
-        const found = loadedThemes.find((t) => t.id === savedThemeId);
-        if (found) {
-          setCurrentTheme(found);
-          return;
+    try {
+      const loadedThemes = await api.themes.getThemes();
+      if (loadedThemes && loadedThemes.length > 0) {
+        setThemes(loadedThemes);
+        const savedThemeId = localStorage.getItem("omnis_selected_theme_id");
+        if (savedThemeId) {
+          const found = loadedThemes.find((t) => t.id === savedThemeId);
+          if (found) {
+            setCurrentTheme(found);
+            return;
+          }
         }
+        setCurrentTheme(loadedThemes[0]);
       }
-      setCurrentTheme(loadedThemes[0]);
+    } catch (err) {
+      console.warn("Failed loading themes:", err);
     }
   };
 
@@ -726,7 +732,7 @@ export default function App() {
   };
 
   const handleSaveCustomTheme = async (fullTheme: ThemeConfig) => {
-    await invokeTauri("save_custom_theme", { theme: fullTheme });
+    await api.themes.saveCustomTheme(fullTheme);
     await loadThemes();
     selectTheme(fullTheme);
     setStatusMessage(statusText("theme_saved", { name: fullTheme.name }));
@@ -755,41 +761,45 @@ export default function App() {
   const [isRefreshingPlugins, setIsRefreshingPlugins] = useState<boolean>(false);
 
   const loadProvidersAndConfig = async () => {
-    const provs = await invokeTauri<ProviderInfo[]>("get_metadata_providers");
-    if (provs) {
-      setProviders(provs);
-      const settingsMap: Record<string, Record<string, any>> = {};
-      provs.forEach((p) => {
-        settingsMap[p.id] = { ...(p.settings_values || {}) };
-      });
-      setEditingSettings(settingsMap);
-    }
-    const pipe = await invokeTauri<MetadataPipelineConfig>("get_metadata_pipeline_config");
-    if (pipe) {
-      setPipelineConfig(pipe);
+    try {
+      const provs = await api.metadata.getProviders();
+      if (provs) {
+        setProviders(provs);
+        const settingsMap: Record<string, Record<string, any>> = {};
+        provs.forEach((p) => {
+          settingsMap[p.id] = { ...(p.settings_values || {}) };
+        });
+        setEditingSettings(settingsMap);
+      }
+      const pipe = await api.metadata.getPipelineConfig();
+      if (pipe) {
+        setPipelineConfig(pipe);
+      }
+    } catch (err) {
+      console.warn("Failed loading metadata providers/config:", err);
     }
   };
 
   const handleSaveProviderSettings = async (providerId: string) => {
     const s = editingSettings[providerId] || {};
-    await invokeTauri("save_provider_settings", { providerId, settings: s });
+    await api.metadata.saveProviderSettings(providerId, s);
     setStatusMessage(statusText("provider_saved", { provider: providerId }));
     await loadProvidersAndConfig();
   };
 
   const handleToggleProvider = async (providerId: string, enabled: boolean) => {
-    await invokeTauri("toggle_provider", { providerId, enabled });
+    await api.metadata.toggleProvider(providerId, enabled);
     setStatusMessage(statusText(enabled ? "provider_enabled" : "provider_disabled", { provider: providerId }));
     await loadProvidersAndConfig();
   };
 
   const handleTestConnection = async (providerId: string) => {
     const s = editingSettings[providerId] || {};
-    await invokeTauri("save_provider_settings", { providerId, settings: s });
+    await api.metadata.saveProviderSettings(providerId, s);
 
     setTestStatus((prev) => ({ ...prev, [providerId]: { loading: true } }));
     try {
-      const res = await invokeTauri<string>("test_provider_connection", { providerId });
+      const res = await api.metadata.testProviderConnection(providerId);
       setTestStatus((prev) => ({
         ...prev,
         [providerId]: { loading: false, success: true, message: res || "Connessione riuscita" },
@@ -807,7 +817,7 @@ export default function App() {
     setIsRefreshingPlugins(true);
     setStatusMessage(statusText("plugins_scanning"));
     try {
-      const updated = await invokeTauri<ProviderInfo[]>("refresh_metadata_providers");
+      const updated = await api.metadata.refreshProviders();
       if (updated) {
         setProviders(updated);
         const settingsMap: Record<string, Record<string, any>> = {};
@@ -825,7 +835,7 @@ export default function App() {
   };
 
   const handleSavePipelineConfig = async () => {
-    await invokeTauri("save_metadata_pipeline_config", { config: pipelineConfig });
+    await api.metadata.savePipelineConfig(pipelineConfig);
     setStatusMessage(statusText("pipeline_saved"));
     await loadProvidersAndConfig();
   };
@@ -834,7 +844,7 @@ export default function App() {
     try {
       setIsEnrichingSingle(true);
       setStatusMessage(statusText("metadata_downloading_game"));
-      const updated = await invokeTauri<GameDto>("enrich_single_game", { gameId });
+      const updated = await api.games.enrichSingleGame(gameId);
       if (updated) {
         const normalized = normalizeGame(updated);
         setSelectedGame(normalized);
@@ -852,7 +862,7 @@ export default function App() {
     try {
       setIsEnrichingSingle(true);
       setStatusMessage(statusText("hltb_refreshing"));
-      const updated = await invokeTauri<GameDto>("refresh_game_howlongtobeat", { gameId });
+      const updated = await api.games.refreshGameHowlongtobeat(gameId);
       if (updated) {
         const normalized = normalizeGame(updated);
         setSelectedGame(normalized);
@@ -869,10 +879,7 @@ export default function App() {
 
   const handleUpdateCompletionStatus = async (game: GameDto, newStatus: string) => {
     try {
-      const updated = await invokeTauri<GameDto>("update_game_completion_status", {
-        gameId: game.id,
-        status: newStatus,
-      });
+      const updated = await api.games.updateGameCompletionStatus(game.id, newStatus);
       if (updated) {
         const normalized = normalizeGame(updated);
         setSelectedGame((prev) => (prev && prev.id === normalized.id ? { ...prev, ...normalized } : prev));
@@ -889,7 +896,7 @@ export default function App() {
     try {
       setIsPipelineEnriching(true);
       setPipelineProgress(t("app_misc.pipeline_starting"));
-      const count = await invokeTauri<number>("download_all_metadata");
+      const count = await api.metadata.downloadAllMetadata();
       setPipelineProgress(`Completato! ${count || 0} titoli aggiornati.`);
       await refreshLibrary();
     } catch (err: any) {
@@ -902,7 +909,7 @@ export default function App() {
   const handleCancelPipeline = async () => {
     try {
       setPipelineProgress(t("app_misc.pipeline_stopping"));
-      await invokeTauri("cancel_metadata_download");
+      await api.metadata.cancelMetadataDownload();
       setStatusMessage(statusText("download_cancel_requested"));
     } catch (err: any) {
       console.warn("Failed to cancel metadata download:", err);
@@ -917,7 +924,7 @@ export default function App() {
 
     // Auto-scan on startup: silently sync library if user opted in and library is not empty
     if (shouldAutoScanOnStartup() && !shouldShowOnboarding()) {
-      invokeTauri("sync_library")
+      api.games.syncLibrary()
         .then(() => refreshLibrary())
         .catch((err) => {
           console.warn("Auto-scan on startup failed:", err);
@@ -927,7 +934,7 @@ export default function App() {
     // Check if a game is already running on mount
     (async () => {
       try {
-        const running = await invokeTauri<ActiveGameSession | null>("get_running_game");
+        const running = await api.games.getRunningGame();
         if (running) {
           setIsGameRunning(true);
           setActiveGame(running);
@@ -952,7 +959,7 @@ export default function App() {
     // Sync minimize to tray setting to backend
     const savedTray = localStorage.getItem("omnis_minimize_to_tray");
     const enabledTray = savedTray !== null ? JSON.parse(savedTray) : true;
-    invokeTauri("set_minimize_to_tray", { enabled: enabledTray }).catch(console.warn);
+    api.window.setMinimizeToTray(enabledTray).catch(console.warn);
 
     (async () => {
       try {
@@ -1216,14 +1223,14 @@ export default function App() {
     } catch {
       // fallback
     }
-    invokeTauri("window_start_dragging");
+    api.window.startDragging();
   };
 
   const handleSync = async () => {
     try {
       setIsSyncing(true);
       setStatusMessage(statusText("library_scanning"));
-      const count = await invokeTauri<number>("sync_library");
+      const count = await api.games.syncLibrary();
       await refreshLibrary();
       setStatusMessage(
         count !== null && count !== undefined
@@ -1242,7 +1249,7 @@ export default function App() {
     setIsDownloading(true);
     setStatusMessage(statusText("metadata_downloading"));
     try {
-      await invokeTauri("download_all_metadata");
+      await api.metadata.downloadAllMetadata();
       await refreshLibrary();
       setStatusMessage(statusText("metadata_updated"));
     } catch (err: any) {
@@ -1262,7 +1269,7 @@ export default function App() {
       setStatusMessage(statusText("game_starting"));
     }
     try {
-      await invokeTauri("launch_game", { gameId });
+      await api.games.launchGame(gameId);
       if (g && !g.is_installed) {
         setStatusMessage(statusText("install_started"));
       } else {
@@ -1285,7 +1292,7 @@ export default function App() {
     setShowKillConfirmModal(false);
     try {
       setStatusMessage(statusText("game_stopping"));
-      const killed = await invokeTauri<boolean>("kill_running_game");
+      const killed = await api.games.killRunningGame();
       if (killed) {
         soundEffects.playSelect();
         setStatusMessage(statusText("game_stopped"));
@@ -1298,7 +1305,7 @@ export default function App() {
   };
 
   const handleOpenFolder = (folderType: string) => {
-    invokeTauri("open_folder", { folderType });
+    api.window.openFolder(folderType);
   };
 
   // GAME MANAGEMENT
@@ -1307,7 +1314,7 @@ export default function App() {
 
   const handleOpenInstallDir = async (gameId: string) => {
     try {
-      await invokeTauri("open_game_install_dir", { gameId });
+      await api.games.openGameInstallDir(gameId);
       setStatusMessage(statusText("folder_opening"));
     } catch (err: any) {
       setStatusMessage(statusText("folder_error", { error: String(err?.message || err) }));
@@ -1316,7 +1323,7 @@ export default function App() {
 
   const handleCreateShortcut = async (gameId: string) => {
     try {
-      const path = await invokeTauri<string>("create_desktop_shortcut", { gameId });
+      const path = await api.games.createDesktopShortcut(gameId);
       setStatusMessage(statusText("shortcut_created", { path: String(path) }));
     } catch (err: any) {
       setStatusMessage(statusText("shortcut_error", { error: String(err?.message || err) }));
@@ -1325,7 +1332,7 @@ export default function App() {
 
   const handleVerifyFiles = async (gameId: string) => {
     try {
-      await invokeTauri("verify_game_files", { gameId });
+      await api.games.verifyGameFiles(gameId);
       setStatusMessage(statusText("verify_started"));
     } catch (err: any) {
       setStatusMessage(statusText("verify_error", { error: String(err?.message || err) }));
@@ -1339,7 +1346,7 @@ export default function App() {
 
   const handleConfirmUninstall = async (gameId: string) => {
     try {
-      await invokeTauri("uninstall_game", { gameId });
+      await api.games.uninstallGame(gameId);
       setStatusMessage(statusText("uninstall_started"));
       await refreshLibrary();
     } catch (err: any) {
@@ -1354,7 +1361,7 @@ export default function App() {
       return;
     }
     try {
-      await invokeTauri("remove_game_from_library", { gameId });
+      await api.games.removeGameFromLibrary(gameId);
       setStatusMessage(statusText("game_removed", { title }));
       await refreshLibrary();
       if (selectedGame?.id === gameId) {
@@ -1366,6 +1373,7 @@ export default function App() {
   };
 
   return (
+    <ActiveGameTimerProvider activeGame={activeGame}>
     <UpdaterContext.Provider value={updater}>
     <InputPromptContext.Provider
       value={{
@@ -1916,12 +1924,11 @@ export default function App() {
 
               {activeGame ? (
                 <div className="flex items-center gap-2 truncate">
-                  <span className="text-emerald-300 font-bold flex items-center gap-1.5 truncate">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping shrink-0" />
-                    <span className="truncate">
-                      🎮 {t("app_misc.now_playing")} <strong className="text-white">{activeGame.title}</strong> ({formatDuration(elapsedSeconds)})
-                    </span>
-                  </span>
+                  <ActiveGameStatusBarTicker
+                    activeGame={activeGame}
+                    label={t("app_misc.now_playing")}
+                    formatDuration={formatDuration}
+                  />
                   <button
                     type="button"
                     onClick={handleKillRunningGame}
@@ -2291,5 +2298,6 @@ export default function App() {
     </ControllerTypeContext.Provider>
     </InputPromptContext.Provider>
     </UpdaterContext.Provider>
+    </ActiveGameTimerProvider>
   );
 }

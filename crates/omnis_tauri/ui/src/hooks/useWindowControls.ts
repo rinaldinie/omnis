@@ -1,20 +1,35 @@
+import { api } from "../api";
+
 export function useWindowControls() {
-  const callTauri = async (cmd: string) => {
-    try {
-      if (typeof window !== "undefined" && (window as any).__TAURI_INTERNALS__) {
-        const { invoke } = await import("@tauri-apps/api/core");
-        await invoke(cmd);
-      }
-    } catch (err) {
-      console.warn(`Window control command '${cmd}' failed:`, err);
-    }
+  const handleMinimize = () => {
+    api.window.minimize().catch((err) => {
+      console.warn("Window minimize failed:", err);
+    });
   };
 
-  const handleMinimize = () => callTauri("window_minimize");
-  const handleUnminimize = () => callTauri("window_unminimize");
-  const handleSetFocus = () => callTauri("window_set_focus");
-  const handleToggleMaximize = () => callTauri("window_toggle_maximize");
-  const handleClose = () => callTauri("window_close");
+  const handleUnminimize = () => {
+    api.window.unminimize().catch((err) => {
+      console.warn("Window unminimize failed:", err);
+    });
+  };
+
+  const handleSetFocus = () => {
+    api.window.setFocus().catch((err) => {
+      console.warn("Window setFocus failed:", err);
+    });
+  };
+
+  const handleToggleMaximize = () => {
+    api.window.toggleMaximize().catch((err) => {
+      console.warn("Window toggleMaximize failed:", err);
+    });
+  };
+
+  const handleClose = () => {
+    api.window.close().catch((err) => {
+      console.warn("Window close failed:", err);
+    });
+  };
 
   return {
     handleMinimize,

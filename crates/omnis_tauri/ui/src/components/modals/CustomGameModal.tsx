@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { PlusCircle, X, FolderOpen, Folder } from "lucide-react";
-import { invokeTauri } from "../../types";
+import { api } from "../../api";
 import { useTranslation } from "../../i18n";
 
 interface CustomGameModalProps {
@@ -24,7 +24,7 @@ export default function CustomGameModal({
 
   const handlePickCustomExe = async () => {
     try {
-      const path = await invokeTauri<string>("pick_executable_file");
+      const path = await api.games.pickExecutableFile();
       if (path) {
         setCustomExePath(path);
         if (!customTitle.trim()) {
@@ -44,11 +44,9 @@ export default function CustomGameModal({
 
   const handlePickCustomFolder = async () => {
     try {
-      const dir = await invokeTauri<string>("pick_directory");
+      const dir = await api.games.pickDirectory();
       if (dir) {
-        const exes = await invokeTauri<string[]>("find_executables_in_folder", {
-          folderPath: dir,
-        });
+        const exes = await api.games.findExecutablesInFolder(dir);
         if (exes && exes.length > 0) {
           setCustomExePath(exes[0]);
         } else {
@@ -67,7 +65,7 @@ export default function CustomGameModal({
 
   const handlePickCustomCover = async () => {
     try {
-      const path = await invokeTauri<string>("pick_image_file");
+      const path = await api.games.pickImageFile();
       if (path) {
         setCustomCoverPath(path);
       }
@@ -81,14 +79,12 @@ export default function CustomGameModal({
     if (!customTitle.trim() || !customExePath.trim()) return;
     setIsAddingCustom(true);
     try {
-      await invokeTauri("add_custom_game", {
-        payload: {
-          title: customTitle.trim(),
-          executable_path: customExePath.trim(),
-          arguments: [],
-          working_dir: null,
-          cover_image_path: customCoverPath.trim() || null,
-        },
+      await api.games.addCustomGame({
+        title: customTitle.trim(),
+        executable_path: customExePath.trim(),
+        arguments: [],
+        working_dir: null,
+        cover_image_path: customCoverPath.trim() || null,
       });
       const title = customTitle;
       setCustomTitle("");

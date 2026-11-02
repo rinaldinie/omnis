@@ -20,6 +20,7 @@ export interface GameDto {
   playtime_seconds: number;
   playtime_formatted: string;
   critic_score: number | null;
+  community_score?: number | null;
   release_date: string | null;
   description: string | null;
   cover_image: string | null;
@@ -174,14 +175,7 @@ export const normalizeGame = (g: GameDto): GameDto => ({
   icon_image: formatImageUrl(g.icon_image || g.cover_image),
 });
 
-export async function invokeTauri<T>(cmd: string, args?: Record<string, unknown>): Promise<T | null> {
-  try {
-    return await invoke<T>(cmd, args);
-  } catch (err) {
-    console.warn(`Tauri command '${cmd}' not available in preview:`, err);
-  }
-  return null;
-}
+export { invokeTauri, invokeIpc, safeInvokeIpc, listenTauri, listenIpc, api } from "./api";
 
 export const FILTER_ORDER = [
   "all",
@@ -711,6 +705,20 @@ export interface BackupScheduleConfigDto {
   next_backup_utc?: string | null;
   include_artwork: boolean;
 }
+
+export interface StoreDetectionResult {
+  id: string;
+  name: string;
+  detected: boolean;
+  requires_login: boolean;
+  icon: string;
+}
+
+export interface VaultStatus {
+  is_fallback: boolean;
+  warning?: string | null;
+}
+
 
 
 

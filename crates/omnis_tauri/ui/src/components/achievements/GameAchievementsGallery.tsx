@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { api } from "../../api";
 import { listen } from "@tauri-apps/api/event";
 import { Trophy, RefreshCw, Sparkles, Award, Lock, CheckCircle2, AlertCircle, Settings } from "lucide-react";
 import { Achievement, GameAchievementsSummary, GameDto } from "../../types";
@@ -85,10 +85,9 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
         setSyncSuccess(false);
       }
 
-      const cmd = isRefresh ? "refresh_game_achievements" : "get_game_achievements";
-      const result = await invoke<GameAchievementsSummary>(cmd, {
-        gameId: targetGameId,
-      });
+      const result = isRefresh
+        ? await api.achievements.refreshGameAchievements(targetGameId)
+        : await api.achievements.getGameAchievements(targetGameId);
 
       // Discard stale responses if user switched games while request was in-flight
       if (activeGameIdRef.current === targetGameId) {
@@ -142,7 +141,7 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
     listen<{ game_id: string }>("achievements-updated", async (event) => {
       if (event.payload.game_id !== targetGameId) return;
       try {
-        const result = await invoke<GameAchievementsSummary>("get_game_achievements", { gameId: targetGameId });
+        const result = await api.achievements.getGameAchievements(targetGameId);
         if (activeGameIdRef.current === targetGameId) setSummary(result);
       } catch (err) {
         console.debug("Achievement reload after background sync failed:", err);

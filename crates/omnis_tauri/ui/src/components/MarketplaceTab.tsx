@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useTranslation } from "../i18n";
+import { api } from "../api";
 import {
   Search,
   Download,
@@ -48,19 +49,6 @@ interface MarketplaceTabProps {
   onPluginInstalled?: () => void;
 }
 
-async function invokeTauri<T>(cmd: string, args?: Record<string, unknown>): Promise<T | null> {
-  try {
-    if (typeof window !== "undefined" && (window as any).__TAURI_INTERNALS__) {
-      const { invoke } = await import("@tauri-apps/api/core");
-      return await invoke<T>(cmd, args);
-    }
-  } catch (err) {
-    console.warn(`[Tauri Mock / Error] ${cmd}:`, err);
-    throw err;
-  }
-  return null;
-}
-
 export const MarketplaceTab: React.FC<MarketplaceTabProps> = ({ onPluginInstalled }) => {
   const { t } = useTranslation();
   const [catalog, setCatalog] = useState<MarketplaceCatalog | null>(null);
@@ -76,7 +64,7 @@ export const MarketplaceTab: React.FC<MarketplaceTabProps> = ({ onPluginInstalle
   const loadCatalog = async () => {
     setLoading(true);
     try {
-      const res = await invokeTauri<MarketplaceCatalog>("get_marketplace_catalog");
+      const res = await api.marketplace.getCatalog();
       if (res) {
         setCatalog(res);
       }
@@ -103,7 +91,7 @@ export const MarketplaceTab: React.FC<MarketplaceTabProps> = ({ onPluginInstalle
     });
 
     try {
-      await invokeTauri("install_marketplace_plugin", { pluginId: plugin.id });
+      await api.marketplace.installPlugin(plugin.id);
       setStatusNotification({
         type: "success",
         text: t("marketplace.installed_status", { name: plugin.name }),
@@ -131,7 +119,7 @@ export const MarketplaceTab: React.FC<MarketplaceTabProps> = ({ onPluginInstalle
     });
 
     try {
-      await invokeTauri("uninstall_marketplace_plugin", { pluginId: plugin.id });
+      await api.marketplace.uninstallPlugin(plugin.id);
       setStatusNotification({
         type: "success",
         text: t("marketplace.uninstalled_status", { name: plugin.name }),

@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import soundEffects from "../../utils/soundEffects";
 import { useTranslation } from "../../i18n";
-import { invokeTauri } from "../../types";
+import { api } from "../../api";
 import { listen } from "@tauri-apps/api/event";
 
 export interface AchievementsConfig {
@@ -132,7 +132,7 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
 
   // Sync state with backend on mount and listen for completed library syncs
   useEffect(() => {
-    invokeTauri("set_sync_achievements_on_game_exit", { enabled: config.syncOnGameExit });
+    api.achievements.setSyncAchievementsOnGameExit(config.syncOnGameExit).catch(console.warn);
 
     let unlisten: (() => void) | undefined;
     listen<{ status: string; scope: string }>("achievement-sync-progress", (event) => {
@@ -177,7 +177,7 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
   const handleSave = () => {
     soundEffects.playSelect();
     saveAchievementsConfig(config);
-    invokeTauri("set_sync_achievements_on_game_exit", { enabled: config.syncOnGameExit });
+    api.achievements.setSyncAchievementsOnGameExit(config.syncOnGameExit).catch(console.warn);
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 2500);
   };
@@ -186,7 +186,7 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
     soundEffects.playSelect();
     setConfig(DEFAULT_CONFIG);
     saveAchievementsConfig(DEFAULT_CONFIG);
-    invokeTauri("set_sync_achievements_on_game_exit", { enabled: DEFAULT_CONFIG.syncOnGameExit });
+    api.achievements.setSyncAchievementsOnGameExit(DEFAULT_CONFIG.syncOnGameExit).catch(console.warn);
   };
 
   return (

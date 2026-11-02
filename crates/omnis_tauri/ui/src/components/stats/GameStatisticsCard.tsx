@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { api } from "../../api";
 import { GameDto, GameStatsDto } from "../../types";
 import WeeklyBarChart from "./WeeklyBarChart";
 import { Clock, Trophy, Activity } from "lucide-react";
@@ -18,7 +18,7 @@ export default function GameStatisticsCard({ game }: GameStatisticsCardProps) {
     let isCancelled = false;
     setLoading(true);
 
-    invoke<GameStatsDto>("get_game_statistics", { gameId: game.id })
+    api.stats.getGameStatistics(game.id)
       .then((res) => {
         if (!isCancelled) {
           setStats(res);
