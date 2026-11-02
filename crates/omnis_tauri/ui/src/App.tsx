@@ -1,6 +1,4 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import ListViewTable from "./components/ListViewTable";
-import StatisticsDashboardView from "./components/views/StatisticsDashboardView";
 import { SettingsTab } from "./components/settings";
 import { api } from "./api";
 import { useTranslation } from "./i18n";
@@ -21,17 +19,12 @@ import {
 } from "./components/StoreBadge";
 import {
   GameDto,
-  AchievementSyncProgress,
-  ActiveGameSession,
   ViewMode,
   GroupBy,
   LibraryCounts,
   ThemeConfig,
-  ProviderInfo,
-  MetadataPipelineConfig,
   formatImageUrl,
   normalizeGame,
-  BUILTIN_THEMES,
 } from "./types";
 import { getVisibleCategories } from "./utils/consoleCategories";
 import { useWindowControls } from "./hooks/useWindowControls";
@@ -40,26 +33,20 @@ import { useGamepadNavigation, ControllerType } from "./hooks/useGamepadNavigati
 import { ActiveGameTimerProvider } from "./context/ActiveGameTimerContext";
 import { useAppUpdater, UpdaterContext } from "./hooks/useAppUpdater";
 import FullscreenView from "./components/views/FullscreenView";
+import { DesktopView } from "./components/views/DesktopView";
 import {
   ControllerTypeContext,
   InputPromptContext,
   ControllerStyleSetting,
 } from "./components/fullscreen/ConsoleChrome";
 import { GameSortMode, readSavedSortMode, saveSortMode, sortGames } from "./utils/sortGames";
-import DetailsSplitView from "./components/views/DetailsSplitView";
-import GridView from "./components/views/GridView";
-import TopBar from "./components/navigation/TopBar";
-import VideoBackdrop from "./components/common/VideoBackdrop";
-import Sidebar from "./components/navigation/Sidebar";
 import OnboardingModal, { shouldShowOnboarding } from "./components/modals/OnboardingModal";
-import EmptyGamesView from "./components/common/EmptyGamesView";
-import { StatusBar } from "./components/navigation/StatusBar";
 import { AppToasts, SessionToastInfo, SyncBannerInfo } from "./components/common/AppToasts";
 import { AppModals } from "./components/modals/AppModals";
-import { CatalogToolbar } from "./components/navigation/CatalogToolbar";
 import { usePluginManager } from "./hooks/usePluginManager";
 import { useAppEvents } from "./hooks/useAppEvents";
 import { useGameOperations } from "./hooks/useGameOperations";
+import { useThemeEngine } from "./hooks/useThemeEngine";
 
 export type { SessionToastInfo, SyncBannerInfo };
 
@@ -107,8 +94,6 @@ export default function App() {
   });
 
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
-  const [gridCardWidth, setGridCardWidth] = useState<number>(180);
-  const [detailsSidebarOpen, setDetailsSidebarOpen] = useState<boolean>(true);
   const [selectedGame, setSelectedGame] = useState<GameDto | null>(null);
 
   // I18N
@@ -129,7 +114,7 @@ export default function App() {
     setShowSettingsModal(true);
   }, []);
 
-  // ONBOARDING WIZARD – shown only on first launch (empty library + never completed)
+  // ONBOARDING WIZARD
   const [showOnboarding, setShowOnboarding] = useState<boolean>(false);
 
   // ONLINE APP UPDATER
@@ -144,7 +129,7 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [updater.checkForUpdates]);
 
-  // LOAD GAMES & THEMES
+  // LOAD GAMES
   const loadGames = useCallback(async () => {
     try {
       const loadedGames = await api.games.getGames();
@@ -171,44 +156,6 @@ export default function App() {
     }
   }, []);
   const refreshLibrary = loadGames;
-
-  // THEME ENGINE
-  const [themes, setThemes] = useState<ThemeConfig[]>(BUILTIN_THEMES);
-  const [currentTheme, setCurrentTheme] = useState<ThemeConfig>(BUILTIN_THEMES[0]);
-  const [showThemeModal, setShowThemeModal] = useState<boolean>(false);
-
-  const loadThemes = useCallback(async () => {
-    try {
-      const loadedThemes = await api.themes.getThemes();
-      if (loadedThemes && loadedThemes.length > 0) {
-        setThemes(loadedThemes);
-        const savedThemeId = localStorage.getItem("omnis_selected_theme_id");
-        if (savedThemeId) {
-          const found = loadedThemes.find((th) => th.id === savedThemeId);
-          if (found) {
-            setCurrentTheme(found);
-            return;
-          }
-        }
-        setCurrentTheme(loadedThemes[0]);
-      }
-    } catch (err) {
-      console.warn("Failed loading themes:", err);
-    }
-  }, []);
-
-  const selectTheme = useCallback((theme: ThemeConfig) => {
-    setCurrentTheme(theme);
-    localStorage.setItem("omnis_selected_theme_id", theme.id);
-    setStatusMessage(statusText("theme_activated", { name: theme.name }));
-  }, [statusText]);
-
-  const handleSaveCustomTheme = useCallback(async (fullTheme: ThemeConfig) => {
-    await api.themes.saveCustomTheme(fullTheme);
-    await loadThemes();
-    selectTheme(fullTheme);
-    setStatusMessage(statusText("theme_saved", { name: fullTheme.name }));
-  }, [loadThemes, selectTheme, statusText]);
 
   // REFS & DEFERRED INTEGRATION
   const gamesRef = useRef<GameDto[]>([]);
@@ -237,7 +184,9 @@ export default function App() {
   } = useAppEvents({
     loadGames,
     refreshLibrary,
-    loadThemes,
+    loadThemes: async () => {
+      await themeEngineRef.current?.loadThemes();
+    },
     loadProvidersAndConfig: async () => {
       await pluginManagerRef.current?.loadProvidersAndConfig();
     },
@@ -251,6 +200,20 @@ export default function App() {
     },
     gamesRef,
   });
+
+  // THEME ENGINE HOOK
+  const themeEngine = useThemeEngine({ setStatusMessage, statusText });
+  const themeEngineRef = useRef(themeEngine);
+  themeEngineRef.current = themeEngine;
+
+  const {
+    themes,
+    currentTheme,
+    showThemeModal,
+    setShowThemeModal,
+    selectTheme,
+    handleSaveCustomTheme,
+  } = themeEngine;
 
   // METADATA PLUGIN & PIPELINE MANAGER HOOK
   const pluginManager = usePluginManager({
@@ -348,7 +311,7 @@ export default function App() {
           const { getCurrentWindow } = await import("@tauri-apps/api/window");
           isWindowFs = await getCurrentWindow().isFullscreen();
         } catch {
-          // Dev or fallback
+          // Dev fallback
         }
 
         if (isFsCli || isWindowFs) {
@@ -359,7 +322,7 @@ export default function App() {
             const { getCurrentWindow } = await import("@tauri-apps/api/window");
             await getCurrentWindow().setFullscreen(true);
           } catch {
-            // Dev or fallback
+            // Dev fallback
           }
           await api.window.setFullscreen(true);
         }
@@ -493,42 +456,6 @@ export default function App() {
   // WINDOW CONTROLS HOOK
   const { handleMinimize, handleToggleMaximize, handleClose } = useWindowControls();
 
-  // SMART FILTER BAR MENU
-  const [showFilterMenu, setShowFilterMenu] = useState(false);
-  const filterMenuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (filterMenuRef.current && !filterMenuRef.current.contains(e.target as Node)) {
-        setShowFilterMenu(false);
-      }
-    };
-    if (showFilterMenu) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [showFilterMenu]);
-
-  // GROUP BY POPOVER MENU
-  const [showGroupByMenu, setShowGroupByMenu] = useState(false);
-  const groupByMenuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (groupByMenuRef.current && !groupByMenuRef.current.contains(e.target as Node)) {
-        setShowGroupByMenu(false);
-      }
-    };
-    if (showGroupByMenu) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [showGroupByMenu]);
-
   const currentGroupLabel = useMemo(() => {
     switch (groupBy) {
       case "completion_status":
@@ -556,7 +483,7 @@ export default function App() {
       const { getCurrentWindow } = await import("@tauri-apps/api/window");
       await getCurrentWindow().setFullscreen(next);
     } catch {
-      // Dev or test fallback
+      // Dev fallback
     }
     await api.window.setFullscreen(next);
     if (next) {
@@ -609,7 +536,7 @@ export default function App() {
         return saved as ControllerStyleSetting;
       }
     } catch {
-      // Dev or test environment fallback
+      // Dev fallback
     }
     return "auto";
   });
@@ -619,7 +546,7 @@ export default function App() {
     try {
       localStorage.setItem("omnis_controller_style", style);
     } catch {
-      // Dev or test environment fallback
+      // Dev fallback
     }
   }, []);
 
@@ -631,47 +558,6 @@ export default function App() {
   const focusedGame = fullscreenGames.length > 0
     ? (fullscreenGames[focusedIndex] || fullscreenGames[0] || null)
     : null;
-
-  // APPLY THEME TO CSS VARIABLES
-  useEffect(() => {
-    const root = document.documentElement;
-    root.style.setProperty("--bg-base", currentTheme.bg_base);
-    root.style.setProperty("--bg-surface", currentTheme.bg_surface);
-    root.style.setProperty("--bg-card", currentTheme.bg_card);
-    root.style.setProperty("--text-primary", currentTheme.text_primary);
-    root.style.setProperty("--text-muted", currentTheme.text_muted);
-    root.style.setProperty("--accent-primary", currentTheme.accent_primary);
-    root.style.setProperty("--accent-glow", currentTheme.accent_glow);
-    root.style.setProperty("--border-color", currentTheme.border_color);
-    root.style.setProperty("--card-radius", currentTheme.card_radius);
-    const epicFontStack = '"Brutal", "Brutal Type", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
-    if (currentTheme.font_family && !currentTheme.font_family.startsWith("system-ui")) {
-      root.style.fontFamily = currentTheme.font_family;
-    } else {
-      root.style.fontFamily = epicFontStack;
-    }
-    if (currentTheme.tokens && typeof currentTheme.tokens === "object") {
-      Object.entries(currentTheme.tokens).forEach(([tokenKey, tokenValue]) => {
-        if (tokenKey.startsWith("--")) {
-          root.style.setProperty(tokenKey, tokenValue);
-        }
-      });
-    }
-    document.body.style.backgroundColor = currentTheme.bg_base;
-    document.body.style.color = currentTheme.text_primary;
-
-    let styleTag = document.getElementById("omnis-custom-theme-css") as HTMLStyleElement | null;
-    if (currentTheme.custom_css && currentTheme.custom_css.trim()) {
-      if (!styleTag) {
-        styleTag = document.createElement("style");
-        styleTag.id = "omnis-custom-theme-css";
-        document.head.appendChild(styleTag);
-      }
-      styleTag.textContent = currentTheme.custom_css;
-    } else if (styleTag) {
-      styleTag.textContent = "";
-    }
-  }, [currentTheme]);
 
   useEffect(() => {
     if (filteredGames.length > 0) {
@@ -758,7 +644,6 @@ export default function App() {
           color: "var(--text-primary)",
         }}
       >
-        {/* FULLSCREEN MODE */}
         {isFullscreen ? (
           <FullscreenView
             focusedGame={focusedGame}
@@ -823,232 +708,91 @@ export default function App() {
             onSelectTheme={selectTheme}
           />
         ) : (
-          /* DESKTOP LAUNCHER MODE */
-          <div className="flex flex-col h-screen w-screen overflow-hidden">
-            {/* TOP NAVIGATION & TITLEBAR */}
-            <TopBar
-              currentTheme={currentTheme}
-              viewMode={viewMode}
-              setViewMode={setViewMode}
-              searchQuery={searchQuery}
-              setSearchQuery={setSearchQuery}
-              toggleFullscreen={toggleFullscreen}
-              handleToggleSound={handleToggleSound}
-              soundEnabled={soundEnabled}
-              setShowSettingsModal={setShowSettingsModal}
-              setShowThemeModal={setShowThemeModal}
-              loadProvidersAndConfig={loadProvidersAndConfig}
-              setShowPluginModal={setShowPluginModal}
-              providers={providers}
-              setShowAddCustomModal={setShowAddCustomModal}
-              setShowBatchEnrichModal={setShowBatchEnrichModal}
-              onOpenPlayniteImport={() => setIsPlayniteImportOpen(true)}
-              handleSync={handleSync}
-              isSyncing={isSyncing}
-              handleMinimize={handleMinimize}
-              handleToggleMaximize={handleToggleMaximize}
-              handleClose={handleClose}
-              handleStartDragging={handleStartDragging}
-              t={t}
-              activeGame={activeGame}
-              formatDuration={formatDuration}
-              handleKillRunningGame={handleKillRunningGame}
-            />
-
-            {/* MAIN BODY */}
-            <div className="flex-1 flex overflow-hidden">
-              {/* SIDEBAR NAVIGATION */}
-              <Sidebar
-                counts={counts}
-                activeFilter={activeFilter}
-                setActiveFilter={setActiveFilter}
-                isFilterActive={isFilterActive}
-                gamepadConnected={gamepadConnected}
-                gamepadName={gamepadName}
-                handleOpenFolder={handleOpenFolder}
-                onOpenStoreAccounts={() => handleOpenSettings("accounts")}
-                viewMode={viewMode}
-                setViewMode={setViewMode}
-              />
-
-              {/* MAIN CATALOG VIEW */}
-              <main
-                className="flex-1 flex flex-col overflow-hidden transition-colors duration-300 relative"
-                style={{ backgroundColor: "var(--bg-base)" }}
-              >
-                {/* Cinema Lounge Dynamic Video Trailer Backdrop */}
-                {currentTheme.enable_video_backdrop && viewMode !== "details" && (
-                  <VideoBackdrop
-                    game={selectedGame}
-                    theme={currentTheme}
-                    blurLevel="ambient"
-                    className="opacity-40"
-                    isPaused={isGameRunning}
-                  />
-                )}
-
-                {/* CONTEXTUAL TOOLBAR */}
-                <CatalogToolbar
-                  viewMode={viewMode}
-                  showFilterMenu={showFilterMenu}
-                  setShowFilterMenu={setShowFilterMenu}
-                  filterMenuRef={filterMenuRef}
-                  sortMode={sortMode}
-                  setSortMode={setSortMode}
-                  selectedFlags={selectedFlags}
-                  toggleFlag={toggleFlag}
-                  selectedStatuses={selectedStatuses}
-                  toggleStatus={toggleStatus}
-                  selectedStores={selectedStores}
-                  toggleStore={toggleStore}
-                  selectedGenres={selectedGenres}
-                  toggleGenre={toggleGenre}
-                  selectedFeatures={selectedFeatures}
-                  toggleFeature={toggleFeature}
-                  clearAllFilters={clearAllFilters}
-                  totalActiveFilters={totalActiveFilters}
-                  filterCounts={filterCounts}
-                  availableGenres={availableGenres}
-                  availableFeatures={availableFeatures}
-                  activeChips={activeChips}
-                  removeFilterChip={removeFilterChip}
-                  searchQuery={searchQuery}
-                  filteredGamesCount={filteredGames.length}
-                  totalGamesCount={games.length}
-                  showGroupByMenu={showGroupByMenu}
-                  setShowGroupByMenu={setShowGroupByMenu}
-                  groupByMenuRef={groupByMenuRef}
-                  groupBy={groupBy}
-                  setGroupBy={setGroupBy}
-                  currentGroupLabel={currentGroupLabel}
-                  gridCardWidth={gridCardWidth}
-                  setGridCardWidth={setGridCardWidth}
-                  t={t}
-                />
-
-                {/* VIEW 1: POSTER GRID VIEW */}
-                {viewMode === "grid" && (
-                  <GridView
-                    filteredGames={filteredGames}
-                    groupedGames={groupedGames}
-                    groupBy={groupBy}
-                    collapsedGroups={collapsedGroups}
-                    toggleGroup={toggleGroup}
-                    gridCardWidth={gridCardWidth}
-                    selectedGame={selectedGame}
-                    setSelectedGame={setSelectedGame}
-                    setViewMode={setViewMode}
-                    handleOpenContextMenu={handleOpenContextMenu}
-                    handleLaunch={handleLaunch}
-                    setGameToEdit={setGameToEdit}
-                    setShowEditorModal={setShowEditorModal}
-                    activeGame={activeGame}
-                    formatDuration={formatDuration}
-                    handleKillRunningGame={handleKillRunningGame}
-                    activeFilter={activeFilter}
-                    searchQuery={searchQuery}
-                    onClearFilters={clearAllFilters}
-                    hasActiveFilters={totalActiveFilters > 0 || searchQuery.trim() !== ""}
-                  />
-                )}
-
-                {/* VIEW 2: DETAILS SPLIT-PANEL VIEW */}
-                {viewMode === "details" && (
-                  filteredGames.length === 0 ? (
-                    <EmptyGamesView
-                      onClearFilters={clearAllFilters}
-                      hasActiveFilters={totalActiveFilters > 0 || searchQuery.trim() !== ""}
-                    />
-                  ) : selectedGame ? (
-                    <DetailsSplitView
-                      currentTheme={currentTheme}
-                      selectedGame={selectedGame}
-                      setSelectedGame={setSelectedGame}
-                      detailsSidebarOpen={detailsSidebarOpen}
-                      setDetailsSidebarOpen={setDetailsSidebarOpen}
-                      detailsSearchQuery={detailsSearchQuery}
-                      setDetailsSearchQuery={setDetailsSearchQuery}
-                      detailsFilteredGames={detailsFilteredGames}
-                      setViewMode={setViewMode}
-                      handleOpenContextMenu={handleOpenContextMenu}
-                      handleLaunch={handleLaunch}
-                      handleEnrichSingleGame={handleEnrichSingleGame}
-                      handleRefreshHltb={handleRefreshHltb}
-                      isEnrichingSingle={isEnrichingSingle}
-                      setGameToEdit={setGameToEdit}
-                      setShowEditorModal={setShowEditorModal}
-                      setGameToResolve={setGameToResolve}
-                      setShowResolutionModal={setShowResolutionModal}
-                      t={t}
-                      isGameRunning={isGameRunning}
-                      activeGame={activeGame}
-                      formatDuration={formatDuration}
-                      handleKillRunningGame={handleKillRunningGame}
-                      activeFilter={activeFilter}
-                      setActiveFilter={setActiveFilter}
-                      isFilterActive={isFilterActive}
-                      handleOpenInstallDir={handleOpenInstallDir}
-                      handleCreateShortcut={handleCreateShortcut}
-                      handleVerifyFiles={handleVerifyFiles}
-                      handleOpenUninstallModal={handleOpenUninstallModal}
-                      handleRemoveFromLibrary={handleRemoveFromLibrary}
-                    />
-                  ) : (
-                    <EmptyGamesView
-                      onClearFilters={clearAllFilters}
-                      hasActiveFilters={totalActiveFilters > 0 || searchQuery.trim() !== ""}
-                    />
-                  )
-                )}
-
-                {/* VIEW 3: COMPACT DATA TABLE VIEW */}
-                {viewMode === "list" && (
-                  <ListViewTable
-                    games={filteredGames}
-                    selectedGameId={selectedGame?.id || null}
-                    onSelectGame={(g) => setSelectedGame(g)}
-                    onOpenDetails={(g) => {
-                      setSelectedGame(g);
-                      setViewMode("details");
-                    }}
-                    onLaunchGame={handleLaunch}
-                    onEditGame={(g) => {
-                      setGameToEdit(g);
-                      setShowEditorModal(true);
-                    }}
-                    onContextMenu={handleOpenContextMenu}
-                  />
-                )}
-
-                {/* VIEW 4: DETAILED STATS DASHBOARD */}
-                {viewMode === "stats" && (
-                  <StatisticsDashboardView
-                    onSelectGame={(gameId) => {
-                      const target = games.find((g) => g.id === gameId);
-                      if (target) {
-                        setSelectedGame(target);
-                        setViewMode("details");
-                      }
-                    }}
-                  />
-                )}
-              </main>
-            </div>
-
-            {/* FOOTER STATUS BAR */}
-            <StatusBar
-              gamepadConnected={gamepadConnected}
-              gamepadName={gamepadName}
-              activeGame={activeGame}
-              formatDuration={formatDuration}
-              handleKillRunningGame={handleKillRunningGame}
-              isSyncing={isSyncing}
-              statusMessage={statusMessage}
-              achievementSync={achievementSync}
-              currentThemeName={currentTheme.name}
-              t={t}
-            />
-          </div>
+          <DesktopView
+            currentTheme={currentTheme}
+            viewMode={viewMode}
+            setViewMode={setViewMode}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            toggleFullscreen={toggleFullscreen}
+            handleToggleSound={handleToggleSound}
+            soundEnabled={soundEnabled}
+            setShowSettingsModal={setShowSettingsModal}
+            setShowThemeModal={setShowThemeModal}
+            loadProvidersAndConfig={loadProvidersAndConfig}
+            setShowPluginModal={setShowPluginModal}
+            providers={providers}
+            setShowAddCustomModal={setShowAddCustomModal}
+            setShowBatchEnrichModal={setShowBatchEnrichModal}
+            onOpenPlayniteImport={() => setIsPlayniteImportOpen(true)}
+            handleSync={handleSync}
+            isSyncing={isSyncing}
+            handleMinimize={handleMinimize}
+            handleToggleMaximize={handleToggleMaximize}
+            handleClose={handleClose}
+            handleStartDragging={handleStartDragging}
+            t={t}
+            activeGame={activeGame}
+            formatDuration={formatDuration}
+            handleKillRunningGame={handleKillRunningGame}
+            counts={counts}
+            activeFilter={activeFilter}
+            setActiveFilter={setActiveFilter}
+            isFilterActive={isFilterActive}
+            gamepadConnected={gamepadConnected}
+            gamepadName={gamepadName}
+            handleOpenFolder={handleOpenFolder}
+            handleOpenSettings={handleOpenSettings}
+            isGameRunning={isGameRunning}
+            selectedGame={selectedGame}
+            setSelectedGame={setSelectedGame}
+            sortMode={sortMode}
+            setSortMode={setSortMode}
+            selectedFlags={selectedFlags}
+            toggleFlag={toggleFlag}
+            selectedStatuses={selectedStatuses}
+            toggleStatus={toggleStatus}
+            selectedStores={selectedStores}
+            toggleStore={toggleStore}
+            selectedGenres={selectedGenres}
+            toggleGenre={toggleGenre}
+            selectedFeatures={selectedFeatures}
+            toggleFeature={toggleFeature}
+            clearAllFilters={clearAllFilters}
+            totalActiveFilters={totalActiveFilters}
+            filterCounts={filterCounts}
+            availableGenres={availableGenres}
+            availableFeatures={availableFeatures}
+            activeChips={activeChips}
+            removeFilterChip={removeFilterChip}
+            filteredGames={filteredGames}
+            groupedGames={groupedGames}
+            groupBy={groupBy}
+            setGroupBy={setGroupBy}
+            collapsedGroups={collapsedGroups}
+            toggleGroup={toggleGroup}
+            currentGroupLabel={currentGroupLabel}
+            detailsSearchQuery={detailsSearchQuery}
+            setDetailsSearchQuery={setDetailsSearchQuery}
+            detailsFilteredGames={detailsFilteredGames}
+            handleOpenContextMenu={handleOpenContextMenu}
+            handleLaunch={handleLaunch}
+            setGameToEdit={setGameToEdit}
+            setShowEditorModal={setShowEditorModal}
+            setGameToResolve={setGameToResolve}
+            setShowResolutionModal={setShowResolutionModal}
+            handleEnrichSingleGame={handleEnrichSingleGame}
+            handleRefreshHltb={handleRefreshHltb}
+            isEnrichingSingle={isEnrichingSingle}
+            handleOpenInstallDir={handleOpenInstallDir}
+            handleCreateShortcut={handleCreateShortcut}
+            handleVerifyFiles={handleVerifyFiles}
+            handleOpenUninstallModal={handleOpenUninstallModal}
+            handleRemoveFromLibrary={handleRemoveFromLibrary}
+            statusMessage={statusMessage}
+            achievementSync={achievementSync}
+            totalGamesCount={games.length}
+          />
         )}
 
         {/* GLOBAL MODALS */}
