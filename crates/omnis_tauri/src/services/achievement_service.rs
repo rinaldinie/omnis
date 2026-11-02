@@ -158,12 +158,13 @@ impl AchievementService {
             .join(storage::CACHE_DIR)
             .join(storage::ACHIEVEMENTS_DIR);
         let cache_manager = AchievementCacheManager::new(cache_dir);
+        let game_title = game.title.clone();
         tokio::spawn(async move {
             if let Err(e) = cache_manager
                 .cache_achievements_for_game(&db_clone, game_id, &achievements)
                 .await
             {
-                warn!("Achievement icon caching had errors for {game_id}: {e}");
+                warn!("Achievement icon caching had errors for '{game_title}' ({game_id}): {e}");
             }
         });
 

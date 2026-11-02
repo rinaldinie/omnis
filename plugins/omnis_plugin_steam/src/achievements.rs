@@ -85,6 +85,21 @@ pub struct SteamGlobalRarityItem {
     pub percent: f64,
 }
 
+/// Convert legacy Steam community asset URL to the modern shared Steam CDN URL
+pub fn normalize_steam_icon_url(url: &str) -> String {
+    let trimmed = url.trim();
+    if trimmed.is_empty() {
+        return String::new();
+    }
+    if trimmed.contains("steamcommunity/public/images/apps/") {
+        if let Some(pos) = trimmed.find("images/apps/") {
+            let suffix = &trimmed[pos + "images/apps/".len()..];
+            return format!("https://shared.steamstatic.com/community_assets/images/apps/{suffix}");
+        }
+    }
+    trimmed.to_string()
+}
+
 /// Helper function to parse Steam API responses into unified `Achievement` domain models
 pub fn parse_steam_achievements_payload(
     game: &Game,
@@ -150,12 +165,15 @@ pub fn parse_steam_achievements_payload(
             .filter(|n| !n.trim().is_empty())
             .unwrap_or_else(|| s_ach.name.clone());
 
+        let icon_unlocked_url = normalize_steam_icon_url(&s_ach.icon);
         let icon_locked_url = s_ach
             .icongray
+            .as_deref()
+            .map(normalize_steam_icon_url)
             .filter(|url| !url.trim().is_empty())
             .or_else(|| {
-                if !s_ach.icon.is_empty() {
-                    Some(s_ach.icon.clone())
+                if !icon_unlocked_url.is_empty() {
+                    Some(icon_unlocked_url.clone())
                 } else {
                     None
                 }
@@ -167,7 +185,7 @@ pub fn parse_steam_achievements_payload(
             api_name: s_ach.name,
             display_name,
             description: s_ach.description.filter(|d| !d.trim().is_empty()),
-            icon_unlocked_url: s_ach.icon,
+            icon_unlocked_url,
             icon_locked_url,
             local_icon_path: None,
             is_unlocked,
@@ -197,16 +215,18 @@ pub async fn fetch_steam_achievements_web_api(
         "https://api.steampowered.com/ISteamUserStats/GetSchemaForGame/v2/?key={}&appid={}&l={}",
         api_key, app_id, lang
     );
-    debug!("Fetching Steam achievement schema from {schema_url}");
+    debug!("Fetching Steam achievement schema for '{}' (App ID {}) from {schema_url}", game.title, app_id);
     let schema_resp = client
         .get(&schema_url)
         .send()
         .await
-        .map_err(|e| format!("Failed to request Steam schema: {e}"))?;
+        .map_err(|e| format!("Failed to request Steam schema for '{}' (App ID {}): {e}", game.title, app_id))?;
 
     if !schema_resp.status().is_success() {
         return Err(format!(
-            "Steam schema request failed with status {}",
+            "Steam schema request for '{}' (App ID {}) failed with status {}",
+            game.title,
+            app_id,
             schema_resp.status()
         ));
     }
@@ -214,7 +234,7 @@ pub async fn fetch_steam_achievements_web_api(
     let schema_json = schema_resp
         .text()
         .await
-        .map_err(|e| format!("Failed to read Steam schema body: {e}"))?;
+        .map_err(|e| format!("Failed to read Steam schema body for '{}' (App ID {}): {e}", game.title, app_id))?;
 
     // 2. Fetch Player Achievements (if steam_id is provided)
     let player_json = if let Some(sid) = steam_id {
@@ -222,18 +242,23 @@ pub async fn fetch_steam_achievements_web_api(
             "https://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v1/?key={}&steamid={}&appid={}",
             api_key, sid, app_id
         );
-        debug!("Fetching Steam player achievements from {player_url}");
+        debug!("Fetching Steam player achievements for '{}' (App ID {}) from {player_url}", game.title, app_id);
         match client.get(&player_url).send().await {
             Ok(resp) if resp.status().is_success() => resp.text().await.ok(),
             Ok(resp) => {
+                let status = resp.status();
+                let body = resp.text().await.unwrap_or_default();
                 warn!(
-                    "Steam player achievements returned status {}",
-                    resp.status()
+                    "Steam player achievements for '{}' (App ID {}) returned status {}: {}",
+                    game.title,
+                    app_id,
+                    status,
+                    body.trim()
                 );
                 None
             }
             Err(e) => {
-                warn!("Failed to request Steam player achievements: {e}");
+                warn!("Failed to request Steam player achievements for '{}' (App ID {}): {e}", game.title, app_id);
                 None
             }
         }
@@ -246,15 +271,23 @@ pub async fn fetch_steam_achievements_web_api(
         "https://api.steampowered.com/ISteamUserStats/GetGlobalAchievementPercentagesForApp/v0002/?gameid={}",
         app_id
     );
-    debug!("Fetching Steam global percentages from {rarity_url}");
+    debug!("Fetching Steam global percentages for '{}' (App ID {}) from {rarity_url}", game.title, app_id);
     let rarity_json = match client.get(&rarity_url).send().await {
         Ok(resp) if resp.status().is_success() => resp.text().await.ok(),
         Ok(resp) => {
-            warn!("Steam global percentages returned status {}", resp.status());
+            let status = resp.status();
+            let body = resp.text().await.unwrap_or_default();
+            warn!(
+                "Steam global percentages for '{}' (App ID {}) returned status {}: {}",
+                game.title,
+                app_id,
+                status,
+                body.trim()
+            );
             None
         }
         Err(e) => {
-            warn!("Failed to request Steam global percentages: {e}");
+            warn!("Failed to request Steam global percentages for '{}' (App ID {}): {e}", game.title, app_id);
             None
         }
     };
@@ -296,6 +329,15 @@ impl AchievementProvider for crate::SteamPlugin {
             .map(|s| s.user_id.as_str())
             .filter(|s| !s.trim().is_empty())
             .or(self.config.steam_id64.as_deref());
+
+        if let Some(sid) = steam_id {
+            if !sid.chars().all(|c| c.is_ascii_digit()) {
+                warn!(
+                    "Steam user ID '{}' for game '{}' is not numeric (SteamID64 expected). Player achievements call may fail.",
+                    sid, game.title
+                );
+            }
+        }
 
         fetch_steam_achievements_web_api(&self.client, api_key, steam_id, game, Some("english"))
             .await
@@ -438,5 +480,18 @@ mod tests {
         assert_eq!(ach2.unlock_time, None);
         assert_eq!(ach2.rarity_percentage, Some(3.2));
         assert!(ach2.is_hidden);
+    }
+
+    #[test]
+    fn test_normalize_steam_icon_url() {
+        let legacy = "https://steamcdn-a.akamaihd.net/steamcommunity/public/images/apps/200710/7055d6067c41339fa28f0b10bd49bc3a33953625.jpg";
+        let modern = normalize_steam_icon_url(legacy);
+        assert_eq!(
+            modern,
+            "https://shared.steamstatic.com/community_assets/images/apps/200710/7055d6067c41339fa28f0b10bd49bc3a33953625.jpg"
+        );
+
+        let non_steam = "https://example.com/icon.png";
+        assert_eq!(normalize_steam_icon_url(non_steam), "https://example.com/icon.png");
     }
 }

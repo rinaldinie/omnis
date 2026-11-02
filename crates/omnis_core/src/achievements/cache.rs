@@ -9,7 +9,7 @@ use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::Semaphore;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, warn};
 use uuid::Uuid;
 
 /// Compute SHA-256 hex digest for an image URL to generate a safe unique filename
@@ -17,6 +17,49 @@ pub fn compute_icon_hash(url: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(url.as_bytes());
     format!("{:x}", hasher.finalize())
+}
+
+/// Helper to construct alternative modern Steam CDN URL if the provided URL points to legacy Akamai/Cloudflare paths
+pub fn steam_modern_cdn_url(url: &str) -> Option<String> {
+    if url.contains("steamcommunity/public/images/apps/") {
+        if let Some(pos) = url.find("images/apps/") {
+            let suffix = &url[pos + "images/apps/".len()..];
+            return Some(format!(
+                "https://shared.steamstatic.com/community_assets/images/apps/{suffix}"
+            ));
+        }
+    }
+    None
+}
+
+/// Helper to construct legacy Steam CDN URL if modern URL fails
+pub fn steam_legacy_cdn_url(url: &str) -> Option<String> {
+    if url.contains("community_assets/images/apps/") {
+        if let Some(pos) = url.find("images/apps/") {
+            let suffix = &url[pos + "images/apps/".len()..];
+            return Some(format!(
+                "https://steamcdn-a.akamaihd.net/steamcommunity/public/images/apps/{suffix}"
+            ));
+        }
+    }
+    None
+}
+
+/// Generate prioritized list of candidate URLs (modern Steam CDN first, legacy Akamai fallback)
+pub fn get_steam_icon_candidates(url: &str) -> Vec<String> {
+    let mut candidates = Vec::new();
+    if let Some(modern) = steam_modern_cdn_url(url) {
+        // Legacy URL provided: prioritize modern first, then legacy original
+        candidates.push(modern);
+        candidates.push(url.to_string());
+    } else if let Some(legacy) = steam_legacy_cdn_url(url) {
+        // Modern URL provided: prioritize modern original first, then legacy fallback
+        candidates.push(url.to_string());
+        candidates.push(legacy);
+    } else {
+        candidates.push(url.to_string());
+    }
+    candidates
 }
 
 /// Resolves the default cache directory for achievements
@@ -112,6 +155,15 @@ impl AchievementCacheManager {
         game_id: Uuid,
         achievements: &[Achievement],
     ) -> Result<usize, String> {
+        let game_title: Arc<str> = Arc::from(
+            db.get_game_by_id(game_id)
+                .ok()
+                .flatten()
+                .map(|g| g.title)
+                .unwrap_or_else(|| game_id.to_string())
+                .as_str(),
+        );
+
         let game_folder = self.base_cache_dir.join(game_id.to_string());
         if !game_folder.exists() {
             tokio::fs::create_dir_all(&game_folder)
@@ -122,16 +174,41 @@ impl AchievementCacheManager {
         let mut tasks = Vec::new();
 
         for ach in achievements {
-            let url = if !ach.icon_unlocked_url.trim().is_empty() {
-                ach.icon_unlocked_url.trim().to_string()
-            } else if let Some(ref locked_url) = ach.icon_locked_url {
-                locked_url.trim().to_string()
+            let primary_url = if !ach.icon_unlocked_url.trim().is_empty() {
+                Some(ach.icon_unlocked_url.trim().to_string())
             } else {
-                continue;
+                None
             };
 
-            // Calculate destination file path: {game_folder}/{hash}.png
-            let hash = compute_icon_hash(&url);
+            let fallback_url = ach
+                .icon_locked_url
+                .as_ref()
+                .map(|u| u.trim().to_string())
+                .filter(|u| !u.is_empty() && Some(u) != primary_url.as_ref());
+
+            let mut candidates = Vec::new();
+            if let Some(ref p) = primary_url {
+                for c in get_steam_icon_candidates(p) {
+                    if !candidates.contains(&c) {
+                        candidates.push(c);
+                    }
+                }
+            }
+            if let Some(ref f) = fallback_url {
+                for c in get_steam_icon_candidates(f) {
+                    if !candidates.contains(&c) {
+                        candidates.push(c);
+                    }
+                }
+            }
+
+            if candidates.is_empty() {
+                continue;
+            }
+
+            // Target URL is the primary candidate (modern CDN prioritized)
+            let hash_source = &candidates[0];
+            let hash = compute_icon_hash(hash_source);
             let file_name = format!("{hash}.png");
             let file_path = game_folder.join(file_name);
             let file_path_str = file_path.to_string_lossy().to_string();
@@ -148,40 +225,64 @@ impl AchievementCacheManager {
             let client = self.client.clone();
             let semaphore = self.semaphore.clone();
             let ach_id = ach.id.clone();
+            let ach_name = ach.display_name.clone();
+            let title = Arc::clone(&game_title);
+            let original_url = primary_url.as_deref().or(fallback_url.as_deref()).unwrap_or(hash_source).to_string();
 
             tasks.push(tokio::spawn(async move {
                 let _permit = match semaphore.acquire().await {
                     Ok(p) => p,
                     Err(e) => {
-                        error!("Failed to acquire semaphore permit: {e}");
+                        error!("Failed to acquire semaphore permit for '{title}': {e}");
                         return None;
                     }
                 };
 
-                debug!("Downloading achievement icon for {} from {}", ach_id, url);
-                match client.get(&url).send().await {
-                    Ok(resp) if resp.status().is_success() => match resp.bytes().await {
-                        Ok(bytes) => {
-                            if let Err(e) = tokio::fs::write(&file_path, bytes).await {
-                                warn!("Failed to write achievement icon to disk: {e}");
-                                None
-                            } else {
-                                Some((ach_id, file_path_str))
+                async fn download_icon(
+                    client: &reqwest::Client,
+                    u: &str,
+                    dest: &Path,
+                ) -> Result<(), String> {
+                    match client.get(u).send().await {
+                        Ok(resp) if resp.status().is_success() => match resp.bytes().await {
+                            Ok(bytes) => {
+                                tokio::fs::write(dest, bytes)
+                                    .await
+                                    .map_err(|e| format!("Failed to write to disk: {e}"))?;
+                                Ok(())
                             }
-                        }
-                        Err(e) => {
-                            warn!("Failed to read achievement icon body: {e}");
-                            None
-                        }
-                    },
-                    Ok(resp) => {
-                        warn!("Icon download failed with HTTP status {}", resp.status());
-                        None
+                            Err(e) => Err(format!("Failed to read body: {e}")),
+                        },
+                        Ok(resp) => Err(format!("HTTP status {}", resp.status())),
+                        Err(e) => Err(format!("Network error: {e}")),
                     }
-                    Err(e) => {
-                        warn!("Failed to download achievement icon: {e}");
-                        None
+                }
+
+                let mut last_err = String::new();
+                let mut success = false;
+
+                for candidate in &candidates {
+                    debug!("Downloading achievement icon for '{title}' - '{ach_name}' ({ach_id}) from {candidate}");
+                    match download_icon(&client, candidate, &file_path).await {
+                        Ok(()) => {
+                            success = true;
+                            break;
+                        }
+                        Err(err) => {
+                            debug!("Candidate {candidate} failed: {err}");
+                            last_err = err;
+                        }
                     }
+                }
+
+                if success {
+                    Some((ach_id, file_path_str))
+                } else {
+                    warn!(
+                        "Icon download failed for game '{}' (achievement '{}', url: '{}'): {}",
+                        title, ach_name, original_url, last_err
+                    );
+                    None
                 }
             }));
         }
@@ -197,9 +298,9 @@ impl AchievementCacheManager {
             }
         }
 
-        info!(
-            "Cached {} icons for game {} (directory: {:?})",
-            newly_cached, game_id, game_folder
+        debug!(
+            "Cached {} icons for game '{}' ({}) (directory: {:?})",
+            newly_cached, game_title, game_id, game_folder
         );
 
         Ok(newly_cached)
@@ -220,6 +321,30 @@ mod tests {
         assert_eq!(hash1, hash2);
         assert_ne!(hash1, hash3);
         assert_eq!(hash1.len(), 64);
+    }
+
+    #[test]
+    fn test_steam_modern_and_legacy_cdn_urls() {
+        let legacy = "https://steamcdn-a.akamaihd.net/steamcommunity/public/images/apps/200710/7055d6067c41339fa28f0b10bd49bc3a33953625.jpg";
+        let modern = "https://shared.steamstatic.com/community_assets/images/apps/200710/7055d6067c41339fa28f0b10bd49bc3a33953625.jpg";
+
+        assert_eq!(steam_modern_cdn_url(legacy).as_deref(), Some(modern));
+        assert_eq!(steam_legacy_cdn_url(modern).as_deref(), Some(legacy));
+
+        let non_steam = "https://example.com/icon.png";
+        assert_eq!(steam_modern_cdn_url(non_steam), None);
+        assert_eq!(steam_legacy_cdn_url(non_steam), None);
+
+        // Prioritized candidates: modern first, then legacy
+        let candidates_from_legacy = get_steam_icon_candidates(legacy);
+        assert_eq!(candidates_from_legacy.len(), 2);
+        assert_eq!(candidates_from_legacy[0], modern);
+        assert_eq!(candidates_from_legacy[1], legacy);
+
+        let candidates_from_modern = get_steam_icon_candidates(modern);
+        assert_eq!(candidates_from_modern.len(), 2);
+        assert_eq!(candidates_from_modern[0], modern);
+        assert_eq!(candidates_from_modern[1], legacy);
     }
 
     #[tokio::test]
