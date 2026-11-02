@@ -25,7 +25,7 @@ Omnis aggregates your PC gaming library across platforms into a single, cohesive
 - **Multi-View Interface**: Grid view with dynamic zoom, split details panel, and list view with sorting and dynamic grouping.
 - **Fullscreen Mode**: Controller-first fullscreen experience with synthesized SFX and a virtual gamepad keyboard.
 - **Themes & Localization**: Built-in themes with a slot-based theme API; UI available in English, Italian, French, German, Spanish and Japanese.
-- **Extensibility**: 3-Tier plugin model (built-in Tier 0 integrations, native Tier 1 C-ABI dynamic plugins, and sandboxed Tier 2 WebAssembly plugins with in-app marketplace).
+- **Extensibility**: 3-Tier plugin model (built-in Tier 0 integrations, native Tier 1 C-ABI dynamic plugins, and an experimental Tier 2 WebAssembly sandbox, not yet integrated into the app).
 - **Auto-Update**: Signed in-app updates via the Tauri updater.
 
 ---
@@ -66,7 +66,7 @@ Omnis employs an explicit **3-Tier Hybrid Plugin Architecture** designed to bala
 │                     PluginHost & StoreAccountManager                   │
 ├──────────────────────────┬─────────────────────────┬───────────────────┤
 │ Tier 0: Built-in Static  │ Tier 1: Native Dynamic  │ Tier 2: WASM Host │
-│ (Steam, Epic, GOG, Xbox) │ (.dll / .so / .dylib)   │ (.wasm Bytecode)  │
+│ (Steam, Epic, GOG, Xbox) │ (.dll / .so / .dylib)   │ (Experimental)    │
 │ Zero-overhead in-process │ C-ABI FFI + Panic Guard │ Wasmtime Sandbox  │
 └──────────────────────────┴─────────────────────────┴───────────────────┘
 ```
@@ -82,32 +82,39 @@ Omnis intentionally differentiates between first-party store aggregators and com
      - **Deep OS & Vault Wiring**: Direct integration with `SecretVault` (DPAPI/Keyring), OS deep-link OAuth protocols, and Windows Kernel Job Objects for child-process tracking.
      - **Zero Setup**: Users immediately aggregate libraries out-of-the-box without downloading third-party plugins.
 
-2. **Official Model for Community Extensions & Marketplace (Tier 2 — WebAssembly Sandbox)**:
-   - **WebAssembly (`wasm32-wasip1`) is the official, sanctioned distribution format for third-party extensions** (metadata providers, scrobblers, custom scrapers).
+2. **Power-User Model for Low-Level Native Code (Tier 1 — Dynamic C-ABI Shared Libraries)**:
+   - For community extensions requiring raw system performance or custom integrations.
+   - **Current scope**: Currently, native dynamic plugins only load external **metadata providers** (`MetadataProvider`).
+   - Loaded dynamically at runtime via `libloading` from the user's `plugins/` directory.
+   - Protected by `ffi_guard`, catching any C/Rust panics before they can terminate the main application process.
+
+3. **Experimental Model for Community Extensions & Sandbox (Tier 2 — WebAssembly Sandbox)**:
+   - *Status: Experimental / Not yet integrated in the desktop application.*
+   - WebAssembly is designed as the sandboxed distribution format for third-party extensions. Note: **WASI is not supported**; modules run as pure WebAssembly bytecode under explicit host capabilities.
    - Executed within a strict `wasmtime` capability sandbox:
      - Explicit domain whitelisting (e.g. `"net:api.igdb.com"`).
      - Storage ACL and fuel consumption limits (preventing runaway loops or memory leaks).
      - Epoch interruption timers to enforce timeouts on synchronous tasks.
-   - One-click install, enable, disable, and auto-update directly from the built-in Marketplace.
-
-3. **Power-User Model for Low-Level Native Code (Tier 1 — Dynamic C-ABI Shared Libraries)**:
-   - For integrations requiring raw system calls, proprietary native C/C++ SDKs, or hardware control that cannot run inside WebAssembly.
-   - Loaded dynamically at runtime via `libloading` from the user's `plugins/` directory.
-   - Protected by `ffi_guard`, catching any C/Rust panics before they can terminate the main application process.
 
 ### Runtime Discovery & Environments
 
 - **Plugin Directory Layout**:
-  - Windows: `%LOCALAPPDATA%\com.omnis.gamelibrary\plugins`
+  - Windows: `%LOCALAPPDATA%\com.omnis.gamelibrary\plugins` (or `%APPDATA%\Omnis Game Library\plugins`)
   - Linux: `~/.local/share/com.omnis.gamelibrary/plugins`
+  - macOS: `~/Library/Application Support/com.omnis.gamelibrary/plugins`
   - Portable: `<exe_dir>/data/plugins`
-- **Desktop UI (`omnis`)**: Initializes all 4 Tier 0 plugins (local manifest scanning and OAuth cloud synchronization), alongside dynamically discovered Tier 1 dynamic libraries and Tier 2 WASM packages.
+- **Desktop UI (`omnis`)**: Initializes all 4 Tier 0 plugins (local manifest scanning and OAuth cloud synchronization), alongside dynamically discovered Tier 1 dynamic libraries (Tier 2 WebAssembly is experimental and not yet integrated into the desktop shell).
 - **Headless CLI (`omnis-cli`)**: Boots in lightweight offline mode with Tier 0 local scanners (`steam`, `epic`). Cloud-only syncs (GOG, Xbox) require interactive OAuth flows managed by the desktop shell.
 
 ### Developing External Plugins
 
-- **For WebAssembly Plugins (Tier 2 — Recommended)**: Compile your Rust/C code targeting `wasm32-wasip1`. Declare required network permissions in `plugin.json` (e.g., `"permissions": ["net:api.example.com"]`).
-- **For Native Plugins (Tier 1)**: Refer to [`examples/sample_plugin`](examples/sample_plugin) and [`crates/omnis_sdk`](crates/omnis_sdk). Expose standard C-ABI symbols (`omnis_plugin_manifest`, `omnis_plugin_metadata_fetch`, etc.).
+- **For Native Plugins (Tier 1)**: Refer to [`examples/sample_plugin`](examples/sample_plugin) and [`crates/omnis_sdk`](crates/omnis_sdk). Currently supports external metadata providers. Expose standard C-ABI symbols:
+  - `omnis_plugin_get_manifest`
+  - `omnis_metadata_fetch`
+  - `omnis_plugin_abi_version`
+  - `omnis_free_string`
+  - *(optional)* `omnis_metadata_test`
+- **For WebAssembly Plugins (Tier 2 — Experimental)**: Experimental sandbox. Compile targeting pure WebAssembly (WASI is not supported). Declare required network permissions in `plugin.json` (e.g., `"permissions": ["net:api.example.com"]`).
 
 ---
 
