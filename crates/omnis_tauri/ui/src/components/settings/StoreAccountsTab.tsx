@@ -24,6 +24,7 @@ import {
   listenTauri,
   formatLastSync,
 } from "../store_accounts/types";
+import { DisconnectStoreModal, StoreCleanupMode } from "../modals/DisconnectStoreModal";
 
 export type { StoreAccount, StoreSyncProgress, StoreIntegrationSettings };
 
@@ -93,6 +94,7 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
   const [syncProgress, setSyncProgress] = useState<Record<string, StoreSyncProgress>>({});
   const [banner, setBanner] = useState<{ type: "success" | "info" | "error"; message: string } | null>(null);
   const [showTroubleshoot, setShowTroubleshoot] = useState<boolean>(false);
+  const [disconnectTarget, setDisconnectTarget] = useState<{ id: string; name: string } | null>(null);
 
   // Helper to load settings for a store
   const loadSettingsForStore = async (storeId: string) => {
@@ -359,18 +361,41 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
     }
   };
 
-  const handleDisconnectStore = async () => {
+  const handleRequestDisconnect = (storeId: string, storeName: string) => {
     soundEffects.playSelect();
-    setActionLoading((prev) => ({ ...prev, [selectedStoreId]: true }));
+    setDisconnectTarget({ id: storeId, name: storeName });
+  };
+
+  const handleConfirmDisconnect = async (storeId: string, cleanupMode: StoreCleanupMode) => {
+    soundEffects.playSelect();
+    setActionLoading((prev) => ({ ...prev, [storeId]: true }));
     try {
-      await api.stores.disconnectStoreAccount(selectedStoreId);
-      updateSetting("connect_account", false);
+      const deletedCount = await api.stores.disconnectStoreAccount(storeId, cleanupMode);
+      if (storeId === "steam") {
+        setSettingsMap((prev) => ({
+          ...prev,
+          steam: {
+            ...(prev.steam || currentSettings),
+            connect_account: false,
+            account_id: "",
+            api_key: "",
+          },
+        }));
+      } else {
+        updateSetting("connect_account", false);
+      }
+
+      const storeName = STORE_LIST.find((s) => s.id === storeId)?.name || storeId;
+      const msg = deletedCount > 0
+        ? `${t("store_accounts.disconnect_success", { store: storeName.toUpperCase() })} (${deletedCount} ${t("common.removed", { defaultValue: "rimossi" })})`
+        : t("store_accounts.disconnect_success", { store: storeName.toUpperCase() });
+
       setBanner({
         type: "info",
-        message: t("store_accounts.disconnect_success", { store: selectedStoreId.toUpperCase() }),
+        message: msg,
       });
       await loadAccounts();
-      await loadSettingsForStore(selectedStoreId);
+      await loadSettingsForStore(storeId);
       if (onSyncComplete) onSyncComplete();
     } catch (err: any) {
       setBanner({
@@ -378,7 +403,7 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
         message: t("store_accounts.disconnect_error", { error: err?.toString() || "Unknown error" }),
       });
     } finally {
-      setActionLoading((prev) => ({ ...prev, [selectedStoreId]: false }));
+      setActionLoading((prev) => ({ ...prev, [storeId]: false }));
     }
   };
 
@@ -534,6 +559,43 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
               {/* STEAM SPECIFIC: API KEY LOGIN */}
               {selectedStoreId === "steam" && (
                 <div className="p-4 rounded-xl bg-black/40 border border-sky-500/30 space-y-4">
+                  {/* Steam Active Session Banner & Disconnect */}
+                  {currentAccount.is_connected && (
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-sky-500/10 border border-sky-500/30">
+                      <div className="flex items-center gap-3">
+                        {currentAccount.avatar_url ? (
+                          <img
+                            src={currentAccount.avatar_url}
+                            alt="Avatar"
+                            className="w-8 h-8 rounded-full border border-sky-400/40 object-cover"
+                          />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-sky-500/20 border border-sky-400/40 flex items-center justify-center font-bold text-xs text-sky-300">
+                            <SteamIcon className="w-4 h-4 text-[#66c0f4]" />
+                          </div>
+                        )}
+                        <div>
+                          <p className="text-xs font-bold text-white">
+                            {currentAccount.username || t("store_accounts.connected_user")}
+                          </p>
+                          <p className="text-[11px] text-sky-300">
+                            {t("store_accounts.active_session")}
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleRequestDisconnect("steam", "Steam")}
+                        disabled={actionLoading["steam"]}
+                        className="px-3 py-1.5 rounded-lg border border-rose-500/30 text-rose-300 hover:bg-rose-500/15 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                      >
+                        <LogOut className="w-3.5 h-3.5" />
+                        <span>{t("store_accounts.disconnect")}</span>
+                      </button>
+                    </div>
+                  )}
+
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <input
@@ -684,8 +746,12 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
 
                       <button
                         type="button"
-                        onClick={handleDisconnectStore}
-                        className="px-3 py-1.5 rounded-lg border border-rose-500/30 text-rose-300 hover:bg-rose-500/15 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                        onClick={() => {
+                          const sName = STORE_LIST.find((s) => s.id === selectedStoreId)?.name || selectedStoreId;
+                          handleRequestDisconnect(selectedStoreId, sName);
+                        }}
+                        disabled={actionLoading[selectedStoreId]}
+                        className="px-3 py-1.5 rounded-lg border border-rose-500/30 text-rose-300 hover:bg-rose-500/15 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                       >
                         <LogOut className="w-3.5 h-3.5" />
                         <span>{t("store_accounts.disconnect")}</span>
@@ -865,6 +931,14 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
           </div>
         </div>
       )}
+      {/* Disconnect confirmation modal with library cleanup options */}
+      <DisconnectStoreModal
+        isOpen={disconnectTarget !== null}
+        storeId={disconnectTarget?.id || ""}
+        storeName={disconnectTarget?.name || ""}
+        onClose={() => setDisconnectTarget(null)}
+        onConfirm={handleConfirmDisconnect}
+      />
     </div>
   );
 };

@@ -46,6 +46,9 @@ pub trait GameRepository: Send + Sync {
     /// Delete a game from the database
     fn delete_game(&self, game_id: Uuid) -> Result<bool>;
 
+    /// Delete games belonging to a library, optionally filtering to uninstalled only
+    fn delete_games_by_library(&self, library_id: &str, only_uninstalled: bool) -> Result<usize>;
+
     /// Retrieve recent games ordered by last_activity DESC (or playtime)
     fn get_recent_games(&self, limit: usize) -> Result<Vec<Game>>;
 }
@@ -584,6 +587,39 @@ impl GameRepository for Database {
         Ok(affected > 0)
     }
 
+    /// Delete games belonging to a library, optionally filtering to uninstalled only
+    fn delete_games_by_library(&self, library_id: &str, only_uninstalled: bool) -> Result<usize> {
+        let conn = self.writer();
+        let affected = if only_uninstalled {
+            conn.execute(
+                "DELETE FROM games WHERE LOWER(library_id) = LOWER(?1) AND is_installed = 0",
+                params![library_id],
+            )?
+        } else {
+            conn.execute(
+                "DELETE FROM games WHERE LOWER(library_id) = LOWER(?1)",
+                params![library_id],
+            )?
+        };
+        drop(conn);
+
+        // Re-index search engine to prune deleted IDs
+        if affected > 0 {
+            if let Ok(remaining) = self.get_all_games() {
+                let mut idx = match self.search_index.write() {
+                    Ok(guard) => guard,
+                    Err(poisoned) => poisoned.into_inner(),
+                };
+                idx.clear();
+                for g in remaining {
+                    idx.insert_or_update(g.id, &g.title);
+                }
+            }
+        }
+
+        Ok(affected)
+    }
+
     /// Retrieve recent games ordered by last_activity DESC (or playtime)
     fn get_recent_games(&self, limit: usize) -> Result<Vec<Game>> {
         let conn = self.reader();
@@ -667,6 +703,15 @@ impl Database {
     #[inline]
     pub fn delete_game(&self, game_id: Uuid) -> Result<bool> {
         GameRepository::delete_game(self, game_id)
+    }
+
+    #[inline]
+    pub fn delete_games_by_library(
+        &self,
+        library_id: &str,
+        only_uninstalled: bool,
+    ) -> Result<usize> {
+        GameRepository::delete_games_by_library(self, library_id, only_uninstalled)
     }
 
     #[inline]

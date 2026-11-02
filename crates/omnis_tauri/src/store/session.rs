@@ -303,6 +303,41 @@ impl StoreSessionVault {
         Ok(())
     }
 
+    /// Disconnect a store account: delete session, reset credentials in settings, and optionally clean up games
+    pub fn disconnect_account(
+        mgr: &StoreAccountManager,
+        store_id: &str,
+        cleanup_mode: Option<&str>,
+    ) -> Result<usize, String> {
+        // 1. Delete session from cache, vault, and keyring
+        Self::delete_session(mgr, store_id)?;
+
+        // 2. Reset stored integration settings for this store
+        if let Ok(mut settings) = Self::get_integration_settings(mgr, store_id) {
+            settings.connect_account = false;
+            if store_id == "steam" {
+                settings.api_key = None;
+                settings.account_id = None;
+            }
+            let _ = Self::save_integration_settings(mgr, &settings);
+        }
+
+        // 3. Library cleanup based on mode
+        let deleted_count = match cleanup_mode {
+            Some("uninstalled_only") => mgr
+                .db
+                .delete_games_by_library(store_id, true)
+                .map_err(|e| e.to_string())?,
+            Some("all") => mgr
+                .db
+                .delete_games_by_library(store_id, false)
+                .map_err(|e| e.to_string())?,
+            _ => 0,
+        };
+
+        Ok(deleted_count)
+    }
+
     /// Retrieve summary status of all supported stores (Steam, Epic, GOG, Xbox)
     pub async fn get_store_accounts(
         mgr: &StoreAccountManager,
