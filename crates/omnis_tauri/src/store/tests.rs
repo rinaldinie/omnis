@@ -316,7 +316,7 @@ async fn test_disconnect_store_account_with_settings_reset() {
     assert!(manager.load_session("steam").unwrap().is_none());
 
     let settings = manager.get_integration_settings("steam").unwrap();
-    assert_eq!(settings.connect_account, false);
+    assert!(!settings.connect_account);
     assert_eq!(settings.api_key, None);
     assert_eq!(settings.account_id, None);
 }
