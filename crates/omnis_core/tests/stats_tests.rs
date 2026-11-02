@@ -39,12 +39,16 @@ fn test_global_statistics_and_game_metrics() {
         },
     ];
 
-    db.ingest_discovered_batch(&games).expect("Failed to ingest games");
+    db.ingest_discovered_batch(&games)
+        .expect("Failed to ingest games");
 
     let all_games = db.get_all_games().expect("Failed to get all games");
     assert_eq!(all_games.len(), 2);
     let g1 = all_games.iter().find(|g| g.title == "Witcher 3").unwrap();
-    let g2 = all_games.iter().find(|g| g.title == "Cyberpunk 2077").unwrap();
+    let g2 = all_games
+        .iter()
+        .find(|g| g.title == "Cyberpunk 2077")
+        .unwrap();
 
     // Set genres and completion status directly in db for g1 and g2
     {
@@ -75,16 +79,13 @@ fn test_global_statistics_and_game_metrics() {
     )
     .expect("Failed to record session 1");
 
-    db.record_play_session(
-        g1.id,
-        session2_duration,
-        now - Duration::hours(1),
-        now,
-    )
-    .expect("Failed to record session 2");
+    db.record_play_session(g1.id, session2_duration, now - Duration::hours(1), now)
+        .expect("Failed to record session 2");
 
     // 3. Test Game-level Statistics
-    let game_stats = db.get_game_statistics(g1.id).expect("Failed to get game statistics");
+    let game_stats = db
+        .get_game_statistics(g1.id)
+        .expect("Failed to get game statistics");
     assert_eq!(game_stats.average_session_seconds, 5400); // (3600 + 7200) / 2
     assert_eq!(game_stats.longest_session_seconds, 7200);
     assert_eq!(game_stats.last_4_weeks_bars.len(), 4);
@@ -103,7 +104,10 @@ fn test_global_statistics_and_game_metrics() {
     assert_eq!(today_activity.count_sessions, 2);
     assert_eq!(today_activity.sessions.len(), 2);
     assert_eq!(today_activity.sessions[0].game_title, "Witcher 3");
-    assert_eq!(today_activity.sessions[0].library_id.as_deref(), Some("steam"));
+    assert_eq!(
+        today_activity.sessions[0].library_id.as_deref(),
+        Some("steam")
+    );
     assert_eq!(today_activity.sessions[0].duration_seconds, 3600);
     assert_eq!(today_activity.sessions[1].duration_seconds, 7200);
 
@@ -113,7 +117,7 @@ fn test_global_statistics_and_game_metrics() {
         .expect("Failed to get day sessions");
     assert_eq!(day_sessions.len(), 2);
     assert_eq!(day_sessions[0].game_title, "Witcher 3");
-    
+
     // Check backlog summary: 1 completed out of 2 total -> 50%
     assert_eq!(global_stats.backlog_summary.total_games, 2);
     assert_eq!(global_stats.backlog_summary.completed_count, 1);
@@ -129,11 +133,15 @@ fn test_global_statistics_and_game_metrics() {
     assert!(!global_stats.store_distribution.is_empty());
 
     // Check genre distribution contains RPG
-    let rpg_genre = global_stats.genre_distribution.iter().find(|g| g.name == "RPG");
+    let rpg_genre = global_stats
+        .genre_distribution
+        .iter()
+        .find(|g| g.name == "RPG");
     assert!(rpg_genre.is_some());
 
     // 5. Test Reset Statistics (clear sessions only)
-    db.reset_statistics(false).expect("Failed to reset sessions");
+    db.reset_statistics(false)
+        .expect("Failed to reset sessions");
     let after_reset = db
         .get_global_statistics(Some(now.format("%Y").to_string().parse().unwrap()))
         .expect("Failed to get global stats after reset");
@@ -158,7 +166,9 @@ fn test_ingest_external_sessions_idempotency_and_metrics() {
         library_id: "steam".to_string(),
         external_id: "2751000".to_string(),
         title: "Prince of Persia The Lost Crown".to_string(),
-        install_dir: Some(PathBuf::from("D:\\SteamLibrary\\steamapps\\common\\Prince of Persia The Lost Crown")),
+        install_dir: Some(PathBuf::from(
+            "D:\\SteamLibrary\\steamapps\\common\\Prince of Persia The Lost Crown",
+        )),
         is_installed: true,
         play_action: None,
         playtime_seconds: 3600,
@@ -168,7 +178,8 @@ fn test_ingest_external_sessions_idempotency_and_metrics() {
         background_image_path: None,
     }];
 
-    db.ingest_discovered_batch(&games).expect("Failed to ingest games");
+    db.ingest_discovered_batch(&games)
+        .expect("Failed to ingest games");
 
     let sample_sessions = vec![
         ExternalSessionDto {
@@ -186,13 +197,21 @@ fn test_ingest_external_sessions_idempotency_and_metrics() {
     ];
 
     // 1. Initial ingest: should import 1 session for 2751000 and skip 9999999
-    let added = db.ingest_external_sessions("steam", &sample_sessions).expect("Ingest failed");
+    let added = db
+        .ingest_external_sessions("steam", &sample_sessions)
+        .expect("Ingest failed");
     assert_eq!(added, 1, "Must import 1 session for Prince of Persia");
 
     // Verify session in database
     let all_games = db.get_all_games().unwrap();
-    let pop = all_games.iter().find(|g| g.external_id == "2751000").unwrap();
-    assert!(pop.playtime_seconds >= 9325, "Playtime must be updated to at least the session duration (9325s)");
+    let pop = all_games
+        .iter()
+        .find(|g| g.external_id == "2751000")
+        .unwrap();
+    assert!(
+        pop.playtime_seconds >= 9325,
+        "Playtime must be updated to at least the session duration (9325s)"
+    );
     assert_eq!(pop.play_count, 1);
 
     // Verify game statistics shows session metrics
@@ -201,6 +220,11 @@ fn test_ingest_external_sessions_idempotency_and_metrics() {
     assert_eq!(game_stats.average_session_seconds, 9325);
 
     // 2. Second ingest: must be strictly idempotent (0 duplicate sessions added)
-    let added_second = db.ingest_external_sessions("steam", &sample_sessions).expect("Second ingest failed");
-    assert_eq!(added_second, 0, "Second ingest must be idempotent and add 0 duplicate sessions");
+    let added_second = db
+        .ingest_external_sessions("steam", &sample_sessions)
+        .expect("Second ingest failed");
+    assert_eq!(
+        added_second, 0,
+        "Second ingest must be idempotent and add 0 duplicate sessions"
+    );
 }

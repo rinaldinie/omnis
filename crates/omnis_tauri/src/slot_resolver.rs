@@ -4,7 +4,10 @@ use omnis_sdk::{Game, SlotWidget, SlotWidgetTemplate};
 use uuid::Uuid;
 
 /// Helper function to resolve a dotted value key (e.g. "howlongtobeat.main_story") from a JSON value
-pub fn resolve_json_key<'a>(val: &'a serde_json::Value, path: &str) -> Option<&'a serde_json::Value> {
+pub fn resolve_json_key<'a>(
+    val: &'a serde_json::Value,
+    path: &str,
+) -> Option<&'a serde_json::Value> {
     let mut current = val;
     for part in path.split('.') {
         match current {
@@ -20,7 +23,8 @@ pub fn resolve_json_key<'a>(val: &'a serde_json::Value, path: &str) -> Option<&'
 pub struct SlotWidgetResolver;
 
 impl SlotWidgetResolver {
-    pub const NATIVE_SLOTS: &'static [&'static str] = &["details.hero", "fullscreen.hero", "bigpicture.hero"];
+    pub const NATIVE_SLOTS: &'static [&'static str] =
+        &["details.hero", "fullscreen.hero", "bigpicture.hero"];
 
     /// Resolves and validates all slot widgets (from plugins and native fallbacks)
     pub async fn resolve_for_slot(
@@ -56,7 +60,8 @@ impl SlotWidgetResolver {
             .as_deref()
             .and_then(|s| serde_json::from_str(s).ok());
 
-        let mut widgets = Self::resolve_plugin_widgets(&providers_info, slot_name, extra_json.as_ref());
+        let mut widgets =
+            Self::resolve_plugin_widgets(&providers_info, slot_name, extra_json.as_ref());
 
         if widgets.is_empty() {
             widgets = Self::resolve_native_fallback(slot_name, &game, extra_json.as_ref());
@@ -80,7 +85,8 @@ impl SlotWidgetResolver {
             for slot_decl in &prov.ui_slots {
                 if slot_decl.slot == slot_name {
                     for template in &slot_decl.widgets {
-                        if let Some(widget) = Self::build_widget_from_template(template, extra_json) {
+                        if let Some(widget) = Self::build_widget_from_template(template, extra_json)
+                        {
                             widgets.push(widget);
                         }
                     }
@@ -336,8 +342,14 @@ mod tests {
         assert_eq!(manifest.ui_slots[0].slot, "details.info");
         assert_eq!(manifest.ui_slots[0].widgets.len(), 3);
         assert_eq!(manifest.ui_slots[0].widgets[0].widget_type, "stat");
-        assert_eq!(manifest.ui_slots[0].widgets[0].value_key.as_deref(), Some("howlongtobeat.main_story"));
-        assert_eq!(manifest.ui_slots[0].widgets[0].icon.as_deref(), Some("clock"));
+        assert_eq!(
+            manifest.ui_slots[0].widgets[0].value_key.as_deref(),
+            Some("howlongtobeat.main_story")
+        );
+        assert_eq!(
+            manifest.ui_slots[0].widgets[0].icon.as_deref(),
+            Some("clock")
+        );
     }
 
     #[test]

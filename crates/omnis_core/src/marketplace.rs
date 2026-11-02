@@ -69,10 +69,16 @@ impl MarketplaceManager {
     }
 
     /// Fetches the marketplace catalog from a remote URL or falls back to the embedded seed
-    pub async fn get_catalog(&self, custom_url: Option<&str>) -> Result<MarketplaceCatalog, String> {
-        let mut catalog =
-            MarketplaceCatalogService::fetch_catalog(&self.client, custom_url, EMBEDDED_SEED_CATALOG)
-                .await?;
+    pub async fn get_catalog(
+        &self,
+        custom_url: Option<&str>,
+    ) -> Result<MarketplaceCatalog, String> {
+        let mut catalog = MarketplaceCatalogService::fetch_catalog(
+            &self.client,
+            custom_url,
+            EMBEDDED_SEED_CATALOG,
+        )
+        .await?;
 
         // Enrich catalog items with local installation state
         let plugins_dir_opt = self.plugins_dir.read().await.clone();
@@ -101,7 +107,12 @@ impl MarketplaceManager {
             .plugins
             .into_iter()
             .find(|p| p.id == plugin_id)
-            .ok_or_else(|| format!("Plugin '{}' non trovato nel catalogo del marketplace", plugin_id))?;
+            .ok_or_else(|| {
+                format!(
+                    "Plugin '{}' non trovato nel catalogo del marketplace",
+                    plugin_id
+                )
+            })?;
 
         let platform_key = current_platform_key();
         let asset = item
@@ -159,7 +170,10 @@ impl MarketplaceManager {
             }
         }
 
-        info!("Plugin '{}' installato e registrato con successo!", plugin_id);
+        info!(
+            "Plugin '{}' installato e registrato con successo!",
+            plugin_id
+        );
         Ok(provider_info)
     }
 

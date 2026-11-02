@@ -17,12 +17,18 @@ fn test_fuzzy_search_matches_typos_nucleo() {
 
     // Search with typo "witchr" (missing 'e')
     let results = index.search("witchr");
-    assert!(!results.is_empty(), "Expected 'witchr' to match 'The Witcher 3'");
+    assert!(
+        !results.is_empty(),
+        "Expected 'witchr' to match 'The Witcher 3'"
+    );
     assert_eq!(results[0].0, id1);
 
     // Search with typo "cberpnk"
     let results_cyber = index.search("cberpnk");
-    assert!(!results_cyber.is_empty(), "Expected 'cberpnk' to match 'Cyberpunk 2077'");
+    assert!(
+        !results_cyber.is_empty(),
+        "Expected 'cberpnk' to match 'Cyberpunk 2077'"
+    );
     assert_eq!(results_cyber[0].0, id2);
 }
 
@@ -77,7 +83,10 @@ fn test_unified_search_fuzzy_and_fts5_trigram() {
     // Fetch games from DB to update their descriptions
     let games = db.get_all_games().expect("Fetch all games failed");
     let witcher = games.iter().find(|g| g.title.contains("Witcher")).unwrap();
-    let cyberpunk = games.iter().find(|g| g.title.contains("Cyberpunk")).unwrap();
+    let cyberpunk = games
+        .iter()
+        .find(|g| g.title.contains("Cyberpunk"))
+        .unwrap();
 
     // Update descriptions
     let update_w = GameUpdateDto {
@@ -85,7 +94,9 @@ fn test_unified_search_fuzzy_and_fts5_trigram() {
         title: witcher.title.clone(),
         sorting_title: None,
         release_date: None,
-        description: Some("Geralt of Rivia roams the dangerous lands of Novigrad and Skellige.".to_string()),
+        description: Some(
+            "Geralt of Rivia roams the dangerous lands of Novigrad and Skellige.".to_string(),
+        ),
         user_score: None,
         critic_score: None,
         community_score: None,
@@ -112,7 +123,10 @@ fn test_unified_search_fuzzy_and_fts5_trigram() {
         title: cyberpunk.title.clone(),
         sorting_title: None,
         release_date: None,
-        description: Some("Fight against the megacorporation Arasaka in the corrupt metropolis of Night City.".to_string()),
+        description: Some(
+            "Fight against the megacorporation Arasaka in the corrupt metropolis of Night City."
+                .to_string(),
+        ),
         user_score: None,
         critic_score: None,
         community_score: None,
@@ -136,17 +150,28 @@ fn test_unified_search_fuzzy_and_fts5_trigram() {
 
     // 1. Verification criteria: Search "witchr" (typo) finds "The Witcher 3"
     let fuzzy_results = db.search_games("witchr").expect("Search 'witchr' failed");
-    assert!(!fuzzy_results.is_empty(), "Searching 'witchr' must find 'The Witcher 3'");
+    assert!(
+        !fuzzy_results.is_empty(),
+        "Searching 'witchr' must find 'The Witcher 3'"
+    );
     assert_eq!(fuzzy_results[0].id, witcher.id);
 
     // 2. Verification criteria: Search a word present ONLY in description ("Novigrad") returns correct game
-    let desc_results_novigrad = db.search_games("Novigrad").expect("Search 'Novigrad' failed");
-    assert!(!desc_results_novigrad.is_empty(), "Searching 'Novigrad' must find Witcher 3 via FTS5");
+    let desc_results_novigrad = db
+        .search_games("Novigrad")
+        .expect("Search 'Novigrad' failed");
+    assert!(
+        !desc_results_novigrad.is_empty(),
+        "Searching 'Novigrad' must find Witcher 3 via FTS5"
+    );
     assert_eq!(desc_results_novigrad[0].id, witcher.id);
 
     // 3. Verification criteria: Search a word present ONLY in description ("Arasaka") returns Cyberpunk 2077
     let desc_results_arasaka = db.search_games("Arasaka").expect("Search 'Arasaka' failed");
-    assert!(!desc_results_arasaka.is_empty(), "Searching 'Arasaka' must find Cyberpunk via FTS5");
+    assert!(
+        !desc_results_arasaka.is_empty(),
+        "Searching 'Arasaka' must find Cyberpunk via FTS5"
+    );
     assert_eq!(desc_results_arasaka[0].id, cyberpunk.id);
 }
 
@@ -191,7 +216,11 @@ fn test_fuzzy_search_performance_5000_games() {
     );
 
     // Must be < 1 ms (1000 µs) in release mode; allow up to 25ms in unoptimized debug builds
-    let threshold_micros = if cfg!(debug_assertions) { 25_000 } else { 1_000 };
+    let threshold_micros = if cfg!(debug_assertions) {
+        25_000
+    } else {
+        1_000
+    };
     assert!(
         avg_per_query.as_micros() < threshold_micros,
         "Fuzzy search on 5000 games must run in under {:?}µs, got {:?}",

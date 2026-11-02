@@ -1,16 +1,16 @@
 use async_trait::async_trait;
+use serde_json::{Map, Value};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use serde_json::{Map, Value};
 use tokio::sync::RwLock;
 
 use omnis_sdk::MetadataProvider;
 
 use super::gog::GogMetadataProvider;
 use super::igdb::IgdbMetadataProvider;
-use super::steam::SteamMetadataProvider;
 use super::scaffold;
+use super::steam::SteamMetadataProvider;
 use super::types::*;
 
 /// Trait managing discovery, registration, configuration, and connectivity of metadata providers
@@ -24,7 +24,11 @@ pub trait MetadataRegistry: Send + Sync {
     async fn fetch_hltb_times(&self, title: &str) -> (String, String, String);
     async fn load_and_register_dynamic_plugin(&self, path: &Path) -> Result<ProviderInfo, String>;
     async fn get_providers_info(&self) -> Vec<ProviderInfo>;
-    async fn save_provider_settings(&self, provider_id: &str, settings: Map<String, Value>) -> Result<(), String>;
+    async fn save_provider_settings(
+        &self,
+        provider_id: &str,
+        settings: Map<String, Value>,
+    ) -> Result<(), String>;
     async fn toggle_provider(&self, provider_id: &str, enabled: bool) -> Result<(), String>;
     async fn test_provider_connection(&self, provider_id: &str) -> Result<String, String>;
     async fn get_pipeline_config(&self) -> MetadataPipelineConfig;
@@ -74,7 +78,7 @@ impl ProviderRegistry {
         }
     }
 
-pub async fn set_plugins_dir(&self, dir: PathBuf) {
+    pub async fn set_plugins_dir(&self, dir: PathBuf) {
         let _ = std::fs::create_dir_all(&dir);
         *self.plugins_dir.write().await = Some(dir.clone());
         scaffold::scaffold_plugins_directory(&dir);
@@ -128,7 +132,8 @@ pub async fn set_plugins_dir(&self, dir: PathBuf) {
             &self.providers,
             &self.settings_cache,
             title,
-        ).await
+        )
+        .await
     }
 
     /// Dynamically load and hot-register a native or manifest-based plugin from a library or directory
@@ -301,7 +306,6 @@ pub async fn set_plugins_dir(&self, dir: PathBuf) {
         }
         Ok(())
     }
-
 }
 
 #[async_trait]
@@ -347,7 +351,11 @@ impl MetadataRegistry for ProviderRegistry {
     }
 
     #[inline]
-    async fn save_provider_settings(&self, provider_id: &str, settings: Map<String, Value>) -> Result<(), String> {
+    async fn save_provider_settings(
+        &self,
+        provider_id: &str,
+        settings: Map<String, Value>,
+    ) -> Result<(), String> {
         self.save_provider_settings(provider_id, settings).await
     }
 

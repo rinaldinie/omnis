@@ -79,7 +79,10 @@ pub fn validate_theme_css_security(css: &str) -> Result<(), String> {
         let abs_idx = search_idx + url_idx;
         let rest = &lower[abs_idx + 4..];
         if let Some(close_idx) = rest.find(')') {
-            let url_content = rest[..close_idx].trim().trim_matches(|c| c == '\'' || c == '"').trim();
+            let url_content = rest[..close_idx]
+                .trim()
+                .trim_matches(|c| c == '\'' || c == '"')
+                .trim();
             if is_external_url(url_content) {
                 return Err(format!(
                     "Theme CSS security violation: external URL reference blocked: 'url({})'",
@@ -97,14 +100,15 @@ pub fn validate_theme_css_security(css: &str) -> Result<(), String> {
 
 fn is_external_target(statement: &str) -> bool {
     let trimmed = statement.trim();
-    trimmed.contains("http://") || trimmed.contains("https://") || trimmed.contains("\"//") || trimmed.contains("'//")
+    trimmed.contains("http://")
+        || trimmed.contains("https://")
+        || trimmed.contains("\"//")
+        || trimmed.contains("'//")
 }
 
 fn is_external_url(url: &str) -> bool {
     let trimmed = url.trim();
-    trimmed.starts_with("http://")
-        || trimmed.starts_with("https://")
-        || trimmed.starts_with("//")
+    trimmed.starts_with("http://") || trimmed.starts_with("https://") || trimmed.starts_with("//")
 }
 
 #[cfg(test)]

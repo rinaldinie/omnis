@@ -100,7 +100,8 @@ macro_rules! export_omnis_plugin {
                 match ::serde_json::to_string(&manifest) {
                     Ok(json) => $crate::ffi::string_to_c_str(&json),
                     Err(e) => {
-                        let err_json = format!("{{\"error\":\"Failed to serialize manifest: {}\"}}", e);
+                        let err_json =
+                            format!("{{\"error\":\"Failed to serialize manifest: {}\"}}", e);
                         $crate::ffi::string_to_c_str(&err_json)
                     }
                 }
@@ -116,58 +117,75 @@ macro_rules! export_omnis_plugin {
                 let req_str = match $crate::ffi::c_str_to_string(request_json) {
                     Ok(s) => s,
                     Err(e) => {
-                        let res: Result<$crate::GameMetadataPatch, String> = Err(format!("Invalid request string: {}", e));
+                        let res: Result<$crate::GameMetadataPatch, String> =
+                            Err(format!("Invalid request string: {}", e));
                         let json = ::serde_json::to_string(&res).unwrap_or_default();
                         return $crate::ffi::string_to_c_str(&json);
                     }
                 };
 
-                let request: $crate::MetadataSearchRequest = match ::serde_json::from_str(&req_str) {
+                let request: $crate::MetadataSearchRequest = match ::serde_json::from_str(&req_str)
+                {
                     Ok(r) => r,
                     Err(e) => {
-                        let res: Result<$crate::GameMetadataPatch, String> = Err(format!("Failed to parse request JSON: {}", e));
+                        let res: Result<$crate::GameMetadataPatch, String> =
+                            Err(format!("Failed to parse request JSON: {}", e));
                         let json = ::serde_json::to_string(&res).unwrap_or_default();
                         return $crate::ffi::string_to_c_str(&json);
                     }
                 };
 
-                let settings: ::serde_json::Map<String, ::serde_json::Value> = if settings_json.is_null() {
-                    ::serde_json::Map::new()
-                } else {
-                    match $crate::ffi::c_str_to_string(settings_json) {
-                        Ok(s) if s.trim().is_empty() => ::serde_json::Map::new(),
-                        Ok(s) => match ::serde_json::from_str(&s) {
-                            Ok(m) => m,
+                let settings: ::serde_json::Map<String, ::serde_json::Value> =
+                    if settings_json.is_null() {
+                        ::serde_json::Map::new()
+                    } else {
+                        match $crate::ffi::c_str_to_string(settings_json) {
+                            Ok(s) if s.trim().is_empty() => ::serde_json::Map::new(),
+                            Ok(s) => match ::serde_json::from_str(&s) {
+                                Ok(m) => m,
+                                Err(e) => {
+                                    let res: Result<$crate::GameMetadataPatch, String> =
+                                        Err(format!("Failed to parse settings JSON: {}", e));
+                                    let json = ::serde_json::to_string(&res).unwrap_or_default();
+                                    return $crate::ffi::string_to_c_str(&json);
+                                }
+                            },
                             Err(e) => {
-                                let res: Result<$crate::GameMetadataPatch, String> = Err(format!("Failed to parse settings JSON: {}", e));
+                                let res: Result<$crate::GameMetadataPatch, String> =
+                                    Err(format!("Invalid settings string: {}", e));
                                 let json = ::serde_json::to_string(&res).unwrap_or_default();
                                 return $crate::ffi::string_to_c_str(&json);
                             }
-                        },
-                        Err(e) => {
-                            let res: Result<$crate::GameMetadataPatch, String> = Err(format!("Invalid settings string: {}", e));
-                            let json = ::serde_json::to_string(&res).unwrap_or_default();
-                            return $crate::ffi::string_to_c_str(&json);
                         }
-                    }
-                };
+                    };
 
                 let provider = <$provider_type as ::std::default::Default>::default();
-                let fut = <$provider_type as $crate::MetadataProvider>::fetch_metadata(&provider, &request, &settings);
+                let fut = <$provider_type as $crate::MetadataProvider>::fetch_metadata(
+                    &provider, &request, &settings,
+                );
 
-                let res: Result<$crate::GameMetadataPatch, String> = match ::tokio::runtime::Builder::new_current_thread().enable_all().build() {
-                    Ok(rt) => rt.block_on(fut),
-                    Err(_) => match ::tokio::runtime::Runtime::new() {
+                let res: Result<$crate::GameMetadataPatch, String> =
+                    match ::tokio::runtime::Builder::new_current_thread()
+                        .enable_all()
+                        .build()
+                    {
                         Ok(rt) => rt.block_on(fut),
-                        Err(e) => Err(format!("Failed to initialize tokio runtime in plugin: {}", e)),
-                    },
-                };
+                        Err(_) => match ::tokio::runtime::Runtime::new() {
+                            Ok(rt) => rt.block_on(fut),
+                            Err(e) => Err(format!(
+                                "Failed to initialize tokio runtime in plugin: {}",
+                                e
+                            )),
+                        },
+                    };
 
                 let json = match ::serde_json::to_string(&res) {
                     Ok(j) => j,
                     Err(e) => {
-                        let fallback: Result<$crate::GameMetadataPatch, String> = Err(format!("Serialization error in plugin fetch: {}", e));
-                        ::serde_json::to_string(&fallback).unwrap_or_else(|_| "{\"Err\":\"Serialization error\"}".to_string())
+                        let fallback: Result<$crate::GameMetadataPatch, String> =
+                            Err(format!("Serialization error in plugin fetch: {}", e));
+                        ::serde_json::to_string(&fallback)
+                            .unwrap_or_else(|_| "{\"Err\":\"Serialization error\"}".to_string())
                     }
                 };
                 $crate::ffi::string_to_c_str(&json)
@@ -179,43 +197,57 @@ macro_rules! export_omnis_plugin {
             settings_json: *const ::std::os::raw::c_char,
         ) -> *mut ::std::os::raw::c_char {
             $crate::ffi::guard(|| {
-                let settings: ::serde_json::Map<String, ::serde_json::Value> = if settings_json.is_null() {
-                    ::serde_json::Map::new()
-                } else {
-                    match $crate::ffi::c_str_to_string(settings_json) {
-                        Ok(s) if s.trim().is_empty() => ::serde_json::Map::new(),
-                        Ok(s) => match ::serde_json::from_str(&s) {
-                            Ok(m) => m,
+                let settings: ::serde_json::Map<String, ::serde_json::Value> =
+                    if settings_json.is_null() {
+                        ::serde_json::Map::new()
+                    } else {
+                        match $crate::ffi::c_str_to_string(settings_json) {
+                            Ok(s) if s.trim().is_empty() => ::serde_json::Map::new(),
+                            Ok(s) => match ::serde_json::from_str(&s) {
+                                Ok(m) => m,
+                                Err(e) => {
+                                    let res: Result<String, String> =
+                                        Err(format!("Failed to parse settings JSON: {}", e));
+                                    let json = ::serde_json::to_string(&res).unwrap_or_default();
+                                    return $crate::ffi::string_to_c_str(&json);
+                                }
+                            },
                             Err(e) => {
-                                let res: Result<String, String> = Err(format!("Failed to parse settings JSON: {}", e));
+                                let res: Result<String, String> =
+                                    Err(format!("Invalid settings string: {}", e));
                                 let json = ::serde_json::to_string(&res).unwrap_or_default();
                                 return $crate::ffi::string_to_c_str(&json);
                             }
-                        },
-                        Err(e) => {
-                            let res: Result<String, String> = Err(format!("Invalid settings string: {}", e));
-                            let json = ::serde_json::to_string(&res).unwrap_or_default();
-                            return $crate::ffi::string_to_c_str(&json);
                         }
-                    }
-                };
+                    };
 
                 let provider = <$provider_type as ::std::default::Default>::default();
-                let fut = <$provider_type as $crate::MetadataProvider>::test_connection(&provider, &settings);
+                let fut = <$provider_type as $crate::MetadataProvider>::test_connection(
+                    &provider, &settings,
+                );
 
-                let res: Result<String, String> = match ::tokio::runtime::Builder::new_current_thread().enable_all().build() {
-                    Ok(rt) => rt.block_on(fut),
-                    Err(_) => match ::tokio::runtime::Runtime::new() {
+                let res: Result<String, String> =
+                    match ::tokio::runtime::Builder::new_current_thread()
+                        .enable_all()
+                        .build()
+                    {
                         Ok(rt) => rt.block_on(fut),
-                        Err(e) => Err(format!("Failed to initialize tokio runtime in plugin: {}", e)),
-                    },
-                };
+                        Err(_) => match ::tokio::runtime::Runtime::new() {
+                            Ok(rt) => rt.block_on(fut),
+                            Err(e) => Err(format!(
+                                "Failed to initialize tokio runtime in plugin: {}",
+                                e
+                            )),
+                        },
+                    };
 
                 let json = match ::serde_json::to_string(&res) {
                     Ok(j) => j,
                     Err(e) => {
-                        let fallback: Result<String, String> = Err(format!("Serialization error in plugin test: {}", e));
-                        ::serde_json::to_string(&fallback).unwrap_or_else(|_| "{\"Err\":\"Serialization error\"}".to_string())
+                        let fallback: Result<String, String> =
+                            Err(format!("Serialization error in plugin test: {}", e));
+                        ::serde_json::to_string(&fallback)
+                            .unwrap_or_else(|_| "{\"Err\":\"Serialization error\"}".to_string())
                     }
                 };
                 $crate::ffi::string_to_c_str(&json)
@@ -272,9 +304,7 @@ mod tests {
 
     #[test]
     fn test_ffi_guard_normal_return() {
-        let ptr = guard(|| {
-            string_to_c_str("{\"success\":true}")
-        });
+        let ptr = guard(|| string_to_c_str("{\"success\":true}"));
         assert!(!ptr.is_null());
 
         let res_str = unsafe { c_str_to_string(ptr) }.expect("Valid string");

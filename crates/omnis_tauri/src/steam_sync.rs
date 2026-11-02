@@ -1,17 +1,21 @@
-use std::path::{Path, PathBuf};
 use omnis_core::Database;
 use omnis_plugin_steam::gameprocess_log::parse_gameprocess_log;
 use omnis_plugin_steam::vdf_parser::detect_steam_installation;
 use omnis_sdk::ExternalSessionDto;
+use std::path::{Path, PathBuf};
 use tracing::info;
 
 /// Scan Steam's local `logs/gameprocess_log.txt` and synchronize any unrecorded play sessions
 /// into the Omnis `game_sessions` table for all Steam games currently in the library.
-pub fn sync_local_steam_sessions(db: &Database) -> Result<usize, Box<dyn std::error::Error + Send + Sync>> {
+pub fn sync_local_steam_sessions(
+    db: &Database,
+) -> Result<usize, Box<dyn std::error::Error + Send + Sync>> {
     let steam_path: PathBuf = match detect_steam_installation() {
         Some(p) => p,
         None => {
-            info!("No Steam installation detected on this system; skipping local Steam session sync");
+            info!(
+                "No Steam installation detected on this system; skipping local Steam session sync"
+            );
             return Ok(0);
         }
     };
@@ -32,7 +36,10 @@ pub fn sync_local_steam_sessions_from_path(
     log_path: &Path,
 ) -> Result<usize, Box<dyn std::error::Error + Send + Sync>> {
     if !log_path.exists() {
-        info!("Steam gameprocess_log.txt not found at {:?}; skipping sync", log_path);
+        info!(
+            "Steam gameprocess_log.txt not found at {:?}; skipping sync",
+            log_path
+        );
         return Ok(0);
     }
 

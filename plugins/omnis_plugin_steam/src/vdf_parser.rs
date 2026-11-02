@@ -8,7 +8,9 @@ pub fn detect_steam_installation() -> Option<PathBuf> {
     #[cfg(target_os = "windows")]
     {
         // 1. Check HKCU\Software\Valve\Steam -> SteamPath
-        if let Ok(hkcu) = winreg::RegKey::predef(winreg::enums::HKEY_CURRENT_USER).open_subkey("Software\\Valve\\Steam") {
+        if let Ok(hkcu) = winreg::RegKey::predef(winreg::enums::HKEY_CURRENT_USER)
+            .open_subkey("Software\\Valve\\Steam")
+        {
             if let Ok(path_str) = hkcu.get_value::<String, _>("SteamPath") {
                 let p = PathBuf::from(path_str.replace('/', "\\"));
                 if p.exists() {
@@ -18,7 +20,9 @@ pub fn detect_steam_installation() -> Option<PathBuf> {
         }
 
         // 2. Check HKLM\SOFTWARE\Valve\Steam -> InstallPath
-        if let Ok(hklm) = winreg::RegKey::predef(winreg::enums::HKEY_LOCAL_MACHINE).open_subkey("SOFTWARE\\Valve\\Steam") {
+        if let Ok(hklm) = winreg::RegKey::predef(winreg::enums::HKEY_LOCAL_MACHINE)
+            .open_subkey("SOFTWARE\\Valve\\Steam")
+        {
             if let Ok(path_str) = hklm.get_value::<String, _>("InstallPath") {
                 let p = PathBuf::from(path_str);
                 if p.exists() {
@@ -28,7 +32,9 @@ pub fn detect_steam_installation() -> Option<PathBuf> {
         }
 
         // 3. Check HKLM\SOFTWARE\WOW6432Node\Valve\Steam -> InstallPath
-        if let Ok(hklm32) = winreg::RegKey::predef(winreg::enums::HKEY_LOCAL_MACHINE).open_subkey("SOFTWARE\\WOW6432Node\\Valve\\Steam") {
+        if let Ok(hklm32) = winreg::RegKey::predef(winreg::enums::HKEY_LOCAL_MACHINE)
+            .open_subkey("SOFTWARE\\WOW6432Node\\Valve\\Steam")
+        {
             if let Ok(path_str) = hklm32.get_value::<String, _>("InstallPath") {
                 let p = PathBuf::from(path_str);
                 if p.exists() {
@@ -162,7 +168,9 @@ pub fn discover_library_folders(steam_root: &Path) -> Vec<PathBuf> {
 }
 
 /// Parse user playtime and last played dates from all localconfig.vdf profiles in steam/userdata
-pub fn scan_user_playtime(steam_root: &Path) -> HashMap<String, (u64, Option<chrono::DateTime<chrono::Utc>>)> {
+pub fn scan_user_playtime(
+    steam_root: &Path,
+) -> HashMap<String, (u64, Option<chrono::DateTime<chrono::Utc>>)> {
     let mut stats = HashMap::new();
     let userdata = steam_root.join("userdata");
     if let Ok(entries) = fs::read_dir(&userdata) {
@@ -206,7 +214,9 @@ fn parse_localconfig_playtime(
                             entry.0 = entry.0.max(mins * 60);
                         }
                     }
-                } else if trimmed.starts_with("\"LastPlayed\"") || trimmed.starts_with("\"lastplayed\"") {
+                } else if trimmed.starts_with("\"LastPlayed\"")
+                    || trimmed.starts_with("\"lastplayed\"")
+                {
                     if let Some(val_str) = extract_quoted_value(trimmed, 1) {
                         if let Ok(ts) = val_str.parse::<i64>() {
                             if ts > 0 {
@@ -268,7 +278,10 @@ pub fn parse_appmanifest(
 
         // Playnite validation: game is installed if StateFlags has bit 4 (StateFullyInstalled)
         let has_flag = (state_flags & 4) == 4 || (state_flags & 6) != 0;
-        let dir_exists = full_install_dir.as_ref().map(|p| p.exists()).unwrap_or(false);
+        let dir_exists = full_install_dir
+            .as_ref()
+            .map(|p| p.exists())
+            .unwrap_or(false);
         let is_installed = has_flag && (dir_exists || size_on_disk > 0);
 
         let last_activity = last_played.and_then(|lp| {
@@ -359,9 +372,12 @@ pub fn scan_installed_games(steam_root: &Path) -> Vec<DiscoveredGame> {
                 if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
                     if file_name.starts_with("appmanifest_") && file_name.ends_with(".acf") {
                         if let Ok(content) = fs::read_to_string(&path) {
-                            if let Some(mut game) = parse_appmanifest(&content, &folder, cache_opt) {
+                            if let Some(mut game) = parse_appmanifest(&content, &folder, cache_opt)
+                            {
                                 // Enrich with user playtime from localconfig.vdf if available
-                                if let Some((playtime, last_act)) = playtime_map.get(&game.external_id) {
+                                if let Some((playtime, last_act)) =
+                                    playtime_map.get(&game.external_id)
+                                {
                                     game.playtime_seconds = *playtime;
                                     if last_act.is_some() {
                                         game.last_activity = *last_act;

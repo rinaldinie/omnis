@@ -49,7 +49,10 @@ impl StorePlatformDispatcher {
     pub fn get_launch_uri(game: &Game) -> String {
         match game.library_id.as_str() {
             "steam" => format!("steam://rungameid/{}", game.external_id),
-            "epic" => format!("com.epicgames.launcher://apps/{}?action=launch", game.external_id),
+            "epic" => format!(
+                "com.epicgames.launcher://apps/{}?action=launch",
+                game.external_id
+            ),
             "gog" => format!("goggalaxy://openGameView/{}", game.external_id),
             _ => {
                 if let Some(action) = game.play_actions.first() {
@@ -69,14 +72,20 @@ impl StorePlatformDispatcher {
                 Self::validate_and_open_store_uri(&uri)
             }
             "epic" => {
-                let uri = format!("com.epicgames.launcher://apps/{}?action=verify", external_id);
+                let uri = format!(
+                    "com.epicgames.launcher://apps/{}?action=verify",
+                    external_id
+                );
                 Self::validate_and_open_store_uri(&uri)
             }
             "gog" => {
                 let uri = format!("goggalaxy://openGameView/{}", external_id);
                 Self::validate_and_open_store_uri(&uri)
             }
-            _ => Err("La verifica automatica dei file è supportata solo per Steam ed Epic Games.".to_string()),
+            _ => Err(
+                "La verifica automatica dei file è supportata solo per Steam ed Epic Games."
+                    .to_string(),
+            ),
         }
     }
 
@@ -88,7 +97,10 @@ impl StorePlatformDispatcher {
                 Self::validate_and_open_store_uri(&uri)
             }
             "epic" => {
-                let uri = format!("com.epicgames.launcher://apps/{}?action=uninstall", game.external_id);
+                let uri = format!(
+                    "com.epicgames.launcher://apps/{}?action=uninstall",
+                    game.external_id
+                );
                 Self::validate_and_open_store_uri(&uri)
             }
             "gog" => {

@@ -11,7 +11,7 @@
 //! to the resolved target on startup.
 
 use std::path::{Path, PathBuf};
-use tracing::{info, error};
+use tracing::{error, info};
 
 const MIGRATION_MARKER: &str = "_MIGRATED.txt";
 
@@ -153,7 +153,11 @@ pub fn migrate_all_legacy_data(target_dir: &Path) {
         );
 
         if let Err(e) = std::fs::create_dir_all(target_dir) {
-            error!("Failed to create target directory {}: {}", target_dir.display(), e);
+            error!(
+                "Failed to create target directory {}: {}",
+                target_dir.display(),
+                e
+            );
             return;
         }
 

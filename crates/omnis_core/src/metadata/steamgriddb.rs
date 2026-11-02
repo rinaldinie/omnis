@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use omnis_sdk::{
-    GameMetadataPatch, MetadataField, MetadataProvider, MetadataSearchRequest, PluginSettingsSchema,
-    SettingField, SettingGroup, SettingType,
+    GameMetadataPatch, MetadataField, MetadataProvider, MetadataSearchRequest,
+    PluginSettingsSchema, SettingField, SettingGroup, SettingType,
 };
 use serde_json::{Map, Value};
 use std::path::{Path, PathBuf};
@@ -176,10 +176,7 @@ impl MetadataProvider for SteamGridDbProvider {
         }
 
         // 2. Fetch hero panoramic background
-        let heroes_url = format!(
-            "https://www.steamgriddb.com/api/v2/heroes/game/{}",
-            game_id
-        );
+        let heroes_url = format!("https://www.steamgriddb.com/api/v2/heroes/game/{}", game_id);
         let mut bg_url = None;
         if let Ok(resp) = self
             .client
@@ -248,9 +245,6 @@ impl MetadataProvider for SteamGridDbProvider {
             );
         }
 
-        Err(format!(
-            "SteamGridDB ha restituito codice HTTP {}",
-            status
-        ))
+        Err(format!("SteamGridDB ha restituito codice HTTP {}", status))
     }
 }

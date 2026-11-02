@@ -14,10 +14,12 @@ impl EventBus {
     }
 
     /// Broadcast an event to all active listeners
-    pub fn publish(&self, event: PluginEvent) -> Result<usize, Box<broadcast::error::SendError<PluginEvent>>> {
+    pub fn publish(
+        &self,
+        event: PluginEvent,
+    ) -> Result<usize, Box<broadcast::error::SendError<PluginEvent>>> {
         self.sender.send(event).map_err(Box::new)
     }
-
 
     /// Subscribe to the reactive event stream
     pub fn subscribe(&self) -> broadcast::Receiver<PluginEvent> {

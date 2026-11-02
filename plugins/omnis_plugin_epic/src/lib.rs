@@ -81,8 +81,8 @@ impl EpicLibraryPlugin {
             return custom.clone();
         }
 
-        let program_data = std::env::var("PROGRAMDATA")
-            .unwrap_or_else(|_| "C:\\ProgramData".to_string());
+        let program_data =
+            std::env::var("PROGRAMDATA").unwrap_or_else(|_| "C:\\ProgramData".to_string());
         PathBuf::from(program_data)
             .join("Epic")
             .join("EpicGamesLauncher")
@@ -120,7 +120,8 @@ impl LibraryPlugin for EpicLibraryPlugin {
                 if let Ok(content) = std::fs::read_to_string(&path) {
                     match serde_json::from_str::<EpicManifest>(&content) {
                         Ok(manifest) => {
-                            let exe_path = manifest.install_location.join(&manifest.launch_executable);
+                            let exe_path =
+                                manifest.install_location.join(&manifest.launch_executable);
                             let is_installed = exe_path.exists();
 
                             let launch_config = LaunchConfiguration {
@@ -130,7 +131,9 @@ impl LibraryPlugin for EpicLibraryPlugin {
                                 ),
                                 arguments: vec![],
                                 working_dir: Some(manifest.install_location.clone()),
-                                tracking_mode: ProcessTrackingMode::ProcessName(manifest.launch_executable.clone()),
+                                tracking_mode: ProcessTrackingMode::ProcessName(
+                                    manifest.launch_executable.clone(),
+                                ),
                             };
 
                             games.push(DiscoveredGame {
@@ -167,8 +170,12 @@ impl CloudStorePlugin for EpicLibraryPlugin {
     }
 
     fn is_redirect_url(&self, url: &str) -> bool {
-        (url.contains("epicgames.com/id/api/redirect") || url.contains("localhost/launcher/authorized"))
-            && (url.contains("code=") || url.contains("authorizationCode=") || url.contains("exchangeCode=") || url.contains("sid="))
+        (url.contains("epicgames.com/id/api/redirect")
+            || url.contains("localhost/launcher/authorized"))
+            && (url.contains("code=")
+                || url.contains("authorizationCode=")
+                || url.contains("exchangeCode=")
+                || url.contains("sid="))
     }
 
     async fn exchange_code(&self, redirect_url: &str) -> Result<StoreAccountSession, PluginError> {
@@ -181,11 +188,17 @@ impl CloudStorePlugin for EpicLibraryPlugin {
         client::exchange_code(&self.client, &code).await
     }
 
-    async fn refresh_session(&self, refresh_token: &str) -> Result<StoreAccountSession, PluginError> {
+    async fn refresh_session(
+        &self,
+        refresh_token: &str,
+    ) -> Result<StoreAccountSession, PluginError> {
         client::refresh_token(&self.client, refresh_token).await
     }
 
-    async fn sync_games(&self, session: &StoreAccountSession) -> Result<Vec<DiscoveredGame>, PluginError> {
+    async fn sync_games(
+        &self,
+        session: &StoreAccountSession,
+    ) -> Result<Vec<DiscoveredGame>, PluginError> {
         client::fetch_user_games(&self.client, session).await
     }
 }
@@ -240,14 +253,18 @@ mod tests {
 
         assert_eq!(manifest.app_name, "FallGuys");
         assert_eq!(manifest.display_name, "Fall Guys");
-        assert_eq!(manifest.install_location, PathBuf::from("D:\\EpicGames\\FallGuys"));
+        assert_eq!(
+            manifest.install_location,
+            PathBuf::from("D:\\EpicGames\\FallGuys")
+        );
         assert_eq!(manifest.launch_executable, "FallGuys_client.exe");
         assert_eq!(manifest.app_version, None);
     }
 
     #[tokio::test]
     async fn test_scan_with_temp_manifest_dir() {
-        let temp_dir = std::env::temp_dir().join(format!("omnis_epic_test_{}", uuid::Uuid::new_v4()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("omnis_epic_test_{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&temp_dir).unwrap();
 
         let item_file = temp_dir.join("0123456789ABCDEF.item");
@@ -276,7 +293,10 @@ mod tests {
             "com.epicgames.launcher://apps/Salt?action=launch&silent=true"
         );
         assert_eq!(play_action.arguments, Vec::<String>::new());
-        assert_eq!(play_action.working_dir, Some(PathBuf::from("C:\\Games\\Salt2")));
+        assert_eq!(
+            play_action.working_dir,
+            Some(PathBuf::from("C:\\Games\\Salt2"))
+        );
         assert_eq!(
             play_action.tracking_mode,
             ProcessTrackingMode::ProcessName("Salt2.exe".to_string())
@@ -302,13 +322,15 @@ mod tests {
             Some("MOCK_EXCHANGE_CODE_123".to_string())
         );
 
-        let url_exchange = "https://www.epicgames.com/id/api/redirect?exchangeCode=MOCK_EXCHANGE_CODE_456";
+        let url_exchange =
+            "https://www.epicgames.com/id/api/redirect?exchangeCode=MOCK_EXCHANGE_CODE_456";
         assert_eq!(
             extract_exchange_code(url_exchange),
             Some("MOCK_EXCHANGE_CODE_456".to_string())
         );
 
-        let url_fragment = "https://www.epicgames.com/id/api/redirect#exchangeCode=MOCK_EXCHANGE_CODE_789";
+        let url_fragment =
+            "https://www.epicgames.com/id/api/redirect#exchangeCode=MOCK_EXCHANGE_CODE_789";
         assert_eq!(
             extract_exchange_code(url_fragment),
             Some("MOCK_EXCHANGE_CODE_789".to_string())
@@ -380,7 +402,10 @@ mod tests {
             serde_json::from_str(json_entitlement).expect("Failed to deserialize EpicEntitlement");
 
         assert_eq!(entitlement.id, "entitlement_001");
-        assert_eq!(entitlement.entitlement_name, Some("Death Stranding".to_string()));
+        assert_eq!(
+            entitlement.entitlement_name,
+            Some("Death Stranding".to_string())
+        );
         assert_eq!(
             entitlement.catalog_item_id,
             Some("de6747b0a72740bc8f7c9e03d4cc7e41".to_string())
@@ -435,11 +460,16 @@ mod tests {
         assert!(login_url.contains("redirectUrl="));
 
         assert!(plugin.is_redirect_url("https://www.epicgames.com/id/api/redirect?code=MOCK_CODE"));
-        assert!(plugin.is_redirect_url("https://www.epicgames.com/id/api/redirect?exchangeCode=MOCK_EXCHANGE"));
+        assert!(plugin.is_redirect_url(
+            "https://www.epicgames.com/id/api/redirect?exchangeCode=MOCK_EXCHANGE"
+        ));
         assert!(plugin.is_redirect_url("https://www.epicgames.com/id/api/redirect#code=MOCK_CODE"));
-        assert!(plugin.is_redirect_url("https://www.epicgames.com/id/api/redirect#exchangeCode=MOCK_CODE"));
+        assert!(plugin
+            .is_redirect_url("https://www.epicgames.com/id/api/redirect#exchangeCode=MOCK_CODE"));
         assert!(plugin.is_redirect_url("https://localhost/launcher/authorized?code=MOCK_CODE"));
-        assert!(plugin.is_redirect_url("https://www.epicgames.com/id/api/redirect?authorizationCode=MOCK_CODE"));
+        assert!(plugin.is_redirect_url(
+            "https://www.epicgames.com/id/api/redirect?authorizationCode=MOCK_CODE"
+        ));
         assert!(plugin.is_redirect_url("https://www.epicgames.com/id/api/redirect?sid=MOCK_SID"));
         assert!(!plugin.is_redirect_url("https://www.epicgames.com/id/api/redirect"));
         assert!(!plugin.is_redirect_url("https://store.epicgames.com/browse"));
@@ -455,7 +485,10 @@ mod tests {
             sanitize_epic_title("Salt 2: Shores of Gold\u{00a0} "),
             "Salt 2: Shores of Gold"
         );
-        assert_eq!(sanitize_epic_title("Grand Theft Auto V"), "Grand Theft Auto V");
+        assert_eq!(
+            sanitize_epic_title("Grand Theft Auto V"),
+            "Grand Theft Auto V"
+        );
     }
 
     #[test]
@@ -465,8 +498,12 @@ mod tests {
             id: "cat_001".to_string(),
             title: Some("Control".to_string()),
             categories: Some(vec![
-                EpicCatalogCategory { path: "applications".to_string() },
-                EpicCatalogCategory { path: "games".to_string() },
+                EpicCatalogCategory {
+                    path: "applications".to_string(),
+                },
+                EpicCatalogCategory {
+                    path: "games".to_string(),
+                },
             ]),
             main_game_item: None,
             ..Default::default()
@@ -477,10 +514,12 @@ mod tests {
         let dlc_item = EpicCatalogItem {
             id: "cat_dlc_001".to_string(),
             title: Some("Control - Season Pass".to_string()),
-            categories: Some(vec![
-                EpicCatalogCategory { path: "addons".to_string() },
-            ]),
-            main_game_item: Some(EpicMainGameItem { id: Some("cat_001".to_string()) }),
+            categories: Some(vec![EpicCatalogCategory {
+                path: "addons".to_string(),
+            }]),
+            main_game_item: Some(EpicMainGameItem {
+                id: Some("cat_001".to_string()),
+            }),
             ..Default::default()
         };
         assert!(!is_valid_game(&dlc_item));
@@ -490,10 +529,16 @@ mod tests {
             id: "cat_addon_002".to_string(),
             title: Some("Standalone Expansion".to_string()),
             categories: Some(vec![
-                EpicCatalogCategory { path: "addons/launchable".to_string() },
-                EpicCatalogCategory { path: "games".to_string() },
+                EpicCatalogCategory {
+                    path: "addons/launchable".to_string(),
+                },
+                EpicCatalogCategory {
+                    path: "games".to_string(),
+                },
             ]),
-            main_game_item: Some(EpicMainGameItem { id: Some("cat_001".to_string()) }),
+            main_game_item: Some(EpicMainGameItem {
+                id: Some("cat_001".to_string()),
+            }),
             ..Default::default()
         };
         assert!(is_valid_game(&launchable_addon));
@@ -502,9 +547,9 @@ mod tests {
         let plugin_item = EpicCatalogItem {
             id: "cat_plugin_001".to_string(),
             title: Some("Soundtrack & Artbook".to_string()),
-            categories: Some(vec![
-                EpicCatalogCategory { path: "digitalextras".to_string() },
-            ]),
+            categories: Some(vec![EpicCatalogCategory {
+                path: "digitalextras".to_string(),
+            }]),
             main_game_item: None,
             ..Default::default()
         };
@@ -535,7 +580,9 @@ mod tests {
         let map: std::collections::HashMap<String, EpicCatalogItem> =
             serde_json::from_str(json).expect("Should deserialize catalog item map");
 
-        let item = map.get("002dae58227b461ea5cc889cb9a249f2").expect("Item must exist");
+        let item = map
+            .get("002dae58227b461ea5cc889cb9a249f2")
+            .expect("Item must exist");
         assert_eq!(item.title, Some("Death Stranding™".to_string()));
         assert!(is_valid_game(item));
 

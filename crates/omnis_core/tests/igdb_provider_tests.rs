@@ -92,12 +92,15 @@ fn test_1_igdb_data_deserialization_and_normalization() {
         ]
     }"#;
 
-    let game: IgdbGame = serde_json::from_str(mock_json)
-        .expect("Failed to deserialize mock IGDB game JSON payload");
+    let game: IgdbGame =
+        serde_json::from_str(mock_json).expect("Failed to deserialize mock IGDB game JSON payload");
 
     assert_eq!(game.id, 1942);
     assert_eq!(game.name, "The Witcher 3: Wild Hunt");
-    assert_eq!(game.cover.as_ref().unwrap().image_id.as_deref(), Some("co1wyy"));
+    assert_eq!(
+        game.cover.as_ref().unwrap().image_id.as_deref(),
+        Some("co1wyy")
+    );
 
     // Normalizzazione in GameMetadataPatch
     let patch = igdb_game_to_patch(&game);
@@ -123,11 +126,19 @@ fn test_1_igdb_data_deserialization_and_normalization() {
 
     // 5. Elenco separato per sviluppatori ed editori
     assert!(patch.developers.contains(&"CD PROJEKT RED".to_string()));
-    assert!(patch.developers.contains(&"Warner Bros. Interactive".to_string()));
-    assert!(!patch.developers.contains(&"Bandai Namco Entertainment".to_string()));
+    assert!(patch
+        .developers
+        .contains(&"Warner Bros. Interactive".to_string()));
+    assert!(!patch
+        .developers
+        .contains(&"Bandai Namco Entertainment".to_string()));
 
-    assert!(patch.publishers.contains(&"Bandai Namco Entertainment".to_string()));
-    assert!(patch.publishers.contains(&"Warner Bros. Interactive".to_string()));
+    assert!(patch
+        .publishers
+        .contains(&"Bandai Namco Entertainment".to_string()));
+    assert!(patch
+        .publishers
+        .contains(&"Warner Bros. Interactive".to_string()));
     assert!(!patch.publishers.contains(&"CD PROJEKT RED".to_string()));
 
     // 6. Generi
@@ -245,8 +256,7 @@ fn test_3_apicalypse_query_sanitization() {
     let input_quotes_backslash = r#"Cyberpunk 2077: Phantom "Liberty" \ Extra"#;
     let sanitized_1 = sanitize_apicalypse_query(input_quotes_backslash);
     assert_eq!(
-        sanitized_1,
-        r#"Cyberpunk 2077: Phantom \"Liberty\" \\ Extra"#,
+        sanitized_1, r#"Cyberpunk 2077: Phantom \"Liberty\" \\ Extra"#,
         "I doppi apici e i backslash devono essere escapati"
     );
 
@@ -273,7 +283,10 @@ fn test_3_apicalypse_query_sanitization() {
     assert!(sanitized_4.contains("\\\\\\\\ expansions \\\\ included"));
 
     // 5. Verifica formattazione date e anni
-    assert_eq!(format_release_date(1599782400), Some("2020-09-11".to_string()));
+    assert_eq!(
+        format_release_date(1599782400),
+        Some("2020-09-11".to_string())
+    );
     assert_eq!(format_release_year(1599782400), Some(2020));
     assert_eq!(format_release_date(0), Some("1970-01-01".to_string()));
     assert_eq!(format_release_year(0), Some(1970));
@@ -288,7 +301,8 @@ fn test_3_apicalypse_query_sanitization() {
 /// - Verificare che `search_candidates` gestisca il filtro "igdb" restituendo candidati con `provider_id: "igdb"`
 #[tokio::test]
 async fn test_4_metadata_downloader_igdb_integration() {
-    let temp_dir = std::env::temp_dir().join(format!("omnis_igdb_integ_test_{}", uuid::Uuid::new_v4()));
+    let temp_dir =
+        std::env::temp_dir().join(format!("omnis_igdb_integ_test_{}", uuid::Uuid::new_v4()));
     let igdb_dir = temp_dir.join("igdb");
     std::fs::create_dir_all(&igdb_dir).unwrap();
     std::fs::write(
@@ -311,7 +325,10 @@ async fn test_4_metadata_downloader_igdb_integration() {
         .expect("Provider 'igdb' deve essere presente in MetadataDownloader");
 
     assert_eq!(igdb.name, "IGDB (Internet Game Database)");
-    assert!(!igdb.is_builtin, "IGDB deve essere un provider esterno/plugin");
+    assert!(
+        !igdb.is_builtin,
+        "IGDB deve essere un provider esterno/plugin"
+    );
     assert!(igdb.requires_api_key, "IGDB richiede credenziali Twitch");
     assert!(
         !igdb.has_configured_key,
@@ -431,14 +448,20 @@ async fn test_5_settings_schema_and_connection_diagnostics() {
         .expect("Deve esistere il campo 'client_secret'");
     assert!(client_secret_field.required);
     assert!(
-        matches!(client_secret_field.field_type, SettingType::SecretString { .. }),
+        matches!(
+            client_secret_field.field_type,
+            SettingType::SecretString { .. }
+        ),
         "client_secret deve essere di tipo SecretString"
     );
 
     // 2. Diagnostica connessione con mappa vuota
     let empty_settings = Map::new();
     let res_empty = provider.test_connection(&empty_settings).await;
-    assert!(res_empty.is_err(), "test_connection deve fallire se la mappa è vuota");
+    assert!(
+        res_empty.is_err(),
+        "test_connection deve fallire se la mappa è vuota"
+    );
     let err_msg = res_empty.unwrap_err();
     assert!(
         err_msg.contains("non configurati"),
@@ -455,7 +478,8 @@ async fn test_5_settings_schema_and_connection_diagnostics() {
     assert!(res_ws.unwrap_err().contains("non configurati"));
 
     // 4. Diagnostica connessione tramite MetadataDownloader
-    let temp_dir2 = std::env::temp_dir().join(format!("omnis_igdb_diag_test_{}", uuid::Uuid::new_v4()));
+    let temp_dir2 =
+        std::env::temp_dir().join(format!("omnis_igdb_diag_test_{}", uuid::Uuid::new_v4()));
     let igdb_dir2 = temp_dir2.join("igdb");
     std::fs::create_dir_all(&igdb_dir2).unwrap();
     std::fs::write(
@@ -464,7 +488,10 @@ async fn test_5_settings_schema_and_connection_diagnostics() {
     )
     .unwrap();
     let downloader = MetadataDownloader::new();
-    downloader.load_and_register_dynamic_plugin(&igdb_dir2).await.unwrap();
+    downloader
+        .load_and_register_dynamic_plugin(&igdb_dir2)
+        .await
+        .unwrap();
     let dl_test = downloader.test_provider_connection("igdb").await;
     assert!(dl_test.is_err());
     assert!(dl_test.unwrap_err().contains("non configurati"));
@@ -481,7 +508,11 @@ async fn test_6_remediation_fixes() {
 
     // 1. supported_fields() non include Icon
     let fields = provider.supported_fields();
-    assert_eq!(fields.len(), 9, "I campi supportati devono essere esattamente 9");
+    assert_eq!(
+        fields.len(),
+        9,
+        "I campi supportati devono essere esattamente 9"
+    );
     assert!(
         !fields.contains(&MetadataField::Icon),
         "IGDB non deve dichiarare il supporto al campo Icon"
@@ -498,4 +529,3 @@ async fn test_6_remediation_fixes() {
     // 3. Invalidate token
     provider.invalidate_token().await;
 }
-

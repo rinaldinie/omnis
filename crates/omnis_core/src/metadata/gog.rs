@@ -2,9 +2,7 @@ use super::types::MetadataCandidateDto;
 use super::utils::{extract_year, html_to_plain_text, url_encode};
 use async_trait::async_trait;
 use omnis_sdk::constants::stores;
-use omnis_sdk::{
-    GameMetadataPatch, MetadataField, MetadataProvider, MetadataSearchRequest,
-};
+use omnis_sdk::{GameMetadataPatch, MetadataField, MetadataProvider, MetadataSearchRequest};
 use serde::Deserialize;
 use serde_json::{Map, Value};
 use std::path::{Path, PathBuf};
@@ -260,7 +258,11 @@ impl MetadataProvider for GogMetadataProvider {
                     if let Ok(resp) = self.client.get(&url).send().await {
                         if resp.status().is_success() {
                             if let Ok(data) = resp.json::<GogProductDetailsDto>().await {
-                                let desc = data.description.and_then(|d| d.lead).as_deref().map(html_to_plain_text);
+                                let desc = data
+                                    .description
+                                    .and_then(|d| d.lead)
+                                    .as_deref()
+                                    .map(html_to_plain_text);
                                 let mut cover_url = None;
                                 let mut bg_url = None;
 

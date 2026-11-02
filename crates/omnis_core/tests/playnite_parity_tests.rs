@@ -77,7 +77,9 @@ fn test_1_db_in_memory_migrations_and_parity_columns() {
         library_id: "steam".to_string(),
         external_id: "730".to_string(),
         title: "Counter-Strike 2".to_string(),
-        install_dir: Some(PathBuf::from("C:\\Steam\\steamapps\\common\\Counter-Strike Global Offensive")),
+        install_dir: Some(PathBuf::from(
+            "C:\\Steam\\steamapps\\common\\Counter-Strike Global Offensive",
+        )),
         is_installed: true,
         play_action: None,
         playtime_seconds: 3600,
@@ -98,7 +100,10 @@ fn test_1_db_in_memory_migrations_and_parity_columns() {
 
     assert_eq!(g.title, "Counter-Strike 2");
     assert_eq!(g.completion_status.as_deref(), Some("NotPlayed"));
-    assert_eq!(g.completion_status_enum(), Some(CompletionStatus::NotPlayed));
+    assert_eq!(
+        g.completion_status_enum(),
+        Some(CompletionStatus::NotPlayed)
+    );
     assert!(g.series.is_none());
     assert!(g.age_rating.is_none());
     assert!(g.user_notes.is_none());
@@ -146,11 +151,19 @@ fn test_2_game_update_dto_persistence() {
         age_rating: Some("PEGI 18".to_string()),
         completion_status: Some("Completed".to_string()),
         user_notes: Some("Masterpiece RPG. Completed all quests and expansions.".to_string()),
-        genres: vec!["RPG".to_string(), "Action".to_string(), "Open World".to_string()],
+        genres: vec![
+            "RPG".to_string(),
+            "Action".to_string(),
+            "Open World".to_string(),
+        ],
         developers: vec!["CD PROJEKT RED".to_string()],
         publishers: vec!["CD PROJEKT".to_string()],
         tags: vec!["Fantasy".to_string(), "Story Rich".to_string()],
-        features: vec!["Single-player".to_string(), "Cloud Saves".to_string(), "Achievements".to_string()],
+        features: vec![
+            "Single-player".to_string(),
+            "Cloud Saves".to_string(),
+            "Achievements".to_string(),
+        ],
         cover_image_path: Some("C:\\covers\\witcher3_goty.jpg".to_string()),
         background_image_path: Some("C:\\wallpapers\\witcher3_goty.jpg".to_string()),
         icon_image_path: Some("C:\\icons\\witcher3.ico".to_string()),
@@ -176,8 +189,14 @@ fn test_2_game_update_dto_persistence() {
     let updated_game = db.update_game(&update_dto).expect("Failed to update game");
 
     // Verify fields on return value
-    assert_eq!(updated_game.title, "The Witcher 3: Wild Hunt - GOTY Edition");
-    assert_eq!(updated_game.sorting_title, "witcher 3 wild hunt goty edition");
+    assert_eq!(
+        updated_game.title,
+        "The Witcher 3: Wild Hunt - GOTY Edition"
+    );
+    assert_eq!(
+        updated_game.sorting_title,
+        "witcher 3 wild hunt goty edition"
+    );
     assert_eq!(updated_game.series.as_deref(), Some("The Witcher"));
     assert_eq!(updated_game.age_rating.as_deref(), Some("PEGI 18"));
     assert_eq!(updated_game.completion_status.as_deref(), Some("Completed"));
@@ -197,7 +216,10 @@ fn test_2_game_update_dto_persistence() {
         vec!["Single-player", "Cloud Saves", "Achievements"]
     );
     assert_eq!(updated_game.play_actions.len(), 1);
-    assert_eq!(updated_game.play_actions[0].executable, "bin/x64/witcher3.exe");
+    assert_eq!(
+        updated_game.play_actions[0].executable,
+        "bin/x64/witcher3.exe"
+    );
     assert_eq!(
         updated_game.play_actions[0].arguments,
         vec!["-novid", "-nosplash"]
@@ -208,7 +230,10 @@ fn test_2_game_update_dto_persistence() {
     );
     assert_eq!(updated_game.custom_links.len(), 2);
     assert_eq!(updated_game.custom_links[0].title, "Official Wiki");
-    assert_eq!(updated_game.custom_links[1].url, "https://discord.gg/cdpred");
+    assert_eq!(
+        updated_game.custom_links[1].url,
+        "https://discord.gg/cdpred"
+    );
 
     // Verify persistence via clean get_game_by_id query
     let reloaded = db
@@ -376,7 +401,8 @@ async fn test_4_epic_manifest_parsing_and_launch_uri() {
     );
 
     // 3. Verify EpicLibraryPlugin file scanner with temporary manifest
-    let temp_manifests = std::env::temp_dir().join(format!("epic_test_manifests_{}", Uuid::new_v4()));
+    let temp_manifests =
+        std::env::temp_dir().join(format!("epic_test_manifests_{}", Uuid::new_v4()));
     let temp_game_dir = std::env::temp_dir().join(format!("epic_test_game_{}", Uuid::new_v4()));
     std::fs::create_dir_all(&temp_manifests).expect("Failed to create temp manifest dir");
     std::fs::create_dir_all(&temp_game_dir).expect("Failed to create temp game dir");
@@ -393,8 +419,11 @@ async fn test_4_epic_manifest_parsing_and_launch_uri() {
     });
 
     let item_path = temp_manifests.join("1234567890ABCDEF.item");
-    std::fs::write(&item_path, serde_json::to_string_pretty(&dynamic_manifest).unwrap())
-        .expect("Failed to write .item file");
+    std::fs::write(
+        &item_path,
+        serde_json::to_string_pretty(&dynamic_manifest).unwrap(),
+    )
+    .expect("Failed to write .item file");
 
     let plugin = EpicLibraryPlugin::with_custom_path(temp_manifests.clone());
     use omnis_sdk::LibraryPlugin;
@@ -521,7 +550,9 @@ async fn test_5_metadata_candidate_dto_and_patch_enrichment() {
 
     // 5. Test search_candidates pipeline live / cached query
     let downloader = MetadataDownloader::new();
-    let candidates_result = downloader.search_candidates("Cyberpunk", Some("steam")).await;
+    let candidates_result = downloader
+        .search_candidates("Cyberpunk", Some("steam"))
+        .await;
     assert!(
         candidates_result.is_ok(),
         "search_candidates returned error: {:?}",

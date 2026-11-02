@@ -1,7 +1,5 @@
 use chrono::{DateTime, Utc};
-use omnis_sdk::{
-    CustomLink, Game, GameMetadataPatch, GameUpdateDto, LaunchConfiguration,
-};
+use omnis_sdk::{CustomLink, Game, GameMetadataPatch, GameUpdateDto, LaunchConfiguration};
 use rusqlite::{params, Result};
 use std::path::PathBuf;
 use uuid::Uuid;
@@ -296,7 +294,6 @@ impl GameRepository for Database {
             Ok(None)
         }
     }
-
 
     fn get_games_by_ids(&self, ids: &[Uuid]) -> Result<Vec<Game>> {
         if ids.is_empty() {
@@ -619,7 +616,15 @@ impl Database {
         play_actions: Vec<LaunchConfiguration>,
         cover_image_path: Option<String>,
     ) -> Result<Game> {
-        GameRepository::insert_custom_game(self, id, title, sorting_title, install_dir, play_actions, cover_image_path)
+        GameRepository::insert_custom_game(
+            self,
+            id,
+            title,
+            sorting_title,
+            install_dir,
+            play_actions,
+            cover_image_path,
+        )
     }
 
     #[inline]

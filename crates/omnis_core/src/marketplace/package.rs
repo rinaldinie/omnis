@@ -21,7 +21,10 @@ impl PluginPackageInstaller {
         let mut downloaded_bytes: Option<Vec<u8>> = None;
 
         if is_remote_http {
-            info!("Scaricamento plugin '{}' da: {}", plugin_id, asset.download_url);
+            info!(
+                "Scaricamento plugin '{}' da: {}",
+                plugin_id, asset.download_url
+            );
             if let Ok(resp) = client.get(&asset.download_url).send().await {
                 if resp.status().is_success() {
                     if let Ok(bytes) = resp.bytes().await {
@@ -30,12 +33,21 @@ impl PluginPackageInstaller {
                 }
             }
         } else if is_file_url {
-            info!("Lettura asset plugin '{}' da URL file: {}", plugin_id, asset.download_url);
+            info!(
+                "Lettura asset plugin '{}' da URL file: {}",
+                plugin_id, asset.download_url
+            );
             let local_path = file_url_to_path(&asset.download_url);
             if local_path.exists() {
                 match std::fs::read(&local_path) {
                     Ok(bytes) => downloaded_bytes = Some(bytes),
-                    Err(e) => return Err(format!("Lettura file fallita {}: {}", local_path.display(), e)),
+                    Err(e) => {
+                        return Err(format!(
+                            "Lettura file fallita {}: {}",
+                            local_path.display(),
+                            e
+                        ))
+                    }
                 }
             } else {
                 return Err(format!("File asset non trovato: {}", local_path.display()));
@@ -52,7 +64,11 @@ impl PluginPackageInstaller {
     }
 
     /// Verifies SHA-256 integrity of downloaded bytes against expected hash
-    pub fn verify_sha256(bytes: &[u8], expected_sha256: &str, plugin_id: &str) -> Result<(), String> {
+    pub fn verify_sha256(
+        bytes: &[u8],
+        expected_sha256: &str,
+        plugin_id: &str,
+    ) -> Result<(), String> {
         let mut hasher = Sha256::new();
         hasher.update(bytes);
         let actual_sha256 = format!("{:x}", hasher.finalize());
@@ -62,16 +78,15 @@ impl PluginPackageInstaller {
                 plugin_id, expected_sha256, actual_sha256
             ));
         }
-        info!("Integrità SHA-256 verificata con successo per '{}'", plugin_id);
+        info!(
+            "Integrità SHA-256 verificata con successo per '{}'",
+            plugin_id
+        );
         Ok(())
     }
 
     /// Writes or extracts package bytes into the target plugin directory
-    pub fn unpack_package(
-        bytes: &[u8],
-        filename: &str,
-        target_dir: &Path,
-    ) -> Result<(), String> {
+    pub fn unpack_package(bytes: &[u8], filename: &str, target_dir: &Path) -> Result<(), String> {
         if filename.ends_with(".zip") || (bytes.len() >= 4 && &bytes[0..4] == b"PK\x03\x04") {
             Self::extract_zip(bytes, target_dir)?;
             Self::normalize_extracted_dir(target_dir);
@@ -81,7 +96,11 @@ impl PluginPackageInstaller {
                 .ok_or_else(|| "Nome file asset non valido".to_string())?;
             let dest = target_dir.join(safe_filename);
             std::fs::write(&dest, bytes).map_err(|e| {
-                format!("Impossibile salvare il file del plugin in {}: {}", dest.display(), e)
+                format!(
+                    "Impossibile salvare il file del plugin in {}: {}",
+                    dest.display(),
+                    e
+                )
             })?;
         }
         Ok(())
@@ -105,13 +124,18 @@ impl PluginPackageInstaller {
             };
 
             if file.is_dir() {
-                std::fs::create_dir_all(&outpath)
-                    .map_err(|e| format!("Creazione directory {} fallita: {}", outpath.display(), e))?;
+                std::fs::create_dir_all(&outpath).map_err(|e| {
+                    format!("Creazione directory {} fallita: {}", outpath.display(), e)
+                })?;
             } else {
                 if let Some(parent) = outpath.parent() {
                     if !parent.exists() {
                         std::fs::create_dir_all(parent).map_err(|e| {
-                            format!("Creazione directory parent {} fallita: {}", parent.display(), e)
+                            format!(
+                                "Creazione directory parent {} fallita: {}",
+                                parent.display(),
+                                e
+                            )
                         })?;
                     }
                 }
@@ -168,7 +192,11 @@ impl PluginPackageInstaller {
             if let Some(src_bin) = Self::find_sample_dynamic_binary(&asset.filename) {
                 let dest = target_dir.join(&asset.filename);
                 if let Err(e) = std::fs::copy(&src_bin, &dest) {
-                    warn!("Copia binario sample fallita da {}: {}", src_bin.display(), e);
+                    warn!(
+                        "Copia binario sample fallita da {}: {}",
+                        src_bin.display(),
+                        e
+                    );
                 }
             }
         }
@@ -209,7 +237,8 @@ impl PluginPackageInstaller {
                     || canonical_target == canonical_plugins
                 {
                     return Err(
-                        "Tentativo di cancellazione non consentito fuori dalla directory plugins".to_string(),
+                        "Tentativo di cancellazione non consentito fuori dalla directory plugins"
+                            .to_string(),
                     );
                 }
 

@@ -105,9 +105,8 @@ pub async fn fetch_gog_achievements_api(
     let product_id = &game.external_id;
     let user_id = &session.user_id;
 
-    let endpoint = format!(
-        "https://gameplay.gog.com/clients/{product_id}/users/{user_id}/achievements"
-    );
+    let endpoint =
+        format!("https://gameplay.gog.com/clients/{product_id}/users/{user_id}/achievements");
     debug!("Fetching GOG achievements from {endpoint}");
 
     let mut req = client.get(&endpoint).header("Accept", "application/json");
@@ -124,7 +123,9 @@ pub async fn fetch_gog_achievements_api(
     if !resp.status().is_success() {
         let status = resp.status();
         let body = resp.text().await.unwrap_or_default();
-        return Err(format!("GOG achievements request failed ({status}): {body}"));
+        return Err(format!(
+            "GOG achievements request failed ({status}): {body}"
+        ));
     }
 
     let json_text = resp
@@ -237,11 +238,18 @@ mod tests {
             ach1.description.as_deref(),
             Some("Kill at least 5 opponents in under 10 seconds")
         );
-        assert_eq!(ach1.icon_unlocked_url, "https://images.gog.com/witcher_ach1.jpg");
+        assert_eq!(
+            ach1.icon_unlocked_url,
+            "https://images.gog.com/witcher_ach1.jpg"
+        );
         assert!(ach1.is_unlocked);
         assert_eq!(
             ach1.unlock_time,
-            Some(DateTime::parse_from_rfc3339("2024-02-14T20:15:00Z").unwrap().with_timezone(&Utc))
+            Some(
+                DateTime::parse_from_rfc3339("2024-02-14T20:15:00Z")
+                    .unwrap()
+                    .with_timezone(&Utc)
+            )
         );
         assert_eq!(ach1.rarity_percentage, Some(8.5));
         assert!(!ach1.is_hidden);

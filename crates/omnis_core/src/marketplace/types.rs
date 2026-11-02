@@ -65,7 +65,10 @@ pub fn current_platform_key() -> &'static str {
 /// Compares two semver-like strings, returns true if remote_v is newer than installed_v
 pub fn is_newer_version(remote_v: &str, installed_v: &str) -> bool {
     let r_parts: Vec<u64> = remote_v.split('.').filter_map(|s| s.parse().ok()).collect();
-    let i_parts: Vec<u64> = installed_v.split('.').filter_map(|s| s.parse().ok()).collect();
+    let i_parts: Vec<u64> = installed_v
+        .split('.')
+        .filter_map(|s| s.parse().ok())
+        .collect();
     if !r_parts.is_empty() && !i_parts.is_empty() {
         r_parts > i_parts
     } else {
@@ -78,8 +81,14 @@ pub fn validate_plugin_id(plugin_id: &str) -> Result<(), String> {
     if plugin_id.is_empty() {
         return Err("ID plugin non valido: non può essere vuoto".to_string());
     }
-    if !plugin_id.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-') {
-        return Err("ID plugin non valido: sono ammessi solo caratteri alfanumerici, trattini e underscore".to_string());
+    if !plugin_id
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+    {
+        return Err(
+            "ID plugin non valido: sono ammessi solo caratteri alfanumerici, trattini e underscore"
+                .to_string(),
+        );
     }
     if plugin_id.contains("..") {
         return Err("ID plugin non valido: sequenza traversal non consentita".to_string());
@@ -97,7 +106,10 @@ pub fn file_url_to_path(url_str: &str) -> PathBuf {
     let mut raw = url_str.trim_start_matches("file://");
     while raw.starts_with('/') {
         if raw.len() >= 3
-            && raw.chars().nth(1).map_or(false, |c| c.is_ascii_alphabetic())
+            && raw
+                .chars()
+                .nth(1)
+                .map_or(false, |c| c.is_ascii_alphabetic())
             && raw.chars().nth(2) == Some(':')
         {
             raw = &raw[1..];

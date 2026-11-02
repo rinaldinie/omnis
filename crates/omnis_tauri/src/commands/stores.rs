@@ -8,7 +8,9 @@ pub async fn start_store_login(
     app_handle: tauri::AppHandle,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    state.store_account_manager.start_login(&app_handle, &store_id)
+    state
+        .store_account_manager
+        .start_login(&app_handle, &store_id)
 }
 
 #[tauri::command]
@@ -25,7 +27,10 @@ pub async fn disconnect_store_account(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     state.store_account_manager.delete_session(&store_id)?;
-    let _ = app_handle.emit("store-account-disconnected", serde_json::json!({ "store_id": store_id }));
+    let _ = app_handle.emit(
+        "store-account-disconnected",
+        serde_json::json!({ "store_id": store_id }),
+    );
     Ok(())
 }
 
@@ -82,7 +87,9 @@ pub async fn save_store_api_key(
     app_handle: tauri::AppHandle,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    state.store_account_manager.set_api_key(&store_id, &api_key)?;
+    state
+        .store_account_manager
+        .set_api_key(&store_id, &api_key)?;
     let _ = app_handle.emit(
         "store-account-connected",
         serde_json::json!({ "store_id": store_id }),

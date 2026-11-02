@@ -26,26 +26,16 @@ pub enum SlotWidget {
     },
     /// List of tag or status badges
     #[serde(rename = "badge-list")]
-    BadgeList {
-        badges: Vec<String>,
-    },
+    BadgeList { badges: Vec<String> },
     /// Quantitative progress bar (e.g. achievements, completion, download)
     #[serde(rename = "progress")]
-    Progress {
-        label: String,
-        value: u64,
-        max: u64,
-    },
+    Progress { label: String, value: u64, max: u64 },
     /// List of external or internal resource links
     #[serde(rename = "link-list")]
-    LinkList {
-        links: Vec<WidgetLink>,
-    },
+    LinkList { links: Vec<WidgetLink> },
     /// Informational text paragraph
     #[serde(rename = "text")]
-    Text {
-        content: String,
-    },
+    Text { content: String },
 }
 
 /// Declarative template for a slot widget defined in a plugin manifest
@@ -81,14 +71,21 @@ impl SlotWidget {
                     return Err("Stat widget label must not be empty".to_string());
                 }
                 if label.len() > 100 {
-                    return Err("Stat widget label exceeds maximum length of 100 characters".to_string());
+                    return Err(
+                        "Stat widget label exceeds maximum length of 100 characters".to_string()
+                    );
                 }
                 if value.len() > 100 {
-                    return Err("Stat widget value exceeds maximum length of 100 characters".to_string());
+                    return Err(
+                        "Stat widget value exceeds maximum length of 100 characters".to_string()
+                    );
                 }
                 if let Some(i) = icon {
                     if i.len() > 50 {
-                        return Err("Stat widget icon identifier exceeds maximum length of 50 characters".to_string());
+                        return Err(
+                            "Stat widget icon identifier exceeds maximum length of 50 characters"
+                                .to_string(),
+                        );
                     }
                 }
                 Ok(())
@@ -102,7 +99,9 @@ impl SlotWidget {
                         return Err("Badge item must not be empty".to_string());
                     }
                     if badge.len() > 50 {
-                        return Err("Badge item exceeds maximum length of 50 characters".to_string());
+                        return Err(
+                            "Badge item exceeds maximum length of 50 characters".to_string()
+                        );
                     }
                 }
                 Ok(())
@@ -112,7 +111,10 @@ impl SlotWidget {
                     return Err("Progress widget label must not be empty".to_string());
                 }
                 if label.len() > 100 {
-                    return Err("Progress widget label exceeds maximum length of 100 characters".to_string());
+                    return Err(
+                        "Progress widget label exceeds maximum length of 100 characters"
+                            .to_string(),
+                    );
                 }
                 if *max == 0 {
                     return Err("Progress widget max must be greater than 0".to_string());
@@ -131,7 +133,9 @@ impl SlotWidget {
                         return Err("Link title must not be empty".to_string());
                     }
                     if link.title.len() > 100 {
-                        return Err("Link title exceeds maximum length of 100 characters".to_string());
+                        return Err(
+                            "Link title exceeds maximum length of 100 characters".to_string()
+                        );
                     }
                     if link.url.trim().is_empty() {
                         return Err("Link URL must not be empty".to_string());
@@ -148,7 +152,9 @@ impl SlotWidget {
                     return Err("Text widget content must not be empty".to_string());
                 }
                 if content.len() > 2000 {
-                    return Err("Text widget content exceeds maximum length of 2000 characters".to_string());
+                    return Err(
+                        "Text widget content exceeds maximum length of 2000 characters".to_string(),
+                    );
                 }
                 Ok(())
             }

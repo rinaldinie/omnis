@@ -66,7 +66,10 @@ fn test_playnite_guid_mappings() {
         "manual"
     );
     assert_eq!(map_playnite_plugin_id(None), "manual");
-    assert_eq!(map_playnite_plugin_id(Some("random-unrecognized-guid")), "manual");
+    assert_eq!(
+        map_playnite_plugin_id(Some("random-unrecognized-guid")),
+        "manual"
+    );
 }
 
 #[test]
@@ -74,35 +77,38 @@ fn test_dry_run_does_not_mutate_database() {
     let db = Database::new_in_memory().expect("In-memory DB creation failed");
     db.migrate().expect("DB migration failed");
 
-    let items = vec![
-        PlayniteGameDto {
-            Id: None,
-            Name: "Hades II".to_string(),
-            GameId: Some("1145350".to_string()),
-            PluginId: Some("cb91aec9-6843-410e-a02b-a64c48325983".to_string()),
-            PlaytimeSeconds: Some(4200),
-            PlayCount: Some(15),
-            LastActivity: Some("2026-10-15T12:00:00Z".to_string()),
-            Added: Some("2026-05-01T00:00:00Z".to_string()),
-            Favorite: Some(true),
-            Hidden: Some(false),
-            Tags: Some(vec!["Roguelike".to_string(), "Action".to_string()]),
-            Features: Some(vec!["Single-player".to_string(), "Achievements".to_string()]),
-            Categories: Some(vec!["Top Games".to_string()]),
-            Completion: Some("Played".to_string()),
-            InstallDirectory: Some("C:\\Games\\Hades2".to_string()),
-            Cover: None,
-            Background: None,
-            Sessions: None,
-        },
-    ];
+    let items = vec![PlayniteGameDto {
+        Id: None,
+        Name: "Hades II".to_string(),
+        GameId: Some("1145350".to_string()),
+        PluginId: Some("cb91aec9-6843-410e-a02b-a64c48325983".to_string()),
+        PlaytimeSeconds: Some(4200),
+        PlayCount: Some(15),
+        LastActivity: Some("2026-10-15T12:00:00Z".to_string()),
+        Added: Some("2026-05-01T00:00:00Z".to_string()),
+        Favorite: Some(true),
+        Hidden: Some(false),
+        Tags: Some(vec!["Roguelike".to_string(), "Action".to_string()]),
+        Features: Some(vec![
+            "Single-player".to_string(),
+            "Achievements".to_string(),
+        ]),
+        Categories: Some(vec!["Top Games".to_string()]),
+        Completion: Some("Played".to_string()),
+        InstallDirectory: Some("C:\\Games\\Hades2".to_string()),
+        Cover: None,
+        Background: None,
+        Sessions: None,
+    }];
 
     let options = PlayniteImportOptions {
         dry_run: true,
         image_cache_dir: None,
     };
 
-    let stats = db.import_playnite_games(&items, &options).expect("Dry run import failed");
+    let stats = db
+        .import_playnite_games(&items, &options)
+        .expect("Dry run import failed");
     assert_eq!(stats.total_read, 1);
     assert_eq!(stats.games_created, 1);
 
@@ -165,7 +171,9 @@ fn test_playnite_import_and_idempotency() {
     };
 
     // Run 1: First import
-    let stats1 = db.import_playnite_games(&items, &options).expect("First import failed");
+    let stats1 = db
+        .import_playnite_games(&items, &options)
+        .expect("First import failed");
     assert_eq!(stats1.total_read, 2);
     assert_eq!(stats1.games_created, 2);
     assert_eq!(stats1.games_merged, 0);
@@ -182,18 +190,36 @@ fn test_playnite_import_and_idempotency() {
     assert_eq!(celeste.playtime_seconds, 7200);
 
     // Run 2: Re-import exact same payload (Idempotency test)
-    let stats2 = db.import_playnite_games(&items, &options).expect("Second import failed");
+    let stats2 = db
+        .import_playnite_games(&items, &options)
+        .expect("Second import failed");
     assert_eq!(stats2.total_read, 2);
-    assert_eq!(stats2.games_created, 0, "Re-running import must NOT create duplicates");
-    assert_eq!(stats2.games_merged, 2, "Re-running import should merge existing games");
+    assert_eq!(
+        stats2.games_created, 0,
+        "Re-running import must NOT create duplicates"
+    );
+    assert_eq!(
+        stats2.games_merged, 2,
+        "Re-running import should merge existing games"
+    );
 
     // Total games in DB must still be exactly 2
     let games_after = db.get_all_games().expect("get_all_games failed");
-    assert_eq!(games_after.len(), 2, "Database must not contain duplicated games");
+    assert_eq!(
+        games_after.len(),
+        2,
+        "Database must not contain duplicated games"
+    );
 
     // Playtime must NOT be doubled!
-    let witcher_after = games_after.iter().find(|g| g.title == "The Witcher 3").unwrap();
-    assert_eq!(witcher_after.playtime_seconds, 3600, "Playtime must NOT be doubled on re-import");
+    let witcher_after = games_after
+        .iter()
+        .find(|g| g.title == "The Witcher 3")
+        .unwrap();
+    assert_eq!(
+        witcher_after.playtime_seconds, 3600,
+        "Playtime must NOT be doubled on re-import"
+    );
 }
 
 #[test]
@@ -252,7 +278,8 @@ fn test_playtime_merge_with_historical_sessions() {
     }];
 
     let options = PlayniteImportOptions::default();
-    db.import_playnite_games(&playnite_lower, &options).expect("Import lower playtime failed");
+    db.import_playnite_games(&playnite_lower, &options)
+        .expect("Import lower playtime failed");
 
     let game_after_lower = db.get_game_by_id(game.id).unwrap().unwrap();
     // Playtime was 3600 (1800 initial + 1800 from session). Must not downgrade to 1200!
@@ -280,11 +307,16 @@ fn test_playtime_merge_with_historical_sessions() {
         Sessions: None,
     }];
 
-    let stats_higher = db.import_playnite_games(&playnite_higher, &options).expect("Import higher playtime failed");
+    let stats_higher = db
+        .import_playnite_games(&playnite_higher, &options)
+        .expect("Import higher playtime failed");
     assert_eq!(stats_higher.playtime_updated, 1);
 
     let game_after_higher = db.get_game_by_id(game.id).unwrap().unwrap();
-    assert_eq!(game_after_higher.playtime_seconds, 10000, "Conflict must adopt the higher playtime");
+    assert_eq!(
+        game_after_higher.playtime_seconds, 10000,
+        "Conflict must adopt the higher playtime"
+    );
 }
 
 #[test]
@@ -324,7 +356,9 @@ fn test_image_caching_on_import() {
         Sessions: None,
     }];
 
-    let stats = db.import_playnite_games(&items, &options).expect("Import failed");
+    let stats = db
+        .import_playnite_games(&items, &options)
+        .expect("Import failed");
     assert_eq!(stats.images_cached, 1);
 
     let games = db.get_all_games().unwrap();
@@ -332,7 +366,10 @@ fn test_image_caching_on_import() {
     assert!(portal.cover_image_path.is_some());
     let saved_path = portal.cover_image_path.unwrap();
     assert!(saved_path.contains("_cover.png"));
-    assert!(std::path::Path::new(&saved_path).exists(), "Cached image file must exist on disk");
+    assert!(
+        std::path::Path::new(&saved_path).exists(),
+        "Cached image file must exist on disk"
+    );
 
     let _ = fs::remove_dir_all(&temp_src);
     let _ = fs::remove_dir_all(&temp_cache);
@@ -341,8 +378,8 @@ fn test_image_caching_on_import() {
 #[test]
 fn test_litedb_bson_parser_and_scanner() {
     use omnis_core::playnite::litedb::{
-        is_litedb_buffer, parse_bson_document, scan_litedb_games,
-        LITEDB_MAGIC, LITEDB_HEADER_MAGIC_OFFSET,
+        is_litedb_buffer, parse_bson_document, scan_litedb_games, LITEDB_HEADER_MAGIC_OFFSET,
+        LITEDB_MAGIC,
     };
 
     // 1. Build a synthetic BSON document
@@ -354,7 +391,8 @@ fn test_litedb_bson_parser_and_scanner() {
     bson_body.extend_from_slice(&16u32.to_le_bytes()); // length 16
     bson_body.push(0x04); // UUID subtype
     let guid_bytes = [
-        0x7c, 0x8b, 0xbe, 0xae, 0xc3, 0x6d, 0x66, 0x4a, 0xaf, 0x31, 0xe7, 0x37, 0x5c, 0x6b, 0x5e, 0x9e,
+        0x7c, 0x8b, 0xbe, 0xae, 0xc3, 0x6d, 0x66, 0x4a, 0xaf, 0x31, 0xe7, 0x37, 0x5c, 0x6b, 0x5e,
+        0x9e,
     ]; // aebe8b7c-6dc3-4a66-af31-e7375c6b5e9e (GOG) in .NET bytes_le
     bson_body.extend_from_slice(&guid_bytes);
 
@@ -411,7 +449,10 @@ fn test_litedb_bson_parser_and_scanner() {
     // Test standalone BSON parser
     let (parsed, consumed) = parse_bson_document(&bson_doc).expect("BSON parse failed");
     assert_eq!(consumed, total_doc_len as usize);
-    assert_eq!(parsed.get("Name").unwrap().as_str().unwrap(), "Cyberpunk 2077");
+    assert_eq!(
+        parsed.get("Name").unwrap().as_str().unwrap(),
+        "Cyberpunk 2077"
+    );
     assert_eq!(parsed.get("Playtime").unwrap().as_u64().unwrap(), 7200);
     assert_eq!(parsed.get("PlayCount").unwrap().as_u64().unwrap(), 10);
     assert_eq!(parsed.get("Favorite").unwrap().as_bool().unwrap(), true);
@@ -436,7 +477,7 @@ fn test_litedb_bson_parser_and_scanner() {
     // Page 1: DataPage (PageType 0x04) containing our BSON doc
     let page1_start = page_size;
     litedb_buf[page1_start + 4] = 0x04; // DataPage
-    // Place BSON doc at offset 48 inside DataPage
+                                        // Place BSON doc at offset 48 inside DataPage
     let doc_offset = page1_start + 48;
     litedb_buf[doc_offset..doc_offset + bson_doc.len()].copy_from_slice(&bson_doc);
 
@@ -458,11 +499,9 @@ fn test_litedb_bson_parser_and_scanner() {
 
 #[test]
 fn test_synthetic_playnite_backup_inspection_and_import() {
-    use omnis_core::{
-        PlayniteBackupImportOptions, Database,
-    };
-    use std::path::Path;
+    use omnis_core::{Database, PlayniteBackupImportOptions};
     use std::io::Write;
+    use std::path::Path;
     use zip::write::SimpleFileOptions;
     use zip::ZipWriter;
 
@@ -507,7 +546,8 @@ fn test_synthetic_playnite_backup_inspection_and_import() {
 
         // PluginId: cb91dfc9-b977-43bf-8e70-55f46e410fab (Steam) in .NET bytes_le
         let steam_le = [
-            0xc9, 0xdf, 0x91, 0xcb, 0x77, 0xb9, 0xbf, 0x43, 0x8e, 0x70, 0x55, 0xf4, 0x6e, 0x41, 0x0f, 0xab,
+            0xc9, 0xdf, 0x91, 0xcb, 0x77, 0xb9, 0xbf, 0x43, 0x8e, 0x70, 0x55, 0xf4, 0x6e, 0x41,
+            0x0f, 0xab,
         ];
         body.push(0x05);
         body.extend_from_slice(b"PluginId\0");
@@ -558,12 +598,15 @@ fn test_synthetic_playnite_backup_inspection_and_import() {
     {
         let zip_file = fs::File::create(&zip_path).unwrap();
         let mut zip_writer = ZipWriter::new(zip_file);
-        let zip_opts = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
+        let zip_opts =
+            SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
 
         zip_writer.start_file("library/games.db", zip_opts).unwrap();
         zip_writer.write_all(&litedb_buf).unwrap();
 
-        zip_writer.start_file("libraryfiles/p2/cover.jpg", zip_opts).unwrap();
+        zip_writer
+            .start_file("libraryfiles/p2/cover.jpg", zip_opts)
+            .unwrap();
         zip_writer.write_all(b"FAKE_JPEG_DATA_COVER").unwrap();
 
         zip_writer
@@ -586,14 +629,8 @@ fn test_synthetic_playnite_backup_inspection_and_import() {
     db.migrate().unwrap();
 
     let p2_id = Uuid::new_v4();
-    db.insert_custom_game(
-        p2_id,
-        "Portal 2",
-        "portal 2",
-        None,
-        vec![],
-        None,
-    ).unwrap();
+    db.insert_custom_game(p2_id, "Portal 2", "portal 2", None, vec![], None)
+        .unwrap();
 
     // Set store and external id for Portal 2
     {
@@ -605,7 +642,9 @@ fn test_synthetic_playnite_backup_inspection_and_import() {
     }
 
     // 4. Test Inspection
-    let inspection = db.inspect_playnite_backup(&zip_path).expect("Inspection failed");
+    let inspection = db
+        .inspect_playnite_backup(&zip_path)
+        .expect("Inspection failed");
     assert_eq!(inspection.total_games_in_backup, 2);
     assert_eq!(inspection.matching_games_in_library, 1);
     assert_eq!(inspection.non_matching_games, 1);
@@ -624,7 +663,9 @@ fn test_synthetic_playnite_backup_inspection_and_import() {
         update_playtime: true,
         dry_run: true,
     };
-    let dry_stats = db.import_playnite_backup(&zip_path, &dry_options, |_, _, _| {}).unwrap();
+    let dry_stats = db
+        .import_playnite_backup(&zip_path, &dry_options, |_, _, _| {})
+        .unwrap();
     assert_eq!(dry_stats.total_read, 2);
     assert_eq!(dry_stats.games_merged, 1);
     assert_eq!(dry_stats.games_created, 0); // MUST NEVER create new games
@@ -643,7 +684,9 @@ fn test_synthetic_playnite_backup_inspection_and_import() {
         update_playtime: true,
         dry_run: false,
     };
-    let live_stats = db.import_playnite_backup(&zip_path, &live_options, |_, _, _| {}).unwrap();
+    let live_stats = db
+        .import_playnite_backup(&zip_path, &live_options, |_, _, _| {})
+        .unwrap();
     assert_eq!(live_stats.total_read, 2);
     assert_eq!(live_stats.games_merged, 1);
     assert_eq!(live_stats.games_created, 0);
@@ -657,12 +700,22 @@ fn test_synthetic_playnite_backup_inspection_and_import() {
     assert_eq!(game_after.play_count, 5);
     assert!(game_after.cover_image_path.is_some());
     let cover_path = game_after.cover_image_path.unwrap();
-    assert!(Path::new(&cover_path).exists(), "Extracted cover file must exist");
-    assert_eq!(fs::read_to_string(&cover_path).unwrap(), "FAKE_JPEG_DATA_COVER");
+    assert!(
+        Path::new(&cover_path).exists(),
+        "Extracted cover file must exist"
+    );
+    assert_eq!(
+        fs::read_to_string(&cover_path).unwrap(),
+        "FAKE_JPEG_DATA_COVER"
+    );
 
     // Verify Unknown Game was NOT inserted into Omnis
     let all_games = db.get_all_games().unwrap();
-    assert_eq!(all_games.len(), 1, "Only pre-existing games must be present in library");
+    assert_eq!(
+        all_games.len(),
+        1,
+        "Only pre-existing games must be present in library"
+    );
 
     // Cleanup
     let _ = fs::remove_dir_all(&temp_dir);
@@ -670,7 +723,8 @@ fn test_synthetic_playnite_backup_inspection_and_import() {
 
 #[test]
 fn test_real_playnite_backup_zip_inspection_if_file_exists() {
-    let backup_path = std::path::Path::new("/mnt/d/progetti/omnis/omnis/PlayniteBackup-2026-10-30-18-39-17.zip");
+    let backup_path =
+        std::path::Path::new("/mnt/d/progetti/omnis/omnis/PlayniteBackup-2026-10-30-18-39-17.zip");
     if !backup_path.exists() {
         eprintln!("Playnite backup file not found, skipping real zip test");
         return;
@@ -690,18 +744,13 @@ fn test_real_playnite_backup_zip_inspection_if_file_exists() {
         None,
         vec![],
         None,
-    ).unwrap();
+    )
+    .unwrap();
 
     // Pre-populate with Dead Cells (Steam appid 588650, which has 9 sessions in GameActivity)
     let dc_id = Uuid::new_v4();
-    db.insert_custom_game(
-        dc_id,
-        "Dead Cells",
-        "dead cells",
-        None,
-        vec![],
-        None,
-    ).unwrap();
+    db.insert_custom_game(dc_id, "Dead Cells", "dead cells", None, vec![], None)
+        .unwrap();
 
     {
         let conn = db.writer();
@@ -716,10 +765,15 @@ fn test_real_playnite_backup_zip_inspection_if_file_exists() {
     }
 
     // Inspect real backup
-    let inspection = db.inspect_playnite_backup(backup_path).expect("Failed to inspect real backup");
+    let inspection = db
+        .inspect_playnite_backup(backup_path)
+        .expect("Failed to inspect real backup");
     assert!(inspection.total_games_in_backup >= 2060 && inspection.total_games_in_backup <= 2070);
     assert_eq!(inspection.matching_games_in_library, 2);
-    assert_eq!(inspection.non_matching_games, inspection.total_games_in_backup - 2);
+    assert_eq!(
+        inspection.non_matching_games,
+        inspection.total_games_in_backup - 2
+    );
     assert_eq!(inspection.playtime_updates_available, 2);
     assert!(inspection.missing_covers_available >= 1);
 
@@ -734,25 +788,33 @@ fn test_real_playnite_backup_zip_inspection_if_file_exists() {
 
     let mut reported_progress = 0;
     let expected_total = inspection.total_games_in_backup;
-    let stats = db.import_playnite_backup(backup_path, &options, |curr, total, _name| {
-        if curr == total {
-            reported_progress = curr;
-        }
-    }).unwrap();
+    let stats = db
+        .import_playnite_backup(backup_path, &options, |curr, total, _name| {
+            if curr == total {
+                reported_progress = curr;
+            }
+        })
+        .unwrap();
 
     assert_eq!(stats.total_read, expected_total);
     assert_eq!(stats.games_merged, 2);
     assert_eq!(stats.games_created, 0);
     assert_eq!(stats.playtime_updated, 2);
     assert_eq!(reported_progress, expected_total);
-    assert_eq!(stats.sessions_imported, 9, "Must import all 9 GameActivity sessions for Dead Cells");
+    assert_eq!(
+        stats.sessions_imported, 9,
+        "Must import all 9 GameActivity sessions for Dead Cells"
+    );
 
     // Verify Frozen Flame Playtest playtime was updated to 1080
     let game = db.get_game_by_id(ff_id).unwrap().unwrap();
     assert_eq!(game.playtime_seconds, 1080);
     assert!(game.cover_image_path.is_some());
     let cover_path = game.cover_image_path.unwrap();
-    assert!(std::path::Path::new(&cover_path).exists(), "Extracted cover from real backup must exist");
+    assert!(
+        std::path::Path::new(&cover_path).exists(),
+        "Extracted cover from real backup must exist"
+    );
 
     let _ = fs::remove_dir_all(&temp_cache);
 }
@@ -795,7 +857,9 @@ fn test_playnite_session_activity_import() {
     }];
 
     let options = PlayniteImportOptions::default();
-    let stats = db.import_playnite_games(&items, &options).expect("Import failed");
+    let stats = db
+        .import_playnite_games(&items, &options)
+        .expect("Import failed");
     assert_eq!(stats.games_created, 1);
     assert_eq!(stats.sessions_imported, 2);
 

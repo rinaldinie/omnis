@@ -105,7 +105,10 @@ impl fmt::Debug for StoreAccountSession {
             .field("username", &self.username)
             .field("avatar_url", &self.avatar_url)
             .field("access_token", &"[REDACTED]")
-            .field("refresh_token", &self.refresh_token.as_ref().map(|_| "[REDACTED]"))
+            .field(
+                "refresh_token",
+                &self.refresh_token.as_ref().map(|_| "[REDACTED]"),
+            )
             .field("expires_at", &self.expires_at)
             .finish()
     }
@@ -136,10 +139,16 @@ pub trait CloudStorePlugin: LibraryPlugin {
     async fn exchange_code(&self, redirect_url: &str) -> Result<StoreAccountSession, PluginError>;
 
     /// Proactively refresh an expired session using its refresh token
-    async fn refresh_session(&self, refresh_token: &str) -> Result<StoreAccountSession, PluginError>;
+    async fn refresh_session(
+        &self,
+        refresh_token: &str,
+    ) -> Result<StoreAccountSession, PluginError>;
 
     /// Query remote store API and fetch the full catalog of owned games for this account
-    async fn sync_games(&self, session: &StoreAccountSession) -> Result<Vec<DiscoveredGame>, PluginError>;
+    async fn sync_games(
+        &self,
+        session: &StoreAccountSession,
+    ) -> Result<Vec<DiscoveredGame>, PluginError>;
 }
 
 /// Dedicated Metadata Provider trait for multi-source enrichment (Steam, SteamGridDB, OpenCritic, IGDB, etc.)
@@ -350,5 +359,3 @@ mod tests {
         assert!(debug_str.contains("[REDACTED]"));
     }
 }
-
-

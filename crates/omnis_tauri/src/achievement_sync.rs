@@ -112,7 +112,9 @@ pub async fn run_library_sync(app: AppHandle) {
             });
         }
 
-        let Some(joined) = in_flight.join_next().await else { break };
+        let Some(joined) = in_flight.join_next().await else {
+            break;
+        };
         progress.current += 1;
         match joined {
             Ok((game_id, title, Ok(_))) => {
@@ -146,7 +148,11 @@ pub async fn run_library_sync(app: AppHandle) {
 /// Refreshes the achievements of a single game after its play session ended.
 /// Games from stores without an achievement provider are skipped silently.
 pub async fn run_post_session_sync(app: AppHandle, game_id: Uuid) {
-    if !pending_post_session().lock().map(|mut p| p.insert(game_id)).unwrap_or(false) {
+    if !pending_post_session()
+        .lock()
+        .map(|mut p| p.insert(game_id))
+        .unwrap_or(false)
+    {
         return;
     }
     sync_after_session(&app, game_id).await;
@@ -184,7 +190,12 @@ async fn sync_after_session(app: &AppHandle, game_id: Uuid) {
 
     match state
         .achievement_service
-        .sync_game_achievements(&state.db, &state.store_account_manager, &state.app_dir, game_id)
+        .sync_game_achievements(
+            &state.db,
+            &state.store_account_manager,
+            &state.app_dir,
+            game_id,
+        )
         .await
     {
         Ok(_) => {
@@ -193,7 +204,10 @@ async fn sync_after_session(app: &AppHandle, game_id: Uuid) {
         }
         Err(e) => {
             progress.failed = 1;
-            debug!("Post-session achievement sync failed for {}: {e}", game.title);
+            debug!(
+                "Post-session achievement sync failed for {}: {e}",
+                game.title
+            );
         }
     }
 

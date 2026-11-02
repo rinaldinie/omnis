@@ -1,9 +1,9 @@
 use chrono::Utc;
-use std::collections::HashMap;
-use tauri::{AppHandle, Emitter};
 use omnis_sdk::constants::events;
 use omnis_sdk::models::{DiscoveredGame, StoreSyncProgressPayload};
 use omnis_sdk::plugin::{CloudStorePlugin, StoreAccountSession};
+use std::collections::HashMap;
+use tauri::{AppHandle, Emitter};
 
 use crate::store_manager::StoreAccountManager;
 
@@ -12,7 +12,11 @@ pub struct StoreCatalogSyncEngine;
 
 impl StoreCatalogSyncEngine {
     /// Synchronize owned game library from a connected cloud store
-    pub async fn sync_store(mgr: &StoreAccountManager, app_handle: &AppHandle, store_id: &str) -> Result<usize, String> {
+    pub async fn sync_store(
+        mgr: &StoreAccountManager,
+        app_handle: &AppHandle,
+        store_id: &str,
+    ) -> Result<usize, String> {
         if !mgr.mark_syncing(store_id) {
             tracing::info!("Store {} is already synchronizing", store_id);
             return Ok(0);
@@ -35,7 +39,8 @@ impl StoreCatalogSyncEngine {
             .ok_or_else(|| format!("Plugin non trovato per {}", store_id))?;
 
         // 1. Refresh OAuth session if expired
-        Self::ensure_fresh_session(mgr, app_handle, store_id, plugin.as_ref(), &mut session).await?;
+        Self::ensure_fresh_session(mgr, app_handle, store_id, plugin.as_ref(), &mut session)
+            .await?;
 
         // 2. Report initial sync progress
         Self::emit_sync_progress(
@@ -44,7 +49,10 @@ impl StoreCatalogSyncEngine {
             0,
             0,
             "syncing",
-            Some(format!("Connessione a {} e recupero catalogo cloud...", plugin.name())),
+            Some(format!(
+                "Connessione a {} e recupero catalogo cloud...",
+                plugin.name()
+            )),
         );
 
         // 3. Fetch catalog from remote store
@@ -81,13 +89,23 @@ impl StoreCatalogSyncEngine {
             games.len(),
             games.len(),
             "syncing",
-            Some(format!("Salvataggio di {} giochi nel database...", games.len())),
+            Some(format!(
+                "Salvataggio di {} giochi nel database...",
+                games.len()
+            )),
         );
 
         // 5. Ingest into database
         if games.is_empty() {
             if let Some(ref err_msg) = remote_error {
-                Self::emit_sync_progress(app_handle, store_id, 0, 0, "error", Some(err_msg.clone()));
+                Self::emit_sync_progress(
+                    app_handle,
+                    store_id,
+                    0,
+                    0,
+                    "error",
+                    Some(err_msg.clone()),
+                );
                 return Err(err_msg.clone());
             }
         }
@@ -104,7 +122,14 @@ impl StoreCatalogSyncEngine {
             Ok(c) => c,
             Err(e) => {
                 let err_msg = format!("Errore salvataggio giochi per {}: {}", plugin.name(), e);
-                Self::emit_sync_progress(app_handle, store_id, 0, 0, "error", Some(err_msg.clone()));
+                Self::emit_sync_progress(
+                    app_handle,
+                    store_id,
+                    0,
+                    0,
+                    "error",
+                    Some(err_msg.clone()),
+                );
                 return Err(err_msg);
             }
         };
@@ -126,7 +151,14 @@ impl StoreCatalogSyncEngine {
             format!("Sincronizzati {} giochi da {}", games.len(), plugin.name())
         };
 
-        Self::emit_sync_progress(app_handle, store_id, games.len(), games.len(), "completed", Some(completion_message));
+        Self::emit_sync_progress(
+            app_handle,
+            store_id,
+            games.len(),
+            games.len(),
+            "completed",
+            Some(completion_message),
+        );
 
         let _ = app_handle.emit(
             events::LIBRARY_UPDATED,
@@ -141,7 +173,10 @@ impl StoreCatalogSyncEngine {
     }
 
     /// Synchronize all connected cloud stores sequentially
-    pub async fn sync_all_connected(mgr: &StoreAccountManager, app_handle: &AppHandle) -> Result<usize, String> {
+    pub async fn sync_all_connected(
+        mgr: &StoreAccountManager,
+        app_handle: &AppHandle,
+    ) -> Result<usize, String> {
         let accounts = mgr.get_store_accounts().await?;
         let mut total = 0;
 
@@ -179,14 +214,29 @@ impl StoreCatalogSyncEngine {
                     Ok(())
                 }
                 Err(e) => {
-                    let err_msg = format!("Errore nel rinnovo della sessione per {}: {}", store_id, e);
-                    Self::emit_sync_progress(app_handle, store_id, 0, 0, "error", Some(err_msg.clone()));
+                    let err_msg =
+                        format!("Errore nel rinnovo della sessione per {}: {}", store_id, e);
+                    Self::emit_sync_progress(
+                        app_handle,
+                        store_id,
+                        0,
+                        0,
+                        "error",
+                        Some(err_msg.clone()),
+                    );
                     Err(err_msg)
                 }
             }
         } else {
             let err_msg = "Sessione scaduta e nessun refresh token disponibile. Effettuare nuovamente il login.";
-            Self::emit_sync_progress(app_handle, store_id, 0, 0, "error", Some(err_msg.to_string()));
+            Self::emit_sync_progress(
+                app_handle,
+                store_id,
+                0,
+                0,
+                "error",
+                Some(err_msg.to_string()),
+            );
             Err(err_msg.to_string())
         }
     }

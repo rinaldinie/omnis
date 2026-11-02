@@ -61,7 +61,9 @@ pub fn inspect_backup(backup_path: &Path) -> Result<BackupInspection, BackupErro
             has_settings = true;
         } else if name.starts_with("custom_themes/") && !file.is_dir() {
             custom_themes_count += 1;
-        } else if (name.starts_with("cache/covers/") || name.starts_with("cache/backgrounds/")) && !file.is_dir() {
+        } else if (name.starts_with("cache/covers/") || name.starts_with("cache/backgrounds/"))
+            && !file.is_dir()
+        {
             has_artwork = true;
         }
     }
@@ -168,7 +170,8 @@ pub fn restore_backup(
 
             if entry_name.starts_with("custom_themes/") && !zip_entry.is_dir() {
                 if let Some(sub_path) = entry_name.strip_prefix("custom_themes/") {
-                    let dest = themes_dir.join(sub_path.replace('/', std::path::MAIN_SEPARATOR_STR));
+                    let dest =
+                        themes_dir.join(sub_path.replace('/', std::path::MAIN_SEPARATOR_STR));
                     if let Some(parent) = dest.parent() {
                         let _ = fs::create_dir_all(parent);
                     }

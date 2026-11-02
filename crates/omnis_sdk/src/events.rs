@@ -28,10 +28,7 @@ pub enum PluginEvent {
         install_dir: Option<PathBuf>,
     },
     /// Game has started running
-    GameStarted {
-        game_id: Uuid,
-        process_id: u32,
-    },
+    GameStarted { game_id: Uuid, process_id: u32 },
     /// Game process has terminated
     ProcessTerminated {
         game_id: Uuid,
@@ -56,8 +53,5 @@ pub enum PluginEvent {
         metadata: GameMetadataPatch,
     },
     /// Emit a log/notification message to the core engine
-    NotificationEmitted {
-        level: LogLevel,
-        message: String,
-    },
+    NotificationEmitted { level: LogLevel, message: String },
 }

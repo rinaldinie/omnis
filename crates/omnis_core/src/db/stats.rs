@@ -1,13 +1,13 @@
-use std::collections::HashMap;
 use chrono::{Datelike, Utc};
 use rusqlite::params;
+use std::collections::HashMap;
 use uuid::Uuid;
 
-use omnis_sdk::{
-    BacklogSummaryDto, CategoryShareDto, DayActivityDto, DaySessionDto, GameStatsDto, GlobalStatsDto,
-    WeekPlaytimeDto,
-};
 use crate::db::{Database, DatabaseError};
+use omnis_sdk::{
+    BacklogSummaryDto, CategoryShareDto, DayActivityDto, DaySessionDto, GameStatsDto,
+    GlobalStatsDto, WeekPlaytimeDto,
+};
 
 /// Helper to parse genres whether stored as JSON array `["Action", "RPG"]` or comma-separated string `"Action, RPG"`
 fn parse_genres_field(raw: &str) -> Vec<String> {
@@ -31,7 +31,13 @@ fn parse_genres_field(raw: &str) -> Vec<String> {
 
     trimmed
         .split(',')
-        .map(|g| g.trim().trim_matches('"').trim_matches('\'').trim().to_string())
+        .map(|g| {
+            g.trim()
+                .trim_matches('"')
+                .trim_matches('\'')
+                .trim()
+                .to_string()
+        })
         .filter(|g| !g.is_empty())
         .collect()
 }
@@ -75,10 +81,7 @@ fn query_available_years(
     Ok(available_years)
 }
 
-fn query_year_playtime(
-    conn: &rusqlite::Connection,
-    year_str: &str,
-) -> Result<u64, DatabaseError> {
+fn query_year_playtime(conn: &rusqlite::Connection, year_str: &str) -> Result<u64, DatabaseError> {
     let mut total_playtime_year_seconds: u64 = conn
         .query_row(
             "SELECT COALESCE(SUM(duration_seconds), 0) FROM game_sessions WHERE strftime('%Y', started_at) = ?1",
@@ -266,7 +269,13 @@ fn query_store_distribution(
     let total_store_playtime: u64 = store_rows.iter().map(|(_, dur)| *dur).sum();
     let store_distribution: Vec<CategoryShareDto> = store_rows
         .into_iter()
-        .filter(|(_, dur)| if total_store_playtime > 0 { *dur > 0 } else { true })
+        .filter(|(_, dur)| {
+            if total_store_playtime > 0 {
+                *dur > 0
+            } else {
+                true
+            }
+        })
         .map(|(name, duration_seconds)| {
             let percentage = if total_store_playtime > 0 {
                 ((duration_seconds as f64 / total_store_playtime as f64) * 100.0) as f32
@@ -313,7 +322,13 @@ fn query_genre_distribution(
     let total_genre_playtime: u64 = genre_playtimes.values().sum();
     let mut genre_distribution: Vec<CategoryShareDto> = genre_playtimes
         .into_iter()
-        .filter(|(_, dur)| if total_genre_playtime > 0 { *dur > 0 } else { true })
+        .filter(|(_, dur)| {
+            if total_genre_playtime > 0 {
+                *dur > 0
+            } else {
+                true
+            }
+        })
         .map(|(name, duration_seconds)| {
             let percentage = if total_genre_playtime > 0 {
                 ((duration_seconds as f64 / total_genre_playtime as f64) * 100.0) as f32
@@ -337,9 +352,7 @@ fn query_genre_distribution(
     Ok(genre_distribution)
 }
 
-fn query_backlog_summary(
-    conn: &rusqlite::Connection,
-) -> Result<BacklogSummaryDto, DatabaseError> {
+fn query_backlog_summary(conn: &rusqlite::Connection) -> Result<BacklogSummaryDto, DatabaseError> {
     let (total_games, completed_count, in_progress_count): (i64, i64, i64) = conn.query_row(
         "
         SELECT
@@ -362,8 +375,8 @@ fn query_backlog_summary(
     let total_games_u32 = total_games.max(0) as u32;
     let completed_count_u32 = completed_count.max(0) as u32;
     let in_progress_count_u32 = in_progress_count.max(0) as u32;
-    let not_played_count_u32 = total_games_u32
-        .saturating_sub(completed_count_u32 + in_progress_count_u32);
+    let not_played_count_u32 =
+        total_games_u32.saturating_sub(completed_count_u32 + in_progress_count_u32);
 
     let completion_percentage = if total_games_u32 > 0 {
         ((completed_count_u32 as f64 / total_games_u32 as f64) * 100.0) as f32

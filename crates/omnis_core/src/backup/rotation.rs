@@ -5,13 +5,23 @@ use std::path::Path;
 pub fn sanitize_hostname(hostname: &str) -> String {
     hostname
         .chars()
-        .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
+        .map(|c| {
+            if c.is_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
         .collect()
 }
 
 /// Rotates backup files in `destination_dir` for the specified host, keeping only the newest `keep_last` backups.
 /// Returns the number of pruned older backup files.
-pub fn rotate_backups(destination_dir: &Path, hostname: &str, keep_last: usize) -> std::io::Result<usize> {
+pub fn rotate_backups(
+    destination_dir: &Path,
+    hostname: &str,
+    keep_last: usize,
+) -> std::io::Result<usize> {
     if keep_last == 0 || !destination_dir.is_dir() {
         return Ok(0);
     }
@@ -30,7 +40,8 @@ pub fn rotate_backups(destination_dir: &Path, hostname: &str, keep_last: usize) 
         }
 
         if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
-            let is_match = (file_name.starts_with(&prefix) || file_name.starts_with("omnis_backup_"))
+            let is_match = (file_name.starts_with(&prefix)
+                || file_name.starts_with("omnis_backup_"))
                 && file_name.ends_with(".zip");
 
             if is_match {
@@ -64,13 +75,17 @@ mod tests {
 
     #[test]
     fn test_rotate_backups_caps_at_10() {
-        let temp_dir = std::env::temp_dir().join(format!("omnis_rotation_cap_{}", uuid::Uuid::new_v4()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("omnis_rotation_cap_{}", uuid::Uuid::new_v4()));
         fs::create_dir_all(&temp_dir).unwrap();
         let hostname = "test-host";
 
         // Create 15 synthetic backup files
         for i in 0..15 {
-            let path = temp_dir.join(format!("omnis_backup_test-host_202601{:02}_100000.zip", i + 1));
+            let path = temp_dir.join(format!(
+                "omnis_backup_test-host_202601{:02}_100000.zip",
+                i + 1
+            ));
             fs::write(&path, b"dummy").unwrap();
             std::thread::sleep(std::time::Duration::from_millis(5));
         }

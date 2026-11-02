@@ -200,7 +200,9 @@ impl Game {
 
     /// Helper to retrieve completion status as typed enum if valid
     pub fn completion_status_enum(&self) -> Option<CompletionStatus> {
-        self.completion_status.as_deref().and_then(|s| s.parse().ok())
+        self.completion_status
+            .as_deref()
+            .and_then(|s| s.parse().ok())
     }
 }
 
@@ -333,9 +335,3 @@ pub use crate::{
     BacklogSummaryDto, CategoryShareDto, DayActivityDto, DaySessionDto, ExternalSessionDto,
     GameStatsDto, GlobalStatsDto, WeekPlaytimeDto,
 };
-
-
-
-
-
-

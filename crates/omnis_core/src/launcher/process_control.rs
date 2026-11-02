@@ -19,8 +19,8 @@ pub fn bring_process_to_foreground(pid: u32) -> bool {
     use windows::Win32::System::Threading::{AttachThreadInput, GetCurrentThreadId};
     use windows::Win32::UI::WindowsAndMessaging::{
         AllowSetForegroundWindow, BringWindowToTop, EnumWindows, GetForegroundWindow,
-        GetWindowThreadProcessId, IsWindowVisible, SetForegroundWindow, ShowWindow,
-        ASFW_ANY, SW_RESTORE,
+        GetWindowThreadProcessId, IsWindowVisible, SetForegroundWindow, ShowWindow, ASFW_ANY,
+        SW_RESTORE,
     };
 
     if pid == 0 {
@@ -71,7 +71,10 @@ pub fn bring_process_to_foreground(pid: u32) -> bool {
     };
 
     unsafe {
-        let _ = EnumWindows(Some(enum_proc), LPARAM(&mut data as *mut WindowSearch as isize));
+        let _ = EnumWindows(
+            Some(enum_proc),
+            LPARAM(&mut data as *mut WindowSearch as isize),
+        );
         if let Some(hwnd) = data.found_hwnd {
             let _ = AllowSetForegroundWindow(ASFW_ANY);
 
@@ -88,7 +91,8 @@ pub fn bring_process_to_foreground(pid: u32) -> bool {
                 false
             };
 
-            let attached_target = if target_thread_id != current_thread_id && target_thread_id != 0 {
+            let attached_target = if target_thread_id != current_thread_id && target_thread_id != 0
+            {
                 AttachThreadInput(current_thread_id, target_thread_id, BOOL(1)) == BOOL(1)
             } else {
                 false
@@ -239,4 +243,3 @@ pub async fn kill_process_graceful(pid: u32, timeout_secs: u64) -> Result<(), St
     // Still alive after graceful timeout, terminate forcibly
     kill_process(pid)
 }
-

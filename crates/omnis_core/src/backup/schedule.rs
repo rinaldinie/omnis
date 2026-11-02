@@ -153,7 +153,8 @@ pub fn is_backup_due(config: &BackupScheduleConfig, now: DateTime<Utc>) -> bool 
             if trimmed.is_empty() {
                 return true;
             }
-            if let Some(next_str) = calculate_next_backup_utc(Some(trimmed), &config.frequency, now) {
+            if let Some(next_str) = calculate_next_backup_utc(Some(trimmed), &config.frequency, now)
+            {
                 if let Some(next_dt) = parse_timestamp(&next_str) {
                     now >= next_dt
                 } else {
@@ -215,10 +216,22 @@ mod tests {
         assert_eq!(BackupFrequency::Weekly.as_str(), "weekly");
         assert_eq!(BackupFrequency::Monthly.as_str(), "monthly");
 
-        assert_eq!(BackupFrequency::from_str_name("Daily"), BackupFrequency::Daily);
-        assert_eq!(BackupFrequency::from_str_name("weekly"), BackupFrequency::Weekly);
-        assert_eq!(BackupFrequency::from_str_name("Monthly"), BackupFrequency::Monthly);
-        assert_eq!(BackupFrequency::from_str_name("unknown"), BackupFrequency::Disabled);
+        assert_eq!(
+            BackupFrequency::from_str_name("Daily"),
+            BackupFrequency::Daily
+        );
+        assert_eq!(
+            BackupFrequency::from_str_name("weekly"),
+            BackupFrequency::Weekly
+        );
+        assert_eq!(
+            BackupFrequency::from_str_name("Monthly"),
+            BackupFrequency::Monthly
+        );
+        assert_eq!(
+            BackupFrequency::from_str_name("unknown"),
+            BackupFrequency::Disabled
+        );
     }
 
     #[test]
@@ -249,18 +262,31 @@ mod tests {
     fn test_calculate_next_backup_utc_disabled() {
         let now = Utc.with_ymd_and_hms(2026, 11, 1, 12, 0, 0).unwrap();
         assert_eq!(
-            calculate_next_backup_utc(Some("2026-11-01T10:00:00Z"), &BackupFrequency::Disabled, now),
+            calculate_next_backup_utc(
+                Some("2026-11-01T10:00:00Z"),
+                &BackupFrequency::Disabled,
+                now
+            ),
             None
         );
-        assert_eq!(calculate_next_backup_utc(None, &BackupFrequency::Disabled, now), None);
+        assert_eq!(
+            calculate_next_backup_utc(None, &BackupFrequency::Disabled, now),
+            None
+        );
     }
 
     #[test]
     fn test_calculate_next_backup_utc_no_last_backup() {
         let now = Utc.with_ymd_and_hms(2026, 11, 1, 12, 0, 0).unwrap();
         let expected = Some(now.to_rfc3339());
-        assert_eq!(calculate_next_backup_utc(None, &BackupFrequency::Daily, now), expected);
-        assert_eq!(calculate_next_backup_utc(Some(""), &BackupFrequency::Daily, now), expected);
+        assert_eq!(
+            calculate_next_backup_utc(None, &BackupFrequency::Daily, now),
+            expected
+        );
+        assert_eq!(
+            calculate_next_backup_utc(Some(""), &BackupFrequency::Daily, now),
+            expected
+        );
         assert_eq!(
             calculate_next_backup_utc(Some("invalid-timestamp"), &BackupFrequency::Daily, now),
             expected
@@ -273,15 +299,18 @@ mod tests {
         let last = "2026-10-01T10:00:00+00:00";
 
         // Daily -> 1 day after last
-        let next_daily = calculate_next_backup_utc(Some(last), &BackupFrequency::Daily, now).unwrap();
+        let next_daily =
+            calculate_next_backup_utc(Some(last), &BackupFrequency::Daily, now).unwrap();
         assert_eq!(next_daily, "2026-10-02T10:00:00+00:00");
 
         // Weekly -> 7 days after last
-        let next_weekly = calculate_next_backup_utc(Some(last), &BackupFrequency::Weekly, now).unwrap();
+        let next_weekly =
+            calculate_next_backup_utc(Some(last), &BackupFrequency::Weekly, now).unwrap();
         assert_eq!(next_weekly, "2026-10-08T10:00:00+00:00");
 
         // Monthly -> 1 calendar month after last
-        let next_monthly = calculate_next_backup_utc(Some(last), &BackupFrequency::Monthly, now).unwrap();
+        let next_monthly =
+            calculate_next_backup_utc(Some(last), &BackupFrequency::Monthly, now).unwrap();
         assert_eq!(next_monthly, "2026-11-01T10:00:00+00:00");
     }
 

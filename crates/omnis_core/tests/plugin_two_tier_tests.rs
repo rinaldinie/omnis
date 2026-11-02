@@ -11,7 +11,9 @@ use omnis_core::wasm_host::{
     WasmExecutionError, WasmPluginEngine, WasmPluginPermissions, WasmSandboxConfig,
 };
 use omnis_core::DynamicPluginLoader;
-use omnis_sdk::ffi::{c_str_to_string, free_c_string, guard, string_to_c_str, OMNIS_PLUGIN_ABI_VERSION};
+use omnis_sdk::ffi::{
+    c_str_to_string, free_c_string, guard, string_to_c_str, OMNIS_PLUGIN_ABI_VERSION,
+};
 use std::path::Path;
 use std::time::Duration;
 
@@ -47,7 +49,8 @@ fn test_tier1_native_plugin_normal_return_via_guard() {
 #[test]
 fn test_tier1_loader_rejects_missing_library_path() {
     let loader = DynamicPluginLoader::new();
-    let res = loader.load_metadata_provider_from_library(Path::new("nonexistent_native_plugin.dll"));
+    let res =
+        loader.load_metadata_provider_from_library(Path::new("nonexistent_native_plugin.dll"));
     assert!(res.is_err());
     let err = res.err().unwrap();
     assert!(err.contains("does not exist"));
@@ -116,7 +119,11 @@ fn test_tier2_wasm_infinite_loop_terminated_by_epoch_interruption() {
     }
 
     // Must have terminated within ~1-2 seconds, not hung forever
-    assert!(elapsed < Duration::from_secs(3), "Execution took too long: {:?}", elapsed);
+    assert!(
+        elapsed < Duration::from_secs(3),
+        "Execution took too long: {:?}",
+        elapsed
+    );
 }
 
 #[test]
@@ -153,9 +160,21 @@ fn test_tier2_wasm_host_permission_check_in_sandbox() {
         .create_instance(wat.as_bytes(), &perms)
         .expect("Instance creation");
 
-    let res_allowed = instance.call_func("test_allowed", &[]).expect("Call success");
-    assert_eq!(res_allowed[0].i32(), Some(1), "api.igdb.com must be allowed");
+    let res_allowed = instance
+        .call_func("test_allowed", &[])
+        .expect("Call success");
+    assert_eq!(
+        res_allowed[0].i32(),
+        Some(1),
+        "api.igdb.com must be allowed"
+    );
 
-    let res_forbidden = instance.call_func("test_forbidden", &[]).expect("Call success");
-    assert_eq!(res_forbidden[0].i32(), Some(0), "evil.com must be forbidden");
+    let res_forbidden = instance
+        .call_func("test_forbidden", &[])
+        .expect("Call success");
+    assert_eq!(
+        res_forbidden[0].i32(),
+        Some(0),
+        "evil.com must be forbidden"
+    );
 }

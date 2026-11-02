@@ -4,7 +4,7 @@
 //! and encrypts sensitive tokens (OAuth, JWT, Xbox XSTS > 2.5KB) with AES-256-GCM in SQLite
 //! using Secret ID as Additional Authenticated Data (AAD) to prevent ciphertext swapping.
 
-use aes_gcm::aead::{Aead, KeyInit, OsRng, AeadCore, Payload};
+use aes_gcm::aead::{Aead, AeadCore, KeyInit, OsRng, Payload};
 use aes_gcm::Aes256Gcm;
 use base64::engine::general_purpose::STANDARD as BASE64;
 use base64::Engine;
@@ -124,7 +124,11 @@ impl SecretVault {
     }
 
     /// Encrypt plaintext with AES-256-GCM using secret_id as AAD (Requirement D1)
-    pub fn encrypt(&self, secret_id: &str, plaintext: &[u8]) -> Result<(Vec<u8>, Vec<u8>), VaultError> {
+    pub fn encrypt(
+        &self,
+        secret_id: &str,
+        plaintext: &[u8],
+    ) -> Result<(Vec<u8>, Vec<u8>), VaultError> {
         let cipher = Aes256Gcm::new_from_slice(&*self.master_key)
             .map_err(|e| VaultError::Encryption(e.to_string()))?;
         let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
@@ -149,7 +153,9 @@ impl SecretVault {
         let cipher = Aes256Gcm::new_from_slice(&*self.master_key)
             .map_err(|e| VaultError::Decryption(e.to_string()))?;
         if nonce.len() != 12 {
-            return Err(VaultError::Decryption("Invalid nonce length, expected 12 bytes".to_string()));
+            return Err(VaultError::Decryption(
+                "Invalid nonce length, expected 12 bytes".to_string(),
+            ));
         }
         let nonce = aes_gcm::Nonce::from_slice(nonce);
         let payload = Payload {
@@ -165,8 +171,8 @@ impl SecretVault {
 
     fn load_or_create_fallback_key(path: &Path) -> Result<[u8; 32], VaultError> {
         if path.exists() {
-            let content = std::fs::read_to_string(path)
-                .map_err(|e| VaultError::KeyStorage(e.to_string()))?;
+            let content =
+                std::fs::read_to_string(path).map_err(|e| VaultError::KeyStorage(e.to_string()))?;
             let raw = BASE64
                 .decode(content.trim())
                 .map_err(|e| VaultError::KeyStorage(e.to_string()))?;

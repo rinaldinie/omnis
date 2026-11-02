@@ -38,7 +38,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("\n⚠️ No external integration plugins are currently installed.");
                 println!("To sync games, install external integration plugins into your plugins directory.");
             } else {
-                info!("Starting library synchronization across {} plugins...", plugin_count);
+                info!(
+                    "Starting library synchronization across {} plugins...",
+                    plugin_count
+                );
                 let t_sync = Instant::now();
                 host.dispatch_event(
                     None,
@@ -68,7 +71,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             if games.is_empty() {
                 println!("No games found in database. Connect an external integration plugin and run 'omnis sync'.");
             } else {
-                println!("{:<36} | {:<8} | {:<40} | {:<9}", "ID", "STORE", "TITLE", "STATUS");
+                println!(
+                    "{:<36} | {:<8} | {:<40} | {:<9}",
+                    "ID", "STORE", "TITLE", "STATUS"
+                );
                 println!("{:-<36}-+-{:-<8}-+-{:-<40}-+-{:-<9}", "", "", "", "");
 
                 for g in &games {
@@ -78,11 +84,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     } else {
                         g.title.clone()
                     };
-                    println!("{:<36} | {:<8} | {:<40} | {:<9}", g.id, g.library_id, truncated_title, status);
+                    println!(
+                        "{:<36} | {:<8} | {:<40} | {:<9}",
+                        g.id, g.library_id, truncated_title, status
+                    );
                 }
             }
 
-            println!("\nTotal titles: {} (Loaded in {:.2}ms)", games.len(), db_open_duration.as_secs_f64() * 1000.0);
+            println!(
+                "\nTotal titles: {} (Loaded in {:.2}ms)",
+                games.len(),
+                db_open_duration.as_secs_f64() * 1000.0
+            );
         }
         "stats" => {
             let count = db.count_games()?;
@@ -91,7 +104,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("  Database Path: {}", db_path.display());
             println!("  Total Catalog Titles: {}", count);
             println!("  Installed Plugins: {}", host.plugin_count());
-            println!("  Cold Startup Latency: {:.2}ms", start_total.elapsed().as_secs_f64() * 1000.0);
+            println!(
+                "  Cold Startup Latency: {:.2}ms",
+                start_total.elapsed().as_secs_f64() * 1000.0
+            );
         }
         "import-playnite" => {
             let file_path = match args.get(2) {
@@ -111,12 +127,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 image_cache_dir: Some(cache_dir),
             };
 
-            info!("Starting Playnite 10 library import from '{}' (dry_run: {})...", file_path, dry_run);
+            info!(
+                "Starting Playnite 10 library import from '{}' (dry_run: {})...",
+                file_path, dry_run
+            );
             let t_import = Instant::now();
 
             match db.import_playnite_from_file(file_path, &options) {
                 Ok(stats) => {
-                    println!("\n🎮 ================== PLAYNITE IMPORT REPORT ================== 🎮");
+                    println!(
+                        "\n🎮 ================== PLAYNITE IMPORT REPORT ================== 🎮"
+                    );
                     println!("Source File:          {}", file_path);
                     println!("Dry-Run Mode:         {}", dry_run);
                     println!("Total Games Read:     {}", stats.total_read);
@@ -126,7 +147,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     println!("Images Cached:        {}", stats.images_cached);
                     println!("Tags Associated:      {}", stats.tags_added);
                     println!("Categories Linked:    {}", stats.categories_added);
-                    println!("Elapsed Duration:     {:.2}ms", t_import.elapsed().as_secs_f64() * 1000.0);
+                    println!(
+                        "Elapsed Duration:     {:.2}ms",
+                        t_import.elapsed().as_secs_f64() * 1000.0
+                    );
                     println!("===============================================================");
                     if dry_run {
                         println!("ℹ️ Dry-run completed: No modifications were committed to the database.");

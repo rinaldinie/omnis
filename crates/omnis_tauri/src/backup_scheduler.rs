@@ -6,18 +6,12 @@ use std::time::Duration;
 use tauri::Emitter;
 use tracing::{info, warn};
 
-use omnis_core::{
-    create_backup, is_backup_due, BackupOptions, Database,
-};
+use omnis_core::{create_backup, is_backup_due, BackupOptions, Database};
 
 use crate::commands::BackupResultDto;
 
 /// Spawns the background backup scheduler task in the Tauri runtime
-pub fn spawn_backup_scheduler(
-    db: Arc<Database>,
-    app_dir: PathBuf,
-    app_handle: tauri::AppHandle,
-) {
+pub fn spawn_backup_scheduler(db: Arc<Database>, app_dir: PathBuf, app_handle: tauri::AppHandle) {
     tauri::async_runtime::spawn(async move {
         // Initial delay after startup
         tokio::time::sleep(Duration::from_secs(10)).await;
@@ -27,7 +21,11 @@ pub fn spawn_backup_scheduler(
                 Ok(config) => {
                     let now = chrono::Utc::now();
                     if is_backup_due(&config, now) {
-                        if let Some(dest) = config.destination_dir.as_ref().filter(|p| !p.as_os_str().is_empty()) {
+                        if let Some(dest) = config
+                            .destination_dir
+                            .as_ref()
+                            .filter(|p| !p.as_os_str().is_empty())
+                        {
                             let dest_path = dest.clone();
                             let include_artwork = config.include_artwork;
                             let keep_last = Some(config.clamped_max_rotations());
@@ -48,7 +46,10 @@ pub fn spawn_backup_scheduler(
                             match backup_result {
                                 Ok(Ok(res)) => {
                                     if let Err(e) = db.record_backup_completed(&res.timestamp) {
-                                        warn!("Failed to record backup completion in database: {}", e);
+                                        warn!(
+                                            "Failed to record backup completion in database: {}",
+                                            e
+                                        );
                                     }
 
                                     info!(
@@ -66,15 +67,23 @@ pub fn spawn_backup_scheduler(
                                         timestamp: res.timestamp,
                                     };
 
-                                    if let Err(e) = app_handle.emit("omnis://backup-completed", &dto) {
-                                        warn!("Failed to emit omnis://backup-completed event: {}", e);
+                                    if let Err(e) =
+                                        app_handle.emit("omnis://backup-completed", &dto)
+                                    {
+                                        warn!(
+                                            "Failed to emit omnis://backup-completed event: {}",
+                                            e
+                                        );
                                     }
                                 }
                                 Ok(Err(e)) => {
                                     warn!("Automatic scheduled backup failed: {}", e);
                                 }
                                 Err(e) => {
-                                    warn!("Automatic scheduled backup task panicked or cancelled: {}", e);
+                                    warn!(
+                                        "Automatic scheduled backup task panicked or cancelled: {}",
+                                        e
+                                    );
                                 }
                             }
                         } else {

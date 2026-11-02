@@ -1,8 +1,8 @@
 use async_trait::async_trait;
+pub use omnis_sdk::PluginManifest;
 use omnis_sdk::{
     GameMetadataPatch, MetadataField, MetadataProvider, MetadataSearchRequest, PluginSettingsSchema,
 };
-pub use omnis_sdk::PluginManifest;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::path::{Path, PathBuf};
@@ -70,11 +70,17 @@ impl ExternalMetadataProvider {
     /// Fetches completion times from HowLongToBeat, using live public search API with fallback.
     pub async fn fetch_hltb_times(&self, title: &str) -> (String, String, String) {
         if let Some(res) = self.query_hltb_api(title).await {
-            info!("Tempi HowLongToBeat ottenuti via API live per '{}': {:?}", title, res);
+            info!(
+                "Tempi HowLongToBeat ottenuti via API live per '{}': {:?}",
+                title, res
+            );
             return res;
         }
         let fallback = Self::fallback_hltb_times(title);
-        info!("Tempi HowLongToBeat ottenuti via fallback per '{}': {:?}", title, fallback);
+        info!(
+            "Tempi HowLongToBeat ottenuti via fallback per '{}': {:?}",
+            title, fallback
+        );
         fallback
     }
 
@@ -85,7 +91,10 @@ impl ExternalMetadataProvider {
         }
 
         let now_ms = chrono::Utc::now().timestamp_millis();
-        let init_url = format!("https://howlongtobeat.com/api/search/site/init?t={}", now_ms);
+        let init_url = format!(
+            "https://howlongtobeat.com/api/search/site/init?t={}",
+            now_ms
+        );
 
         let user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
         let referer = "https://howlongtobeat.com/";
@@ -162,7 +171,10 @@ impl ExternalMetadataProvider {
 
         let search_res = search_req.json(&payload).send().await.ok()?;
         if !search_res.status().is_success() {
-            debug!("HowLongToBeat search status failed: {}", search_res.status());
+            debug!(
+                "HowLongToBeat search status failed: {}",
+                search_res.status()
+            );
             return None;
         }
 
@@ -194,9 +206,18 @@ impl ExternalMetadataProvider {
             })
             .unwrap_or(&games[0]);
 
-        let comp_main = best_game.get("comp_main").and_then(|v| v.as_u64()).unwrap_or(0);
-        let comp_plus = best_game.get("comp_plus").and_then(|v| v.as_u64()).unwrap_or(0);
-        let comp_100 = best_game.get("comp_100").and_then(|v| v.as_u64()).unwrap_or(0);
+        let comp_main = best_game
+            .get("comp_main")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0);
+        let comp_plus = best_game
+            .get("comp_plus")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0);
+        let comp_100 = best_game
+            .get("comp_100")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0);
 
         if comp_main == 0 && comp_plus == 0 && comp_100 == 0 {
             return None;
@@ -238,7 +259,11 @@ impl ExternalMetadataProvider {
             t if t.contains("skyrim") => ("34 Ore".into(), "110 Ore".into(), "232 Ore".into()),
             t if t.contains("half-life 2") => ("13 Ore".into(), "15 Ore".into(), "20 Ore".into()),
             t if t.contains("hades") => ("22 Ore".into(), "47 Ore".into(), "98 Ore".into()),
-            t if t.contains("counter-strike") => ("Competitivo".into(), "Illimitato".into(), "1000+ Ore".into()),
+            t if t.contains("counter-strike") => (
+                "Competitivo".into(),
+                "Illimitato".into(),
+                "1000+ Ore".into(),
+            ),
             _ => {
                 let mut h: u64 = 0;
                 for b in title.bytes() {
@@ -247,7 +272,11 @@ impl ExternalMetadataProvider {
                 let main = 8 + (h % 23);
                 let extra = main + 6 + ((h / 7) % 27);
                 let comp = extra + 12 + ((h / 13) % 43);
-                (format!("{} Ore", main), format!("{} Ore", extra), format!("{} Ore", comp))
+                (
+                    format!("{} Ore", main),
+                    format!("{} Ore", extra),
+                    format!("{} Ore", comp),
+                )
             }
         }
     }
@@ -362,7 +391,10 @@ impl MetadataProvider for ExternalMetadataProvider {
         let _ = settings;
         if self.manifest.id == "howlongtobeat" {
             let now_ms = chrono::Utc::now().timestamp_millis();
-            let init_url = format!("https://howlongtobeat.com/api/search/site/init?t={}", now_ms);
+            let init_url = format!(
+                "https://howlongtobeat.com/api/search/site/init?t={}",
+                now_ms
+            );
             let user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
             if let Ok(res) = self
                 .client
@@ -375,10 +407,14 @@ impl MetadataProvider for ExternalMetadataProvider {
                 .await
             {
                 if res.status().is_success() {
-                    return Ok("Connessione a HowLongToBeat riuscita: API online operativa.".to_string());
+                    return Ok(
+                        "Connessione a HowLongToBeat riuscita: API online operativa.".to_string(),
+                    );
                 }
             }
-            return Ok("HowLongToBeat pronto all'uso (con fallback locale intelligente).".to_string());
+            return Ok(
+                "HowLongToBeat pronto all'uso (con fallback locale intelligente).".to_string(),
+            );
         }
 
         Ok(format!(
@@ -393,10 +429,7 @@ fn default_true() -> bool {
 }
 
 fn default_provider_priority() -> Vec<String> {
-    vec![
-        "steam".to_string(),
-        "gog".to_string(),
-    ]
+    vec!["steam".to_string(), "gog".to_string()]
 }
 
 /// Pipeline configuration determining provider source priority per field
@@ -424,4 +457,3 @@ impl Default for MetadataPipelineConfig {
         }
     }
 }
-

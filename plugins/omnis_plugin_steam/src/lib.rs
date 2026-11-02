@@ -1,7 +1,7 @@
 pub mod achievements;
 pub mod client;
-pub mod vdf_parser;
 pub mod gameprocess_log;
+pub mod vdf_parser;
 
 pub use achievements::*;
 pub use client::*;
@@ -125,7 +125,10 @@ impl CloudStorePlugin for SteamPlugin {
         Ok(session)
     }
 
-    async fn refresh_session(&self, refresh_token: &str) -> Result<StoreAccountSession, PluginError> {
+    async fn refresh_session(
+        &self,
+        refresh_token: &str,
+    ) -> Result<StoreAccountSession, PluginError> {
         let user_id = if let Some(stripped) = refresh_token.strip_prefix("steam_session:") {
             stripped
         } else {
@@ -142,12 +145,9 @@ impl CloudStorePlugin for SteamPlugin {
             expires_at: None,
         };
 
-        if let Ok(profile) = client::fetch_player_summary(
-            &self.client,
-            user_id,
-            self.config.api_key.as_deref(),
-        )
-        .await
+        if let Ok(profile) =
+            client::fetch_player_summary(&self.client, user_id, self.config.api_key.as_deref())
+                .await
         {
             if let Some(name) = profile.name {
                 if !name.trim().is_empty() {
@@ -164,8 +164,13 @@ impl CloudStorePlugin for SteamPlugin {
         Ok(session)
     }
 
-    async fn sync_games(&self, session: &StoreAccountSession) -> Result<Vec<DiscoveredGame>, PluginError> {
-        let api_key = if !session.access_token.starts_with("steam_session:") && !session.access_token.trim().is_empty() {
+    async fn sync_games(
+        &self,
+        session: &StoreAccountSession,
+    ) -> Result<Vec<DiscoveredGame>, PluginError> {
+        let api_key = if !session.access_token.starts_with("steam_session:")
+            && !session.access_token.trim().is_empty()
+        {
             Some(session.access_token.as_str())
         } else {
             self.config.api_key.as_deref()
@@ -207,7 +212,9 @@ impl ReactivePlugin for SteamPlugin {
                         SettingField {
                             key: "api_key".to_string(),
                             label: "Steam Web API Key".to_string(),
-                            description: Some("Optional API Key for non-installed library sync".to_string()),
+                            description: Some(
+                                "Optional API Key for non-installed library sync".to_string(),
+                            ),
                             required: false,
                             field_type: SettingType::SecretString {
                                 placeholder: Some("32-character key".to_string()),
@@ -248,7 +255,9 @@ impl ReactivePlugin for SteamPlugin {
         let mut responses = Vec::new();
 
         match event {
-            PluginEvent::SyncRequested { library_id, .. } if library_id == "steam" || library_id == "all" => {
+            PluginEvent::SyncRequested { library_id, .. }
+                if library_id == "steam" || library_id == "all" =>
+            {
                 info!("Steam sync requested. Initiating zero-overhead local manifest scan...");
 
                 let steam_path = self
@@ -310,9 +319,7 @@ mod tests {
         assert!(!is_steam_redirect(
             "https://steamcommunity.com/my/games?xml=1"
         ));
-        assert!(!is_steam_redirect(
-            "https://steamcommunity.com/my/profile"
-        ));
+        assert!(!is_steam_redirect("https://steamcommunity.com/my/profile"));
         assert!(!is_steam_redirect("https://store.steampowered.com/app/440"));
         assert!(!is_steam_redirect("https://google.com"));
         assert!(!is_steam_redirect("https://example.com/games?xml=1"));
@@ -393,7 +400,10 @@ mod tests {
             serde_json::from_str(json_payload).expect("Failed to deserialize Steam API response");
 
         assert_eq!(api_resp.response.game_count, Some(2));
-        let games = api_resp.response.games.expect("Games list should be present");
+        let games = api_resp
+            .response
+            .games
+            .expect("Games list should be present");
         assert_eq!(games.len(), 2);
 
         let discovered = map_steam_games_to_discovered(games);
@@ -408,7 +418,10 @@ mod tests {
         assert_eq!(tf2.playtime_seconds, 120 * 60);
         assert_eq!(
             tf2.cover_image_path,
-            Some("https://cdn.cloudflare.steamstatic.com/steam/apps/440/library_600x900_2x.jpg".to_string())
+            Some(
+                "https://cdn.cloudflare.steamstatic.com/steam/apps/440/library_600x900_2x.jpg"
+                    .to_string()
+            )
         );
         assert_eq!(
             tf2.background_image_path,
@@ -430,7 +443,10 @@ mod tests {
         assert_eq!(cs2.playtime_seconds, 350 * 60);
         assert_eq!(
             cs2.cover_image_path,
-            Some("https://cdn.cloudflare.steamstatic.com/steam/apps/730/library_600x900_2x.jpg".to_string())
+            Some(
+                "https://cdn.cloudflare.steamstatic.com/steam/apps/730/library_600x900_2x.jpg"
+                    .to_string()
+            )
         );
         assert_eq!(
             cs2.background_image_path,
@@ -474,7 +490,10 @@ mod tests {
             extract_xml_tag(xml_payload, "error").as_deref(),
             Some("The specified profile could not be found.")
         );
-        assert_eq!(extract_xml_tag(xml_payload, "steamID").as_deref(), Some("User"));
+        assert_eq!(
+            extract_xml_tag(xml_payload, "steamID").as_deref(),
+            Some("User")
+        );
 
         let parsed = parse_steam_community_games_xml(xml_payload);
         assert_eq!(parsed.len(), 2);
@@ -492,7 +511,10 @@ mod tests {
         assert_eq!(discovered[0].title, "Half-Life 2");
         assert_eq!(
             discovered[0].cover_image_path,
-            Some("https://cdn.cloudflare.steamstatic.com/steam/apps/220/library_600x900_2x.jpg".to_string())
+            Some(
+                "https://cdn.cloudflare.steamstatic.com/steam/apps/220/library_600x900_2x.jpg"
+                    .to_string()
+            )
         );
         assert_eq!(
             discovered[0].background_image_path,
@@ -514,7 +536,8 @@ mod tests {
 
         // CloudStorePlugin tests
         assert_eq!(plugin.login_url(), STEAM_OPENID_LOGIN_URL);
-        assert!(plugin.is_redirect_url("https://steamcommunity.com/profiles/76561198000000000/games?xml=1"));
+        assert!(plugin
+            .is_redirect_url("https://steamcommunity.com/profiles/76561198000000000/games?xml=1"));
         assert!(!plugin.is_redirect_url("https://google.com"));
 
         let session = plugin

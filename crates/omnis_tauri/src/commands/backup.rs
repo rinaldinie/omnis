@@ -1,7 +1,5 @@
 use crate::types::AppState;
-use omnis_core::{
-    calculate_next_backup_utc, BackupFrequency, BackupOptions, BackupScheduleConfig,
-};
+use omnis_core::{calculate_next_backup_utc, BackupFrequency, BackupOptions, BackupScheduleConfig};
 use omnis_sdk::constants::events;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -99,8 +97,7 @@ pub async fn create_backup(
             keep_last: Some(effective_keep_last),
         };
 
-        let res = omnis_core::create_backup(&db, &app_dir, &options)
-            .map_err(|e| e.to_string())?;
+        let res = omnis_core::create_backup(&db, &app_dir, &options).map_err(|e| e.to_string())?;
 
         let _ = db.record_backup_completed(&res.timestamp);
 
@@ -173,11 +170,7 @@ pub async fn save_backup_schedule(
         .save_backup_schedule(&schedule_config)
         .map_err(|e| e.to_string())?;
 
-    let next_backup_utc = calculate_next_backup_utc(
-        last_backup_utc.as_deref(),
-        &frequency,
-        now,
-    );
+    let next_backup_utc = calculate_next_backup_utc(last_backup_utc.as_deref(), &frequency, now);
 
     Ok(BackupScheduleConfigDto {
         frequency: frequency.as_str().to_string(),
@@ -263,17 +256,38 @@ mod tests {
         assert_eq!(decoded.frequency, "daily");
         assert_eq!(decoded.destination_dir, Some("/backups".to_string()));
         assert_eq!(decoded.max_rotations, 5);
-        assert_eq!(decoded.last_backup_utc, Some("2026-11-01T10:00:00Z".to_string()));
-        assert_eq!(decoded.next_backup_utc, Some("2026-11-02T10:00:00Z".to_string()));
+        assert_eq!(
+            decoded.last_backup_utc,
+            Some("2026-11-01T10:00:00Z".to_string())
+        );
+        assert_eq!(
+            decoded.next_backup_utc,
+            Some("2026-11-02T10:00:00Z".to_string())
+        );
         assert!(decoded.include_artwork);
     }
 
     #[test]
     fn test_backup_frequency_mapping() {
-        assert_eq!(BackupFrequency::from_str_name("daily"), BackupFrequency::Daily);
-        assert_eq!(BackupFrequency::from_str_name("Weekly"), BackupFrequency::Weekly);
-        assert_eq!(BackupFrequency::from_str_name("MONTHLY"), BackupFrequency::Monthly);
-        assert_eq!(BackupFrequency::from_str_name("disabled"), BackupFrequency::Disabled);
-        assert_eq!(BackupFrequency::from_str_name("other"), BackupFrequency::Disabled);
+        assert_eq!(
+            BackupFrequency::from_str_name("daily"),
+            BackupFrequency::Daily
+        );
+        assert_eq!(
+            BackupFrequency::from_str_name("Weekly"),
+            BackupFrequency::Weekly
+        );
+        assert_eq!(
+            BackupFrequency::from_str_name("MONTHLY"),
+            BackupFrequency::Monthly
+        );
+        assert_eq!(
+            BackupFrequency::from_str_name("disabled"),
+            BackupFrequency::Disabled
+        );
+        assert_eq!(
+            BackupFrequency::from_str_name("other"),
+            BackupFrequency::Disabled
+        );
     }
 }

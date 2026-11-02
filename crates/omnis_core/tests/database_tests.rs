@@ -30,7 +30,9 @@ fn test_batch_ingest_and_query_performance() {
     }
 
     let start_insert = Instant::now();
-    let count = db.ingest_discovered_batch(&sample_batch).expect("Failed batch insert");
+    let count = db
+        .ingest_discovered_batch(&sample_batch)
+        .expect("Failed batch insert");
     let insert_duration = start_insert.elapsed();
 
     assert_eq!(count, 5000);
@@ -80,13 +82,21 @@ fn test_seed_and_metadata_patch() {
         extra_metadata: None,
     };
 
-    let updated = db.apply_metadata_patch(target_game.id, &patch).expect("Failed to apply patch");
+    let updated = db
+        .apply_metadata_patch(target_game.id, &patch)
+        .expect("Failed to apply patch");
     assert!(updated);
 
-    let fetched = db.get_game_by_id(target_game.id).expect("Failed query").expect("Game not found");
+    let fetched = db
+        .get_game_by_id(target_game.id)
+        .expect("Failed query")
+        .expect("Game not found");
     assert_eq!(fetched.critic_score, Some(92));
     assert_eq!(fetched.description.as_deref(), Some("Test description"));
-    assert_eq!(fetched.cover_image_path.as_deref(), Some("/cache/covers/test.jpg"));
+    assert_eq!(
+        fetched.cover_image_path.as_deref(),
+        Some("/cache/covers/test.jpg")
+    );
     assert_eq!(fetched.genres, vec!["GDR", "Azione"]);
     assert_eq!(fetched.features, vec!["Single-player", "Achievements"]);
     assert_eq!(fetched.developers, vec!["CD PROJEKT RED"]);
@@ -200,7 +210,8 @@ fn test_migration_idempotency_and_defaults() {
         cover_image_path: None,
         background_image_path: None,
     };
-    db.ingest_discovered_batch(&[single]).expect("Ingest failed");
+    db.ingest_discovered_batch(&[single])
+        .expect("Ingest failed");
 
     let games = db.get_all_games().expect("Query failed");
     assert_eq!(games.len(), 1);
@@ -265,7 +276,9 @@ fn test_search_games() {
     assert_eq!(results[0].id, target.id);
 
     // Search non-existent
-    let results = db.search_games("NonExistentTermXYZ").expect("Search failed");
+    let results = db
+        .search_games("NonExistentTermXYZ")
+        .expect("Search failed");
     assert_eq!(results.len(), 0);
 }
 
@@ -425,10 +438,7 @@ fn test_game_sessions_persistence_and_query() {
         .get_game_by_id(game_id)
         .expect("Failed to query game")
         .expect("Game not found");
-    assert_eq!(
-        updated_game.playtime_seconds,
-        s1_duration + s2_duration
-    );
+    assert_eq!(updated_game.playtime_seconds, s1_duration + s2_duration);
     assert_eq!(updated_game.play_count, 2);
 }
 
@@ -450,7 +460,8 @@ fn test_achievements_upsert_and_summary() {
         cover_image_path: None,
         background_image_path: None,
     };
-    db.ingest_discovered_batch(&[sample]).expect("Failed ingest");
+    db.ingest_discovered_batch(&[sample])
+        .expect("Failed ingest");
     let games = db.get_all_games().unwrap();
     let real_game_id = games[0].id;
 
@@ -514,7 +525,10 @@ fn test_achievements_upsert_and_summary() {
         .iter()
         .find(|a| a.api_name == "ach_1")
         .unwrap();
-    assert_eq!(ach1.local_icon_path.as_deref(), Some("C:\\cache\\ach_1.png"));
+    assert_eq!(
+        ach1.local_icon_path.as_deref(),
+        Some("C:\\cache\\ach_1.png")
+    );
 }
 
 #[test]
@@ -524,7 +538,8 @@ fn test_concurrent_reader_during_writer() {
     let db_path = temp_dir.join("library.db");
 
     let db = std::sync::Arc::new(Database::open(&db_path).expect("Failed to open disk DB"));
-    db.seed_sample_games().expect("Failed to seed initial starter games");
+    db.seed_sample_games()
+        .expect("Failed to seed initial starter games");
     let initial_count = db.count_games().expect("Failed to count");
     assert!(initial_count > 0);
 
@@ -553,10 +568,14 @@ fn test_concurrent_reader_during_writer() {
     rx_started.recv().unwrap();
 
     // Reader connection can read simultaneously without blocking!
-    let games_during_tx = db.get_all_games().expect("Reader must succeed during write transaction");
+    let games_during_tx = db
+        .get_all_games()
+        .expect("Reader must succeed during write transaction");
     assert_eq!(games_during_tx.len(), initial_count);
 
-    let counts_during_tx = db.get_library_counts().expect("Reader counts must succeed during write transaction");
+    let counts_during_tx = db
+        .get_library_counts()
+        .expect("Reader counts must succeed during write transaction");
     assert_eq!(counts_during_tx.total, initial_count);
 
     // Let writer commit
@@ -564,11 +583,10 @@ fn test_concurrent_reader_during_writer() {
     writer_handle.join().unwrap();
 
     // After commit, reader sees the new game
-    let games_after_commit = db.get_all_games().expect("Reader must succeed after commit");
+    let games_after_commit = db
+        .get_all_games()
+        .expect("Reader must succeed after commit");
     assert_eq!(games_after_commit.len(), initial_count + 1);
 
     let _ = std::fs::remove_dir_all(&temp_dir);
 }
-
-
-

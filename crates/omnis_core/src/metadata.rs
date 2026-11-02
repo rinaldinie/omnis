@@ -123,7 +123,10 @@ impl MetadataDownloader {
     }
 
     #[inline]
-    pub async fn load_and_register_dynamic_plugin(&self, path: &Path) -> Result<ProviderInfo, String> {
+    pub async fn load_and_register_dynamic_plugin(
+        &self,
+        path: &Path,
+    ) -> Result<ProviderInfo, String> {
         self.registry.load_and_register_dynamic_plugin(path).await
     }
 
@@ -133,8 +136,14 @@ impl MetadataDownloader {
     }
 
     #[inline]
-    pub async fn save_provider_settings(&self, provider_id: &str, settings: Map<String, Value>) -> Result<(), String> {
-        self.registry.save_provider_settings(provider_id, settings).await
+    pub async fn save_provider_settings(
+        &self,
+        provider_id: &str,
+        settings: Map<String, Value>,
+    ) -> Result<(), String> {
+        self.registry
+            .save_provider_settings(provider_id, settings)
+            .await
     }
 
     #[inline]
@@ -169,10 +178,12 @@ impl MetadataDownloader {
         url: &str,
         appid_hint: Option<&str>,
     ) -> Result<Vec<u8>, String> {
-        self.media.download_image_with_fallbacks(url, appid_hint).await
+        self.media
+            .download_image_with_fallbacks(url, appid_hint)
+            .await
     }
 
-/// Search for metadata candidates across online providers (Steam, GOG, and enabled external providers)
+    /// Search for metadata candidates across online providers (Steam, GOG, and enabled external providers)
     /// Search for metadata candidates across online providers (Steam, GOG, and enabled external providers)
     pub async fn search_candidates(
         &self,
@@ -185,7 +196,8 @@ impl MetadataDownloader {
             title,
             provider_id,
             |t, l| self.generate_fallback_metadata(t, l),
-        ).await
+        )
+        .await
     }
 
     /// Primary enrichment routine combining multiple providers via the priority pipeline
@@ -224,7 +236,8 @@ impl MetadataDownloader {
             &*enabled_guard,
             &*settings_guard,
             |t, l| self.generate_fallback_metadata(t, l),
-        ).await;
+        )
+        .await;
 
         MediaStorageManager::cache_game_artwork(
             self.media.as_ref(),
@@ -233,7 +246,8 @@ impl MetadataDownloader {
             &game.external_id,
             cache_dir,
             &mut final_patch,
-        ).await;
+        )
+        .await;
         if let Err(e) = db.apply_metadata_patch(game_id, &final_patch) {
             return Err(format!("Failed to save metadata to SQLite: {}", e));
         }

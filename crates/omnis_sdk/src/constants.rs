@@ -14,7 +14,9 @@ pub mod stores {
 
     /// Checks if a given library ID matches a known built-in store (case-insensitive)
     pub fn is_builtin(library_id: &str) -> bool {
-        ALL_BUILTIN.iter().any(|&s| s.eq_ignore_ascii_case(library_id))
+        ALL_BUILTIN
+            .iter()
+            .any(|&s| s.eq_ignore_ascii_case(library_id))
     }
 }
 

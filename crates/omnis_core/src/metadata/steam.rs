@@ -2,8 +2,8 @@ use super::utils::html_to_plain_text;
 use async_trait::async_trait;
 use omnis_sdk::constants::stores;
 use omnis_sdk::{
-    GameMetadataPatch, MetadataField, MetadataProvider, MetadataSearchRequest, PluginSettingsSchema,
-    SettingField, SettingGroup, SettingType,
+    GameMetadataPatch, MetadataField, MetadataProvider, MetadataSearchRequest,
+    PluginSettingsSchema, SettingField, SettingGroup, SettingType,
 };
 use serde::Deserialize;
 use serde_json::{Map, Value};
@@ -278,7 +278,11 @@ impl MetadataProvider for SteamMetadataProvider {
             .collect();
 
         let header_img = data.header_image;
-        let screenshot_bg = data.screenshots.into_iter().next().and_then(|s| s.path_full);
+        let screenshot_bg = data
+            .screenshots
+            .into_iter()
+            .next()
+            .and_then(|s| s.path_full);
 
         let primary_cover_url = format!(
             "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/{}/library_600x900_2x.jpg",
@@ -374,8 +378,14 @@ mod tests {
         let app = app_map.remove("400").expect("Missing appid 400");
         assert!(app.success);
         let data = app.data.expect("Missing data");
-        assert_eq!(data.short_description.as_deref(), Some("Portal&trade; is a new single player game from Valve."));
-        assert_eq!(data.release_date.and_then(|r| r.date), Some("10 Oct, 2007".to_string()));
+        assert_eq!(
+            data.short_description.as_deref(),
+            Some("Portal&trade; is a new single player game from Valve.")
+        );
+        assert_eq!(
+            data.release_date.and_then(|r| r.date),
+            Some("10 Oct, 2007".to_string())
+        );
         assert_eq!(data.metacritic.and_then(|m| m.score), Some(90));
         assert_eq!(data.developers, vec!["Valve"]);
         assert_eq!(data.achievements.and_then(|a| a.total), Some(15));

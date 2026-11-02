@@ -164,8 +164,12 @@ impl WasmPluginEngine {
     pub fn new(config: WasmSandboxConfig) -> Result<Self, WasmExecutionError> {
         let wasm_config = Config::new();
 
-        let engine = Engine::new(&wasm_config)
-            .map_err(|e| WasmExecutionError::Instantiation(format!("Failed to initialize Wasmtime engine: {}", e)))?;
+        let engine = Engine::new(&wasm_config).map_err(|e| {
+            WasmExecutionError::Instantiation(format!(
+                "Failed to initialize Wasmtime engine: {}",
+                e
+            ))
+        })?;
 
         Ok(Self { engine, config })
     }
@@ -186,8 +190,9 @@ impl WasmPluginEngine {
         wasm_bytes: &[u8],
         permissions: &[String],
     ) -> Result<WasmPluginInstance, WasmExecutionError> {
-        let module = Module::new(&self.engine, wasm_bytes)
-            .map_err(|e| WasmExecutionError::Compilation(format!("Module compilation failed: {}", e)))?;
+        let module = Module::new(&self.engine, wasm_bytes).map_err(|e| {
+            WasmExecutionError::Compilation(format!("Module compilation failed: {}", e))
+        })?;
 
         let perms = WasmPluginPermissions::from_manifest_permissions(permissions);
         let state = WasmHostState::new(perms);
@@ -219,7 +224,9 @@ impl WasmPluginEngine {
                     0
                 },
             )
-            .map_err(|e| WasmExecutionError::Instantiation(format!("Linker error (omnis_log): {}", e)))?;
+            .map_err(|e| {
+                WasmExecutionError::Instantiation(format!("Linker error (omnis_log): {}", e))
+            })?;
 
         // Host Function: omnis_check_permission(ptr: i32, len: i32) -> i32
         // Returns 1 if permission/domain is allowed, 0 otherwise
@@ -249,7 +256,12 @@ impl WasmPluginEngine {
                     }
                 },
             )
-            .map_err(|e| WasmExecutionError::Instantiation(format!("Linker error (omnis_check_permission): {}", e)))?;
+            .map_err(|e| {
+                WasmExecutionError::Instantiation(format!(
+                    "Linker error (omnis_check_permission): {}",
+                    e
+                ))
+            })?;
 
         // Host Function: omnis_http_get(url_ptr, url_len, out_ptr, out_max_len) -> i32
         // Return codes: >= 0 is bytes written, -1 permission denied, -2 network/host error, -3 buffer too small
@@ -284,7 +296,10 @@ impl WasmPluginEngine {
 
                     // Check domain allowlist
                     if !caller.data().permissions.is_domain_allowed(&url_str) {
-                        let err_msg = format!("Network access to '{}' is not in plugin permissions allowlist", url_str);
+                        let err_msg = format!(
+                            "Network access to '{}' is not in plugin permissions allowlist",
+                            url_str
+                        );
                         caller.data_mut().last_permission_error = Some(err_msg);
                         return -1; // Permission denied
                     }
@@ -327,11 +342,13 @@ impl WasmPluginEngine {
                     bytes.len() as i32
                 },
             )
-            .map_err(|e| WasmExecutionError::Instantiation(format!("Linker error (omnis_http_get): {}", e)))?;
+            .map_err(|e| {
+                WasmExecutionError::Instantiation(format!("Linker error (omnis_http_get): {}", e))
+            })?;
 
-        let instance = linker
-            .instantiate(&mut store, &module)
-            .map_err(|e| WasmExecutionError::Instantiation(format!("Instance instantiation failed: {}", e)))?;
+        let instance = linker.instantiate(&mut store, &module).map_err(|e| {
+            WasmExecutionError::Instantiation(format!("Instance instantiation failed: {}", e))
+        })?;
 
         Ok(WasmPluginInstance {
             engine: self.engine.clone(),
@@ -352,11 +369,18 @@ pub struct WasmPluginInstance {
 
 impl WasmPluginInstance {
     /// Executes a typed guest function with sandbox timeout protection against infinite loops.
-    pub fn call_func(&mut self, func_name: &str, args: &[Val]) -> Result<Box<[Val]>, WasmExecutionError> {
+    pub fn call_func(
+        &mut self,
+        func_name: &str,
+        args: &[Val],
+    ) -> Result<Box<[Val]>, WasmExecutionError> {
         let timeout_duration = self.config.timeout;
         let mut store = std::mem::replace(
             &mut self.store,
-            Store::new(&self.engine, WasmHostState::new(WasmPluginPermissions::default())),
+            Store::new(
+                &self.engine,
+                WasmHostState::new(WasmPluginPermissions::default()),
+            ),
         );
         let instance = self.instance;
         let func_name_owned = func_name.to_string();
@@ -410,9 +434,9 @@ impl WasmPluginInstance {
             Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
                 Err(WasmExecutionError::Timeout(timeout_duration))
             }
-            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
-                Err(WasmExecutionError::Trap("Plugin execution thread disconnected".to_string()))
-            }
+            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => Err(WasmExecutionError::Trap(
+                "Plugin execution thread disconnected".to_string(),
+            )),
         }
     }
 }

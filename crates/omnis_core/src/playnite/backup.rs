@@ -92,7 +92,10 @@ fn normalize_title(title: &str) -> String {
 }
 
 fn normalize_zip_image_key(raw: &str) -> String {
-    let cleaned = raw.replace('\\', "/").trim_start_matches('/').to_ascii_lowercase();
+    let cleaned = raw
+        .replace('\\', "/")
+        .trim_start_matches('/')
+        .to_ascii_lowercase();
     if cleaned.starts_with("libraryfiles/") {
         cleaned
     } else {
@@ -104,7 +107,9 @@ const MAX_GAMES_DB_SIZE: u64 = 256 * 1024 * 1024;
 const MAX_IMAGE_ASSET_SIZE: u64 = 50 * 1024 * 1024;
 
 /// Helper to read `library/games.db` or `library\games.db` directly from the ZIP into memory.
-fn extract_games_db<R: Read + Seek>(archive: &mut ZipArchive<R>) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+fn extract_games_db<R: Read + Seek>(
+    archive: &mut ZipArchive<R>,
+) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     for i in 0..archive.len() {
         let mut file = archive.by_index(i)?;
         let name = file.name().replace('\\', "/");
@@ -153,9 +158,21 @@ struct GameActivityFile {
 
 #[derive(Debug, Deserialize)]
 struct GameActivityItem {
-    #[serde(alias = "date_session", alias = "DateSession", alias = "date", alias = "Date", default)]
+    #[serde(
+        alias = "date_session",
+        alias = "DateSession",
+        alias = "date",
+        alias = "Date",
+        default
+    )]
     date_session: Option<String>,
-    #[serde(alias = "elapsed_seconds", alias = "ElapsedSeconds", alias = "duration_seconds", alias = "duration", default)]
+    #[serde(
+        alias = "elapsed_seconds",
+        alias = "ElapsedSeconds",
+        alias = "duration_seconds",
+        alias = "duration",
+        default
+    )]
     elapsed_seconds: Option<u64>,
 }
 
@@ -177,7 +194,8 @@ fn extract_playnite_game_activities<R: Read + Seek>(
     for i in 0..archive.len() {
         if let Ok(mut file) = archive.by_index(i) {
             let name = file.name().replace('\\', "/").to_ascii_lowercase();
-            if (name.contains("gameactivity") || name.contains("af129c15-0960-449e-b9ef-6910db9f187a"))
+            if (name.contains("gameactivity")
+                || name.contains("af129c15-0960-449e-b9ef-6910db9f187a"))
                 && name.ends_with(".json")
             {
                 let file_stem = Path::new(&name)
@@ -186,17 +204,16 @@ fn extract_playnite_game_activities<R: Read + Seek>(
                     .map(|s| s.to_ascii_lowercase());
                 let mut content = String::new();
                 if file.read_to_string(&mut content).is_ok() {
-                    let (sessions, doc_id, doc_name) = if let Ok(doc) =
-                        serde_json::from_str::<GameActivityFile>(&content)
-                    {
-                        (filter_activity_items(doc.items), doc.id, doc.name)
-                    } else if let Ok(items) =
-                        serde_json::from_str::<Vec<GameActivityItem>>(&content)
-                    {
-                        (filter_activity_items(items), None, None)
-                    } else {
-                        (Vec::new(), None, None)
-                    };
+                    let (sessions, doc_id, doc_name) =
+                        if let Ok(doc) = serde_json::from_str::<GameActivityFile>(&content) {
+                            (filter_activity_items(doc.items), doc.id, doc.name)
+                        } else if let Ok(items) =
+                            serde_json::from_str::<Vec<GameActivityItem>>(&content)
+                        {
+                            (filter_activity_items(items), None, None)
+                        } else {
+                            (Vec::new(), None, None)
+                        };
 
                     if !sessions.is_empty() {
                         if let Some(stem) = file_stem {
@@ -265,7 +282,10 @@ pub fn inspect_playnite_backup(
 
     for row in rows {
         let game = row?;
-        existing_by_store_ext.insert((game.library_id.clone(), game.external_id.clone()), game.id.clone());
+        existing_by_store_ext.insert(
+            (game.library_id.clone(), game.external_id.clone()),
+            game.id.clone(),
+        );
         if game.library_id == stores::MANUAL {
             existing_by_title.insert(normalize_title(&game.title), game.id.clone());
         }
@@ -475,7 +495,10 @@ where
 
     for row in rows {
         let game = row?;
-        existing_by_store_ext.insert((game.library_id.clone(), game.external_id.clone()), game.id.clone());
+        existing_by_store_ext.insert(
+            (game.library_id.clone(), game.external_id.clone()),
+            game.id.clone(),
+        );
         if game.library_id == stores::MANUAL {
             existing_by_title.insert(normalize_title(&game.title), game.id.clone());
         }
@@ -511,12 +534,13 @@ where
                 let imported_play_count = item.PlayCount.unwrap_or(0) as i32;
                 let is_fav = if item.Favorite.unwrap_or(false) { 1 } else { 0 };
 
-                let new_playtime = if options.update_playtime && imported_playtime > existing.playtime_seconds {
-                    stats.playtime_updated += 1;
-                    imported_playtime
-                } else {
-                    existing.playtime_seconds
-                };
+                let new_playtime =
+                    if options.update_playtime && imported_playtime > existing.playtime_seconds {
+                        stats.playtime_updated += 1;
+                        imported_playtime
+                    } else {
+                        existing.playtime_seconds
+                    };
 
                 let new_play_count = existing.play_count.max(imported_play_count);
                 let new_fav = existing.is_favorite.max(is_fav);
@@ -570,7 +594,10 @@ where
                     None
                 };
 
-                let completion_to_save = item.Completion.clone().or_else(|| existing.completion_status.clone());
+                let completion_to_save = item
+                    .Completion
+                    .clone()
+                    .or_else(|| existing.completion_status.clone());
 
                 if !options.dry_run {
                     tx.execute(

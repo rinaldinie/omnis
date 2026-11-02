@@ -137,16 +137,34 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
     let _ = conn.execute("ALTER TABLE games ADD COLUMN custom_links TEXT;", []);
     let _ = conn.execute("ALTER TABLE games ADD COLUMN play_actions TEXT;", []);
     let _ = conn.execute("ALTER TABLE games ADD COLUMN extra_metadata TEXT;", []);
-    let _ = conn.execute("ALTER TABLE games ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0;", []);
+    let _ = conn.execute(
+        "ALTER TABLE games ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0;",
+        [],
+    );
 
     // Ensure performance indexes exist on existing DBs
-    let _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_games_series ON games(series);", []);
-    let _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_games_completion_status ON games(completion_status);", []);
-    let _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_games_critic_score ON games(critic_score);", []);
-    let _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_games_playtime ON games(playtime_seconds);", []);
+    let _ = conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_games_series ON games(series);",
+        [],
+    );
+    let _ = conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_games_completion_status ON games(completion_status);",
+        [],
+    );
+    let _ = conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_games_critic_score ON games(critic_score);",
+        [],
+    );
+    let _ = conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_games_playtime ON games(playtime_seconds);",
+        [],
+    );
 
     // Virtual column name mapping to title if not already present
-    let _ = conn.execute("ALTER TABLE games ADD COLUMN name TEXT GENERATED ALWAYS AS (title) VIRTUAL;", []);
+    let _ = conn.execute(
+        "ALTER TABLE games ADD COLUMN name TEXT GENERATED ALWAYS AS (title) VIRTUAL;",
+        [],
+    );
 
     // G3. FTS5 Virtual Table with trigram tokenizer + sync triggers
     conn.execute_batch(
@@ -207,4 +225,3 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
 
     Ok(())
 }
-

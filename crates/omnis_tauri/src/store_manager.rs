@@ -143,7 +143,11 @@ impl StoreAccountManager {
     }
 
     #[inline]
-    pub fn save_session(&self, store_id: &str, session: &StoreAccountSession) -> Result<(), String> {
+    pub fn save_session(
+        &self,
+        store_id: &str,
+        session: &StoreAccountSession,
+    ) -> Result<(), String> {
         StoreSessionVault::save_session(self, store_id, session)
     }
 
@@ -170,7 +174,11 @@ impl StoreAccountManager {
     }
 
     #[inline]
-    pub async fn sync_store(&self, app_handle: &AppHandle, store_id: &str) -> Result<usize, String> {
+    pub async fn sync_store(
+        &self,
+        app_handle: &AppHandle,
+        store_id: &str,
+    ) -> Result<usize, String> {
         StoreCatalogSyncEngine::sync_store(self, app_handle, store_id).await
     }
 

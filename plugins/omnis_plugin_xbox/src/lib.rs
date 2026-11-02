@@ -5,7 +5,9 @@ pub mod client;
 
 pub use achievements::*;
 use async_trait::async_trait;
-use omnis_sdk::{CloudStorePlugin, DiscoveredGame, LibraryPlugin, PluginError, StoreAccountSession};
+use omnis_sdk::{
+    CloudStorePlugin, DiscoveredGame, LibraryPlugin, PluginError, StoreAccountSession,
+};
 
 pub use client::{
     authenticate_xbox_live, extract_token_from_redirect, fetch_user_titles,
@@ -76,11 +78,17 @@ impl CloudStorePlugin for XboxCloudPlugin {
         authenticate_xbox_live(&self.client, &token).await
     }
 
-    async fn refresh_session(&self, refresh_token: &str) -> Result<StoreAccountSession, PluginError> {
+    async fn refresh_session(
+        &self,
+        refresh_token: &str,
+    ) -> Result<StoreAccountSession, PluginError> {
         refresh_session_token(&self.client, refresh_token).await
     }
 
-    async fn sync_games(&self, session: &StoreAccountSession) -> Result<Vec<DiscoveredGame>, PluginError> {
+    async fn sync_games(
+        &self,
+        session: &StoreAccountSession,
+    ) -> Result<Vec<DiscoveredGame>, PluginError> {
         fetch_user_titles(&self.client, session).await
     }
 }
@@ -94,7 +102,8 @@ mod tests {
     fn test_extract_token_from_redirect_fragment() {
         let redirect_url =
             "https://login.live.com/oauth20_desktop.srf#access_token=TEST_TOKEN_123&expires_in=3600";
-        let token = extract_token_from_redirect(redirect_url).expect("Should extract token from fragment");
+        let token =
+            extract_token_from_redirect(redirect_url).expect("Should extract token from fragment");
         assert_eq!(token, "TEST_TOKEN_123");
     }
 
@@ -102,7 +111,8 @@ mod tests {
     fn test_extract_token_from_redirect_query() {
         let redirect_url =
             "https://login.live.com/oauth20_desktop.srf?access_token=TEST_TOKEN_QUERY&token_type=bearer";
-        let token = extract_token_from_redirect(redirect_url).expect("Should extract token from query");
+        let token =
+            extract_token_from_redirect(redirect_url).expect("Should extract token from query");
         assert_eq!(token, "TEST_TOKEN_QUERY");
     }
 
@@ -173,7 +183,10 @@ mod tests {
         );
         assert!(play_action.arguments.is_empty());
         assert_eq!(play_action.working_dir, None);
-        assert_eq!(play_action.tracking_mode, ProcessTrackingMode::KernelJobObject);
+        assert_eq!(
+            play_action.tracking_mode,
+            ProcessTrackingMode::KernelJobObject
+        );
     }
 
     #[test]
@@ -184,8 +197,8 @@ mod tests {
             "displayImage": null
         }"#;
 
-        let title: XboxTitleItem =
-            serde_json::from_str(json_title).expect("Should deserialize XboxTitleItem without modernTitleId");
+        let title: XboxTitleItem = serde_json::from_str(json_title)
+            .expect("Should deserialize XboxTitleItem without modernTitleId");
         let game = title.to_discovered_game();
 
         assert_eq!(game.library_id, "xbox");
@@ -212,7 +225,9 @@ mod tests {
         assert!(login_url.contains("response_type=token"));
         assert!(login_url.contains(&urlencoding::encode(MS_REDIRECT_URI).into_owned()));
 
-        assert!(plugin.is_redirect_url("https://login.live.com/oauth20_desktop.srf#access_token=XYZ"));
+        assert!(
+            plugin.is_redirect_url("https://login.live.com/oauth20_desktop.srf#access_token=XYZ")
+        );
         assert!(plugin.is_redirect_url("https://login.live.com/oauth20_desktop.srf?code=123"));
         assert!(!plugin.is_redirect_url("https://account.xbox.com/auth"));
     }

@@ -150,7 +150,10 @@ pub fn game_to_dto(g: Game, _cache: &ImageCache) -> GameDto {
         format!("{}m", mins)
     };
 
-    let icon_image = g.icon_image_path.clone().or_else(|| g.cover_image_path.clone());
+    let icon_image = g
+        .icon_image_path
+        .clone()
+        .or_else(|| g.cover_image_path.clone());
 
     GameDto {
         id: g.id.to_string(),
@@ -181,17 +184,11 @@ pub fn game_to_dto(g: Game, _cache: &ImageCache) -> GameDto {
 
 pub fn open_folder_in_os(path: &Path) {
     if cfg!(windows) {
-        let _ = std::process::Command::new("explorer.exe")
-            .arg(path)
-            .spawn();
+        let _ = std::process::Command::new("explorer.exe").arg(path).spawn();
     } else if cfg!(target_os = "macos") {
-        let _ = std::process::Command::new("open")
-            .arg(path)
-            .spawn();
+        let _ = std::process::Command::new("open").arg(path).spawn();
     } else {
-        let _ = std::process::Command::new("xdg-open")
-            .arg(path)
-            .spawn();
+        let _ = std::process::Command::new("xdg-open").arg(path).spawn();
     }
 }
 
