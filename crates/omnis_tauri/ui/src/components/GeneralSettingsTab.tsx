@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { useTranslation, SUPPORTED_LOCALES, LocaleCode } from '../i18n';
 import soundEffects from '../utils/soundEffects';
+import { api } from '../api';
 import { useUpdater } from '../hooks/useAppUpdater';
 import { BackupSettingsTab } from './BackupSettingsTab';
 
@@ -77,14 +78,9 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
     const next = !minimizeToTray;
     setMinimizeToTray(next);
     localStorage.setItem('omnis_minimize_to_tray', JSON.stringify(next));
-    try {
-      if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__) {
-        const { invoke } = await import('@tauri-apps/api/core');
-        await invoke('set_minimize_to_tray', { enabled: next });
-      }
-    } catch (e) {
+    api.window.setMinimizeToTray(next).catch((e) => {
       console.warn('Failed to update minimize_to_tray:', e);
-    }
+    });
   };
 
   const handleToggleAnimations = () => {
@@ -113,14 +109,9 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
     }
     setMinimizeToTray(true);
     localStorage.setItem('omnis_minimize_to_tray', JSON.stringify(true));
-    try {
-      if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__) {
-        const { invoke } = await import('@tauri-apps/api/core');
-        await invoke('set_minimize_to_tray', { enabled: true });
-      }
-    } catch (e) {
+    api.window.setMinimizeToTray(true).catch((e) => {
       console.warn('Failed to reset minimize_to_tray:', e);
-    }
+    });
     setAnimationsEnabled(true);
     localStorage.setItem('omnis_ui_animations', JSON.stringify(true));
     setAutoScanOnStartup(true);

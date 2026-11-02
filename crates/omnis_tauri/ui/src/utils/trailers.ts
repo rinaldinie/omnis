@@ -1,5 +1,6 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
-import { GameDto, invokeTauri } from "../types";
+import { GameDto } from "../types";
+import { api } from "../api";
 
 /**
  * In-memory client cache for resolved trailer URLs.
@@ -88,7 +89,7 @@ export async function fetchGameTrailerUrl(
 
   // 2. Query Tauri backend command
   try {
-    const backendResult = await invokeTauri<string | null>("get_game_trailer_url", {
+    const backendResult = await api.games.getGameTrailerUrl({
       gameId: game.id,
       libraryId: game.library,
       externalId: game.external_id || "",

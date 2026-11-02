@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Zap, Check, Info, Loader2, RefreshCw } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import soundEffects from "../../utils/soundEffects";
-import { invokeTauri } from "../../types";
+import { api } from "../../api";
 import { SteamIcon, EpicIcon, GogIcon, XboxIcon } from "../StoreBadge";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -60,7 +60,7 @@ export default function OnboardingModal({ onComplete, onSkip }: OnboardingModalP
   useEffect(() => {
     const detect = async () => {
       try {
-        const results = await invokeTauri<StoreDetectionResult[]>("detect_stores");
+        const results = await api.games.detectStores();
         if (results) {
           setStores(results);
           // Pre-select all detected stores
@@ -103,7 +103,7 @@ export default function OnboardingModal({ onComplete, onSkip }: OnboardingModalP
     soundEffects.playSelect();
     setIsImporting(true);
     try {
-      await invokeTauri("sync_library");
+      await api.games.syncLibrary();
       setIsDone(true);
       localStorage.setItem(ONBOARDING_DONE_KEY, "true");
       // Brief success state before dismissing

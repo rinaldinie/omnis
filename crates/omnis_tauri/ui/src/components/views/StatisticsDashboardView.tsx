@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { api } from "../../api";
 import { GlobalStatsDto } from "../../types";
 import ActivityHeatmapCalendar from "../stats/ActivityHeatmapCalendar";
 import DistributionBar from "../stats/DistributionBar";
@@ -32,9 +32,7 @@ export default function StatisticsDashboardView({
 
   const fetchStats = async (year: number) => {
     try {
-      const res = await invoke<GlobalStatsDto>("get_global_statistics", {
-        year,
-      });
+      const res = await api.stats.getGlobalStatistics({ year } as any);
       setStats(res);
       // Auto-adjust selectedYear if not in available years
       if (
@@ -66,9 +64,9 @@ export default function StatisticsDashboardView({
   const handleResetStatistics = async () => {
     try {
       setResetting(true);
-      await invoke("reset_statistics", {
+      await api.stats.resetStatistics({
         resetPlaytime: resetOption === "all",
-      });
+      } as any);
       setShowResetModal(false);
       soundEffects.playUnlock();
       setShowToast(true);

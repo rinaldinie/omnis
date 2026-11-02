@@ -27,24 +27,14 @@ import { CustomLinksTab } from "./game_editor/CustomLinksTab";
 
 export type { CustomLink, ProcessTrackingMode, LaunchConfiguration, GameEditorFormData };
 
+import { GameDto } from "../types";
+import { api } from "../api";
+
 export interface GameEditorModalProps {
   isOpen: boolean;
   onClose: () => void;
-  game: any;
-  onSave: (updated: any) => void;
-}
-
-async function callTauri<T>(cmd: string, args?: Record<string, unknown>): Promise<T | null> {
-  try {
-    if (typeof window !== "undefined" && (window as any).__TAURI_INTERNALS__) {
-      const { invoke } = await import("@tauri-apps/api/core");
-      return await invoke<T>(cmd, args);
-    }
-  } catch (err) {
-    console.warn(`Tauri command '${cmd}' failed:`, err);
-    throw err;
-  }
-  return null;
+  game: GameDto | null;
+  onSave: (updated: GameDto) => void;
 }
 
 export default function GameEditorModal({
@@ -128,7 +118,7 @@ export default function GameEditorModal({
 
     initFromGame(game);
 
-    callTauri<any>("get_game", { gameId: game.id })
+    api.games.getGame(game.id)
       .then((fullGame) => {
         if (fullGame) {
           initFromGame(fullGame);
@@ -193,7 +183,7 @@ export default function GameEditorModal({
         custom_links: formData.custom_links,
       };
 
-      const result = await callTauri<any>("update_game_metadata", { gameUpdate });
+      const result = await api.games.updateGameMetadata(gameUpdate);
       const updated = result || { ...game, ...gameUpdate };
 
       setSaveSuccess(true);
@@ -264,7 +254,7 @@ export default function GameEditorModal({
   // Tauri File Dialog Pickers
   const handlePickExe = async (actionIdx: number) => {
     try {
-      const path = await callTauri<string>("pick_executable_file");
+      const path = await api.games.pickExecutableFile();
       if (path) {
         handleUpdateAction(actionIdx, "executable", path);
         const currentAction = formData.play_actions[actionIdx];
@@ -283,7 +273,7 @@ export default function GameEditorModal({
 
   const handlePickDir = async (actionIdx: number) => {
     try {
-      const dir = await callTauri<string>("pick_directory");
+      const dir = await api.games.pickDirectory();
       if (dir) {
         handleUpdateAction(actionIdx, "working_dir", dir);
       }
@@ -294,7 +284,7 @@ export default function GameEditorModal({
 
   const handlePickImage = async (field: "cover_image_path" | "background_image_path" | "icon_image_path") => {
     try {
-      const path = await callTauri<string>("pick_image_file");
+      const path = await api.games.pickImageFile();
       if (path) {
         setFormData((prev) => ({ ...prev, [field]: path }));
       }

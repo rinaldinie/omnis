@@ -17,7 +17,7 @@ import {
   Layers,
   Search,
 } from "lucide-react";
-import { invoke } from "@tauri-apps/api/core";
+import { api } from "../../api";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import {
   PlayniteBackupInspection,
@@ -99,7 +99,7 @@ export default function PlayniteImportModal({
   const handlePickFile = async () => {
     soundEffects.playSelect();
     try {
-      const selected = await invoke<string | null>("pick_playnite_backup_file");
+      const selected = await api.playnite.pickBackupFile();
       if (selected) {
         setZipPath(selected);
         startInspection(selected);
@@ -115,9 +115,7 @@ export default function PlayniteImportModal({
     setStep("inspecting");
     setErrorMessage("");
     try {
-      const result = await invoke<PlayniteBackupInspection>("inspect_playnite_backup", {
-        zipPath: filePath,
-      });
+      const result = await api.playnite.inspectBackup(filePath);
       setInspection(result);
       setStep("preview");
       soundEffects.playSelect();
@@ -158,10 +156,7 @@ export default function PlayniteImportModal({
         dry_run: false,
       };
 
-      const result = await invoke<PlayniteImportStats>("execute_playnite_import", {
-        zipPath,
-        options,
-      });
+      const result = await api.playnite.executeImport(zipPath, options);
 
       setStats(result);
       setStep("completed");

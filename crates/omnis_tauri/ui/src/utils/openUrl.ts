@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { api } from "../api";
 
 /**
  * Opens an external web URL using the system's default browser.
@@ -16,7 +16,7 @@ export async function openExternalUrl(url: string): Promise<void> {
 
   try {
     if (typeof window !== "undefined" && (window as any).__TAURI_INTERNALS__) {
-      await invoke("open_external_url", { url: trimmed });
+      await api.window.openExternalUrl(trimmed);
       return;
     }
   } catch (err) {
