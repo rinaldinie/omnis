@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useTranslation } from '../i18n';
+import { useTranslation } from '../../i18n';
 import { Settings, Sliders, Cloud, Trophy, Archive } from 'lucide-react';
-import { soundEffects } from '../utils/soundEffects';
+import { soundEffects } from '../../utils/soundEffects';
 import { GeneralSettingsTab } from './GeneralSettingsTab';
 import { StoreAccountsTab } from './StoreAccountsTab';
-import { AchievementsSettingsTab } from './achievements';
+import { AchievementsSettingsTab } from '../achievements';
 import { BackupSettingsTab } from './BackupSettingsTab';
 
 export type SettingsTab = 'general' | 'accounts' | 'achievements' | 'backup';

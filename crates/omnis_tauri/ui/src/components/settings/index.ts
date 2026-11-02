@@ -1,8 +1,10 @@
-export { SettingsModal } from '../SettingsModal';
-export type { SettingsTab } from '../SettingsModal';
-export { GeneralSettingsTab } from '../GeneralSettingsTab';
-export { StoreAccountsTab } from '../StoreAccountsTab';
-export { BackupSettingsTab } from '../BackupSettingsTab';
+export { SettingsModal } from './SettingsModal';
+export type { SettingsTab } from './SettingsModal';
+export { GeneralSettingsTab } from './GeneralSettingsTab';
+export { StoreAccountsTab } from './StoreAccountsTab';
+export { BackupSettingsTab } from './BackupSettingsTab';
+export { MarketplaceTab } from './MarketplaceTab';
+export type { MarketplaceCatalog, MarketplacePluginItem } from './MarketplaceTab';
 export * from './backup/ManualBackupSection';
 export * from './backup/ScheduleBackupSection';
 export * from './backup/RestoreBackupSection';

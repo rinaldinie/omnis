@@ -10,7 +10,7 @@ import {
 import { ProviderInfo, MetadataPipelineConfig } from "../../types";
 import { api } from "../../api";
 import { listenTauri } from "../../api/client";
-import { MarketplaceTab } from "../MarketplaceTab";
+import { MarketplaceTab } from "../settings/MarketplaceTab";
 import { useTranslation } from "../../i18n";
 import { BUILTIN_LIBRARIES, PluginCategory } from "./plugins/constants";
 import { PluginCard } from "./plugins/PluginCard";

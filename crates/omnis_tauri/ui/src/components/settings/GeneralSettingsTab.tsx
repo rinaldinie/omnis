@@ -21,10 +21,10 @@ import {
   AlertCircle,
   FolderArchive,
 } from 'lucide-react';
-import { useTranslation, SUPPORTED_LOCALES, LocaleCode } from '../i18n';
-import soundEffects from '../utils/soundEffects';
-import { api } from '../api';
-import { useUpdater } from '../hooks/useAppUpdater';
+import { useTranslation, SUPPORTED_LOCALES, LocaleCode } from '../../i18n';
+import soundEffects from '../../utils/soundEffects';
+import { api } from '../../api';
+import { useUpdater } from '../../hooks/useAppUpdater';
 import { BackupSettingsTab } from './BackupSettingsTab';
 
 type GeneralSubTab = 'language' | 'audio' | 'window' | 'appearance' | 'data' | 'updates';
