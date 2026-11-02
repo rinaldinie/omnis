@@ -15,7 +15,7 @@ use std::sync::Arc;
 use tracing::warn;
 use uuid::Uuid;
 
-use crate::store_manager::StoreAccountManager;
+use crate::store::StoreAccountManager;
 
 /// Domain service that coordinates achievement providers, session resolution,
 /// local persistence, and background icon caching.

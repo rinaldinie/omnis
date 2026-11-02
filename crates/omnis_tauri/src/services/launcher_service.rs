@@ -164,7 +164,7 @@ impl GameLaunchCoordinator {
     #[allow(clippy::too_many_arguments)]
     async fn run_tracking_lifecycle(
         app_handle: tauri::AppHandle,
-        active_mgr: Arc<crate::active_game::ActiveGameManager>,
+        active_mgr: Arc<crate::services::ActiveGameManager>,
         db: Arc<Database>,
         id: Uuid,
         game_id_str: String,

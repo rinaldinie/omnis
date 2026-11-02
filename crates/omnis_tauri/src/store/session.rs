@@ -1,7 +1,7 @@
 use omnis_sdk::models::StoreAccountDto;
 use omnis_sdk::plugin::StoreAccountSession;
 
-use crate::store_manager::{StoreAccountManager, StoreIntegrationSettingsDto};
+use super::manager::{StoreAccountManager, StoreIntegrationSettingsDto};
 
 /// Handles secure session storage, envelope encryption in SQLite, legacy keyring migration, and store settings
 pub struct StoreSessionVault;

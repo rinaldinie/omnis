@@ -9,7 +9,7 @@ pub async fn get_slot_widgets(
     game_id: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<Vec<SlotWidget>, String> {
-    Ok(crate::slot_resolver::SlotWidgetResolver::resolve_for_slot(
+    Ok(crate::services::SlotWidgetResolver::resolve_for_slot(
         &state,
         &slot_name,
         game_id.as_deref(),

@@ -14,20 +14,9 @@ use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use tauri::{AppHandle, Emitter};
 
-#[path = "store/oauth.rs"]
-pub mod oauth;
-#[path = "store/session.rs"]
-pub mod session;
-#[path = "store/sync.rs"]
-pub mod sync;
-
-#[cfg(test)]
-#[path = "store/tests.rs"]
-mod tests;
-
-pub use oauth::{OAuthLoginService, OAuthSessionHandler};
-pub use session::StoreSessionVault;
-pub use sync::StoreCatalogSyncEngine;
+use super::oauth::{OAuthLoginService, OAuthSessionHandler};
+use super::session::StoreSessionVault;
+use super::sync::StoreCatalogSyncEngine;
 
 /// Integration settings DTO matching Playnite store configuration options
 #[derive(Debug, Clone, Serialize, Deserialize)]

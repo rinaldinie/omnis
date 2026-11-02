@@ -133,11 +133,11 @@ pub struct AppState {
     pub plugins_dir: PathBuf,
     pub themes_dir: PathBuf,
     pub image_cache: Arc<ImageCache>,
-    pub store_account_manager: Arc<crate::store_manager::StoreAccountManager>,
+    pub store_account_manager: Arc<crate::store::StoreAccountManager>,
     pub trailer_cache: Arc<tokio::sync::RwLock<HashMap<String, String>>>,
-    pub active_game_manager: Arc<crate::active_game::ActiveGameManager>,
+    pub active_game_manager: Arc<crate::services::ActiveGameManager>,
     pub minimize_to_tray: Arc<std::sync::atomic::AtomicBool>,
-    pub achievement_service: Arc<crate::achievement_service::AchievementService>,
+    pub achievement_service: Arc<crate::services::AchievementService>,
     pub sync_achievements_on_game_exit: Arc<std::sync::atomic::AtomicBool>,
 }
 

@@ -195,7 +195,7 @@ pub async fn apply_metadata_candidate(
     fields: Vec<omnis_sdk::MetadataField>,
     state: State<'_, AppState>,
 ) -> Result<GameDto, String> {
-    let applier = crate::candidate_applier::CandidateMetadataApplier::from_state(&state);
+    let applier = crate::services::CandidateMetadataApplier::from_state(&state);
     applier.apply_candidate(&game_id, &candidate, &fields).await
 }
 
