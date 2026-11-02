@@ -13,10 +13,6 @@ mod types;
 use bootstrap::AppBootstrap;
 use commands::*;
 
-// Re-exports for internal use across commands and services
-pub(crate) use services::*;
-pub(crate) use store::*;
-
 use tracing::info;
 
 fn main() {

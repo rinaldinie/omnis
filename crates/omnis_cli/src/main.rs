@@ -208,13 +208,13 @@ fn dirs_or_local() -> PathBuf {
 
     #[cfg(windows)]
     {
-        if let Ok(appdata) = env::var("APPDATA") {
+        if let Ok(appdata) = std::env::var("APPDATA") {
             let canonical = PathBuf::from(&appdata).join("Omnis Game Library");
             if canonical.exists() {
                 return canonical;
             }
         }
-        if let Ok(local_app_data) = env::var("LOCALAPPDATA") {
+        if let Ok(local_app_data) = std::env::var("LOCALAPPDATA") {
             let tauri_path = PathBuf::from(&local_app_data).join("com.omnis.gamelibrary");
             let legacy_path = PathBuf::from(&local_app_data).join("OmnisGameLibrary");
             if tauri_path.exists() {
@@ -223,7 +223,7 @@ fn dirs_or_local() -> PathBuf {
                 return legacy_path;
             }
         }
-        if let Ok(appdata) = env::var("APPDATA") {
+        if let Ok(appdata) = std::env::var("APPDATA") {
             return PathBuf::from(&appdata).join("Omnis Game Library");
         }
     }

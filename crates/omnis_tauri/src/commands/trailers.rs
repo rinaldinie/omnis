@@ -8,11 +8,5 @@ pub async fn get_game_trailer_url(
     external_id: String,
     state: State<'_, AppState>,
 ) -> Result<Option<String>, String> {
-    crate::services::GameTrailerResolver::resolve(
-        &state,
-        &game_id,
-        &library_id,
-        &external_id,
-    )
-    .await
+    crate::services::GameTrailerResolver::resolve(&state, &game_id, &library_id, &external_id).await
 }
