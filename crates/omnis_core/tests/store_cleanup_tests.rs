@@ -49,7 +49,10 @@ fn test_delete_games_by_library_isolation_and_uninstalled_filter() {
         .expect("insert games");
 
     db.reload_search_index().expect("reload search index");
-    assert_eq!(db.search_games("Steam Uninstalled").expect("search").len(), 1);
+    assert_eq!(
+        db.search_games("Steam Uninstalled").expect("search").len(),
+        1
+    );
 
     // 2. Delete only uninstalled games for Steam
     let deleted_uninstalled = db
@@ -59,11 +62,20 @@ fn test_delete_games_by_library_isolation_and_uninstalled_filter() {
 
     // Verify steam_installed still exists, steam_uninstalled is gone, epic_uninstalled is untouched
     assert!(db.get_game_by_id(steam_installed).expect("query").is_some());
-    assert!(db.get_game_by_id(steam_uninstalled).expect("query").is_none());
-    assert!(db.get_game_by_id(epic_uninstalled).expect("query").is_some());
+    assert!(db
+        .get_game_by_id(steam_uninstalled)
+        .expect("query")
+        .is_none());
+    assert!(db
+        .get_game_by_id(epic_uninstalled)
+        .expect("query")
+        .is_some());
 
     // Verify in-memory search index was pruned
-    assert_eq!(db.search_games("Steam Uninstalled").expect("search").len(), 0);
+    assert_eq!(
+        db.search_games("Steam Uninstalled").expect("search").len(),
+        0
+    );
     assert_eq!(db.search_games("Steam Installed").expect("search").len(), 1);
 
     // 3. Delete all games for Steam
@@ -74,9 +86,15 @@ fn test_delete_games_by_library_isolation_and_uninstalled_filter() {
 
     // Verify steam_installed is now gone, and epic_uninstalled remains
     assert!(db.get_game_by_id(steam_installed).expect("query").is_none());
-    assert!(db.get_game_by_id(epic_uninstalled).expect("query").is_some());
+    assert!(db
+        .get_game_by_id(epic_uninstalled)
+        .expect("query")
+        .is_some());
 
     // Verify in-memory search index was pruned
     assert_eq!(db.search_games("Steam Installed").expect("search").len(), 0);
-    assert_eq!(db.search_games("Epic Uninstalled").expect("search").len(), 1);
+    assert_eq!(
+        db.search_games("Epic Uninstalled").expect("search").len(),
+        1
+    );
 }
