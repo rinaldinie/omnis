@@ -287,3 +287,36 @@ async fn test_store_integration_settings_steam_validation() {
 
     let _ = manager.delete_session("steam");
 }
+
+#[tokio::test]
+async fn test_disconnect_store_account_with_settings_reset() {
+    let (manager, _db) = make_test_manager();
+
+    let steam_cfg = StoreIntegrationSettingsDto {
+        store_id: "steam".to_string(),
+        import_installed: true,
+        connect_account: true,
+        import_uninstalled: true,
+        ignore_other_accounts: true,
+        account_id: Some("76561198016913702".to_string()),
+        api_key: Some("1234567890ABCDEF1234567890ABCDEF".to_string()),
+        import_free_items: Some(false),
+        import_family_sharing: Some(true),
+        import_game_pass: None,
+        custom_client_path: None,
+    };
+    assert!(manager.save_integration_settings(&steam_cfg).is_ok());
+
+    let session = manager.load_session("steam").unwrap();
+    assert!(session.is_some());
+
+    let deleted = manager.disconnect_account("steam", Some("keep")).unwrap();
+    assert_eq!(deleted, 0);
+
+    assert!(manager.load_session("steam").unwrap().is_none());
+
+    let settings = manager.get_integration_settings("steam").unwrap();
+    assert_eq!(settings.connect_account, false);
+    assert_eq!(settings.api_key, None);
+    assert_eq!(settings.account_id, None);
+}

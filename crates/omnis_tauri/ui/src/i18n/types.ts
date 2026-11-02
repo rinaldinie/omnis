@@ -988,6 +988,16 @@ export interface TranslationSchema {
     sync_error_default: string;
     syncing_short: string;
     disconnect_title: string;
+    disconnect_modal_title: string;
+    disconnect_modal_desc: string;
+    cleanup_keep_title: string;
+    cleanup_keep_desc: string;
+    cleanup_uninstalled_title: string;
+    cleanup_uninstalled_desc: string;
+    cleanup_all_title: string;
+    cleanup_all_desc: string;
+    confirm_disconnect: string;
+    cancel: string;
     never_synced: string;
     detected: string;
     not_found: string;
