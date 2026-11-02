@@ -17,6 +17,7 @@ pub struct CandidateMetadataApplier<'a> {
 }
 
 impl<'a> CandidateMetadataApplier<'a> {
+    #[allow(dead_code)]
     pub fn new(
         db: &'a Database,
         downloader: &'a MetadataDownloader,

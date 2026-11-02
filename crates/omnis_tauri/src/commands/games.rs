@@ -324,10 +324,7 @@ pub async fn create_desktop_shortcut(
     let desktop_dir = crate::store::get_desktop_dir()
         .ok_or_else(|| "Impossibile individuare la cartella Desktop dell'utente.".to_string())?;
 
-    let path = crate::store::StorePlatformDispatcher::create_desktop_shortcut(
-        &game,
-        &desktop_dir,
-    )?;
+    let path = crate::store::StorePlatformDispatcher::create_desktop_shortcut(&game, &desktop_dir)?;
     Ok(path.to_string_lossy().to_string())
 }
 
@@ -340,10 +337,7 @@ pub async fn verify_game_files(game_id: String, state: State<'_, AppState>) -> R
         .map_err(|e| e.to_string())?
         .ok_or_else(|| "Gioco non trovato".to_string())?;
 
-    crate::store::StorePlatformDispatcher::trigger_verify(
-        &game.library_id,
-        &game.external_id,
-    )
+    crate::store::StorePlatformDispatcher::trigger_verify(&game.library_id, &game.external_id)
 }
 
 #[tauri::command]

@@ -123,15 +123,13 @@ impl PluginHost {
                                 error!("Failed to update metadata in SQLite: {}", e);
                             }
                         }
-                        PluginEvent::NotificationEmitted { level, message } => {
-                            match level {
-                                LogLevel::Trace => tracing::trace!("[Plugin] {}", message),
-                                LogLevel::Debug => tracing::debug!("[Plugin] {}", message),
-                                LogLevel::Info => tracing::info!("[Plugin] {}", message),
-                                LogLevel::Warn => tracing::warn!("[Plugin] {}", message),
-                                LogLevel::Error => tracing::error!("[Plugin] {}", message),
-                            }
-                        }
+                        PluginEvent::NotificationEmitted { level, message } => match level {
+                            LogLevel::Trace => tracing::trace!("[Plugin] {}", message),
+                            LogLevel::Debug => tracing::debug!("[Plugin] {}", message),
+                            LogLevel::Info => tracing::info!("[Plugin] {}", message),
+                            LogLevel::Warn => tracing::warn!("[Plugin] {}", message),
+                            LogLevel::Error => tracing::error!("[Plugin] {}", message),
+                        },
                         other => {
                             let _ = event_bus.publish(other);
                         }

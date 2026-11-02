@@ -83,6 +83,7 @@ impl ImageCache {
         }
     }
 
+    #[allow(dead_code)]
     pub fn get_or_load(&self, path_str: &str) -> Option<String> {
         if let Ok(guard) = self.cache.read() {
             if let Some(cached) = guard.get(path_str) {

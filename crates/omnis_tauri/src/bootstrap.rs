@@ -20,6 +20,7 @@ use std::sync::Arc;
 use tauri::Manager;
 use tracing::info;
 
+#[allow(dead_code)]
 pub struct AppPaths {
     pub app_dir: PathBuf,
     pub is_portable: bool,
@@ -174,11 +175,7 @@ impl AppBootstrap {
         app.manage(state);
 
         // Spawn automated background backup scheduler
-        crate::services::spawn_backup_scheduler(
-            db_backup,
-            app_dir_backup,
-            app.handle().clone(),
-        );
+        crate::services::spawn_backup_scheduler(db_backup, app_dir_backup, app.handle().clone());
 
         // Check if an installed game is already running and re-attach session on startup
         tauri::async_runtime::spawn(async move {
