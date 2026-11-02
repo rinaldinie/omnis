@@ -1,10 +1,45 @@
+use clap::{Parser, Subcommand};
 use omnis_core::{Database, EventBus, PluginHost};
+use omnis_plugin_steam::SteamPlugin;
 use omnis_sdk::PluginEvent;
-use std::env;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
 use tracing::info;
+
+#[derive(Parser)]
+#[command(name = "omnis", about = "CLI driver for Omnis Game Library", version)]
+struct Cli {
+    #[command(subcommand)]
+    command: Option<Commands>,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Synchronize game library from installed plugins
+    Sync {
+        /// Store/library to sync, or 'all' for all registered plugins
+        #[arg(long, default_value = "all")]
+        library: String,
+        /// Force full scan rather than incremental
+        #[arg(long)]
+        force: bool,
+    },
+    /// List all games in the database catalog
+    List,
+    /// Display Omnis engine and database statistics
+    Stats,
+    /// Import games from a Playnite 10 JSON export
+    ImportPlaynite {
+        /// Path to the exported JSON file
+        file: PathBuf,
+        /// Validate and simulate without writing to database
+        #[arg(long)]
+        dry_run: bool,
+    },
+    /// Print PowerShell / C# script to export Playnite library
+    PlayniteExporterScript,
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -25,14 +60,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let db_open_duration = t_db.elapsed();
 
     let event_bus = EventBus::new(256);
-    let host = PluginHost::new(event_bus.clone(), db.clone());
+    let mut host = PluginHost::new(event_bus.clone(), db.clone());
+    // Register built-in first-party integration plugins (Tier 0)
+    host.register_plugin(Box::new(SteamPlugin::new()));
     host.initialize_all().await?;
 
-    let args: Vec<String> = env::args().collect();
-    let cmd = args.get(1).map(|s| s.as_str()).unwrap_or("list");
+    let cli = Cli::parse();
+    let cmd = cli.command.unwrap_or(Commands::List);
 
     match cmd {
-        "sync" => {
+        Commands::Sync { library, force } => {
             let plugin_count = host.plugin_count();
             if plugin_count == 0 {
                 println!("\n⚠️ No external integration plugins are currently installed.");
@@ -43,17 +80,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     plugin_count
                 );
                 let t_sync = Instant::now();
-                host.dispatch_event(
+                host.dispatch_event_and_wait(
                     None,
                     PluginEvent::SyncRequested {
-                        library_id: "all".to_string(),
-                        force_full: false,
+                        library_id: library,
+                        force_full: force,
                     },
                 )
                 .await;
-
-                // Allow async tasks to finish
-                tokio::time::sleep(tokio::time::Duration::from_millis(300)).await;
 
                 let total_games = db.count_games()?;
                 println!(
@@ -63,7 +97,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 );
             }
         }
-        "list" => {
+        Commands::List => {
             let games = db.get_all_games()?;
             println!("\n🎮 ================== OMNIS GAME LIBRARY ================== 🎮");
             println!("Database: {}\n", db_path.display());
@@ -97,7 +131,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 db_open_duration.as_secs_f64() * 1000.0
             );
         }
-        "stats" => {
+        Commands::Stats => {
             let count = db.count_games()?;
             println!("\n📊 Omnis Game Library Engine Statistics:");
             println!("  Database Engine: SQLite 3 WAL Mode");
@@ -109,17 +143,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 start_total.elapsed().as_secs_f64() * 1000.0
             );
         }
-        "import-playnite" => {
-            let file_path = match args.get(2) {
-                Some(p) => p,
-                None => {
-                    eprintln!("Error: Missing path to Playnite export JSON file.");
-                    eprintln!("Usage: omnis import-playnite <file.json> [--dry-run]");
-                    return Ok(());
-                }
-            };
-
-            let dry_run = args.iter().any(|a| a == "--dry-run");
+        Commands::ImportPlaynite { file, dry_run } => {
+            let file_path = file.to_string_lossy().to_string();
             let cache_dir = app_dir.join("cache").join("images");
 
             let options = omnis_core::PlayniteImportOptions {
@@ -133,7 +158,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             );
             let t_import = Instant::now();
 
-            match db.import_playnite_from_file(file_path, &options) {
+            match db.import_playnite_from_file(&file_path, &options) {
                 Ok(stats) => {
                     println!(
                         "\n🎮 ================== PLAYNITE IMPORT REPORT ================== 🎮"
@@ -163,11 +188,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
         }
-        "playnite-exporter-script" => {
+        Commands::PlayniteExporterScript => {
             println!("{}", omnis_core::export_csharp_script());
-        }
-        _ => {
-            println!("Usage: omnis <sync | list | stats | import-playnite <file.json> [--dry-run] | playnite-exporter-script>");
         }
     }
 

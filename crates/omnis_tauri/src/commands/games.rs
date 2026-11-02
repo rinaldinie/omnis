@@ -1,4 +1,4 @@
-use crate::launcher_service::GameLaunchCoordinator;
+use crate::services::GameLaunchCoordinator;
 use crate::types::{game_to_dto, AppState, GameDto};
 use omnis_core::LibraryCounts;
 use omnis_plugin_epic::EpicLibraryPlugin;
@@ -231,7 +231,7 @@ pub async fn update_game_completion_status(
 #[tauri::command]
 pub async fn get_running_game(
     state: State<'_, AppState>,
-) -> Result<Option<crate::active_game::ActiveGameSession>, String> {
+) -> Result<Option<crate::services::ActiveGameSession>, String> {
     Ok(state.active_game_manager.get_running().await)
 }
 
@@ -296,7 +296,7 @@ pub async fn uninstall_game(
         .map_err(|e| e.to_string())?
         .ok_or_else(|| "Gioco non trovato".to_string())?;
 
-    crate::store_actions::StorePlatformDispatcher::trigger_uninstall(&game)?;
+    crate::store::StorePlatformDispatcher::trigger_uninstall(&game)?;
 
     // Mark as uninstalled in DB (Approach 1: retain stats/history, set is_installed = false)
     let _ = state.db.set_game_installed(id, false);
@@ -321,10 +321,10 @@ pub async fn create_desktop_shortcut(
         .map_err(|e| e.to_string())?
         .ok_or_else(|| "Gioco non trovato".to_string())?;
 
-    let desktop_dir = crate::store_actions::get_desktop_dir()
+    let desktop_dir = crate::store::get_desktop_dir()
         .ok_or_else(|| "Impossibile individuare la cartella Desktop dell'utente.".to_string())?;
 
-    let path = crate::store_actions::StorePlatformDispatcher::create_desktop_shortcut(
+    let path = crate::store::StorePlatformDispatcher::create_desktop_shortcut(
         &game,
         &desktop_dir,
     )?;
@@ -340,7 +340,7 @@ pub async fn verify_game_files(game_id: String, state: State<'_, AppState>) -> R
         .map_err(|e| e.to_string())?
         .ok_or_else(|| "Gioco non trovato".to_string())?;
 
-    crate::store_actions::StorePlatformDispatcher::trigger_verify(
+    crate::store::StorePlatformDispatcher::trigger_verify(
         &game.library_id,
         &game.external_id,
     )

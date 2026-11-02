@@ -52,7 +52,7 @@ impl PluginHost {
         Ok(())
     }
 
-    /// Dispatch an event to a specific plugin or all plugins, handling emitted results
+    /// Dispatch an event to a specific plugin or all plugins, handling emitted results asynchronously
     pub async fn dispatch_event(&self, target_id: Option<&str>, event: PluginEvent) {
         let _ = self.event_bus.publish(event.clone());
 
@@ -67,46 +67,80 @@ impl PluginHost {
             let event_bus = self.event_bus.clone();
 
             tokio::spawn(async move {
-                let mut plugin = plugin_arc.lock().await;
-                match plugin.handle_event(event_clone).await {
-                    Ok(emitted_events) => {
-                        for ev in emitted_events {
-                            match ev {
-                                PluginEvent::BatchGamesDiscovered { library_id, games } => {
-                                    info!(
-                                        "Ingesting batch of {} discovered games from library '{}'",
-                                        games.len(),
-                                        library_id
-                                    );
-                                    if let Err(e) = db.ingest_discovered_batch(&games) {
-                                        error!("Failed to commit game batch to SQLite: {}", e);
-                                    }
-                                }
-                                PluginEvent::MetadataResolved { game_id, metadata } => {
-                                    if let Err(e) = db.apply_metadata_patch(game_id, &metadata) {
-                                        error!("Failed to update metadata in SQLite: {}", e);
-                                    }
-                                }
-                                PluginEvent::NotificationEmitted { level, message } => {
-                                    match level {
-                                        LogLevel::Trace => tracing::trace!("[Plugin] {}", message),
-                                        LogLevel::Debug => tracing::debug!("[Plugin] {}", message),
-                                        LogLevel::Info => tracing::info!("[Plugin] {}", message),
-                                        LogLevel::Warn => tracing::warn!("[Plugin] {}", message),
-                                        LogLevel::Error => tracing::error!("[Plugin] {}", message),
-                                    }
-                                }
-                                other => {
-                                    let _ = event_bus.publish(other);
-                                }
+                Self::process_plugin_event(plugin_arc, event_clone, db, event_bus).await;
+            });
+        }
+    }
+
+    /// Dispatch an event and await full completion across all plugin targets without race conditions
+    pub async fn dispatch_event_and_wait(&self, target_id: Option<&str>, event: PluginEvent) {
+        let _ = self.event_bus.publish(event.clone());
+
+        let targets: Vec<Arc<Mutex<Box<dyn ReactivePlugin>>>> = match target_id {
+            Some(id) => self.plugins.get(id).cloned().into_iter().collect(),
+            None => self.plugins.values().cloned().collect(),
+        };
+
+        let mut handles = Vec::new();
+        for plugin_arc in targets {
+            let event_clone = event.clone();
+            let db = self.db.clone();
+            let event_bus = self.event_bus.clone();
+
+            handles.push(tokio::spawn(async move {
+                Self::process_plugin_event(plugin_arc, event_clone, db, event_bus).await;
+            }));
+        }
+
+        for handle in handles {
+            let _ = handle.await;
+        }
+    }
+
+    async fn process_plugin_event(
+        plugin_arc: Arc<Mutex<Box<dyn ReactivePlugin>>>,
+        event: PluginEvent,
+        db: Arc<Database>,
+        event_bus: EventBus,
+    ) {
+        let mut plugin = plugin_arc.lock().await;
+        match plugin.handle_event(event).await {
+            Ok(emitted_events) => {
+                for ev in emitted_events {
+                    match ev {
+                        PluginEvent::BatchGamesDiscovered { library_id, games } => {
+                            info!(
+                                "Ingesting batch of {} discovered games from library '{}'",
+                                games.len(),
+                                library_id
+                            );
+                            if let Err(e) = db.ingest_discovered_batch(&games) {
+                                error!("Failed to commit game batch to SQLite: {}", e);
                             }
                         }
-                    }
-                    Err(err) => {
-                        warn!("Plugin error handling event: {}", err);
+                        PluginEvent::MetadataResolved { game_id, metadata } => {
+                            if let Err(e) = db.apply_metadata_patch(game_id, &metadata) {
+                                error!("Failed to update metadata in SQLite: {}", e);
+                            }
+                        }
+                        PluginEvent::NotificationEmitted { level, message } => {
+                            match level {
+                                LogLevel::Trace => tracing::trace!("[Plugin] {}", message),
+                                LogLevel::Debug => tracing::debug!("[Plugin] {}", message),
+                                LogLevel::Info => tracing::info!("[Plugin] {}", message),
+                                LogLevel::Warn => tracing::warn!("[Plugin] {}", message),
+                                LogLevel::Error => tracing::error!("[Plugin] {}", message),
+                            }
+                        }
+                        other => {
+                            let _ = event_bus.publish(other);
+                        }
                     }
                 }
-            });
+            }
+            Err(err) => {
+                warn!("Plugin error handling event: {}", err);
+            }
         }
     }
 }

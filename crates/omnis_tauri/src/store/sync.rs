@@ -5,7 +5,7 @@ use omnis_sdk::plugin::{CloudStorePlugin, StoreAccountSession};
 use std::collections::HashMap;
 use tauri::{AppHandle, Emitter};
 
-use crate::store_manager::StoreAccountManager;
+use super::manager::StoreAccountManager;
 
 /// Handles library synchronization from connected cloud store accounts, progress reporting, and catalog batch updates
 pub struct StoreCatalogSyncEngine;

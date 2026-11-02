@@ -99,7 +99,7 @@ pub async fn save_store_api_key(
 
 #[tauri::command]
 pub async fn save_store_integration_settings(
-    settings: crate::store_manager::StoreIntegrationSettingsDto,
+    settings: crate::store::StoreIntegrationSettingsDto,
     app_handle: tauri::AppHandle,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
@@ -122,7 +122,7 @@ pub async fn save_store_integration_settings(
 pub async fn get_store_integration_settings(
     store_id: String,
     state: State<'_, AppState>,
-) -> Result<crate::store_manager::StoreIntegrationSettingsDto, String> {
+) -> Result<crate::store::StoreIntegrationSettingsDto, String> {
     state
         .store_account_manager
         .get_integration_settings(&store_id)

@@ -53,7 +53,7 @@ pub async fn refresh_game_achievements(
 /// Progress is reported through `achievement-sync-progress` events.
 #[tauri::command]
 pub async fn start_library_achievement_sync(app: tauri::AppHandle) -> Result<(), String> {
-    tauri::async_runtime::spawn(crate::achievement_sync::run_library_sync(app));
+    tauri::async_runtime::spawn(crate::services::run_library_sync(app));
     Ok(())
 }
 

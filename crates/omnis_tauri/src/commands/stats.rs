@@ -56,7 +56,7 @@ pub async fn sync_steam_sessions(
 ) -> Result<usize, String> {
     let db = state.db.clone();
     let count = tokio::task::spawn_blocking(move || {
-        crate::steam_sync::sync_local_steam_sessions(&db).map_err(|e| e.to_string())
+        crate::services::sync_local_steam_sessions(&db).map_err(|e| e.to_string())
     })
     .await
     .map_err(|e| e.to_string())??;

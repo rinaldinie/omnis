@@ -1,9 +1,8 @@
 //! Application bootstrap coordinator: directory layout, service wiring, and lifecycle hooks
 
-use crate::achievement_service::AchievementService;
-use crate::active_game::ActiveGameManager;
 use crate::migration;
-use crate::store_manager::StoreAccountManager;
+use crate::services::{AchievementService, ActiveGameManager};
+use crate::store::StoreAccountManager;
 use crate::tray;
 use crate::types::{AppState, ImageCache};
 use omnis_core::{
@@ -175,7 +174,7 @@ impl AppBootstrap {
         app.manage(state);
 
         // Spawn automated background backup scheduler
-        crate::backup_scheduler::spawn_backup_scheduler(
+        crate::services::spawn_backup_scheduler(
             db_backup,
             app_dir_backup,
             app.handle().clone(),
@@ -190,7 +189,7 @@ impl AppBootstrap {
         let app_handle_steam = app.handle().clone();
         tauri::async_runtime::spawn(async move {
             let res = tokio::task::spawn_blocking(move || {
-                crate::steam_sync::sync_local_steam_sessions(&db_steam).map_err(|e| e.to_string())
+                crate::services::sync_local_steam_sessions(&db_steam).map_err(|e| e.to_string())
             })
             .await;
 
@@ -246,7 +245,7 @@ impl AppBootstrap {
                     .and_then(|v| v.get("game_id")?.as_str().map(str::to_owned))
                     .and_then(|id| uuid::Uuid::parse_str(&id).ok());
                 if let Some(game_id) = game_id {
-                    tauri::async_runtime::spawn(crate::achievement_sync::run_post_session_sync(
+                    tauri::async_runtime::spawn(crate::services::run_post_session_sync(
                         h3.clone(),
                         game_id,
                     ));

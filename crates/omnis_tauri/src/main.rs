@@ -1,37 +1,21 @@
 // Prevents additional console window on Windows in release
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-pub mod achievement_service;
-pub mod achievement_sync;
-pub mod active_game;
-pub mod backup_scheduler;
-pub mod bootstrap;
-pub mod builtin_themes;
-pub mod candidate_applier;
-pub mod commands;
-pub mod launcher_service;
-pub mod migration;
-pub mod slot_resolver;
-pub mod steam_sync;
-pub mod store_actions;
-pub mod store_manager;
-pub mod trailer_service;
-pub mod tray;
-pub mod types;
+mod bootstrap;
+mod builtin_themes;
+mod commands;
+mod migration;
+mod services;
+mod store;
+mod tray;
+mod types;
 
-pub use achievement_service::*;
-pub use active_game::*;
-pub use backup_scheduler::*;
-pub use bootstrap::*;
-pub use candidate_applier::*;
-pub use commands::*;
-pub use launcher_service::*;
-pub use slot_resolver::*;
-pub use steam_sync::*;
-pub use store_actions::*;
-pub use trailer_service::*;
-pub use tray::*;
-pub use types::*;
+use bootstrap::AppBootstrap;
+use commands::*;
+
+// Re-exports for internal use across commands and services
+pub(crate) use services::*;
+pub(crate) use store::*;
 
 use tracing::info;
 
