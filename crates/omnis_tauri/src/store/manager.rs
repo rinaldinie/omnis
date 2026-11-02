@@ -151,6 +151,15 @@ impl StoreAccountManager {
     }
 
     #[inline]
+    pub fn disconnect_account(
+        &self,
+        store_id: &str,
+        cleanup_mode: Option<&str>,
+    ) -> Result<usize, String> {
+        StoreSessionVault::disconnect_account(self, store_id, cleanup_mode)
+    }
+
+    #[inline]
     pub async fn get_store_accounts(&self) -> Result<Vec<StoreAccountDto>, String> {
         StoreSessionVault::get_store_accounts(self).await
     }

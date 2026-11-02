@@ -23,9 +23,12 @@ export const storesApi = {
   startStoreLogin: (storeId: string): Promise<void> =>
     invokeIpc<void>("start_store_login", { storeId }),
 
-  /** Disconnect and revoke credentials for a store */
-  disconnectStoreAccount: (storeId: string): Promise<void> =>
-    invokeIpc<void>("disconnect_store_account", { storeId }),
+  /** Disconnect and revoke credentials for a store, with optional library cleanup */
+  disconnectStoreAccount: (
+    storeId: string,
+    cleanupMode: "keep" | "uninstalled_only" | "all" = "keep"
+  ): Promise<number> =>
+    invokeIpc<number>("disconnect_store_account", { storeId, cleanupMode }),
 
   /** Save store API key */
   saveStoreApiKey: (storeId: string, apiKey: string): Promise<void> =>

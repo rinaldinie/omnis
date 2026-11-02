@@ -23,15 +23,27 @@ pub async fn get_store_accounts(
 #[tauri::command]
 pub async fn disconnect_store_account(
     store_id: String,
+    cleanup_mode: Option<String>,
     app_handle: tauri::AppHandle,
     state: State<'_, AppState>,
-) -> Result<(), String> {
-    state.store_account_manager.delete_session(&store_id)?;
+) -> Result<usize, String> {
+    let count = state
+        .store_account_manager
+        .disconnect_account(&store_id, cleanup_mode.as_deref())?;
+
     let _ = app_handle.emit(
         "store-account-disconnected",
-        serde_json::json!({ "store_id": store_id }),
+        serde_json::json!({
+            "store_id": store_id,
+            "deleted_games": count
+        }),
     );
-    Ok(())
+
+    if count > 0 {
+        let _ = app_handle.emit(omnis_sdk::constants::events::LIBRARY_UPDATED, ());
+    }
+
+    Ok(count)
 }
 
 #[tauri::command]
