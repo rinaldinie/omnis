@@ -3,6 +3,8 @@ name = "omnis_sdk"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+authors.workspace = true
+repository.workspace = true
 description = "Core asynchronous and reactive SDK contracts for Omnis Game Library plugins"
 
 [dependencies]
@@ -11,4 +13,4 @@ serde_json.workspace = true
 uuid.workspace = true
 async-trait.workspace = true
 chrono.workspace = true
-zeroize = { version = "1.8", features = ["derive"] }
+zeroize.workspace = true

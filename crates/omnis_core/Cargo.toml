@@ -3,10 +3,12 @@ name = "omnis_core"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+authors.workspace = true
+repository.workspace = true
 description = "High-performance Core Engine for Omnis Game Library"
 
 [dependencies]
-omnis_sdk = { path = "../omnis_sdk" }
+omnis_sdk.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 uuid.workspace = true
@@ -19,13 +21,13 @@ chrono.workspace = true
 reqwest.workspace = true
 libloading = "0.8"
 zip = { version = "2.2", default-features = false, features = ["deflate"] }
-sysinfo = "0.30"
+sysinfo.workspace = true
 aes-gcm = "0.10"
-zeroize = { version = "1.8", features = ["derive"] }
-base64 = "0.22"
-keyring = "2.1"
+zeroize.workspace = true
+base64.workspace = true
+keyring.workspace = true
 wasmtime = "25"
-url = "2.5"
+url.workspace = true
 nucleo-matcher = "0.3.1"
 sha2 = "0.10"
 
@@ -45,7 +47,7 @@ windows = { version = "0.58", features = [
 libc = "0.2"
 
 [dev-dependencies]
-omnis_plugin_epic = { path = "../../plugins/omnis_plugin_epic" }
-omnis_plugin_gog = { path = "../../plugins/omnis_plugin_gog" }
-omnis_plugin_steam = { path = "../../plugins/omnis_plugin_steam" }
-omnis_plugin_xbox = { path = "../../plugins/omnis_plugin_xbox" }
+omnis_plugin_epic.workspace = true
+omnis_plugin_gog.workspace = true
+omnis_plugin_steam.workspace = true
+omnis_plugin_xbox.workspace = true

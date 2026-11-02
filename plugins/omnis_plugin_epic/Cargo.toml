@@ -3,10 +3,12 @@ name = "omnis_plugin_epic"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+authors.workspace = true
+repository.workspace = true
 description = "Epic Games Store library importer plugin for Omnis Game Library"
 
 [dependencies]
-omnis_sdk = { path = "../../crates/omnis_sdk" }
+omnis_sdk.workspace = true
 async-trait.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
@@ -14,8 +16,8 @@ reqwest.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 chrono.workspace = true
-url = "2.4"
-urlencoding = "2.1"
+url.workspace = true
+urlencoding.workspace = true
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
