@@ -17,6 +17,7 @@ import {
 import { ActiveGameSession, ProviderInfo, ThemeConfig, ViewMode } from "../../types";
 import soundEffects from "../../utils/soundEffects";
 import { useUpdater } from "../../hooks/useAppUpdater";
+import { useActiveGameTimer } from "../../context/ActiveGameTimerContext";
 import AppMenuDropdown from "./AppMenuDropdown";
 
 export interface TopBarProps {
@@ -84,6 +85,8 @@ export default function TopBar({
   const isUpdateAvailable = updater?.status === "available";
   const [isAppMenuOpen, setIsAppMenuOpen] = useState(false);
   const brandButtonRef = useRef<HTMLButtonElement>(null);
+  const timerContextSeconds = useActiveGameTimer();
+  const actualElapsed = elapsedSeconds ?? timerContextSeconds;
 
   return (
     <header
@@ -284,7 +287,7 @@ export default function TopBar({
             <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/60 text-emerald-300 text-xs font-bold animate-pulse backdrop-blur-md shrink-0">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping shrink-0" />
               <span className="truncate max-w-[180px]" title={activeGame.title}>
-                ● {t("status.running")}: {activeGame.title} ({formatDuration ? formatDuration(elapsedSeconds || 0) : `${elapsedSeconds || 0}s`})
+                ● {t("status.running")}: {activeGame.title} ({formatDuration ? formatDuration(actualElapsed || 0) : `${actualElapsed || 0}s`})
               </span>
               {handleKillRunningGame && (
                 <button

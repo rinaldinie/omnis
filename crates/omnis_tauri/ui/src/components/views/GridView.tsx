@@ -6,6 +6,7 @@ import { Slot } from "../common/Slot";
 import { GameCardCover } from "../common/GameCardCover";
 import EmptyGamesView from "../common/EmptyGamesView";
 import { useTranslation } from "../../i18n";
+import { useActiveGameTimer } from "../../context/ActiveGameTimerContext";
 
 const COMPLETION_STATUS_CONFIG: Record<string, { dot: string; labelKey: string }> = {
   Playing: { dot: "bg-sky-400", labelKey: "playing" },
@@ -69,6 +70,8 @@ const GameCardItem = React.memo(
     onEdit,
   }: GameCardItemProps) {
     const { t } = useTranslation();
+    const timerContextSeconds = useActiveGameTimer();
+    const actualElapsed = elapsedSeconds ?? timerContextSeconds;
     return (
       <article
         data-omnis="game-card"
@@ -122,7 +125,7 @@ const GameCardItem = React.memo(
                     ? `⏳ ${t("status.launching")}`
                     : activeGameState === "stopping"
                     ? `🛑 ${t("status.stopping")}`
-                    : `● ${t("status.running")} (${formatDuration ? formatDuration(elapsedSeconds || 0) : `${elapsedSeconds || 0}s`})`}
+                    : `● ${t("status.running")} (${formatDuration ? formatDuration(actualElapsed || 0) : `${actualElapsed || 0}s`})`}
                 </span>
               </div>
             ) : (
