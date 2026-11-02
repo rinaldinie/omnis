@@ -2,13 +2,16 @@ use rusqlite::{params, OptionalExtension, Result};
 
 use crate::db::{Database, DatabaseError};
 
+/// Encrypted secret record as `(nonce, ciphertext)`.
+pub type EncryptedSecret = (Vec<u8>, Vec<u8>);
+
 /// Repository trait for secure credential and secret storage (Requirement D1)
 pub trait SecretRepository: Send + Sync {
     /// Store an encrypted secret record
     fn store_secret(&self, id: &str, nonce: &[u8], ciphertext: &[u8]) -> Result<(), DatabaseError>;
 
     /// Retrieve an encrypted secret record by ID
-    fn get_secret(&self, id: &str) -> Result<Option<(Vec<u8>, Vec<u8>)>, DatabaseError>;
+    fn get_secret(&self, id: &str) -> Result<Option<EncryptedSecret>, DatabaseError>;
 
     /// Delete a secret by ID
     fn delete_secret(&self, id: &str) -> Result<(), DatabaseError>;
@@ -30,7 +33,7 @@ impl SecretRepository for Database {
         Ok(())
     }
 
-    fn get_secret(&self, id: &str) -> Result<Option<(Vec<u8>, Vec<u8>)>, DatabaseError> {
+    fn get_secret(&self, id: &str) -> Result<Option<EncryptedSecret>, DatabaseError> {
         let conn = self.reader();
         let mut stmt = conn.prepare("SELECT nonce, ciphertext FROM secrets WHERE id = ?1")?;
         let res = stmt
@@ -63,7 +66,7 @@ impl Database {
     }
 
     #[inline]
-    pub fn get_secret(&self, id: &str) -> Result<Option<(Vec<u8>, Vec<u8>)>, DatabaseError> {
+    pub fn get_secret(&self, id: &str) -> Result<Option<EncryptedSecret>, DatabaseError> {
         SecretRepository::get_secret(self, id)
     }
 

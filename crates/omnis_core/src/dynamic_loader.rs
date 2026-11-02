@@ -64,6 +64,12 @@ impl DynamicPluginHandle {
     /// Calls an FFI function that returns a dynamically allocated C string,
     /// catches any unwind panics, converts the C string to a Rust String,
     /// and immediately calls the plugin's `omnis_free_string` to release the pointer safely.
+    ///
+    /// # Safety
+    ///
+    /// `func` must call an FFI export of this plugin that returns either a null pointer or a
+    /// valid, NUL-terminated C string allocated by the plugin and releasable via
+    /// `omnis_free_string`.
     pub unsafe fn call_c_string_returning<F>(&self, func: F) -> Result<String, String>
     where
         F: FnOnce() -> *mut c_char + std::panic::UnwindSafe,

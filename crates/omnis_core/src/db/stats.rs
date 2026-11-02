@@ -70,7 +70,7 @@ fn query_available_years(
     ) {
         if let Ok(year_rows) = year_stmt.query_map([], |row| row.get::<_, Option<i32>>(0)) {
             for yr in year_rows.flatten().flatten() {
-                if yr >= 1990 && yr <= 2100 {
+                if (1990..=2100).contains(&yr) {
                     years_set.insert(yr);
                 }
             }

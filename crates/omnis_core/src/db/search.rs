@@ -43,10 +43,8 @@ impl GameSearchRepository for Database {
             })?;
 
             let mut items = Vec::new();
-            for r in rows {
-                if let Ok(item) = r {
-                    items.push(item);
-                }
+            for item in rows.flatten() {
+                items.push(item);
             }
             items
         };
@@ -87,15 +85,11 @@ impl GameSearchRepository for Database {
         })?;
 
         let mut ids = Vec::new();
-        for r in rows {
-            if let Ok(id) = r {
-                ids.push(id);
-            }
+        for id in rows.flatten() {
+            ids.push(id);
         }
         Ok(ids)
     }
-
-    /// Retrieve games by their IDs preserving the requested slice ordering
 
     fn search_games(&self, search_term: &str) -> Result<Vec<Game>> {
         let term = search_term.trim();

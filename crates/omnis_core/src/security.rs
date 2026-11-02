@@ -63,7 +63,7 @@ impl SecretVault {
                     Err(keyring::Error::NoEntry) => {
                         // Generate a fresh master key and try to persist into OS keyring
                         let key_bytes = Aes256Gcm::generate_key(OsRng);
-                        let b64 = BASE64.encode(&key_bytes);
+                        let b64 = BASE64.encode(key_bytes);
                         if entry.set_password(&b64).is_ok() {
                             let mut key = [0u8; 32];
                             key.copy_from_slice(&key_bytes);
@@ -185,7 +185,7 @@ impl SecretVault {
 
         // Generate new key and save to file with restricted permissions (0600 on unix)
         let key_bytes = Aes256Gcm::generate_key(OsRng);
-        let b64 = BASE64.encode(&key_bytes);
+        let b64 = BASE64.encode(key_bytes);
 
         if let Some(parent) = path.parent() {
             let _ = std::fs::create_dir_all(parent);

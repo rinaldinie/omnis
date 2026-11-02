@@ -183,10 +183,10 @@ impl Database {
             return Err(rusqlite::Error::FromSqlConversionFailure(
                 0,
                 rusqlite::types::Type::Text,
-                Box::new(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!("Failed replacing database file: {}", err),
-                )),
+                Box::new(std::io::Error::other(format!(
+                    "Failed replacing database file: {}",
+                    err
+                ))),
             ));
         }
 

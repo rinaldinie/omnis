@@ -161,6 +161,7 @@ impl GameLaunchCoordinator {
     }
 
     /// Background monitoring loop handling 60s periodic checkpoints and process exit reconciliation.
+    #[allow(clippy::too_many_arguments)]
     async fn run_tracking_lifecycle(
         app_handle: tauri::AppHandle,
         active_mgr: Arc<crate::active_game::ActiveGameManager>,

@@ -55,7 +55,7 @@ pub fn rotate_backups(
     }
 
     // Sort descending: newest files first
-    backups.sort_by(|a, b| b.0.cmp(&a.0));
+    backups.sort_by_key(|b| std::cmp::Reverse(b.0));
 
     let mut pruned_count = 0;
     if backups.len() > keep_last {

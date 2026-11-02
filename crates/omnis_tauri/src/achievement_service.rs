@@ -84,7 +84,7 @@ impl AchievementService {
             .filter(|g| configured.contains(g.library_id.as_str()))
             .filter(|g| g.playtime_seconds > 0 || g.play_count > 0 || g.last_activity.is_some())
             .collect();
-        games.sort_by(|a, b| b.last_activity.cmp(&a.last_activity));
+        games.sort_by_key(|g| std::cmp::Reverse(g.last_activity));
         Ok(games)
     }
 

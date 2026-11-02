@@ -106,10 +106,7 @@ pub fn file_url_to_path(url_str: &str) -> PathBuf {
     let mut raw = url_str.trim_start_matches("file://");
     while raw.starts_with('/') {
         if raw.len() >= 3
-            && raw
-                .chars()
-                .nth(1)
-                .map_or(false, |c| c.is_ascii_alphabetic())
+            && raw.chars().nth(1).is_some_and(|c| c.is_ascii_alphabetic())
             && raw.chars().nth(2) == Some(':')
         {
             raw = &raw[1..];

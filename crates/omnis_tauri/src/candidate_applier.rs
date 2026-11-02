@@ -260,9 +260,7 @@ impl<'a> CandidateMetadataApplier<'a> {
                     // Clean up old image file if managed by omnis
                     if let Some(old_path_str) = old_image_path {
                         let old_path = Path::new(old_path_str);
-                        if old_path.exists()
-                            && old_path.starts_with(target_dir)
-                            && old_path != &dest
+                        if old_path.exists() && old_path.starts_with(target_dir) && old_path != dest
                         {
                             let _ = std::fs::remove_file(old_path);
                         }

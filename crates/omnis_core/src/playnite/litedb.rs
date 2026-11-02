@@ -487,7 +487,7 @@ pub fn extract_litedb_document<'a>(
         return None;
     }
     let doc_len = u32::from_le_bytes(data[doc_start..doc_start + 4].try_into().ok()?) as usize;
-    if doc_len < 5 || doc_len > 16 * 1024 * 1024 {
+    if !(5..=16 * 1024 * 1024).contains(&doc_len) {
         return None;
     }
 

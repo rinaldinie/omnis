@@ -72,8 +72,8 @@ async fn test_plugins_scaffolding_and_dynamic_discovery() {
     );
 
     let meta = metacritic.unwrap();
-    assert_eq!(
-        meta.is_builtin, false,
+    assert!(
+        !meta.is_builtin,
         "metacritic_provider must have is_builtin = false"
     );
     assert_eq!(meta.name, "Metacritic Community Scraper");

@@ -413,6 +413,7 @@ fn create_test_db() -> Database {
     db
 }
 
+#[allow(clippy::too_many_arguments)]
 fn seed_game(
     db: &Database,
     id: Uuid,

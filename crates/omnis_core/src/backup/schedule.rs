@@ -141,7 +141,7 @@ pub fn is_backup_due(config: &BackupScheduleConfig, now: DateTime<Utc>) -> bool 
     if config
         .destination_dir
         .as_ref()
-        .map_or(true, |p| p.as_os_str().is_empty())
+        .is_none_or(|p| p.as_os_str().is_empty())
     {
         return false;
     }
@@ -247,8 +247,10 @@ mod tests {
 
     #[test]
     fn test_clamped_max_rotations() {
-        let mut config = BackupScheduleConfig::default();
-        config.max_rotations = 0;
+        let mut config = BackupScheduleConfig {
+            max_rotations: 0,
+            ..Default::default()
+        };
         assert_eq!(config.clamped_max_rotations(), 1);
 
         config.max_rotations = 5;
