@@ -1,4 +1,4 @@
-import { convertFileSrc, invoke, isTauri } from "@tauri-apps/api/core";
+import { convertFileSrc, isTauri } from "@tauri-apps/api/core";
 
 export type ViewMode = "grid" | "details" | "list" | "stats";
 
@@ -175,7 +175,17 @@ export const normalizeGame = (g: GameDto): GameDto => ({
   icon_image: formatImageUrl(g.icon_image || g.cover_image),
 });
 
-export { invokeTauri, invokeIpc, safeInvokeIpc, listenTauri, listenIpc, api } from "./api";
+export {
+  invokeTauri,
+  invokeIpc,
+  safeInvokeIpc,
+  listenTauri,
+  listenIpc,
+  api,
+  TAURI_EVENTS,
+  type TauriEvent,
+  slotsApi,
+} from "./api";
 
 export const FILTER_ORDER = [
   "all",

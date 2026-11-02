@@ -16,7 +16,7 @@ import {
   BookOpen,
 } from "lucide-react";
 import { listen } from "@tauri-apps/api/event";
-import { GameDto, formatImageUrl } from "../../types";
+import { GameDto, formatImageUrl, TAURI_EVENTS } from "../../types";
 import { api } from "../../api";
 import { useTranslation } from "../../i18n";
 import { StoreBadge } from "../StoreBadge";
@@ -158,7 +158,7 @@ export default function BatchEnrichModal({
     (async () => {
       try {
         unlisten = await listen<MetadataProgressPayload>(
-          "metadata-progress",
+          TAURI_EVENTS.METADATA_PROGRESS,
           (event) => {
             setProgress(event.payload);
           }

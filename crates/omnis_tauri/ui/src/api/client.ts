@@ -11,7 +11,7 @@ export async function invokeIpc<T>(cmd: string, args?: Record<string, unknown>):
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[IPC Error] Command '${cmd}' failed:`, err);
-    throw new Error(`Command '${cmd}' failed: ${message}`);
+    throw new Error(`Command '${cmd}' failed: ${message}`, { cause: err });
   }
 }
 

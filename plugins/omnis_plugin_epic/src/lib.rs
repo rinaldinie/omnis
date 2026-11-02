@@ -203,6 +203,61 @@ impl CloudStorePlugin for EpicLibraryPlugin {
     }
 }
 
+#[async_trait]
+impl omnis_sdk::ReactivePlugin for EpicLibraryPlugin {
+    fn id(&self) -> &'static str {
+        "epic"
+    }
+
+    fn name(&self) -> &'static str {
+        "Epic Games Store"
+    }
+
+    fn settings_schema(&self) -> Option<omnis_sdk::PluginSettingsSchema> {
+        None
+    }
+
+    async fn initialize(&mut self, _config_json: &str) -> Result<(), String> {
+        Ok(())
+    }
+
+    async fn handle_event(
+        &mut self,
+        event: omnis_sdk::PluginEvent,
+    ) -> Result<Vec<omnis_sdk::PluginEvent>, String> {
+        let mut responses = Vec::new();
+
+        match event {
+            omnis_sdk::PluginEvent::SyncRequested { library_id, .. }
+                if library_id == "epic" || library_id == "all" =>
+            {
+                tracing::info!(
+                    "EpicLibraryPlugin: Handling SyncRequested event for '{}'",
+                    library_id
+                );
+                match self.scan().await {
+                    Ok(games) => {
+                        tracing::info!("EpicLibraryPlugin: Found {} installed games", games.len());
+                        responses.push(omnis_sdk::PluginEvent::BatchGamesDiscovered {
+                            library_id: "epic".to_string(),
+                            games,
+                        });
+                    }
+                    Err(e) => {
+                        responses.push(omnis_sdk::PluginEvent::NotificationEmitted {
+                            level: omnis_sdk::LogLevel::Error,
+                            message: format!("Epic scan failed: {}", e),
+                        });
+                    }
+                }
+            }
+            _ => {}
+        }
+
+        Ok(responses)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

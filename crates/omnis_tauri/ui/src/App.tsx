@@ -25,6 +25,7 @@ import {
   ThemeConfig,
   formatImageUrl,
   normalizeGame,
+  TAURI_EVENTS,
 } from "./types";
 import { getVisibleCategories } from "./utils/consoleCategories";
 import { useWindowControls } from "./hooks/useWindowControls";
@@ -334,7 +335,7 @@ export default function App() {
 
     let unlistenEvent: (() => void) | undefined;
     import("@tauri-apps/api/event").then(({ listen }) => {
-      listen<boolean>("app-set-fullscreen", async (event) => {
+      listen<boolean>(TAURI_EVENTS.APP_SET_FULLSCREEN, async (event) => {
         const shouldBeFs = event.payload ?? true;
         setIsFullscreen(shouldBeFs);
         if (shouldBeFs) {

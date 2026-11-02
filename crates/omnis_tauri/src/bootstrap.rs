@@ -20,15 +20,12 @@ use std::sync::Arc;
 use tauri::Manager;
 use tracing::info;
 
-#[allow(dead_code)]
 pub struct AppPaths {
     pub app_dir: PathBuf,
-    pub is_portable: bool,
     pub covers_dir: PathBuf,
     pub backgrounds_dir: PathBuf,
     pub plugins_dir: PathBuf,
     pub themes_dir: PathBuf,
-    pub trailers_dir: PathBuf,
 }
 
 pub struct AppBootstrap;
@@ -60,12 +57,10 @@ impl AppBootstrap {
 
         AppPaths {
             app_dir,
-            is_portable,
             covers_dir,
             backgrounds_dir,
             plugins_dir,
             themes_dir,
-            trailers_dir,
         }
     }
 
@@ -92,6 +87,7 @@ impl AppBootstrap {
         let event_bus = EventBus::new(256);
         let mut host = PluginHost::new(event_bus.clone(), db);
         host.register_plugin(Box::new(SteamPlugin::new()));
+        host.register_plugin(Box::new(EpicLibraryPlugin::new()));
 
         let downloader = Arc::new(MetadataDownloader::new());
         let marketplace = Arc::new(MarketplaceManager::new());

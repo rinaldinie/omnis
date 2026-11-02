@@ -192,8 +192,8 @@ export default function AppMenuDropdown({
   useEffect(() => {
     if (isOpen) {
       menuRef.current
-        ?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')
-        [activeIndex]?.focus();
+        ?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')[activeIndex]
+        ?.focus();
     }
   }, [isOpen, activeIndex]);
 
