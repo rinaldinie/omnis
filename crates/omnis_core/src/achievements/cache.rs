@@ -227,7 +227,11 @@ impl AchievementCacheManager {
             let ach_id = ach.id.clone();
             let ach_name = ach.display_name.clone();
             let title = Arc::clone(&game_title);
-            let original_url = primary_url.as_deref().or(fallback_url.as_deref()).unwrap_or(hash_source).to_string();
+            let original_url = primary_url
+                .as_deref()
+                .or(fallback_url.as_deref())
+                .unwrap_or(hash_source)
+                .to_string();
 
             tasks.push(tokio::spawn(async move {
                 let _permit = match semaphore.acquire().await {

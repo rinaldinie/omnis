@@ -215,12 +215,16 @@ pub async fn fetch_steam_achievements_web_api(
         "https://api.steampowered.com/ISteamUserStats/GetSchemaForGame/v2/?key={}&appid={}&l={}",
         api_key, app_id, lang
     );
-    debug!("Fetching Steam achievement schema for '{}' (App ID {}) from {schema_url}", game.title, app_id);
-    let schema_resp = client
-        .get(&schema_url)
-        .send()
-        .await
-        .map_err(|e| format!("Failed to request Steam schema for '{}' (App ID {}): {e}", game.title, app_id))?;
+    debug!(
+        "Fetching Steam achievement schema for '{}' (App ID {}) from {schema_url}",
+        game.title, app_id
+    );
+    let schema_resp = client.get(&schema_url).send().await.map_err(|e| {
+        format!(
+            "Failed to request Steam schema for '{}' (App ID {}): {e}",
+            game.title, app_id
+        )
+    })?;
 
     if !schema_resp.status().is_success() {
         return Err(format!(
@@ -231,10 +235,12 @@ pub async fn fetch_steam_achievements_web_api(
         ));
     }
 
-    let schema_json = schema_resp
-        .text()
-        .await
-        .map_err(|e| format!("Failed to read Steam schema body for '{}' (App ID {}): {e}", game.title, app_id))?;
+    let schema_json = schema_resp.text().await.map_err(|e| {
+        format!(
+            "Failed to read Steam schema body for '{}' (App ID {}): {e}",
+            game.title, app_id
+        )
+    })?;
 
     // 2. Fetch Player Achievements (if steam_id is provided)
     let player_json = if let Some(sid) = steam_id {
@@ -242,7 +248,10 @@ pub async fn fetch_steam_achievements_web_api(
             "https://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v1/?key={}&steamid={}&appid={}",
             api_key, sid, app_id
         );
-        debug!("Fetching Steam player achievements for '{}' (App ID {}) from {player_url}", game.title, app_id);
+        debug!(
+            "Fetching Steam player achievements for '{}' (App ID {}) from {player_url}",
+            game.title, app_id
+        );
         match client.get(&player_url).send().await {
             Ok(resp) if resp.status().is_success() => resp.text().await.ok(),
             Ok(resp) => {
@@ -258,7 +267,10 @@ pub async fn fetch_steam_achievements_web_api(
                 None
             }
             Err(e) => {
-                warn!("Failed to request Steam player achievements for '{}' (App ID {}): {e}", game.title, app_id);
+                warn!(
+                    "Failed to request Steam player achievements for '{}' (App ID {}): {e}",
+                    game.title, app_id
+                );
                 None
             }
         }
@@ -271,7 +283,10 @@ pub async fn fetch_steam_achievements_web_api(
         "https://api.steampowered.com/ISteamUserStats/GetGlobalAchievementPercentagesForApp/v0002/?gameid={}",
         app_id
     );
-    debug!("Fetching Steam global percentages for '{}' (App ID {}) from {rarity_url}", game.title, app_id);
+    debug!(
+        "Fetching Steam global percentages for '{}' (App ID {}) from {rarity_url}",
+        game.title, app_id
+    );
     let rarity_json = match client.get(&rarity_url).send().await {
         Ok(resp) if resp.status().is_success() => resp.text().await.ok(),
         Ok(resp) => {
@@ -287,7 +302,10 @@ pub async fn fetch_steam_achievements_web_api(
             None
         }
         Err(e) => {
-            warn!("Failed to request Steam global percentages for '{}' (App ID {}): {e}", game.title, app_id);
+            warn!(
+                "Failed to request Steam global percentages for '{}' (App ID {}): {e}",
+                game.title, app_id
+            );
             None
         }
     };
@@ -492,6 +510,9 @@ mod tests {
         );
 
         let non_steam = "https://example.com/icon.png";
-        assert_eq!(normalize_steam_icon_url(non_steam), "https://example.com/icon.png");
+        assert_eq!(
+            normalize_steam_icon_url(non_steam),
+            "https://example.com/icon.png"
+        );
     }
 }
