@@ -1,5 +1,5 @@
 import { invokeIpc } from "./client";
-import type { MarketplaceCatalog } from "../components/MarketplaceTab";
+import type { MarketplaceCatalog } from "../components/settings/MarketplaceTab";
 
 export const marketplaceApi = {
   /** Fetch catalog of available community plugins and themes */

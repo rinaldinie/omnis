@@ -1,17 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { CheckCircle2, AlertTriangle } from 'lucide-react';
-import { useTranslation } from '../i18n';
-import { soundEffects } from '../utils/soundEffects';
-import { api } from '../api';
+import { useTranslation } from '../../i18n';
+import { soundEffects } from '../../utils/soundEffects';
+import { api } from '../../api';
 import type {
   BackupInspectionDto,
   BackupResultDto,
   BackupScheduleConfigDto,
-} from '../types';
-import { ManualBackupSection } from './settings/backup/ManualBackupSection';
-import { ScheduleBackupSection } from './settings/backup/ScheduleBackupSection';
-import { RestoreBackupSection } from './settings/backup/RestoreBackupSection';
-import { RestoreConfirmModal } from './settings/backup/RestoreConfirmModal';
+} from '../../types';
+import { ManualBackupSection } from './backup/ManualBackupSection';
+import { ScheduleBackupSection } from './backup/ScheduleBackupSection';
+import { RestoreBackupSection } from './backup/RestoreBackupSection';
+import { RestoreConfirmModal } from './backup/RestoreConfirmModal';
 
 export interface BackupSettingsTabProps {
   onClose?: () => void;

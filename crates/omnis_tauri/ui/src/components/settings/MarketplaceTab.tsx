@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { useTranslation } from "../i18n";
-import { api } from "../api";
+import { useTranslation } from "../../i18n";
+import { api } from "../../api";
 import {
   Search,
   Download,

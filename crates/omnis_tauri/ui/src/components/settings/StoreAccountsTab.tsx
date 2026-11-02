@@ -11,11 +11,11 @@ import {
   LogOut,
   LogIn,
 } from "lucide-react";
-import { SteamIcon, EpicIcon, GogIcon, XboxIcon, AmazonIcon } from "./StoreBadge";
-import soundEffects from "../utils/soundEffects";
-import { openExternalUrl } from "../utils/openUrl";
-import { useTranslation } from "../i18n/i18nContext";
-import { api } from "../api";
+import { SteamIcon, EpicIcon, GogIcon, XboxIcon, AmazonIcon } from "../StoreBadge";
+import soundEffects from "../../utils/soundEffects";
+import { openExternalUrl } from "../../utils/openUrl";
+import { useTranslation } from "../../i18n/i18nContext";
+import { api } from "../../api";
 import {
   StoreAccount,
   StoreSyncProgress,
@@ -23,7 +23,7 @@ import {
   DEFAULT_ACCOUNTS,
   listenTauri,
   formatLastSync,
-} from "./store_accounts/types";
+} from "../store_accounts/types";
 
 export type { StoreAccount, StoreSyncProgress, StoreIntegrationSettings };
 

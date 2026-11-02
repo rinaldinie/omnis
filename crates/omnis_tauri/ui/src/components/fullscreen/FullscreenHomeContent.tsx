@@ -1,0 +1,272 @@
+import React from "react";
+import { Search, Play, CheckCircle2 } from "lucide-react";
+import { GameDto, ActiveGameSession } from "../../types";
+import { StoreIcon } from "../StoreBadge";
+import soundEffects from "../../utils/soundEffects";
+import { Slot } from "../common/Slot";
+import { Glyph } from "./ConsoleChrome";
+import type { HomeFocusZone } from "../../hooks/useGamepadNavigation";
+import {
+  CARD_GAP_REM,
+  GRID_GAP_REM,
+  ShelfCard,
+  RecentCard,
+  GridCard,
+} from "./FullscreenCards";
+import { STORE_LABELS, duration } from "./constants";
+
+export interface FullscreenHomeContentProps {
+  filteredGames: GameDto[];
+  layout: "shelf" | "grid";
+  searchQuery: string;
+  showRecentRow: boolean;
+  recentGames: GameDto[];
+  safeRecentIndex: number;
+  setRecentIndex: (idx: number) => void;
+  homeFocusZone?: HomeFocusZone;
+  setHomeFocusZone?: (zone: HomeFocusZone) => void;
+  focusedIndex: number;
+  setFocusedIndex: (idx: number) => void;
+  setShowFullscreenDetails: React.Dispatch<React.SetStateAction<boolean>>;
+  handleLaunch: (gameId: string) => void;
+  activeCategory: string;
+  filterLabel: (id: string) => string;
+  sortMode?: string;
+  carouselRef: React.RefObject<HTMLDivElement>;
+  gridRef: React.RefObject<HTMLDivElement>;
+  gridColumns: number;
+  activeGame?: ActiveGameSession | null;
+  actualElapsed: number;
+  playtimeLabel: (game: GameDto) => string;
+  infoGame: GameDto | null;
+  focusedGame: GameDto | null;
+  t: (key: string, params?: Record<string, any>) => string;
+}
+
+export const FullscreenHomeContent: React.FC<FullscreenHomeContentProps> = ({
+  filteredGames,
+  layout,
+  searchQuery,
+  showRecentRow,
+  recentGames,
+  safeRecentIndex,
+  setRecentIndex,
+  homeFocusZone,
+  setHomeFocusZone,
+  focusedIndex,
+  setFocusedIndex,
+  setShowFullscreenDetails,
+  handleLaunch,
+  activeCategory,
+  filterLabel,
+  sortMode,
+  carouselRef,
+  gridRef,
+  gridColumns,
+  activeGame,
+  actualElapsed,
+  playtimeLabel,
+  infoGame,
+  focusedGame,
+  t,
+}) => {
+  const renderMetaLine = (game: GameDto) => (
+    <div className="flex items-center gap-4 h-6 mt-1.5 overflow-hidden whitespace-nowrap text-sm font-semibold uppercase tracking-wider text-white/65">
+      {activeGame?.game_id === game.id ? (
+        <span className="flex items-center gap-2 text-emerald-300">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          {t("status.running")} · {duration(actualElapsed)}
+        </span>
+      ) : (
+        <span className="flex items-center gap-2">
+          <Play className="w-3.5 h-3.5 fill-emerald-400 text-emerald-400" />
+          {t("game_details.playtime")}: {playtimeLabel(game)}
+        </span>
+      )}
+      <span className="flex items-center gap-1.5">
+        <StoreIcon library={game.library} className="w-3.5 h-3.5" />
+        {STORE_LABELS[game.library] ?? game.library}
+      </span>
+      {game.is_installed && (
+        <span className="flex items-center gap-1.5">
+          <CheckCircle2 className="w-3.5 h-3.5" />
+          {t("sidebar.installed")}
+        </span>
+      )}
+      {game.critic_score && <span className="text-amber-300">★ {game.critic_score}</span>}
+    </div>
+  );
+
+  if (filteredGames.length === 0) {
+    return (
+      <section className="relative z-10 flex-1 flex flex-col items-center justify-center gap-4 px-16 text-center omnis-fade-in">
+        <Search className="w-12 h-12 text-white/40" />
+        <h2 className="text-3xl font-semibold text-white">{t("console_ui.empty_title")}</h2>
+        <p className="text-base max-w-xl" style={{ color: "var(--text-muted)" }}>
+          {searchQuery
+            ? t("console_ui.empty_search", { query: searchQuery })
+            : t("console_ui.empty_category")}
+        </p>
+        <div className="flex items-center gap-8 pt-4 text-sm font-semibold uppercase tracking-wider text-white">
+          <span className="flex items-center gap-2.5">
+            <Glyph kind="y" />
+            {t("console_ui.search")}
+          </span>
+          <span className="flex items-center gap-2.5">
+            <Glyph kind="bumpers" />
+            {t("console_ui.category")}
+          </span>
+        </div>
+      </section>
+    );
+  }
+
+  if (layout === "shelf") {
+    return (
+      <section className="relative z-10 flex-1 min-h-0 flex flex-col justify-end pb-8">
+        {showRecentRow && (
+          <div className="px-10 mb-8">
+            <h3
+              className={`mb-3 text-sm font-semibold uppercase tracking-widest transition-colors ${
+                homeFocusZone === "recent" ? "text-white" : "text-white/55"
+              }`}
+            >
+              {t("console_ui.continue_playing")}
+            </h3>
+            <div className="flex gap-4 py-1">
+              {recentGames.map((game, idx) => (
+                <RecentCard
+                  key={game.id}
+                  game={game}
+                  isFocused={homeFocusZone === "recent" && idx === safeRecentIndex}
+                  onClick={() => {
+                    setRecentIndex(idx);
+                    setHomeFocusZone?.("recent");
+                    soundEffects.playSelect();
+                    const targetIdx = filteredGames.findIndex((g) => g.id === game.id);
+                    if (targetIdx !== -1) {
+                      setFocusedIndex(targetIdx);
+                      setHomeFocusZone?.("carousel");
+                      setShowFullscreenDetails(true);
+                    } else {
+                      handleLaunch(game.id);
+                    }
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        <h2 className="px-10 mb-4 text-3xl font-semibold text-white tracking-tight drop-shadow">
+          {filterLabel(activeCategory)}
+          <span className="ml-3 text-lg font-normal text-white/50">{filteredGames.length}</span>
+          {sortMode !== "default" && (
+            <span className="ml-4 text-sm font-semibold uppercase tracking-wider text-white/45">
+              {t(`console_ui.sort_${sortMode}`)}
+            </span>
+          )}
+        </h2>
+
+        {/* Shelf: cards must stay direct children of the ref */}
+        <div
+          ref={carouselRef}
+          className="flex items-center overflow-x-auto no-scrollbar px-10 py-3"
+          style={{ gap: `${CARD_GAP_REM}rem` }}
+        >
+          {filteredGames.map((game, idx) => (
+            <ShelfCard
+              key={game.id}
+              game={game}
+              isFocused={idx === focusedIndex}
+              isRunning={activeGame?.game_id === game.id}
+              hasFocusRing={homeFocusZone === "carousel"}
+              liveLabel={t("console_ui.live")}
+              onClick={() => {
+                if (idx === focusedIndex) {
+                  soundEffects.playSelect();
+                  setShowFullscreenDetails(true);
+                } else {
+                  soundEffects.playNav();
+                  setFocusedIndex(idx);
+                  setHomeFocusZone?.("carousel");
+                }
+              }}
+            />
+          ))}
+        </div>
+
+        {infoGame && (
+          <div data-omnis="fullscreen.hero" className="px-10 mt-5 max-w-4xl">
+            <div key={infoGame.id} className="omnis-rise-in">
+              <h1 data-omnis="fullscreen.title" className="h-8 text-2xl leading-8 font-semibold text-white truncate drop-shadow">
+                {infoGame.title}
+              </h1>
+              {renderMetaLine(infoGame)}
+              <p className="mt-3 h-[3.25rem] text-base leading-relaxed line-clamp-2 max-w-3xl text-white/70">
+                {infoGame.description}
+              </p>
+            </div>
+            <Slot name="fullscreen.hero" gameId={infoGame.id} />
+          </div>
+        )}
+      </section>
+    );
+  }
+
+  return (
+    <section className="relative z-10 flex-1 min-h-0 flex flex-col">
+      <h2 className="px-10 pt-4 text-3xl font-semibold text-white tracking-tight drop-shadow">
+        {filterLabel(activeCategory)}
+        <span className="ml-3 text-lg font-normal text-white/50">{filteredGames.length}</span>
+        {sortMode !== "default" && (
+          <span className="ml-4 text-sm font-semibold uppercase tracking-wider text-white/45">
+            {t(`console_ui.sort_${sortMode}`)}
+          </span>
+        )}
+      </h2>
+
+      {/* Grid: covers must stay direct children of the ref */}
+      <div
+        ref={gridRef}
+        className="flex-1 min-h-0 overflow-y-auto no-scrollbar grid content-start px-10 py-5"
+        style={{
+          gridTemplateColumns: `repeat(${Math.max(1, gridColumns)}, minmax(0, 1fr))`,
+          gap: `${GRID_GAP_REM}rem`,
+          scrollPaddingBlock: "1.5rem",
+        }}
+      >
+        {filteredGames.map((game, idx) => (
+          <GridCard
+            key={game.id}
+            game={game}
+            isFocused={idx === focusedIndex}
+            isRunning={activeGame?.game_id === game.id}
+            onClick={() => {
+              if (idx === focusedIndex) {
+                soundEffects.playSelect();
+                setShowFullscreenDetails(true);
+              } else {
+                soundEffects.playNav();
+                setFocusedIndex(idx);
+                setHomeFocusZone?.("carousel");
+              }
+            }}
+          />
+        ))}
+      </div>
+
+      {focusedGame && (
+        <div data-omnis="fullscreen.hero" className="px-10 pt-2 pb-5 shrink-0">
+          <div key={focusedGame.id} className="omnis-rise-in">
+            <h1 data-omnis="fullscreen.title" className="h-8 text-2xl leading-8 font-semibold text-white truncate drop-shadow">
+              {focusedGame.title}
+            </h1>
+            {renderMetaLine(focusedGame)}
+          </div>
+          <Slot name="fullscreen.hero" gameId={focusedGame.id} />
+        </div>
+      )}
+    </section>
+  );
+};
