@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { api } from "../../api";
+import { api, TAURI_EVENTS } from "../../api";
 import { listen } from "@tauri-apps/api/event";
 import { Trophy, RefreshCw, Sparkles, Award, Lock, CheckCircle2, AlertCircle, Settings } from "lucide-react";
 import { Achievement, GameAchievementsSummary, GameDto } from "../../types";
@@ -138,7 +138,7 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
     const targetGameId = game.id;
     let unlisten: (() => void) | null = null;
     let disposed = false;
-    listen<{ game_id: string }>("achievements-updated", async (event) => {
+    listen<{ game_id: string }>(TAURI_EVENTS.ACHIEVEMENTS_UPDATED, async (event) => {
       if (event.payload.game_id !== targetGameId) return;
       try {
         const result = await api.achievements.getGameAchievements(targetGameId);

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { ActiveGameSession, AchievementSyncProgress, GameDto } from "../types";
+import { ActiveGameSession, AchievementSyncProgress, GameDto, TAURI_EVENTS } from "../types";
 import { api } from "../api";
 import { listenTauri } from "../api/client";
 import soundEffects from "../utils/soundEffects";
@@ -121,7 +121,7 @@ export function useAppEvents({
           total: number;
           status: string;
           message?: string;
-        }>("store-sync-progress", (p) => {
+        }>(TAURI_EVENTS.STORE_SYNC_PROGRESS, (p) => {
           const storeName =
             p.store_id === "gog"
               ? "GOG Galaxy"
@@ -189,7 +189,7 @@ export function useAppEvents({
         });
         if (uSync) unlistenFns.push(uSync);
 
-        const uLib = await listenTauri("library-updated", () => {
+        const uLib = await listenTauri(TAURI_EVENTS.LIBRARY_UPDATED, () => {
           loadGames();
         });
         if (uLib) unlistenFns.push(uLib);
@@ -200,7 +200,7 @@ export function useAppEvents({
           title: string;
           state?: string;
           started_at: string;
-        }>("game-started", (payload) => {
+        }>(TAURI_EVENTS.GAME_STARTED, (payload) => {
           setIsGameRunning(true);
           setActiveGame({
             session_id: payload.session_id,
@@ -220,7 +220,7 @@ export function useAppEvents({
           game_id: string;
           state: string;
           pid?: number;
-        }>("game-status-changed", (payload) => {
+        }>(TAURI_EVENTS.GAME_STATUS_CHANGED, (payload) => {
           if (activeGameRef.current && activeGameRef.current.session_id === payload.session_id) {
             const newState = payload.state as any;
             setActiveGame((prev) => prev ? {
@@ -240,7 +240,7 @@ export function useAppEvents({
           session_id?: string;
           game_id: string;
           duration_seconds: number;
-        }>("game-stopped", (payload) => {
+        }>(TAURI_EVENTS.GAME_STOPPED, (payload) => {
           if (
             payload.session_id &&
             activeGameRef.current &&
@@ -282,26 +282,26 @@ export function useAppEvents({
           current: number;
           total: number;
           title: string;
-        }>("metadata-progress", (payload) => {
+        }>(TAURI_EVENTS.METADATA_PROGRESS, (payload) => {
           const { current, total, title } = payload;
           setPipelineProgress(`Download dati (${current}/${total}): "${title}"...`);
           setStatusMessage(statusText("metadata_batch_progress", { current, total, title }));
         });
         if (uMeta) unlistenFns.push(uMeta);
 
-        const uTrayLaunch = await listenTauri<string>("tray-launch-game", (payload) => {
+        const uTrayLaunch = await listenTauri<string>(TAURI_EVENTS.TRAY_LAUNCH_GAME, (payload) => {
           if (payload) {
             handleLaunch(payload);
           }
         });
         if (uTrayLaunch) unlistenFns.push(uTrayLaunch);
 
-        const uTraySettings = await listenTauri("tray-open-settings", () => {
+        const uTraySettings = await listenTauri(TAURI_EVENTS.TRAY_OPEN_SETTINGS, () => {
           handleOpenSettings("general");
         });
         if (uTraySettings) unlistenFns.push(uTraySettings);
 
-        const uAch = await listenTauri<AchievementSyncProgress>("achievement-sync-progress", (payload) => {
+        const uAch = await listenTauri<AchievementSyncProgress>(TAURI_EVENTS.ACHIEVEMENT_SYNC_PROGRESS, (payload) => {
           const p = payload;
           if (achievementSyncTimeoutRef.current) {
             clearTimeout(achievementSyncTimeoutRef.current);

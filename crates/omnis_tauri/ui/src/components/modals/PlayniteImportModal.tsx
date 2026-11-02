@@ -26,6 +26,7 @@ import {
   PlayniteImportProgressPayload,
   PlayniteBackupMatchSample,
   PlayniteUnmatchedGame,
+  TAURI_EVENTS,
 } from "../../types";
 import { useTranslation } from "../../i18n";
 import soundEffects from "../../utils/soundEffects";
@@ -143,7 +144,7 @@ export default function PlayniteImportModal({
         unlistenRef.current();
       }
       unlistenRef.current = await listen<PlayniteImportProgressPayload>(
-        "playnite://import-progress",
+        TAURI_EVENTS.PLAYNITE_IMPORT_PROGRESS,
         (event) => {
           setProgress(event.payload);
         }

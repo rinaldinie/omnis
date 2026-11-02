@@ -1,5 +1,6 @@
 use clap::{Parser, Subcommand};
 use omnis_core::{Database, EventBus, PluginHost};
+use omnis_plugin_epic::EpicLibraryPlugin;
 use omnis_plugin_steam::SteamPlugin;
 use omnis_sdk::PluginEvent;
 use std::path::PathBuf;
@@ -8,7 +9,11 @@ use std::time::Instant;
 use tracing::info;
 
 #[derive(Parser)]
-#[command(name = "omnis", about = "CLI driver for Omnis Game Library", version)]
+#[command(
+    name = "omnis-cli",
+    about = "CLI driver for Omnis Game Library",
+    version
+)]
 struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
@@ -43,6 +48,15 @@ enum Commands {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let cli = Cli::parse();
+    let cmd = cli.command.unwrap_or(Commands::List);
+
+    // Fast-path commands that do not need DB, plugins, or logging
+    if matches!(cmd, Commands::PlayniteExporterScript) {
+        println!("{}", omnis_core::export_csharp_script());
+        return Ok(());
+    }
+
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
@@ -63,39 +77,48 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut host = PluginHost::new(event_bus.clone(), db.clone());
     // Register built-in first-party integration plugins (Tier 0)
     host.register_plugin(Box::new(SteamPlugin::new()));
+    host.register_plugin(Box::new(EpicLibraryPlugin::new()));
     host.initialize_all().await?;
-
-    let cli = Cli::parse();
-    let cmd = cli.command.unwrap_or(Commands::List);
 
     match cmd {
         Commands::Sync { library, force } => {
             let plugin_count = host.plugin_count();
             if plugin_count == 0 {
-                println!("\n⚠️ No external integration plugins are currently installed.");
-                println!("To sync games, install external integration plugins into your plugins directory.");
-            } else {
-                info!(
-                    "Starting library synchronization across {} plugins...",
-                    plugin_count
-                );
-                let t_sync = Instant::now();
-                host.dispatch_event_and_wait(
-                    None,
-                    PluginEvent::SyncRequested {
-                        library_id: library,
-                        force_full: force,
-                    },
-                )
-                .await;
-
-                let total_games = db.count_games()?;
-                println!(
-                    "\n✅ Sync completed in {:.2}ms! Total games in database: {}",
-                    t_sync.elapsed().as_secs_f64() * 1000.0,
-                    total_games
-                );
+                eprintln!("\n⚠️ No library integration plugins are registered.");
+                return Err("No plugins registered".into());
             }
+
+            let supported_libraries = ["all", "steam", "epic"];
+            if !supported_libraries.contains(&library.as_str()) {
+                eprintln!(
+                    "\n❌ Store '{}' is not supported for local CLI sync.",
+                    library
+                );
+                eprintln!("Currently supported local stores: steam, epic.");
+                eprintln!("Cloud stores (GOG, Xbox) require OAuth authentication: please sync them via the Omnis desktop app.");
+                return Err(format!("Unsupported library '{}'", library).into());
+            }
+
+            info!(
+                "Starting library synchronization across {} plugins...",
+                plugin_count
+            );
+            let t_sync = Instant::now();
+            host.dispatch_event_and_wait(
+                None,
+                PluginEvent::SyncRequested {
+                    library_id: library,
+                    force_full: force,
+                },
+            )
+            .await;
+
+            let total_games = db.count_games()?;
+            println!(
+                "\n✅ Sync completed in {:.2}ms! Total games in database: {}",
+                t_sync.elapsed().as_secs_f64() * 1000.0,
+                total_games
+            );
         }
         Commands::List => {
             let games = db.get_all_games()?;
@@ -103,7 +126,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("Database: {}\n", db_path.display());
 
             if games.is_empty() {
-                println!("No games found in database. Connect an external integration plugin and run 'omnis sync'.");
+                println!("No games found in database. Sync your games with 'omnis-cli sync' or launch the Omnis desktop app.");
             } else {
                 println!(
                     "{:<36} | {:<8} | {:<40} | {:<9}",
@@ -113,11 +136,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 for g in &games {
                     let status = if g.is_installed { "Installed" } else { "Cloud" };
-                    let truncated_title = if g.title.len() > 38 {
-                        format!("{}...", &g.title[..35])
-                    } else {
-                        g.title.clone()
-                    };
+                    let truncated_title = truncate_title(&g.title);
                     println!(
                         "{:<36} | {:<8} | {:<40} | {:<9}",
                         g.id, g.library_id, truncated_title, status
@@ -229,4 +248,48 @@ fn dirs_or_local() -> PathBuf {
     }
 
     PathBuf::from("./data")
+}
+
+fn truncate_title(title: &str) -> String {
+    let char_count = title.chars().count();
+    if char_count > 38 {
+        let prefix: String = title.chars().take(35).collect();
+        format!("{}...", prefix)
+    } else {
+        title.to_string()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_truncate_multibyte_title() {
+        let ascii = "The Legend of Zelda: Breath of the Wild";
+        assert_eq!(
+            truncate_title(ascii),
+            "The Legend of Zelda: Breath of the ..."
+        );
+
+        let japanese =
+            "ペルソナ5 ザ・ロイヤル (Persona 5 Royal Japanese Edition with Extra Long Title)";
+        let truncated = truncate_title(japanese);
+        assert!(truncated.ends_with("..."));
+        assert_eq!(truncated.chars().count(), 38);
+
+        let accented = "Pokémon Épée et Bouclier Édition Spéciale Version Complète";
+        let truncated_accented = truncate_title(accented);
+        assert!(truncated_accented.ends_with("..."));
+        assert_eq!(truncated_accented.chars().count(), 38);
+
+        let short = "Short Title";
+        assert_eq!(truncate_title(short), "Short Title");
+    }
+
+    #[test]
+    fn test_cli_parse() {
+        use clap::CommandFactory;
+        Cli::command().debug_assert();
+    }
 }

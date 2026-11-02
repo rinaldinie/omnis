@@ -15,6 +15,7 @@ path = "src/main.rs"
 omnis_sdk.workspace = true
 omnis_core.workspace = true
 omnis_plugin_steam.workspace = true
+omnis_plugin_epic.workspace = true
 clap.workspace = true
 tokio.workspace = true
 tracing.workspace = true

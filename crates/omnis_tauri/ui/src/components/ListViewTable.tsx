@@ -146,7 +146,7 @@ export default function ListViewTable({
   const sortedGames = useMemo(() => {
     const list = [...games];
     list.sort((a, b) => {
-      let cmp = 0;
+      let cmp: number;
       switch (sortField) {
         case "title":
           cmp = (a.title || "").localeCompare(b.title || "", undefined, {

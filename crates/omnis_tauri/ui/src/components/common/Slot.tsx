@@ -10,7 +10,8 @@ import {
   Sparkles,
   CheckCircle,
 } from "lucide-react";
-import { invokeTauri } from "../../types";
+import { slotsApi } from "../../api/slots";
+import { TAURI_EVENTS } from "../../api/events";
 
 export interface WidgetLink {
   title: string;
@@ -70,10 +71,10 @@ async function ensureSlotGlobalListeners() {
   initPromise = (async () => {
     try {
       const { listen } = await import("@tauri-apps/api/event");
-      const u1 = await listen("game-updated", () => {
+      const u1 = await listen(TAURI_EVENTS.GAME_UPDATED, () => {
         slotSubscribers.forEach((cb) => cb());
       });
-      const u2 = await listen("library-updated", () => {
+      const u2 = await listen(TAURI_EVENTS.LIBRARY_UPDATED, () => {
         slotSubscribers.forEach((cb) => cb());
       });
 
@@ -112,10 +113,7 @@ export const Slot: React.FC<SlotProps> = ({ name, gameId, className = "" }) => {
     let isMounted = true;
     const fetchWidgets = async () => {
       try {
-        const res = await invokeTauri<SlotWidget[]>("get_slot_widgets", {
-          slotName: name,
-          gameId: gameId || null,
-        });
+        const res = await slotsApi.getSlotWidgets(name, gameId);
         if (isMounted && res && Array.isArray(res)) {
           setWidgets(res);
         }

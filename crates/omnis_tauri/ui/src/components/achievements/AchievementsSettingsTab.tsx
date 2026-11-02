@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import soundEffects from "../../utils/soundEffects";
 import { useTranslation } from "../../i18n";
-import { api } from "../../api";
+import { api, TAURI_EVENTS } from "../../api";
 import { listen } from "@tauri-apps/api/event";
 
 export interface AchievementsConfig {
@@ -135,7 +135,7 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
     api.achievements.setSyncAchievementsOnGameExit(config.syncOnGameExit).catch(console.warn);
 
     let unlisten: (() => void) | undefined;
-    listen<{ status: string; scope: string }>("achievement-sync-progress", (event) => {
+    listen<{ status: string; scope: string }>(TAURI_EVENTS.ACHIEVEMENT_SYNC_PROGRESS, (event) => {
       if (event.payload?.status === "completed" && event.payload?.scope === "library") {
         setConfig((prev) => ({ ...prev, lastLibrarySyncTimestamp: Date.now() }));
       }

@@ -15,7 +15,7 @@ import { SteamIcon, EpicIcon, GogIcon, XboxIcon, AmazonIcon } from "../StoreBadg
 import soundEffects from "../../utils/soundEffects";
 import { openExternalUrl } from "../../utils/openUrl";
 import { useTranslation } from "../../i18n/i18nContext";
-import { api } from "../../api";
+import { api, TAURI_EVENTS } from "../../api";
 import {
   StoreAccount,
   StoreSyncProgress,
@@ -162,7 +162,7 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
 
     (async () => {
       unlistenConnected = await listenTauri<{ store_id: string; username?: string }>(
-        "store-account-connected",
+        TAURI_EVENTS.STORE_ACCOUNT_CONNECTED,
         (payload) => {
           soundEffects.playSelect();
           const accName = payload.username ? `"${payload.username}"` : payload.store_id.toUpperCase();
@@ -177,7 +177,7 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
       );
 
       unlistenDisconnected = await listenTauri<{ store_id: string }>(
-        "store-account-disconnected",
+        TAURI_EVENTS.STORE_ACCOUNT_DISCONNECTED,
         (payload) => {
           soundEffects.playSelect();
           setBanner({
@@ -191,7 +191,7 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
       );
 
       unlistenProgress = await listenTauri<StoreSyncProgress>(
-        "store-sync-progress",
+        TAURI_EVENTS.STORE_SYNC_PROGRESS,
         (payload) => {
           setSyncProgress((prev) => ({
             ...prev,

@@ -370,7 +370,7 @@ export function useLibraryFilters(games: GameDto[]) {
     const groups: Record<string, GameDto[]> = {};
 
     filteredGames.forEach((game) => {
-      let key = t("library_groups.other");
+      let key: string;
       switch (groupBy) {
         case "library":
           key = game.library ? game.library.toUpperCase() : t("library_groups.other").toUpperCase();

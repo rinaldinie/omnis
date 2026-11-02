@@ -7,7 +7,7 @@ import {
   Sparkles,
   Store,
 } from "lucide-react";
-import { ProviderInfo, MetadataPipelineConfig } from "../../types";
+import { ProviderInfo, MetadataPipelineConfig, TAURI_EVENTS } from "../../types";
 import { api } from "../../api";
 import { listenTauri } from "../../api/client";
 import { MarketplaceTab } from "../settings/MarketplaceTab";
@@ -93,7 +93,7 @@ export default function PluginManagerModal({
     (async () => {
       try {
         unlisten = await listenTauri<{ current: number; total: number; title: string }>(
-          "metadata-progress",
+          TAURI_EVENTS.METADATA_PROGRESS,
           (payload) => setLiveProgress(payload)
         );
       } catch (err) {

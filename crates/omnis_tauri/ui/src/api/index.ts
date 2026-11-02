@@ -8,8 +8,11 @@ import { themesApi } from "./themes";
 import { achievementsApi } from "./achievements";
 import { marketplaceApi } from "./marketplace";
 import { playniteApi } from "./playnite";
+import { slotsApi } from "./slots";
 
 export * from "./client";
+export * from "./events";
+export * from "./slots";
 export * from "./games";
 export * from "./backup";
 export * from "./stores";
@@ -32,6 +35,7 @@ export const api = {
   achievements: achievementsApi,
   marketplace: marketplaceApi,
   playnite: playniteApi,
+  slots: slotsApi,
 };
 
 export default api;
