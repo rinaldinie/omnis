@@ -58,6 +58,28 @@ impl StoreCatalogSyncEngine {
         // 3. Fetch catalog from remote store
         let (mut games, remote_error) = match plugin.sync_games(&session).await {
             Ok(g) => (g, None),
+            Err(omnis_sdk::PluginError::SessionExpired(msg)) => {
+                tracing::info!(
+                    "Store {} reported session expired ({}), attempting immediate token refresh...",
+                    store_id,
+                    msg
+                );
+                if let Some(ref refresh_tok) = session.refresh_token {
+                    match plugin.refresh_session(refresh_tok).await {
+                        Ok(new_session) => {
+                            let _ = mgr.save_session(store_id, &new_session);
+                            session = new_session;
+                            match plugin.sync_games(&session).await {
+                                Ok(g) => (g, None),
+                                Err(e) => (Vec::new(), Some(e.to_string())),
+                            }
+                        }
+                        Err(refresh_err) => (Vec::new(), Some(format!("{}: {}", msg, refresh_err))),
+                    }
+                } else {
+                    (Vec::new(), Some(msg))
+                }
+            }
             Err(e) => {
                 let err_str = e.to_string();
                 tracing::warn!("Remote sync warning for {}: {}", store_id, err_str);

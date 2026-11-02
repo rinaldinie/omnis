@@ -81,6 +81,8 @@ pub struct GogGameDetails {
     pub title: String,
     #[serde(default)]
     pub image: Option<String>,
+    #[serde(default)]
+    pub background: Option<String>,
 }
 
 /// Internal helper envelope for batch product responses
@@ -95,6 +97,10 @@ pub struct GogProductItem {
     pub id: u64,
     pub title: String,
     #[serde(default)]
+    pub game_type: Option<String>,
+    #[serde(default)]
+    pub is_installable: Option<bool>,
+    #[serde(default)]
     pub image: Option<String>,
     #[serde(default)]
     pub images: Option<GogProductImages>,
@@ -108,30 +114,64 @@ pub struct GogProductImages {
     pub box_art_camel: Option<String>,
     #[serde(default)]
     pub background: Option<String>,
+    #[serde(default)]
+    pub logo: Option<String>,
+    #[serde(default)]
+    pub logo2x: Option<String>,
+    #[serde(default)]
+    pub icon: Option<String>,
+    #[serde(default, rename = "sidebarIcon")]
+    pub sidebar_icon: Option<String>,
 }
 
 impl GogProductItem {
-    pub fn to_game_details(&self) -> GogGameDetails {
-        let image = self.image.clone().or_else(|| {
-            self.images.as_ref().and_then(|imgs| {
+    pub fn to_game_details(&self) -> Option<GogGameDetails> {
+        // DLC filter: only include games and packs, reject DLCs
+        if let Some(ref gt) = self.game_type {
+            let lower = gt.to_lowercase();
+            if lower != "game" && lower != "pack" {
+                return None;
+            }
+        }
+
+        let cover = self
+            .images
+            .as_ref()
+            .and_then(|imgs| {
                 imgs.box_art_camel
                     .clone()
                     .or_else(|| imgs.box_art.clone())
-                    .or_else(|| imgs.background.clone())
+                    .or_else(|| imgs.logo2x.clone())
+                    .or_else(|| imgs.logo.clone())
+                    .or_else(|| imgs.icon.clone())
             })
-        });
+            .or_else(|| self.image.clone());
 
-        GogGameDetails {
+        let background = self
+            .images
+            .as_ref()
+            .and_then(|imgs| imgs.background.clone());
+
+        Some(GogGameDetails {
             id: self.id,
             title: self.title.clone(),
-            image,
-        }
+            image: cover,
+            background,
+        })
     }
 }
 
 /// Normalize GOG game details into a unified Omnis DiscoveredGame
 pub fn normalize_gog_game(game: &GogGameDetails) -> DiscoveredGame {
     let cover_image_path = game.image.as_ref().map(|img| {
+        if img.starts_with("//") {
+            format!("https:{}", img)
+        } else {
+            img.clone()
+        }
+    });
+
+    let background_image_path = game.background.as_ref().map(|img| {
         if img.starts_with("//") {
             format!("https:{}", img)
         } else {
@@ -155,7 +195,7 @@ pub fn normalize_gog_game(game: &GogGameDetails) -> DiscoveredGame {
         play_count: 0,
         last_activity: None,
         cover_image_path,
-        background_image_path: None,
+        background_image_path,
     }
 }
 
@@ -308,9 +348,25 @@ pub async fn fetch_user_games(
     let resp = client
         .get(GOG_USER_GAMES_URL)
         .bearer_auth(access_token)
+        .header("Accept", "application/json")
         .send()
         .await
         .map_err(|e| PluginError::Io(format!("Failed to request user games: {}", e)))?;
+
+    // Check for 401 Unauthorized or 302 Redirect (expired/invalid session)
+    if resp.status().as_u16() == 401 || resp.status().as_u16() == 302 {
+        return Err(PluginError::SessionExpired(format!(
+            "GOG session expired: HTTP {}",
+            resp.status()
+        )));
+    }
+
+    let final_url = resp.url().as_str();
+    if final_url.contains("openlogin") || final_url.contains("/login") {
+        return Err(PluginError::SessionExpired(
+            "GOG session expired: redirected to login page".to_string(),
+        ));
+    }
 
     if !resp.status().is_success() {
         return Err(PluginError::Other(format!(
@@ -324,15 +380,26 @@ pub async fn fetch_user_games(
         .await
         .map_err(|e| PluginError::Io(format!("Failed to read response body: {}", e)))?;
 
+    if body.contains("<html") || body.contains("<!DOCTYPE") || body.contains("openlogin") {
+        return Err(PluginError::SessionExpired(
+            "GOG session expired: received HTML login page instead of JSON".to_string(),
+        ));
+    }
+
     let games_resp: GogGamesResponse =
         if let Ok(resp) = serde_json::from_str::<GogGamesResponse>(&body) {
             resp
         } else if let Ok(list) = serde_json::from_str::<Vec<u64>>(&body) {
             GogGamesResponse { owned: list }
         } else {
+            let truncated_body = if body.len() > 120 {
+                format!("{}...", &body[..120])
+            } else {
+                body
+            };
             return Err(PluginError::Parse(format!(
                 "Failed to parse user games response JSON: {}",
-                body
+                truncated_body
             )));
         };
 
@@ -353,32 +420,31 @@ pub async fn fetch_user_games(
                 if let Ok(env) = serde_json::from_str::<GogProductsEnvelope>(&prod_body) {
                     env.products
                         .into_iter()
-                        .map(|p| p.to_game_details())
+                        .filter_map(|p| p.to_game_details())
                         .collect()
                 } else if let Ok(items) = serde_json::from_str::<Vec<GogProductItem>>(&prod_body) {
-                    items.into_iter().map(|p| p.to_game_details()).collect()
+                    items
+                        .into_iter()
+                        .filter_map(|p| p.to_game_details())
+                        .collect()
                 } else if let Ok(details) = serde_json::from_str::<Vec<GogGameDetails>>(&prod_body)
                 {
                     details
                 } else {
-                    chunk
-                        .iter()
-                        .map(|&id| GogGameDetails {
-                            id,
-                            title: format!("GOG Game {}", id),
-                            image: None,
-                        })
-                        .collect()
+                    tracing::warn!(
+                        "Could not parse GOG products envelope for batch of {} items",
+                        chunk.len()
+                    );
+                    Vec::new()
                 }
             }
-            _ => chunk
-                .iter()
-                .map(|&id| GogGameDetails {
-                    id,
-                    title: format!("GOG Game {}", id),
-                    image: None,
-                })
-                .collect(),
+            _ => {
+                tracing::warn!(
+                    "Failed to fetch GOG catalog metadata for chunk of {} items; skipping chunk to preserve titles",
+                    chunk.len()
+                );
+                Vec::new()
+            }
         };
 
         for game in batch_details {

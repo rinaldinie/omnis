@@ -33,10 +33,11 @@ pub trait ReactivePlugin: Send + Sync {
 use crate::models::{DiscoveredGame, GameMetadataPatch, MetadataField, MetadataSearchRequest};
 
 /// Error type returned by library scanner plugins
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PluginError {
     Io(String),
     Parse(String),
+    SessionExpired(String),
     Other(String),
 }
 
@@ -45,6 +46,7 @@ impl std::fmt::Display for PluginError {
         match self {
             Self::Io(e) => write!(f, "I/O error: {}", e),
             Self::Parse(e) => write!(f, "Parse error: {}", e),
+            Self::SessionExpired(e) => write!(f, "Session expired: {}", e),
             Self::Other(e) => write!(f, "Plugin error: {}", e),
         }
     }

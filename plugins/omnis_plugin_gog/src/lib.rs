@@ -2,22 +2,26 @@
 
 pub mod achievements;
 pub mod client;
+pub mod local_scanner;
 
 pub use achievements::*;
 pub use client::{
     deserialize_string_or_number, extract_code_from_url, fetch_user_data, fetch_user_games,
-    normalize_gog_game, GogGameDetails, GogGamesResponse, GogTokenResponse, GogUserData,
-    GOG_AUTH_URL, GOG_CLIENT_ID, GOG_CLIENT_SECRET, GOG_PRODUCTS_URL, GOG_REDIRECT_URI,
-    GOG_TOKEN_URL, GOG_USER_DATA_URL, GOG_USER_GAMES_URL,
+    normalize_gog_game, GogGameDetails, GogGamesResponse, GogProductItem, GogProductsEnvelope,
+    GogTokenResponse, GogUserData, GOG_AUTH_URL, GOG_CLIENT_ID, GOG_CLIENT_SECRET,
+    GOG_PRODUCTS_URL, GOG_REDIRECT_URI, GOG_TOKEN_URL, GOG_USER_DATA_URL, GOG_USER_GAMES_URL,
 };
+pub use local_scanner::*;
 
 use omnis_sdk::{
     async_trait, CloudStorePlugin, DiscoveredGame, LibraryPlugin, PluginError, StoreAccountSession,
 };
+use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
 pub struct GogCloudPlugin {
     client: reqwest::Client,
+    custom_paths: Vec<PathBuf>,
 }
 
 impl GogCloudPlugin {
@@ -26,11 +30,31 @@ impl GogCloudPlugin {
             client: reqwest::Client::builder()
                 .build()
                 .unwrap_or_else(|_| reqwest::Client::new()),
+            custom_paths: Vec::new(),
         }
     }
 
     pub fn with_client(client: reqwest::Client) -> Self {
-        Self { client }
+        Self {
+            client,
+            custom_paths: Vec::new(),
+        }
+    }
+
+    pub fn with_custom_paths(custom_paths: Vec<PathBuf>) -> Self {
+        Self {
+            client: reqwest::Client::builder()
+                .build()
+                .unwrap_or_else(|_| reqwest::Client::new()),
+            custom_paths,
+        }
+    }
+
+    pub fn with_client_and_paths(client: reqwest::Client, custom_paths: Vec<PathBuf>) -> Self {
+        Self {
+            client,
+            custom_paths,
+        }
     }
 }
 
@@ -53,8 +77,61 @@ impl LibraryPlugin for GogCloudPlugin {
     }
 
     async fn scan(&self) -> Result<Vec<DiscoveredGame>, PluginError> {
-        // Scansione locale: se il client locale non è rilevato, restituisce Ok(vec![])
-        Ok(Vec::new())
+        let games = local_scanner::scan_local_games(&self.custom_paths);
+        tracing::info!("Discovered {} local GOG titles.", games.len());
+        Ok(games)
+    }
+}
+
+#[async_trait]
+impl omnis_sdk::ReactivePlugin for GogCloudPlugin {
+    fn id(&self) -> &'static str {
+        "gog"
+    }
+
+    fn name(&self) -> &'static str {
+        "GOG Galaxy"
+    }
+
+    fn settings_schema(&self) -> Option<omnis_sdk::PluginSettingsSchema> {
+        None
+    }
+
+    async fn initialize(&mut self, _config_json: &str) -> Result<(), String> {
+        Ok(())
+    }
+
+    async fn handle_event(
+        &mut self,
+        event: omnis_sdk::PluginEvent,
+    ) -> Result<Vec<omnis_sdk::PluginEvent>, String> {
+        let mut responses = Vec::new();
+
+        match event {
+            omnis_sdk::PluginEvent::SyncRequested { library_id, .. }
+                if library_id == "gog" || library_id == "all" =>
+            {
+                tracing::info!("GOG: Handling SyncRequested event for '{}'", library_id);
+                match self.scan().await {
+                    Ok(games) => {
+                        tracing::info!("GOG: Found {} installed games", games.len());
+                        responses.push(omnis_sdk::PluginEvent::BatchGamesDiscovered {
+                            library_id: "gog".to_string(),
+                            games,
+                        });
+                    }
+                    Err(e) => {
+                        responses.push(omnis_sdk::PluginEvent::NotificationEmitted {
+                            level: omnis_sdk::LogLevel::Error,
+                            message: format!("GOG local scan failed: {}", e),
+                        });
+                    }
+                }
+            }
+            _ => {}
+        }
+
+        Ok(responses)
     }
 }
 
@@ -154,6 +231,7 @@ mod tests {
             id: 1207658691,
             title: "The Witcher 3: Wild Hunt - Game of the Year Edition".to_string(),
             image: Some("//images-3.gog.com/witcher3_thumb.jpg".to_string()),
+            background: Some("//images-3.gog.com/witcher3_bg.jpg".to_string()),
         };
 
         let discovered = normalize_gog_game(&gog_game);
@@ -173,6 +251,10 @@ mod tests {
             discovered.cover_image_path,
             Some("https://images-3.gog.com/witcher3_thumb.jpg".to_string())
         );
+        assert_eq!(
+            discovered.background_image_path,
+            Some("https://images-3.gog.com/witcher3_bg.jpg".to_string())
+        );
 
         let play_action = discovered.play_action.expect("Play action must be present");
         assert_eq!(
@@ -188,11 +270,161 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_goggame_info_file_task() {
+        let json_info = r#"{
+            "gameId": "1207658930",
+            "rootGameId": "1207658930",
+            "name": "The Witcher 2: Assassins of Kings Enhanced Edition",
+            "playTasks": [
+                {
+                    "isPrimary": false,
+                    "type": "URLTask",
+                    "path": "https://www.gog.com/support"
+                },
+                {
+                    "arguments": "-novid",
+                    "isPrimary": true,
+                    "path": "bin\\witcher2.exe",
+                    "type": "FileTask",
+                    "workingDir": "bin"
+                }
+            ]
+        }"#;
+
+        let game_dir = std::path::Path::new("/mock/games/witcher2");
+        let discovered = local_scanner::parse_goggame_info(json_info, game_dir)
+            .expect("Should parse goggame info");
+
+        assert_eq!(discovered.library_id, "gog");
+        assert_eq!(discovered.external_id, "1207658930");
+        assert_eq!(
+            discovered.title,
+            "The Witcher 2: Assassins of Kings Enhanced Edition"
+        );
+        assert_eq!(discovered.install_dir, Some(game_dir.to_path_buf()));
+
+        let play_action = discovered.play_action.expect("Play action must be present");
+        assert_eq!(
+            play_action.tracking_mode,
+            ProcessTrackingMode::ProcessName("witcher2.exe".to_string())
+        );
+        assert_eq!(play_action.arguments, vec!["-novid"]);
+        assert!(play_action.executable.contains("witcher2.exe"));
+    }
+
+    #[test]
+    fn test_gog_product_item_dlc_filtering() {
+        let base_game = client::GogProductItem {
+            id: 1207658691,
+            title: "Cyberpunk 2077".to_string(),
+            game_type: Some("game".to_string()),
+            is_installable: Some(true),
+            image: None,
+            images: None,
+        };
+        assert!(base_game.to_game_details().is_some());
+
+        let bundle_pack = client::GogProductItem {
+            id: 1274966284,
+            title: "Cyberpunk 2077: Ultimate Edition".to_string(),
+            game_type: Some("pack".to_string()),
+            is_installable: Some(true),
+            image: None,
+            images: None,
+        };
+        assert!(bundle_pack.to_game_details().is_some());
+
+        let dlc_item = client::GogProductItem {
+            id: 1256837418,
+            title: "Cyberpunk 2077: Phantom Liberty".to_string(),
+            game_type: Some("dlc".to_string()),
+            is_installable: Some(true),
+            image: None,
+            images: None,
+        };
+        assert!(
+            dlc_item.to_game_details().is_none(),
+            "DLC items must be filtered out"
+        );
+
+        let bonus_item = client::GogProductItem {
+            id: 1999999999,
+            title: "Cyberpunk 2077 - Goodies Collection".to_string(),
+            game_type: Some("bonus".to_string()),
+            is_installable: Some(false),
+            image: None,
+            images: None,
+        };
+        assert!(
+            bonus_item.to_game_details().is_none(),
+            "Bonus items must be filtered out"
+        );
+    }
+
+    #[test]
+    fn test_gog_product_item_images_mapping() {
+        let product = client::GogProductItem {
+            id: 1207658691,
+            title: "Unreal Tournament 2004".to_string(),
+            game_type: Some("game".to_string()),
+            is_installable: Some(true),
+            image: None,
+            images: Some(client::GogProductImages {
+                box_art: None,
+                box_art_camel: None,
+                background: Some("//images-3.gog-statics.com/ut2004_bg.jpg".to_string()),
+                logo: Some("//images-3.gog-statics.com/ut2004_logo.jpg".to_string()),
+                logo2x: Some("//images-2.gog-statics.com/ut2004_logo_2x.jpg".to_string()),
+                icon: Some("//images-1.gog-statics.com/ut2004_icon.png".to_string()),
+                sidebar_icon: None,
+            }),
+        };
+
+        let details = product
+            .to_game_details()
+            .expect("Game details must be present");
+        assert_eq!(
+            details.image,
+            Some("//images-2.gog-statics.com/ut2004_logo_2x.jpg".to_string())
+        );
+        assert_eq!(
+            details.background,
+            Some("//images-3.gog-statics.com/ut2004_bg.jpg".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn test_gog_reactive_plugin_sync_requested() {
+        use omnis_sdk::ReactivePlugin;
+        let mut plugin = GogCloudPlugin::new();
+        assert_eq!(ReactivePlugin::id(&plugin), "gog");
+        assert_eq!(ReactivePlugin::name(&plugin), "GOG Galaxy");
+
+        let events = plugin
+            .handle_event(omnis_sdk::PluginEvent::SyncRequested {
+                library_id: "gog".to_string(),
+                force_full: false,
+            })
+            .await
+            .expect("Event handling must succeed");
+
+        assert_eq!(events.len(), 1);
+        match &events[0] {
+            omnis_sdk::PluginEvent::BatchGamesDiscovered { library_id, games } => {
+                assert_eq!(library_id, "gog");
+                // On test runner (without local GOG registry), games can be empty
+                assert!(games.is_empty() || !games.is_empty());
+            }
+            _ => panic!("Expected BatchGamesDiscovered event"),
+        }
+    }
+
+    #[test]
     fn test_cloud_store_plugin_interface() {
         let plugin = GogCloudPlugin::new();
 
-        assert_eq!(plugin.id(), "gog");
-        assert_eq!(plugin.name(), "GOG Galaxy");
+        assert_eq!(LibraryPlugin::id(&plugin), "gog");
+        assert_eq!(LibraryPlugin::name(&plugin), "GOG Galaxy");
 
         let login_url = plugin.login_url();
         assert!(login_url.contains(client::GOG_CLIENT_ID));

@@ -88,6 +88,7 @@ impl AppBootstrap {
         let mut host = PluginHost::new(event_bus.clone(), db);
         host.register_plugin(Box::new(SteamPlugin::new()));
         host.register_plugin(Box::new(EpicLibraryPlugin::new()));
+        host.register_plugin(Box::new(GogCloudPlugin::new()));
 
         let downloader = Arc::new(MetadataDownloader::new());
         let marketplace = Arc::new(MarketplaceManager::new());
