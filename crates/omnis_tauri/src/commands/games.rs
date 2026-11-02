@@ -3,7 +3,7 @@ use crate::types::{game_to_dto, AppState, GameDto};
 use omnis_core::LibraryCounts;
 use omnis_plugin_epic::EpicLibraryPlugin;
 use omnis_sdk::constants::events;
-use omnis_sdk::{Game, LaunchConfiguration, LibraryPlugin, PluginEvent, ProcessTrackingMode};
+use omnis_sdk::{Game, LaunchConfiguration, PluginEvent, ProcessTrackingMode};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tauri::State;
@@ -52,7 +52,7 @@ pub async fn sync_library(
 ) -> Result<usize, String> {
     state
         .host
-        .dispatch_event(
+        .dispatch_event_and_wait(
             None,
             PluginEvent::SyncRequested {
                 library_id: "all".to_string(),
@@ -61,26 +61,12 @@ pub async fn sync_library(
         )
         .await;
 
-    // Scan Epic Games Store library
-    let epic_plugin = EpicLibraryPlugin::new();
-    match epic_plugin.scan().await {
-        Ok(epic_games) => {
-            if !epic_games.is_empty() {
-                let _ = state.db.ingest_discovered_batch(&epic_games);
-            }
-        }
-        Err(err) => {
-            tracing::warn!("Failed scanning Epic Games Store: {}", err);
-        }
-    }
-
     // Sync connected cloud store accounts (GOG, Xbox, etc.)
     let _ = state
         .store_account_manager
         .sync_all_connected(&app_handle)
         .await;
 
-    tokio::time::sleep(tokio::time::Duration::from_millis(300)).await;
     state.db.count_games().map_err(|e| e.to_string())
 }
 
