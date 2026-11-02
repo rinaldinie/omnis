@@ -15,6 +15,7 @@ pub enum LogLevel {
 /// Asynchronous, non-blocking event bus messages
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", content = "payload")]
+#[allow(clippy::large_enum_variant)] // Boxing variants would change the public plugin API.
 pub enum PluginEvent {
     // --- Host -> Plugin Events ---
     /// Request library synchronization

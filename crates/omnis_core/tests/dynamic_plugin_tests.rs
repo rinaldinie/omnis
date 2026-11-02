@@ -14,15 +14,13 @@ fn get_sample_plugin_path() -> PathBuf {
         .join("target")
         .join("debug");
 
-    let dll_path = if cfg!(target_os = "windows") {
+    if cfg!(target_os = "windows") {
         target_debug.join("sample_dynamic_provider.dll")
     } else if cfg!(target_os = "macos") {
         target_debug.join("libsample_dynamic_provider.dylib")
     } else {
         target_debug.join("libsample_dynamic_provider.so")
-    };
-
-    dll_path
+    }
 }
 
 #[tokio::test]

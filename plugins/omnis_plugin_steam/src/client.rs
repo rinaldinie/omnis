@@ -108,10 +108,8 @@ pub fn is_steam_redirect(url: &str) -> bool {
     }
 
     // 2. Profile or vanity URLs
-    let has_profile =
-        lower.contains("steamcommunity.com/id/") || lower.contains("steamcommunity.com/profiles/");
 
-    has_profile
+    lower.contains("steamcommunity.com/id/") || lower.contains("steamcommunity.com/profiles/")
 }
 
 /// Extracts a `StoreAccountSession` from a Steam redirection URL.

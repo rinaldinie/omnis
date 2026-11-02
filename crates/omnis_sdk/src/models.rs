@@ -54,8 +54,9 @@ pub struct DiscoveredGame {
 }
 
 /// Playnite-parity game completion status
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum CompletionStatus {
+    #[default]
     NotPlayed,
     Playing,
     Beaten,
@@ -76,12 +77,6 @@ impl CompletionStatus {
             Self::Backlog => "Backlog",
             Self::PlanToPlay => "PlanToPlay",
         }
-    }
-}
-
-impl Default for CompletionStatus {
-    fn default() -> Self {
-        Self::NotPlayed
     }
 }
 

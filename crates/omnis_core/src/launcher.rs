@@ -245,8 +245,7 @@ pub fn path_contains(parent: &Path, child: &Path) -> bool {
     if c_str == p_trimmed {
         return true;
     }
-    if c_str.starts_with(p_trimmed) {
-        let remainder = &c_str[p_trimmed.len()..];
+    if let Some(remainder) = c_str.strip_prefix(p_trimmed) {
         if remainder.starts_with('\\') {
             return true;
         }
@@ -353,8 +352,6 @@ pub async fn wait_for_process_exit_kernel(pid: u32) -> Result<(), String> {
     }
     Ok(())
 }
-
-/// Allows background and child processes to set the foreground window on Windows (Requirement C1)
 
 /// Calculates the total resident memory in bytes of a process and ALL its descendants.
 /// Correctly accounts for multi-process architectures such as Chromium/WebView2,

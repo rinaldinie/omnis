@@ -328,17 +328,19 @@ pub fn inspect_playnite_backup(
                 }
 
                 let cover_available = existing.cover_image_path.is_none()
-                    && item.Cover.as_ref().map_or(false, |c| {
-                        zip_images.contains_key(&normalize_zip_image_key(c))
-                    });
+                    && item
+                        .Cover
+                        .as_ref()
+                        .is_some_and(|c| zip_images.contains_key(&normalize_zip_image_key(c)));
                 if cover_available {
                     missing_covers_available += 1;
                 }
 
                 let background_available = existing.background_image_path.is_none()
-                    && item.Background.as_ref().map_or(false, |b| {
-                        zip_images.contains_key(&normalize_zip_image_key(b))
-                    });
+                    && item
+                        .Background
+                        .as_ref()
+                        .is_some_and(|b| zip_images.contains_key(&normalize_zip_image_key(b)));
                 if background_available {
                     missing_backgrounds_available += 1;
                 }
@@ -361,7 +363,7 @@ pub fn inspect_playnite_backup(
         }
     }
 
-    sample_matches.sort_by(|a, b| a.title.to_lowercase().cmp(&b.title.to_lowercase()));
+    sample_matches.sort_by_key(|a| a.title.to_lowercase());
 
     let mut unmatched_in_library = Vec::new();
     for (id, game) in &all_existing {
@@ -373,7 +375,7 @@ pub fn inspect_playnite_backup(
             });
         }
     }
-    unmatched_in_library.sort_by(|a, b| a.title.to_lowercase().cmp(&b.title.to_lowercase()));
+    unmatched_in_library.sort_by_key(|a| a.title.to_lowercase());
 
     Ok(PlayniteBackupInspection {
         total_games_in_backup,
@@ -388,6 +390,7 @@ pub fn inspect_playnite_backup(
 }
 
 /// Helper to selectively extract an image asset from the zip archive directly into cache.
+#[allow(clippy::too_many_arguments)]
 fn extract_image_asset<R: Read + Seek>(
     archive: &mut ZipArchive<R>,
     zip_index: &HashMap<String, usize>,
@@ -406,10 +409,7 @@ fn extract_image_asset<R: Read + Seek>(
             .extension()
             .and_then(|e| e.to_str())
             .map(|e| e.to_ascii_lowercase());
-        let ext = match raw_ext.as_deref() {
-            Some(e @ ("jpg" | "jpeg" | "png" | "webp" | "gif" | "bmp" | "avif" | "ico")) => e,
-            _ => "jpg",
-        };
+        let ext = raw_ext.as_deref().unwrap_or("jpg");
         let target_path = dir.join(format!("{}_{}.{}", game_id, suffix, ext));
 
         if !dry_run {

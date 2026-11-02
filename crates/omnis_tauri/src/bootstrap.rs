@@ -221,7 +221,7 @@ impl AppBootstrap {
         }
 
         // Initialize System Tray
-        if let Err(e) = tray::setup_tray(&app.handle()) {
+        if let Err(e) = tray::setup_tray(app.handle()) {
             tracing::error!("Failed to initialize system tray: {}", e);
         }
 

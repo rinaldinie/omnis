@@ -232,9 +232,9 @@ impl MetadataDownloader {
             &game,
             &request,
             &pipeline,
-            &*providers_guard,
-            &*enabled_guard,
-            &*settings_guard,
+            &providers_guard,
+            &enabled_guard,
+            &settings_guard,
             |t, l| self.generate_fallback_metadata(t, l),
         )
         .await;

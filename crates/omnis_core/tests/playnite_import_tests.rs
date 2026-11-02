@@ -455,7 +455,7 @@ fn test_litedb_bson_parser_and_scanner() {
     );
     assert_eq!(parsed.get("Playtime").unwrap().as_u64().unwrap(), 7200);
     assert_eq!(parsed.get("PlayCount").unwrap().as_u64().unwrap(), 10);
-    assert_eq!(parsed.get("Favorite").unwrap().as_bool().unwrap(), true);
+    assert!(parsed.get("Favorite").unwrap().as_bool().unwrap());
     assert_eq!(
         parsed.get("PluginId").unwrap().as_guid_string().unwrap(),
         "aebe8b7c-6dc3-4a66-af31-e7375c6b5e9e"

@@ -286,7 +286,7 @@ impl AchievementProvider for crate::SteamPlugin {
                     None
                 }
             })
-            .or_else(|| self.config.api_key.as_deref())
+            .or(self.config.api_key.as_deref())
             .ok_or_else(|| {
                 "La Steam Web API Key è obbligatoria per sincronizzare gli obiettivi. Inseriscila negli Account Store (Impostazioni)."
                     .to_string()
@@ -295,7 +295,7 @@ impl AchievementProvider for crate::SteamPlugin {
         let steam_id = session
             .map(|s| s.user_id.as_str())
             .filter(|s| !s.trim().is_empty())
-            .or_else(|| self.config.steam_id64.as_deref());
+            .or(self.config.steam_id64.as_deref());
 
         fetch_steam_achievements_web_api(&self.client, api_key, steam_id, game, Some("english"))
             .await

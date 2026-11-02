@@ -131,10 +131,11 @@ async fn test_kill_process_active() {
         c
     };
 
-    let child = cmd.spawn().expect("Failed to spawn sleeper process");
+    let mut child = cmd.spawn().expect("Failed to spawn sleeper process");
     let pid = child.id();
     assert!(pid > 0);
 
     let kill_res = kill_process(pid);
     assert!(kill_res.is_ok(), "Kill process failed: {:?}", kill_res);
+    let _ = child.wait();
 }

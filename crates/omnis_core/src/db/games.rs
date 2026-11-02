@@ -327,9 +327,6 @@ impl GameRepository for Database {
         Ok(ordered)
     }
 
-    /// Search games using in-memory fuzzy title matching (nucleo-matcher)
-    /// + SQLite FTS5 trigram search on descriptions and titles.
-
     /// Update game metadata, custom links, play actions, completion status and user notes
     fn update_game(&self, update: &GameUpdateDto) -> Result<Game> {
         let now = Utc::now().to_rfc3339();

@@ -273,6 +273,7 @@ impl MetadataPipelineResolver {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn resolve_dedicated_artwork(
         final_patch: &mut GameMetadataPatch,
         request: &MetadataSearchRequest,
@@ -322,6 +323,7 @@ impl MetadataPipelineResolver {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn resolve_scores(
         final_patch: &mut GameMetadataPatch,
         game: &Game,
@@ -332,16 +334,17 @@ impl MetadataPipelineResolver {
         score_source: &str,
         details_source: &str,
     ) {
-        if game.critic_score.is_none() && final_patch.critic_score.is_none() {
-            if score_source != details_source && enabled.get(score_source).copied().unwrap_or(false)
-            {
-                if let Some(prov) = providers.get(score_source) {
-                    let s = settings.get(score_source).cloned().unwrap_or_default();
-                    if let Ok(sc_patch) = prov.fetch_metadata(request, &s).await {
-                        if sc_patch.critic_score.is_some() {
-                            final_patch.critic_score = sc_patch.critic_score;
-                            final_patch.community_score = sc_patch.community_score;
-                        }
+        if game.critic_score.is_none()
+            && final_patch.critic_score.is_none()
+            && score_source != details_source
+            && enabled.get(score_source).copied().unwrap_or(false)
+        {
+            if let Some(prov) = providers.get(score_source) {
+                let s = settings.get(score_source).cloned().unwrap_or_default();
+                if let Ok(sc_patch) = prov.fetch_metadata(request, &s).await {
+                    if sc_patch.critic_score.is_some() {
+                        final_patch.critic_score = sc_patch.critic_score;
+                        final_patch.community_score = sc_patch.community_score;
                     }
                 }
             }
@@ -356,29 +359,31 @@ impl MetadataPipelineResolver {
         settings: &HashMap<String, Map<String, Value>>,
     ) {
         for (prov_id, prov) in providers {
-            if prov_id != "steam" && prov_id != "gog" && prov_id != "epic" {
-                if enabled.get(prov_id).copied().unwrap_or(true) {
-                    let s = settings.get(prov_id).cloned().unwrap_or_default();
-                    if let Ok(p_patch) = prov.fetch_metadata(request, &s).await {
-                        if let Some(extra) = p_patch.extra_metadata {
-                            let mut current_merged: serde_json::Map<String, serde_json::Value> =
-                                final_patch
-                                    .extra_metadata
-                                    .as_deref()
-                                    .and_then(|s| serde_json::from_str(s).ok())
-                                    .unwrap_or_default();
-                            if let Ok(incoming) = serde_json::from_str::<
-                                serde_json::Map<String, serde_json::Value>,
-                            >(&extra)
-                            {
-                                for (k, v) in incoming {
-                                    current_merged.insert(k, v);
-                                }
-                                final_patch.extra_metadata =
-                                    Some(serde_json::to_string(&current_merged).unwrap_or(extra));
-                            } else {
-                                final_patch.extra_metadata = Some(extra);
+            if prov_id != "steam"
+                && prov_id != "gog"
+                && prov_id != "epic"
+                && enabled.get(prov_id).copied().unwrap_or(true)
+            {
+                let s = settings.get(prov_id).cloned().unwrap_or_default();
+                if let Ok(p_patch) = prov.fetch_metadata(request, &s).await {
+                    if let Some(extra) = p_patch.extra_metadata {
+                        let mut current_merged: serde_json::Map<String, serde_json::Value> =
+                            final_patch
+                                .extra_metadata
+                                .as_deref()
+                                .and_then(|s| serde_json::from_str(s).ok())
+                                .unwrap_or_default();
+                        if let Ok(incoming) = serde_json::from_str::<
+                            serde_json::Map<String, serde_json::Value>,
+                        >(&extra)
+                        {
+                            for (k, v) in incoming {
+                                current_merged.insert(k, v);
                             }
+                            final_patch.extra_metadata =
+                                Some(serde_json::to_string(&current_merged).unwrap_or(extra));
+                        } else {
+                            final_patch.extra_metadata = Some(extra);
                         }
                     }
                 }

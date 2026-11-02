@@ -157,8 +157,7 @@ pub struct EpicCandidate {
 /// Cleans trademark and formatting noise from Epic catalog titles
 pub fn sanitize_epic_title(title: &str) -> String {
     title
-        .replace('™', "")
-        .replace('®', "")
+        .replace(['™', '®'], "")
         .replace('\u{00a0}', " ")
         .trim()
         .to_string()
@@ -265,30 +264,22 @@ pub fn extract_exchange_code(url_str: &str) -> Option<String> {
     // Fallback: search string directly (checking authorizationCode and exchangeCode before code/sid)
     if let Some(pos) = url_str.find("authorizationCode=") {
         let after = &url_str[pos + 18..];
-        let end = after
-            .find(|c| c == '&' || c == '#' || c == ' ')
-            .unwrap_or(after.len());
+        let end = after.find(['&', '#', ' ']).unwrap_or(after.len());
         return Some(after[..end].to_string());
     }
     if let Some(pos) = url_str.find("exchangeCode=") {
         let after = &url_str[pos + 13..];
-        let end = after
-            .find(|c| c == '&' || c == '#' || c == ' ')
-            .unwrap_or(after.len());
+        let end = after.find(['&', '#', ' ']).unwrap_or(after.len());
         return Some(after[..end].to_string());
     }
     if let Some(pos) = url_str.find("sid=") {
         let after = &url_str[pos + 4..];
-        let end = after
-            .find(|c| c == '&' || c == '#' || c == ' ')
-            .unwrap_or(after.len());
+        let end = after.find(['&', '#', ' ']).unwrap_or(after.len());
         return Some(after[..end].to_string());
     }
     if let Some(pos) = url_str.find("code=") {
         let after = &url_str[pos + 5..];
-        let end = after
-            .find(|c| c == '&' || c == '#' || c == ' ')
-            .unwrap_or(after.len());
+        let end = after.find(['&', '#', ' ']).unwrap_or(after.len());
         return Some(after[..end].to_string());
     }
 

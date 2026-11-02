@@ -51,20 +51,18 @@ Nel file `style.css` puoi scrivere qualsiasi regola CSS valida per sovrascrivere
     // Seed builtin theme folders if not already present
     for builtin in get_builtin_themes() {
         let theme_folder = themes_dir.join(&builtin.id);
-        if !theme_folder.exists() {
-            if std::fs::create_dir_all(&theme_folder).is_ok() {
-                let json_path = theme_folder.join("theme.json");
-                if let Ok(pretty) = serde_json::to_string_pretty(&builtin) {
-                    let _ = std::fs::write(&json_path, pretty);
-                }
+        if !theme_folder.exists() && std::fs::create_dir_all(&theme_folder).is_ok() {
+            let json_path = theme_folder.join("theme.json");
+            if let Ok(pretty) = serde_json::to_string_pretty(&builtin) {
+                let _ = std::fs::write(&json_path, pretty);
+            }
 
-                let css_path = theme_folder.join("style.css");
-                let css_content = match builtin.custom_css.as_deref() {
+            let css_path = theme_folder.join("style.css");
+            let css_content = match builtin.custom_css.as_deref() {
                     Some(css) if !css.trim().is_empty() => format!("/* Stile CSS Custom per {} */\n{}\n", builtin.name, css),
                     _ => format!("/* Stile CSS Custom per {}\n   Aggiungi qui le tue regole CSS per personalizzare l'interfaccia */\n", builtin.name),
                 };
-                let _ = std::fs::write(&css_path, css_content);
-            }
+            let _ = std::fs::write(&css_path, css_content);
         }
     }
 }
