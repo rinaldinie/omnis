@@ -105,4 +105,3 @@ pub async fn pick_playnite_backup_file() -> Result<Option<String>, String> {
     .await
     .map_err(|e| e.to_string())?
 }
-

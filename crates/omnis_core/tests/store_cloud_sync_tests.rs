@@ -49,7 +49,8 @@ fn test_gog_cloud_plugin_contract_and_normalization() {
 
     // Verify redirect URL detection
     assert!(
-        plugin.is_redirect_url("https://embed.gog.com/on_login_success?code=MOCK_CODE&origin=client"),
+        plugin
+            .is_redirect_url("https://embed.gog.com/on_login_success?code=MOCK_CODE&origin=client"),
         "Should accept GOG on_login_success redirect callback"
     );
     assert!(
@@ -68,17 +69,21 @@ fn test_gog_cloud_plugin_contract_and_normalization() {
     assert_eq!(discovered.library_id, "gog");
     assert_eq!(discovered.external_id, "1207658691");
     assert_eq!(discovered.title, "The Witcher 3: Wild Hunt");
-    assert!(!discovered.is_installed, "Cloud discovered games must default to is_installed: false");
+    assert!(
+        !discovered.is_installed,
+        "Cloud discovered games must default to is_installed: false"
+    );
     assert_eq!(discovered.install_dir, None);
     assert_eq!(
         discovered.cover_image_path,
         Some("https://images-3.gog.com/witcher3.jpg".to_string())
     );
 
-    let play_action = discovered.play_action.expect("DiscoveredGame must provide a play_action");
+    let play_action = discovered
+        .play_action
+        .expect("DiscoveredGame must provide a play_action");
     assert_eq!(
-        play_action.executable,
-        "goggalaxy://openGameView/1207658691",
+        play_action.executable, "goggalaxy://openGameView/1207658691",
         "GOG play_action executable must target goggalaxy protocol handler"
     );
     assert!(play_action.arguments.is_empty());
@@ -103,7 +108,9 @@ fn test_xbox_cloud_plugin_contract_and_normalization() {
 
     // Verify redirect URL detection
     assert!(
-        plugin.is_redirect_url("https://login.live.com/oauth20_desktop.srf#access_token=MOCK_TOKEN&expires_in=3600"),
+        plugin.is_redirect_url(
+            "https://login.live.com/oauth20_desktop.srf#access_token=MOCK_TOKEN&expires_in=3600"
+        ),
         "Should accept Microsoft desktop OAuth redirect callback"
     );
     assert!(
@@ -124,17 +131,21 @@ fn test_xbox_cloud_plugin_contract_and_normalization() {
     assert_eq!(discovered.library_id, "xbox");
     assert_eq!(discovered.external_id, "192837465");
     assert_eq!(discovered.title, "Forza Horizon 5");
-    assert!(!discovered.is_installed, "Cloud title must default to is_installed: false");
+    assert!(
+        !discovered.is_installed,
+        "Cloud title must default to is_installed: false"
+    );
     assert_eq!(discovered.install_dir, None);
     assert_eq!(
         discovered.cover_image_path,
         Some("https://images-eds.xboxlive.com/image?url=fh5.jpg".to_string())
     );
 
-    let play_action = discovered.play_action.expect("DiscoveredGame must provide a play_action");
+    let play_action = discovered
+        .play_action
+        .expect("DiscoveredGame must provide a play_action");
     assert_eq!(
-        play_action.executable,
-        "ms-windows-store://pdp/?ProductId=9NXQXX31PRSF",
+        play_action.executable, "ms-windows-store://pdp/?ProductId=9NXQXX31PRSF",
         "Xbox play_action executable must target ms-windows-store protocol URI"
     );
     assert!(play_action.arguments.is_empty());
@@ -243,7 +254,10 @@ fn test_database_non_destructive_cloud_merge() {
         .iter()
         .find(|g| g.library_id == "gog" && g.external_id == "12345")
         .expect("Local game not found in database");
-    assert!(initial_game.is_installed, "Game should initially be installed");
+    assert!(
+        initial_game.is_installed,
+        "Game should initially be installed"
+    );
     assert_eq!(
         initial_game.install_dir,
         Some(PathBuf::from(r"C:\Games\Witcher3"))
@@ -320,8 +334,7 @@ fn test_database_non_destructive_cloud_merge() {
         "play_actions must have 1 entry preserved"
     );
     assert_eq!(
-        merged_game.play_actions[0].executable,
-        r"C:\Games\Witcher3\bin\x64\witcher3.exe",
+        merged_game.play_actions[0].executable, r"C:\Games\Witcher3\bin\x64\witcher3.exe",
         "Local executable play_action must be preserved over remote cloud protocol URI"
     );
 }

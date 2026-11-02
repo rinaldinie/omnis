@@ -10,13 +10,13 @@ pub mod settings_schema;
 pub mod widget;
 
 pub use async_trait::async_trait;
-pub use uuid::Uuid;
 pub use constants::*;
 pub use events::*;
 pub use ffi::*;
 pub use models::*;
 pub use plugin::*;
 pub use settings_schema::*;
+pub use uuid::Uuid;
 pub use widget::*;
 
 /// Individual session summary within a day
@@ -101,5 +101,3 @@ pub struct GameStatsDto {
     pub longest_session_seconds: u64,
     pub last_4_weeks_bars: Vec<WeekPlaytimeDto>,
 }
-
-

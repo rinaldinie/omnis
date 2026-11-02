@@ -46,7 +46,9 @@ async fn test_dynamic_plugin_loader_direct() {
     assert_eq!(provider.name(), "Sample Community Plugin");
     assert!(!provider.is_builtin());
     assert_eq!(provider.version(), Some("0.1.0"));
-    assert!(provider.supported_fields().contains(&MetadataField::CriticScore));
+    assert!(provider
+        .supported_fields()
+        .contains(&MetadataField::CriticScore));
 
     // Verify test_connection FFI roundtrip
     let test_res = provider.test_connection(&Default::default()).await;
@@ -108,7 +110,8 @@ async fn test_metadata_downloader_scan_dynamic_plugin_folder() {
     }
 
     // Create isolated temporary directory in system temp
-    let temp_dir = std::env::temp_dir().join(format!("omnis_scan_dyn_test_{}", uuid::Uuid::new_v4()));
+    let temp_dir =
+        std::env::temp_dir().join(format!("omnis_scan_dyn_test_{}", uuid::Uuid::new_v4()));
     let plugin_subfolder = temp_dir.join("sample_dynamic");
     std::fs::create_dir_all(&plugin_subfolder).expect("Failed to create temp plugin subfolder");
 
@@ -120,7 +123,10 @@ async fn test_metadata_downloader_scan_dynamic_plugin_folder() {
 
     let all_providers = downloader.get_providers_info().await;
     let found = all_providers.iter().find(|p| p.id == "sample_dynamic");
-    assert!(found.is_some(), "Dynamic plugin should be discovered automatically by directory scan");
+    assert!(
+        found.is_some(),
+        "Dynamic plugin should be discovered automatically by directory scan"
+    );
 
     // Clean up temp folder
     let _ = std::fs::remove_dir_all(&temp_dir);
@@ -135,8 +141,14 @@ async fn test_marketplace_manager_e2e_install_and_hot_reload() {
     let downloader = std::sync::Arc::new(MetadataDownloader::new());
     downloader.set_plugins_dir(temp_dir.clone()).await;
 
-    let catalog = manager.get_catalog(None).await.expect("Failed to get catalog");
-    assert!(!catalog.plugins.is_empty(), "Catalog should contain plugins");
+    let catalog = manager
+        .get_catalog(None)
+        .await
+        .expect("Failed to get catalog");
+    assert!(
+        !catalog.plugins.is_empty(),
+        "Catalog should contain plugins"
+    );
 
     // Install sample_dynamic plugin
     if let Ok(info) = manager.install_plugin("sample_dynamic", &downloader).await {
@@ -149,11 +161,17 @@ async fn test_marketplace_manager_e2e_install_and_hot_reload() {
 
         // Verify catalog shows is_installed = true
         let updated_catalog = manager.get_catalog(None).await.expect("Catalog refresh");
-        let item = updated_catalog.plugins.iter().find(|p| p.id == "sample_dynamic").unwrap();
+        let item = updated_catalog
+            .plugins
+            .iter()
+            .find(|p| p.id == "sample_dynamic")
+            .unwrap();
         assert!(item.is_installed);
 
         // Uninstall
-        let uninst_res = manager.uninstall_plugin("sample_dynamic", &downloader).await;
+        let uninst_res = manager
+            .uninstall_plugin("sample_dynamic", &downloader)
+            .await;
         assert!(uninst_res.is_ok());
 
         // Verify it is removed
@@ -176,7 +194,9 @@ async fn test_marketplace_real_zip_install_and_sha256_validation() {
         .unwrap()
         .join("omnis-plugins");
 
-    let dist_zip = omnis_plugins_dir.join("dist").join("howlongtobeat-v1.1.0.zip");
+    let dist_zip = omnis_plugins_dir
+        .join("dist")
+        .join("howlongtobeat-v1.1.0.zip");
     if !dist_zip.exists() {
         eprintln!(
             "Dist zip not found at {}, skipping real zip test.",
@@ -199,7 +219,8 @@ async fn test_marketplace_real_zip_install_and_sha256_validation() {
         "linux-x86_64"
     };
 
-    let temp_dir = std::env::temp_dir().join(format!("omnis_market_zip_test_{}", uuid::Uuid::new_v4()));
+    let temp_dir =
+        std::env::temp_dir().join(format!("omnis_market_zip_test_{}", uuid::Uuid::new_v4()));
     let _ = std::fs::create_dir_all(&temp_dir);
 
     let downloader = std::sync::Arc::new(MetadataDownloader::new());
@@ -231,12 +252,24 @@ async fn test_marketplace_real_zip_install_and_sha256_validation() {
     });
 
     let tampered_cat_path = temp_dir.join("tampered_catalog.json");
-    std::fs::write(&tampered_cat_path, serde_json::to_string_pretty(&tampered_catalog_json).unwrap()).unwrap();
+    std::fs::write(
+        &tampered_cat_path,
+        serde_json::to_string_pretty(&tampered_catalog_json).unwrap(),
+    )
+    .unwrap();
 
     let manager_tampered = omnis_core::MarketplaceManager::with_plugins_dir(temp_dir.clone());
-    let _ = manager_tampered.get_catalog(Some(tampered_cat_path.to_str().unwrap())).await.unwrap();
-    let install_tampered_res = manager_tampered.install_plugin("howlongtobeat", &downloader).await;
-    assert!(install_tampered_res.is_err(), "Installation with invalid SHA-256 MUST fail!");
+    let _ = manager_tampered
+        .get_catalog(Some(tampered_cat_path.to_str().unwrap()))
+        .await
+        .unwrap();
+    let install_tampered_res = manager_tampered
+        .install_plugin("howlongtobeat", &downloader)
+        .await;
+    assert!(
+        install_tampered_res.is_err(),
+        "Installation with invalid SHA-256 MUST fail!"
+    );
     let err_msg = install_tampered_res.err().unwrap();
     assert!(
         err_msg.contains("Verifica integrità SHA-256 fallita"),
@@ -270,12 +303,21 @@ async fn test_marketplace_real_zip_install_and_sha256_validation() {
     });
 
     let valid_cat_path = temp_dir.join("valid_catalog.json");
-    std::fs::write(&valid_cat_path, serde_json::to_string_pretty(&valid_catalog_json).unwrap()).unwrap();
+    std::fs::write(
+        &valid_cat_path,
+        serde_json::to_string_pretty(&valid_catalog_json).unwrap(),
+    )
+    .unwrap();
 
     let manager_valid = omnis_core::MarketplaceManager::with_plugins_dir(temp_dir.clone());
-    let _ = manager_valid.get_catalog(Some(valid_cat_path.to_str().unwrap())).await.unwrap();
+    let _ = manager_valid
+        .get_catalog(Some(valid_cat_path.to_str().unwrap()))
+        .await
+        .unwrap();
 
-    let install_valid_res = manager_valid.install_plugin("howlongtobeat", &downloader).await;
+    let install_valid_res = manager_valid
+        .install_plugin("howlongtobeat", &downloader)
+        .await;
     assert!(
         install_valid_res.is_ok(),
         "Installation with valid SHA-256 and real ZIP must succeed: {:?}",
@@ -294,7 +336,9 @@ async fn test_marketplace_real_zip_install_and_sha256_validation() {
     );
 
     // Clean up
-    let _ = manager_valid.uninstall_plugin("howlongtobeat", &downloader).await;
+    let _ = manager_valid
+        .uninstall_plugin("howlongtobeat", &downloader)
+        .await;
     let _ = std::fs::remove_dir_all(&temp_dir);
 }
 
@@ -304,15 +348,34 @@ async fn test_howlongtobeat_times_formatting_and_variance() {
 
     // 1. Test duration formatting
     assert_eq!(ExternalMetadataProvider::format_hltb_duration(0), "--");
-    assert_eq!(ExternalMetadataProvider::format_hltb_duration(1800), "30 Min");
-    assert_eq!(ExternalMetadataProvider::format_hltb_duration(84940), "23½ Ore");
-    assert_eq!(ExternalMetadataProvider::format_hltb_duration(175042), "48½ Ore");
-    assert_eq!(ExternalMetadataProvider::format_hltb_duration(343125), "95½ Ore");
-    assert_eq!(ExternalMetadataProvider::format_hltb_duration(3600), "1 Ore");
-    assert_eq!(ExternalMetadataProvider::format_hltb_duration(7200), "2 Ore");
+    assert_eq!(
+        ExternalMetadataProvider::format_hltb_duration(1800),
+        "30 Min"
+    );
+    assert_eq!(
+        ExternalMetadataProvider::format_hltb_duration(84940),
+        "23½ Ore"
+    );
+    assert_eq!(
+        ExternalMetadataProvider::format_hltb_duration(175042),
+        "48½ Ore"
+    );
+    assert_eq!(
+        ExternalMetadataProvider::format_hltb_duration(343125),
+        "95½ Ore"
+    );
+    assert_eq!(
+        ExternalMetadataProvider::format_hltb_duration(3600),
+        "1 Ore"
+    );
+    assert_eq!(
+        ExternalMetadataProvider::format_hltb_duration(7200),
+        "2 Ore"
+    );
 
     // 2. Test curated matches
-    let (w_main, w_extra, w_comp) = ExternalMetadataProvider::fallback_hltb_times("The Witcher 3: Wild Hunt");
+    let (w_main, w_extra, w_comp) =
+        ExternalMetadataProvider::fallback_hltb_times("The Witcher 3: Wild Hunt");
     assert_eq!(w_main, "51½ Ore");
     assert_eq!(w_extra, "103 Ore");
     assert_eq!(w_comp, "173 Ore");
@@ -323,8 +386,10 @@ async fn test_howlongtobeat_times_formatting_and_variance() {
     assert_eq!(p_comp, "14 Ore");
 
     // 3. Test non-curated fallback has distinct variance per title
-    let (game_a_main, _, _) = ExternalMetadataProvider::fallback_hltb_times("Random Indie Puzzle Adventure");
-    let (game_b_main, _, _) = ExternalMetadataProvider::fallback_hltb_times("Cosmic Space Odyssey 4");
+    let (game_a_main, _, _) =
+        ExternalMetadataProvider::fallback_hltb_times("Random Indie Puzzle Adventure");
+    let (game_b_main, _, _) =
+        ExternalMetadataProvider::fallback_hltb_times("Cosmic Space Odyssey 4");
     assert_ne!(
         game_a_main, game_b_main,
         "Fallback times should vary dynamically across different game titles"

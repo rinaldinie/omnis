@@ -1,8 +1,8 @@
+use omnis_sdk::LaunchConfiguration;
 use std::path::Path;
 use std::time::{Duration, Instant};
 use sysinfo::System;
 use tokio::process::Command;
-use omnis_sdk::LaunchConfiguration;
 
 use super::{matches_target, wait_for_process_exit_kernel, LaunchError};
 

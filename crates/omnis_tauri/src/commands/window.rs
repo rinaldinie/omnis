@@ -58,7 +58,11 @@ pub fn window_set_fullscreen(fullscreen: bool, window: Window) -> Result<(), Str
 }
 
 pub fn is_fullscreen_arg(raw: &str) -> bool {
-    let clean = raw.trim().trim_matches('"').trim_matches('\'').to_lowercase();
+    let clean = raw
+        .trim()
+        .trim_matches('"')
+        .trim_matches('\'')
+        .to_lowercase();
     clean == "--fullscreen"
         || clean == "-fullscreen"
         || clean == "/fullscreen"
@@ -93,13 +97,18 @@ pub fn is_fullscreen_launch() -> bool {
 
 #[tauri::command]
 pub fn set_minimize_to_tray(enabled: bool, state: State<'_, AppState>) -> Result<(), String> {
-    state.minimize_to_tray.store(enabled, std::sync::atomic::Ordering::SeqCst);
+    state
+        .minimize_to_tray
+        .store(enabled, std::sync::atomic::Ordering::SeqCst);
     Ok(())
 }
 
 #[tauri::command]
 pub fn window_close(window: Window, state: State<'_, AppState>) -> Result<(), String> {
-    if state.minimize_to_tray.load(std::sync::atomic::Ordering::SeqCst) {
+    if state
+        .minimize_to_tray
+        .load(std::sync::atomic::Ordering::SeqCst)
+    {
         window.hide().map_err(|e| e.to_string())
     } else {
         window.close().map_err(|e| e.to_string())
@@ -142,8 +151,14 @@ pub async fn find_executables_in_folder(folder_path: String) -> Result<Vec<Strin
                 for entry in entries.flatten() {
                     let p = entry.path();
                     if p.is_dir() {
-                        let name = p.file_name().unwrap_or_default().to_string_lossy().to_lowercase();
-                        if ["bin", "binaries", "x64", "win64", "win32", "game"].contains(&name.as_str()) {
+                        let name = p
+                            .file_name()
+                            .unwrap_or_default()
+                            .to_string_lossy()
+                            .to_lowercase();
+                        if ["bin", "binaries", "x64", "win64", "win32", "game"]
+                            .contains(&name.as_str())
+                        {
                             search_dirs.push(p);
                         }
                     }
@@ -157,7 +172,11 @@ pub async fn find_executables_in_folder(folder_path: String) -> Result<Vec<Strin
                         if p.is_file() {
                             if let Some(ext) = p.extension() {
                                 if ext.eq_ignore_ascii_case("exe") {
-                                    let fname = p.file_name().unwrap_or_default().to_string_lossy().to_lowercase();
+                                    let fname = p
+                                        .file_name()
+                                        .unwrap_or_default()
+                                        .to_string_lossy()
+                                        .to_lowercase();
                                     if !fname.contains("unins")
                                         && !fname.contains("crash")
                                         && !fname.contains("update")
@@ -207,7 +226,10 @@ pub fn validate_external_url(url: &str) -> Result<&str, String> {
     }
 
     // Strictly reject shell control/metacharacters to prevent command/argument injection
-    if trimmed.chars().any(|c| c.is_control() || "&|<>^%\"'\r\n\t".contains(c)) {
+    if trimmed
+        .chars()
+        .any(|c| c.is_control() || "&|<>^%\"'\r\n\t".contains(c))
+    {
         return Err("URL contiene caratteri non consentiti".to_string());
     }
 

@@ -9,8 +9,8 @@ use std::path::{Path, PathBuf};
 use tracing::info;
 use uuid::Uuid;
 
-pub mod litedb;
 pub mod backup;
+pub mod litedb;
 
 pub use backup::{
     execute_playnite_backup_import, inspect_playnite_backup, PlayniteBackupImportOptions,
@@ -65,17 +65,23 @@ namespace OmnisPlayniteExporter
 /// Official GUIDs taken from Playnite source code:
 pub fn map_playnite_plugin_id(plugin_id: Option<&str>) -> &'static str {
     match plugin_id.map(|s| s.trim().to_ascii_lowercase()).as_deref() {
-        Some("cb91aec9-6843-410e-a02b-a64c48325983") | Some("cb91dfc9-b977-43bf-8e70-55f46e410fab") => stores::STEAM,
+        Some("cb91aec9-6843-410e-a02b-a64c48325983")
+        | Some("cb91dfc9-b977-43bf-8e70-55f46e410fab") => stores::STEAM,
         Some("aebe8b7c-6dc3-4a66-af31-e7375c6b5e9e") => stores::GOG,
-        Some("00000002-dbd1-46c6-b5d0-b1cb55d14e34") | Some("00000002-dbd1-46c6-b5d0-b1ba559d10e4") => stores::EPIC,
+        Some("00000002-dbd1-46c6-b5d0-b1cb55d14e34")
+        | Some("00000002-dbd1-46c6-b5d0-b1ba559d10e4") => stores::EPIC,
         Some("7e4fbb5e-2304-4c2c-9721-402f4586f6a7")
         | Some("b5199324-4061-4613-9f4c-1e24749f57d6")
         | Some("7e4fbb5e-2ae3-48d4-8ba0-6b30e7a4e287") => stores::XBOX,
-        Some("85dd7072-76de-42bc-9c2b-000e60e4e843") | Some("85dd7072-2f20-4e76-a007-41035e390724") => "origin",
-        Some("c2f038e5-8b92-4877-9163-0d6e1fa20322") | Some("c2f038e5-8b92-4877-91f1-da9094155fc5") => "ubisoft",
-        Some("e3c26a3d-dce2-4bb7-9ec7-300e12361115") | Some("e3c26a3d-d695-4cb7-a769-5ff7612c7edd") => "battlenet",
+        Some("85dd7072-76de-42bc-9c2b-000e60e4e843")
+        | Some("85dd7072-2f20-4e76-a007-41035e390724") => "origin",
+        Some("c2f038e5-8b92-4877-9163-0d6e1fa20322")
+        | Some("c2f038e5-8b92-4877-91f1-da9094155fc5") => "ubisoft",
+        Some("e3c26a3d-dce2-4bb7-9ec7-300e12361115")
+        | Some("e3c26a3d-d695-4cb7-a769-5ff7612c7edd") => "battlenet",
         Some("00000001-ebb0-4663-8a98-3b94e39b52a8") => "itch",
-        Some("4029fdd1-eb23-4e4b-9e58-690a9a4b85c2") | Some("402674cd-4af6-4886-b6ec-0e695bfa0688") => "amazon",
+        Some("4029fdd1-eb23-4e4b-9e58-690a9a4b85c2")
+        | Some("402674cd-4af6-4886-b6ec-0e695bfa0688") => "amazon",
         Some("0e460992-6ff1-4666-a111-000000000001") => "bethesda",
         Some("96e8c4bc-1666-4e5a-a435-0902c3ec0b2b") => "humble",
         Some("34c3178f-6e1d-4e27-8885-99d4f031b168") => "legacy",
@@ -86,9 +92,21 @@ pub fn map_playnite_plugin_id(plugin_id: Option<&str>) -> &'static str {
 /// Play session representation from Playnite (or GameActivity extension)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlayniteSessionDto {
-    #[serde(alias = "date_session", alias = "DateSession", alias = "date", alias = "started_at", default)]
+    #[serde(
+        alias = "date_session",
+        alias = "DateSession",
+        alias = "date",
+        alias = "started_at",
+        default
+    )]
     pub date: Option<String>,
-    #[serde(alias = "elapsed_seconds", alias = "ElapsedSeconds", alias = "duration_seconds", alias = "duration", default)]
+    #[serde(
+        alias = "elapsed_seconds",
+        alias = "ElapsedSeconds",
+        alias = "duration_seconds",
+        alias = "duration",
+        default
+    )]
     pub elapsed_seconds: Option<u64>,
 }
 
@@ -104,7 +122,12 @@ pub struct PlayniteGameDto {
     pub GameId: Option<String>,
     #[serde(alias = "plugin_id", alias = "pluginId", default)]
     pub PluginId: Option<String>,
-    #[serde(alias = "playtime_seconds", alias = "playtime", alias = "Playtime", default)]
+    #[serde(
+        alias = "playtime_seconds",
+        alias = "playtime",
+        alias = "Playtime",
+        default
+    )]
     pub PlaytimeSeconds: Option<u64>,
     #[serde(alias = "play_count", alias = "playCount", default)]
     pub PlayCount: Option<u32>,
@@ -130,7 +153,13 @@ pub struct PlayniteGameDto {
     pub Cover: Option<String>,
     #[serde(alias = "background", default)]
     pub Background: Option<String>,
-    #[serde(alias = "sessions", alias = "Sessions", alias = "activity", alias = "Activity", default)]
+    #[serde(
+        alias = "sessions",
+        alias = "Sessions",
+        alias = "activity",
+        alias = "Activity",
+        default
+    )]
     pub Sessions: Option<Vec<PlayniteSessionDto>>,
 }
 
@@ -206,7 +235,15 @@ impl PlayniteImporter {
             if let Some(existing_row) = existing {
                 Self::merge_existing_game(&conn, item, existing_row, options, &now, &mut stats)?;
             } else {
-                Self::insert_new_game(&conn, item, library_id, &external_id, options, &now, &mut stats)?;
+                Self::insert_new_game(
+                    &conn,
+                    item,
+                    library_id,
+                    &external_id,
+                    options,
+                    &now,
+                    &mut stats,
+                )?;
             }
         }
 
@@ -450,7 +487,11 @@ impl PlayniteImporter {
     ) -> Result<(), Box<dyn std::error::Error>> {
         stats.games_created += 1;
         let new_id = Uuid::new_v4().to_string();
-        let is_installed = if item.InstallDirectory.is_some() { 1 } else { 0 };
+        let is_installed = if item.InstallDirectory.is_some() {
+            1
+        } else {
+            0
+        };
         let imported_playtime = item.PlaytimeSeconds.unwrap_or(0);
         let imported_play_count = item.PlayCount.unwrap_or(0);
         let is_fav = if item.Favorite.unwrap_or(false) { 1 } else { 0 };

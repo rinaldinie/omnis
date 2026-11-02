@@ -3,12 +3,29 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum SettingType {
-    String { default: Option<String>, placeholder: Option<String>, regex: Option<String> },
-    SecretString { placeholder: Option<String> },
-    Boolean { default: bool },
-    Integer { default: Option<i64>, min: Option<i64>, max: Option<i64> },
-    Path { is_directory: bool },
-    Enum { options: Vec<String>, default: Option<String> },
+    String {
+        default: Option<String>,
+        placeholder: Option<String>,
+        regex: Option<String>,
+    },
+    SecretString {
+        placeholder: Option<String>,
+    },
+    Boolean {
+        default: bool,
+    },
+    Integer {
+        default: Option<i64>,
+        min: Option<i64>,
+        max: Option<i64>,
+    },
+    Path {
+        is_directory: bool,
+    },
+    Enum {
+        options: Vec<String>,
+        default: Option<String>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

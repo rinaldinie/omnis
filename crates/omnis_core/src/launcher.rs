@@ -104,7 +104,9 @@ pub fn get_process_image_path(pid: u32) -> Option<PathBuf> {
     let mut sys = System::new();
     let sys_pid = Pid::from(pid as usize);
     if sys.refresh_process(sys_pid) {
-        return sys.process(sys_pid).and_then(|p| p.exe().map(|e| e.to_path_buf()));
+        return sys
+            .process(sys_pid)
+            .and_then(|p| p.exe().map(|e| e.to_path_buf()));
     }
     None
 }
@@ -167,12 +169,20 @@ pub fn find_gog_game_executable(install_dir: &Path) -> Option<PathBuf> {
                 if file_name.starts_with("goggame-") && file_name.ends_with(".info") {
                     if let Ok(content) = std::fs::read_to_string(&path) {
                         if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
-                            if let Some(play_tasks) = json.get("playTasks").and_then(|p| p.as_array()) {
+                            if let Some(play_tasks) =
+                                json.get("playTasks").and_then(|p| p.as_array())
+                            {
                                 for task in play_tasks {
-                                    let is_primary = task.get("isPrimary").and_then(|p| p.as_bool()).unwrap_or(false);
-                                    let is_file = task.get("type").and_then(|t| t.as_str()) == Some("FileTask");
+                                    let is_primary = task
+                                        .get("isPrimary")
+                                        .and_then(|p| p.as_bool())
+                                        .unwrap_or(false);
+                                    let is_file = task.get("type").and_then(|t| t.as_str())
+                                        == Some("FileTask");
                                     if is_primary || is_file {
-                                        if let Some(rel_path) = task.get("path").and_then(|p| p.as_str()) {
+                                        if let Some(rel_path) =
+                                            task.get("path").and_then(|p| p.as_str())
+                                        {
                                             let exe = install_dir.join(rel_path);
                                             if exe.exists() {
                                                 return Some(exe);
@@ -194,18 +204,29 @@ pub fn find_gog_game_executable(install_dir: &Path) -> Option<PathBuf> {
 pub fn is_uri_command(config: &LaunchConfiguration) -> bool {
     let exe = config.executable.to_lowercase();
     let is_cmd = exe.ends_with("cmd.exe") || exe == "cmd";
-    let is_start = config.arguments.iter().any(|a| a.eq_ignore_ascii_case("start"));
+    let is_start = config
+        .arguments
+        .iter()
+        .any(|a| a.eq_ignore_ascii_case("start"));
     (is_cmd && is_start) || exe == "xdg-open" || exe == "open"
 }
 
 /// Helper function to check if child path is located within parent directory,
 /// with support for case-insensitivity, \\?\ verbatim prefixes and junction resolution (Requirement A3).
 pub fn path_contains(parent: &Path, child: &Path) -> bool {
-    let parent_canon = parent.canonicalize().unwrap_or_else(|_| parent.to_path_buf());
+    let parent_canon = parent
+        .canonicalize()
+        .unwrap_or_else(|_| parent.to_path_buf());
     let child_canon = child.canonicalize().unwrap_or_else(|_| child.to_path_buf());
 
-    let mut p_str = parent_canon.to_string_lossy().replace('/', "\\").to_lowercase();
-    let mut c_str = child_canon.to_string_lossy().replace('/', "\\").to_lowercase();
+    let mut p_str = parent_canon
+        .to_string_lossy()
+        .replace('/', "\\")
+        .to_lowercase();
+    let mut c_str = child_canon
+        .to_string_lossy()
+        .replace('/', "\\")
+        .to_lowercase();
 
     // Strip verbatim Windows prefixes
     if let Some(stripped) = p_str.strip_prefix(r"\\?\unc\") {
@@ -262,7 +283,8 @@ pub fn matches_target(
     if let Some(name) = target_name {
         let name_clean = name.strip_suffix(".exe").unwrap_or(name);
         let p_name_clean = p_name.strip_suffix(".exe").unwrap_or(p_name);
-        let name_match = p_name.eq_ignore_ascii_case(name) || p_name_clean.eq_ignore_ascii_case(name_clean);
+        let name_match =
+            p_name.eq_ignore_ascii_case(name) || p_name_clean.eq_ignore_ascii_case(name_clean);
 
         if !name_match {
             return false;
@@ -292,7 +314,9 @@ pub fn matches_target(
 #[cfg(windows)]
 pub async fn wait_for_process_exit_kernel(pid: u32) -> Result<(), String> {
     use windows::Win32::Foundation::{CloseHandle, WAIT_OBJECT_0};
-    use windows::Win32::System::Threading::{OpenProcess, WaitForSingleObject, INFINITE, PROCESS_SYNCHRONIZE};
+    use windows::Win32::System::Threading::{
+        OpenProcess, WaitForSingleObject, INFINITE, PROCESS_SYNCHRONIZE,
+    };
 
     let wait_res = tokio::task::spawn_blocking(move || unsafe {
         let handle_res = OpenProcess(PROCESS_SYNCHRONIZE, false, pid);
@@ -310,7 +334,10 @@ pub async fn wait_for_process_exit_kernel(pid: u32) -> Result<(), String> {
     if wait_res == WAIT_OBJECT_0 {
         Ok(())
     } else {
-        Err(format!("WaitForSingleObject returned status: {:?}", wait_res))
+        Err(format!(
+            "WaitForSingleObject returned status: {:?}",
+            wait_res
+        ))
     }
 }
 
@@ -382,18 +409,26 @@ pub mod tracker;
 pub use tracker::ProcessTracker;
 
 impl GameLauncher {
-    fn resolve_target_name(config: &LaunchConfiguration, install_dir: Option<&Path>) -> Option<String> {
+    fn resolve_target_name(
+        config: &LaunchConfiguration,
+        install_dir: Option<&Path>,
+    ) -> Option<String> {
         match &config.tracking_mode {
             ProcessTrackingMode::ProcessName(name) => Some(name.clone()),
             _ => install_dir.and_then(|dir| {
                 find_gog_game_executable(dir).and_then(|p| {
-                    p.file_name().and_then(|f| f.to_str()).map(|s| s.to_string())
+                    p.file_name()
+                        .and_then(|f| f.to_str())
+                        .map(|s| s.to_string())
                 })
             }),
         }
     }
 
-    fn resolve_target_dir(config: &LaunchConfiguration, install_dir: Option<PathBuf>) -> Option<PathBuf> {
+    fn resolve_target_dir(
+        config: &LaunchConfiguration,
+        install_dir: Option<PathBuf>,
+    ) -> Option<PathBuf> {
         install_dir.or_else(|| match &config.tracking_mode {
             ProcessTrackingMode::WatchDirectory(dir) => Some(dir.clone()),
             _ => config.working_dir.clone(),
@@ -488,10 +523,15 @@ impl GameLauncher {
             target_name.as_deref(),
             target_dir.as_deref(),
             Duration::from_secs(90),
-        ).await {
+        )
+        .await
+        {
             Some(pid) => pid,
             None => {
-                tracing::warn!("Grace period timeout: no process found for game {}", game_id);
+                tracing::warn!(
+                    "Grace period timeout: no process found for game {}",
+                    game_id
+                );
                 return Err(LaunchError::ProcessNotFound);
             }
         };
@@ -499,7 +539,8 @@ impl GameLauncher {
         let detection_time = Instant::now();
         on_started(real_pid);
 
-        ProcessTracker::track_until_exit(real_pid, target_name.as_deref(), target_dir.as_deref()).await;
+        ProcessTracker::track_until_exit(real_pid, target_name.as_deref(), target_dir.as_deref())
+            .await;
 
         let duration = detection_time.elapsed().as_secs();
         Ok(duration)
@@ -534,7 +575,9 @@ impl GameLauncher {
                 target_name.as_deref(),
                 target_dir.as_deref(),
                 Duration::from_secs(1),
-            ).await {
+            )
+            .await
+            {
                 let _ = wait_for_process_exit_kernel(real_pid).await;
                 duration = detection_time.elapsed().as_secs();
             }
@@ -574,4 +617,3 @@ impl GameLauncher {
         bring_process_to_foreground_async(pid, timeout_secs).await
     }
 }
-

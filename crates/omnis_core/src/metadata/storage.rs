@@ -1,7 +1,7 @@
+use omnis_sdk::GameMetadataPatch;
 use std::path::Path;
 use tracing::warn;
 use uuid::Uuid;
-use omnis_sdk::GameMetadataPatch;
 
 use super::media::MediaDownloader;
 
@@ -121,7 +121,5 @@ impl MediaStorageManager {
         if final_patch.background_url.is_none() && bg_dest.exists() {
             final_patch.background_url = Some(bg_dest.to_string_lossy().to_string());
         }
-
-
     }
 }

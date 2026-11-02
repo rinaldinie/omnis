@@ -24,10 +24,12 @@ pub fn build_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Error
 
     if let Some(session) = running_session {
         let running_label = format!("● In esecuzione: {}", session.title);
-        let running_item = MenuItem::with_id(app, "running_title", &running_label, false, None::<&str>)?;
+        let running_item =
+            MenuItem::with_id(app, "running_title", &running_label, false, None::<&str>)?;
         menu.append(&running_item)?;
 
-        let kill_item = MenuItem::with_id(app, "kill_running", "Termina gioco", true, None::<&str>)?;
+        let kill_item =
+            MenuItem::with_id(app, "kill_running", "Termina gioco", true, None::<&str>)?;
         menu.append(&kill_item)?;
         menu.append(&PredefinedMenuItem::separator(app)?)?;
     }
@@ -36,7 +38,13 @@ pub fn build_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Error
     let recent_games = state.db.get_recent_games(5).unwrap_or_default();
     let recent_submenu = Submenu::new(app, "Avvia Recenti", true)?;
     if recent_games.is_empty() {
-        let no_recent = MenuItem::with_id(app, "no_recent", "Nessun gioco recente", false, None::<&str>)?;
+        let no_recent = MenuItem::with_id(
+            app,
+            "no_recent",
+            "Nessun gioco recente",
+            false,
+            None::<&str>,
+        )?;
         recent_submenu.append(&no_recent)?;
     } else {
         for game in recent_games {
@@ -50,7 +58,8 @@ pub fn build_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Error
     menu.append(&PredefinedMenuItem::separator(app)?)?;
 
     // Settings
-    let settings_item = MenuItem::with_id(app, "open_settings", "Impostazioni...", true, None::<&str>)?;
+    let settings_item =
+        MenuItem::with_id(app, "open_settings", "Impostazioni...", true, None::<&str>)?;
     menu.append(&settings_item)?;
 
     // Exit
@@ -64,10 +73,10 @@ pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     let menu = build_tray_menu(app)?;
 
     #[cfg(target_os = "windows")]
-    let icon = app.default_window_icon().cloned()
-        .or_else(|| {
-            tauri::image::Image::from_app_icon_resource(32).ok()
-        });
+    let icon = app
+        .default_window_icon()
+        .cloned()
+        .or_else(|| tauri::image::Image::from_app_icon_resource(32).ok());
 
     #[cfg(not(target_os = "windows"))]
     let icon = app.default_window_icon().cloned();

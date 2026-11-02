@@ -99,7 +99,10 @@ impl DynamicPluginHandle {
 
         match rust_str_res {
             Ok(Ok(s)) => Ok(s),
-            Ok(Err(utf8_err)) => Err(format!("Plugin returned invalid UTF-8 string: {}", utf8_err)),
+            Ok(Err(utf8_err)) => Err(format!(
+                "Plugin returned invalid UTF-8 string: {}",
+                utf8_err
+            )),
             Err(_) => Err("Panic while converting C string to Rust string".to_string()),
         }
     }
@@ -107,12 +110,14 @@ impl DynamicPluginHandle {
     /// Retrieves and parses the declarative manifest from the dynamic plugin
     pub fn get_manifest(&self) -> Result<PluginManifest, String> {
         let fn_manifest = self.fn_get_manifest;
-        let json_str = unsafe {
-            self.call_c_string_returning(|| fn_manifest())
-        }?;
+        let json_str = unsafe { self.call_c_string_returning(|| fn_manifest()) }?;
 
-        serde_json::from_str::<PluginManifest>(&json_str)
-            .map_err(|e| format!("Failed to parse PluginManifest JSON from plugin: {} (raw: {})", e, json_str))
+        serde_json::from_str::<PluginManifest>(&json_str).map_err(|e| {
+            format!(
+                "Failed to parse PluginManifest JSON from plugin: {} (raw: {})",
+                e, json_str
+            )
+        })
     }
 
     /// Invokes the plugin's metadata search and enrichment logic via FFI
@@ -126,20 +131,23 @@ impl DynamicPluginHandle {
         let settings_json = serde_json::to_string(settings)
             .map_err(|e| format!("Failed to serialize settings: {}", e))?;
 
-        let req_c = CString::new(req_json)
-            .map_err(|e| format!("CString error on request: {}", e))?;
-        let settings_c = CString::new(settings_json)
-            .map_err(|e| format!("CString error on settings: {}", e))?;
+        let req_c =
+            CString::new(req_json).map_err(|e| format!("CString error on request: {}", e))?;
+        let settings_c =
+            CString::new(settings_json).map_err(|e| format!("CString error on settings: {}", e))?;
 
         let fn_fetch = self.fn_metadata_fetch;
         let json_str = unsafe {
-            self.call_c_string_returning(|| {
-                fn_fetch(req_c.as_ptr(), settings_c.as_ptr())
-            })
+            self.call_c_string_returning(|| fn_fetch(req_c.as_ptr(), settings_c.as_ptr()))
         }?;
 
-        let result: Result<GameMetadataPatch, String> = serde_json::from_str(&json_str)
-            .map_err(|e| format!("Failed to deserialize metadata fetch result from plugin: {} (raw: {})", e, json_str))?;
+        let result: Result<GameMetadataPatch, String> =
+            serde_json::from_str(&json_str).map_err(|e| {
+                format!(
+                    "Failed to deserialize metadata fetch result from plugin: {} (raw: {})",
+                    e, json_str
+                )
+            })?;
 
         result
     }
@@ -155,17 +163,17 @@ impl DynamicPluginHandle {
 
         let settings_json = serde_json::to_string(settings)
             .map_err(|e| format!("Failed to serialize settings: {}", e))?;
-        let settings_c = CString::new(settings_json)
-            .map_err(|e| format!("CString error on settings: {}", e))?;
+        let settings_c =
+            CString::new(settings_json).map_err(|e| format!("CString error on settings: {}", e))?;
 
-        let json_str = unsafe {
-            self.call_c_string_returning(|| {
-                fn_test(settings_c.as_ptr())
-            })
-        }?;
+        let json_str = unsafe { self.call_c_string_returning(|| fn_test(settings_c.as_ptr())) }?;
 
-        let result: Result<String, String> = serde_json::from_str(&json_str)
-            .map_err(|e| format!("Failed to deserialize metadata test result from plugin: {} (raw: {})", e, json_str))?;
+        let result: Result<String, String> = serde_json::from_str(&json_str).map_err(|e| {
+            format!(
+                "Failed to deserialize metadata test result from plugin: {} (raw: {})",
+                e, json_str
+            )
+        })?;
 
         result
     }
@@ -245,11 +253,9 @@ impl MetadataProvider for DynamicNativeMetadataProvider {
         let request = request.clone();
         let settings = settings.clone();
 
-        tokio::task::spawn_blocking(move || {
-            handle.metadata_fetch(&request, &settings)
-        })
-        .await
-        .map_err(|e| format!("JoinError executing dynamic plugin fetch: {}", e))?
+        tokio::task::spawn_blocking(move || handle.metadata_fetch(&request, &settings))
+            .await
+            .map_err(|e| format!("JoinError executing dynamic plugin fetch: {}", e))?
     }
 
     async fn test_connection(
@@ -259,11 +265,9 @@ impl MetadataProvider for DynamicNativeMetadataProvider {
         let handle = self.handle.clone();
         let settings = settings.clone();
 
-        tokio::task::spawn_blocking(move || {
-            handle.metadata_test(&settings)
-        })
-        .await
-        .map_err(|e| format!("JoinError executing dynamic plugin test: {}", e))?
+        tokio::task::spawn_blocking(move || handle.metadata_test(&settings))
+            .await
+            .map_err(|e| format!("JoinError executing dynamic plugin test: {}", e))?
     }
 }
 
@@ -330,14 +334,21 @@ impl DynamicPluginLoader {
         let fn_get_manifest: FnGetManifest = unsafe {
             let sym = lib
                 .get::<FnGetManifest>(b"omnis_plugin_get_manifest\0")
-                .map_err(|e| format!("Missing mandatory FFI symbol 'omnis_plugin_get_manifest': {}", e))?;
+                .map_err(|e| {
+                    format!(
+                        "Missing mandatory FFI symbol 'omnis_plugin_get_manifest': {}",
+                        e
+                    )
+                })?;
             *sym
         };
 
         let fn_metadata_fetch: FnMetadataFetch = unsafe {
             let sym = lib
                 .get::<FnMetadataFetch>(b"omnis_metadata_fetch\0")
-                .map_err(|e| format!("Missing mandatory FFI symbol 'omnis_metadata_fetch': {}", e))?;
+                .map_err(|e| {
+                    format!("Missing mandatory FFI symbol 'omnis_metadata_fetch': {}", e)
+                })?;
             *sym
         };
 
@@ -395,7 +406,8 @@ mod tests {
     #[test]
     fn test_nonexistent_library_error() {
         let loader = DynamicPluginLoader::new();
-        let res = loader.load_metadata_provider_from_library(Path::new("nonexistent_library_path_12345.dll"));
+        let res = loader
+            .load_metadata_provider_from_library(Path::new("nonexistent_library_path_12345.dll"));
         assert!(res.is_err());
     }
 }

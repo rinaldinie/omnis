@@ -152,14 +152,9 @@ async fn test_process_launcher_echo_and_exit() {
     let pid_clone = started_pid.clone();
     let game_id = Uuid::new_v4();
 
-    let result = GameLauncher::launch_and_track(
-        game_id,
-        config,
-        None,
-        move |pid| {
-            pid_clone.store(pid, Ordering::SeqCst);
-        },
-    )
+    let result = GameLauncher::launch_and_track(game_id, config, None, move |pid| {
+        pid_clone.store(pid, Ordering::SeqCst);
+    })
     .await;
 
     assert!(

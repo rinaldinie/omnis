@@ -369,7 +369,11 @@ mod tests {
         assert!(ach1.is_unlocked);
         assert_eq!(
             ach1.unlock_time,
-            Some(DateTime::parse_from_rfc3339("2024-03-15T18:30:00Z").unwrap().with_timezone(&Utc))
+            Some(
+                DateTime::parse_from_rfc3339("2024-03-15T18:30:00Z")
+                    .unwrap()
+                    .with_timezone(&Utc)
+            )
         );
         assert_eq!(ach1.rarity_percentage, Some(92.4));
         assert_eq!(ach1.points, Some(20));
@@ -378,7 +382,10 @@ mod tests {
         let ach2 = &achievements[1];
         assert_eq!(ach2.api_name, "2");
         assert_eq!(ach2.display_name, "Mythic Master");
-        assert_eq!(ach2.description.as_deref(), Some("Classified secret mission"));
+        assert_eq!(
+            ach2.description.as_deref(),
+            Some("Classified secret mission")
+        );
         assert!(!ach2.is_unlocked);
         assert_eq!(ach2.unlock_time, None);
         assert_eq!(ach2.rarity_percentage, Some(1.1));

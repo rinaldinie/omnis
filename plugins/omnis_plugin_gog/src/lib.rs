@@ -12,8 +12,7 @@ pub use client::{
 };
 
 use omnis_sdk::{
-    async_trait, CloudStorePlugin, DiscoveredGame, LibraryPlugin, PluginError,
-    StoreAccountSession,
+    async_trait, CloudStorePlugin, DiscoveredGame, LibraryPlugin, PluginError, StoreAccountSession,
 };
 
 #[derive(Debug, Clone)]
@@ -83,11 +82,17 @@ impl CloudStorePlugin for GogCloudPlugin {
         client::exchange_code(&self.client, &code).await
     }
 
-    async fn refresh_session(&self, refresh_token: &str) -> Result<StoreAccountSession, PluginError> {
+    async fn refresh_session(
+        &self,
+        refresh_token: &str,
+    ) -> Result<StoreAccountSession, PluginError> {
         client::refresh_token(&self.client, refresh_token).await
     }
 
-    async fn sync_games(&self, session: &StoreAccountSession) -> Result<Vec<DiscoveredGame>, PluginError> {
+    async fn sync_games(
+        &self,
+        session: &StoreAccountSession,
+    ) -> Result<Vec<DiscoveredGame>, PluginError> {
         client::fetch_user_games(&self.client, &session.access_token).await
     }
 }
@@ -123,7 +128,8 @@ mod tests {
             "user_id": "46899977096215655"
         }"#;
 
-        let token: GogTokenResponse = serde_json::from_str(json_data).expect("Failed to deserialize token");
+        let token: GogTokenResponse =
+            serde_json::from_str(json_data).expect("Failed to deserialize token");
         assert_eq!(token.access_token, "mock_access_token_abc123");
         assert_eq!(token.refresh_token, "mock_refresh_token_def456");
         assert_eq!(token.expires_in, 3600);
@@ -137,8 +143,8 @@ mod tests {
             "user_id": 123456789
         }"#;
 
-        let token_numeric: GogTokenResponse =
-            serde_json::from_str(json_numeric_user).expect("Failed to deserialize token with numeric user_id");
+        let token_numeric: GogTokenResponse = serde_json::from_str(json_numeric_user)
+            .expect("Failed to deserialize token with numeric user_id");
         assert_eq!(token_numeric.user_id, "123456789");
     }
 
@@ -154,7 +160,10 @@ mod tests {
 
         assert_eq!(discovered.library_id, "gog");
         assert_eq!(discovered.external_id, "1207658691");
-        assert_eq!(discovered.title, "The Witcher 3: Wild Hunt - Game of the Year Edition");
+        assert_eq!(
+            discovered.title,
+            "The Witcher 3: Wild Hunt - Game of the Year Edition"
+        );
         assert!(!discovered.is_installed);
         assert_eq!(discovered.install_dir, None);
         assert_eq!(discovered.playtime_seconds, 0);
@@ -189,7 +198,9 @@ mod tests {
         assert!(login_url.contains(client::GOG_CLIENT_ID));
         assert!(login_url.contains("response_type=code"));
         assert!(login_url.contains("layout=client2"));
-        assert!(login_url.contains("https%3A%2F%2Fembed.gog.com%2Fon_login_success%3Forigin%3Dclient"));
+        assert!(
+            login_url.contains("https%3A%2F%2Fembed.gog.com%2Fon_login_success%3Forigin%3Dclient")
+        );
 
         assert!(plugin.is_redirect_url("https://embed.gog.com/on_login_success?code=TEST1234"));
         assert!(plugin.is_redirect_url("https://embed.gog.com/on_login_success?origin=client"));
@@ -203,7 +214,8 @@ mod tests {
             "owned": [1207658691, 1207658713, 1207658805]
         }"#;
 
-        let parsed: GogGamesResponse = serde_json::from_str(json_games).expect("Failed to deserialize owned games");
+        let parsed: GogGamesResponse =
+            serde_json::from_str(json_games).expect("Failed to deserialize owned games");
         assert_eq!(parsed.owned.len(), 3);
         assert_eq!(parsed.owned[0], 1207658691);
         assert_eq!(parsed.owned[1], 1207658713);
@@ -217,8 +229,12 @@ mod tests {
             "avatar": "https://images.gog.com/avatars/geralt.png"
         }"#;
 
-        let parsed: GogUserData = serde_json::from_str(json_user).expect("Failed to deserialize user data");
+        let parsed: GogUserData =
+            serde_json::from_str(json_user).expect("Failed to deserialize user data");
         assert_eq!(parsed.username, Some("GeraltOfRivia".to_string()));
-        assert_eq!(parsed.avatar, Some("https://images.gog.com/avatars/geralt.png".to_string()));
+        assert_eq!(
+            parsed.avatar,
+            Some("https://images.gog.com/avatars/geralt.png".to_string())
+        );
     }
 }

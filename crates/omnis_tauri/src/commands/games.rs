@@ -75,7 +75,10 @@ pub async fn sync_library(
     }
 
     // Sync connected cloud store accounts (GOG, Xbox, etc.)
-    let _ = state.store_account_manager.sync_all_connected(&app_handle).await;
+    let _ = state
+        .store_account_manager
+        .sync_all_connected(&app_handle)
+        .await;
 
     tokio::time::sleep(tokio::time::Duration::from_millis(300)).await;
     state.db.count_games().map_err(|e| e.to_string())
@@ -199,7 +202,10 @@ pub async fn update_game_metadata(
     game_update: omnis_sdk::GameUpdateDto,
     state: State<'_, AppState>,
 ) -> Result<Game, String> {
-    let updated = state.db.update_game(&game_update).map_err(|e| e.to_string())?;
+    let updated = state
+        .db
+        .update_game(&game_update)
+        .map_err(|e| e.to_string())?;
     if let Some(ref p) = updated.cover_image_path {
         state.image_cache.invalidate(p);
     }
@@ -318,15 +324,15 @@ pub async fn create_desktop_shortcut(
     let desktop_dir = crate::store_actions::get_desktop_dir()
         .ok_or_else(|| "Impossibile individuare la cartella Desktop dell'utente.".to_string())?;
 
-    let path = crate::store_actions::StorePlatformDispatcher::create_desktop_shortcut(&game, &desktop_dir)?;
+    let path = crate::store_actions::StorePlatformDispatcher::create_desktop_shortcut(
+        &game,
+        &desktop_dir,
+    )?;
     Ok(path.to_string_lossy().to_string())
 }
 
 #[tauri::command]
-pub async fn verify_game_files(
-    game_id: String,
-    state: State<'_, AppState>,
-) -> Result<(), String> {
+pub async fn verify_game_files(game_id: String, state: State<'_, AppState>) -> Result<(), String> {
     let id = Uuid::parse_str(&game_id).map_err(|e| e.to_string())?;
     let game = state
         .db
@@ -334,7 +340,10 @@ pub async fn verify_game_files(
         .map_err(|e| e.to_string())?
         .ok_or_else(|| "Gioco non trovato".to_string())?;
 
-    crate::store_actions::StorePlatformDispatcher::trigger_verify(&game.library_id, &game.external_id)
+    crate::store_actions::StorePlatformDispatcher::trigger_verify(
+        &game.library_id,
+        &game.external_id,
+    )
 }
 
 #[tauri::command]

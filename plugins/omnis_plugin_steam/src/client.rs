@@ -108,8 +108,8 @@ pub fn is_steam_redirect(url: &str) -> bool {
     }
 
     // 2. Profile or vanity URLs
-    let has_profile = lower.contains("steamcommunity.com/id/")
-        || lower.contains("steamcommunity.com/profiles/");
+    let has_profile =
+        lower.contains("steamcommunity.com/id/") || lower.contains("steamcommunity.com/profiles/");
 
     has_profile
 }
@@ -270,8 +270,8 @@ pub fn parse_steam_community_games_xml(xml: &str) -> Vec<SteamApiGameItem> {
         let game_chunk = &cursor[..end_game];
         cursor = &cursor[end_game + 7..];
 
-        let appid = extract_xml_tag(game_chunk, "appID")
-            .and_then(|id_str| id_str.parse::<u64>().ok());
+        let appid =
+            extract_xml_tag(game_chunk, "appID").and_then(|id_str| id_str.parse::<u64>().ok());
 
         if let Some(appid) = appid {
             let name = extract_xml_tag(game_chunk, "name");
@@ -341,17 +341,17 @@ pub async fn fetch_user_games_web_api(
                     let games = api_response.response.games.unwrap_or_default();
                     Ok(map_steam_games_to_discovered(games))
                 }
-                Err(err) => {
-                    Err(PluginError::Other(format!(
-                        "Errore nella decodifica della risposta Steam Web API: {}",
-                        err
-                    )))
-                }
+                Err(err) => Err(PluginError::Other(format!(
+                    "Errore nella decodifica della risposta Steam Web API: {}",
+                    err
+                ))),
             }
         }
         Ok(response) => {
             let status = response.status();
-            if status == reqwest::StatusCode::FORBIDDEN || status == reqwest::StatusCode::UNAUTHORIZED {
+            if status == reqwest::StatusCode::FORBIDDEN
+                || status == reqwest::StatusCode::UNAUTHORIZED
+            {
                 Err(PluginError::Other(
                     "Steam Web API Key non valida o non autorizzata. Verifica la chiave nelle impostazioni Account Store.".to_string(),
                 ))
@@ -362,12 +362,10 @@ pub async fn fetch_user_games_web_api(
                 )))
             }
         }
-        Err(err) => {
-            Err(PluginError::Other(format!(
-                "Richiesta Steam Web API fallita: {}",
-                err
-            )))
-        }
+        Err(err) => Err(PluginError::Other(format!(
+            "Richiesta Steam Web API fallita: {}",
+            err
+        ))),
     }
 }
 

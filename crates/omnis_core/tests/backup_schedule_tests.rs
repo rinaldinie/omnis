@@ -21,7 +21,11 @@ fn test_calculate_next_backup_frequencies() {
 
     // 1. Test Disabled returns None
     assert_eq!(
-        calculate_next_backup_utc(Some("2026-11-01T10:00:00+00:00"), &BackupFrequency::Disabled, now),
+        calculate_next_backup_utc(
+            Some("2026-11-01T10:00:00+00:00"),
+            &BackupFrequency::Disabled,
+            now
+        ),
         None
     );
     assert_eq!(
@@ -212,7 +216,10 @@ fn test_backup_rotation_strictly_capped_at_10() {
 
     let mut remaining_entries: Vec<String> = fs::read_dir(&temp_dir)
         .unwrap()
-        .filter_map(|e| e.ok().map(|entry| entry.file_name().to_string_lossy().to_string()))
+        .filter_map(|e| {
+            e.ok()
+                .map(|entry| entry.file_name().to_string_lossy().to_string())
+        })
         .collect();
     remaining_entries.sort();
 
@@ -281,7 +288,11 @@ fn test_backup_options_and_rotation_integration() {
     assert!(backup_1.file_size_bytes > 0);
 
     let entries_after_first: Vec<_> = fs::read_dir(&dest_dir).unwrap().collect();
-    assert_eq!(entries_after_first.len(), 1, "Exactly 1 backup should exist");
+    assert_eq!(
+        entries_after_first.len(),
+        1,
+        "Exactly 1 backup should exist"
+    );
 
     // Sleep > 1 second so the second backup filename timestamp (%Y%m%d_%H%M%S) is unique
     sleep(StdDuration::from_millis(1200));

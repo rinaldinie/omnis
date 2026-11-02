@@ -71,7 +71,10 @@ fn test_tampered_ciphertext_fails_gracefully() {
 
     // Decryption must return an error (AEAD authentication tag mismatch), NEVER panic
     let result = vault.decrypt(secret_id, &nonce, &ciphertext);
-    assert!(result.is_err(), "Decryption of tampered ciphertext must fail");
+    assert!(
+        result.is_err(),
+        "Decryption of tampered ciphertext must fail"
+    );
 
     match result {
         Err(VaultError::Decryption(msg)) => {

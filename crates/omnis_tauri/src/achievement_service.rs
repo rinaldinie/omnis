@@ -70,9 +70,7 @@ impl AchievementService {
             .providers
             .keys()
             .map(String::as_str)
-            .filter(|store_id| {
-                matches!(store_account_manager.load_session(store_id), Ok(Some(_)))
-            })
+            .filter(|store_id| matches!(store_account_manager.load_session(store_id), Ok(Some(_))))
             .collect();
 
         if configured.is_empty() {
@@ -148,13 +146,17 @@ impl AchievementService {
             .map_err(|e| format!("Database error fetching game: {e}"))?
             .ok_or_else(|| format!("Game not found: {game_id}"))?;
 
-        let achievements = self.fetch_achievements(&game, store_account_manager).await?;
+        let achievements = self
+            .fetch_achievements(&game, store_account_manager)
+            .await?;
 
         db.upsert_achievements(game_id, &achievements)
             .map_err(|e| format!("Database error saving achievements: {e}"))?;
 
         let db_clone = Arc::clone(db);
-        let cache_dir = app_dir.join(storage::CACHE_DIR).join(storage::ACHIEVEMENTS_DIR);
+        let cache_dir = app_dir
+            .join(storage::CACHE_DIR)
+            .join(storage::ACHIEVEMENTS_DIR);
         let cache_manager = AchievementCacheManager::new(cache_dir);
         tokio::spawn(async move {
             if let Err(e) = cache_manager
@@ -228,7 +230,11 @@ mod tests {
         let vault = Arc::new(omnis_core::SecretVault::from_key([0x55; 32]));
         let store_mgr = StoreAccountManager::new(Arc::new(db), vault);
 
-        let game = Game::new("mock_store".to_string(), "123".to_string(), "Mock Game".to_string());
+        let game = Game::new(
+            "mock_store".to_string(),
+            "123".to_string(),
+            "Mock Game".to_string(),
+        );
 
         let res = service.fetch_achievements(&game, &store_mgr).await;
         assert!(res.is_ok());
@@ -244,10 +250,16 @@ mod tests {
         let vault = Arc::new(omnis_core::SecretVault::from_key([0x55; 32]));
         let store_mgr = StoreAccountManager::new(Arc::new(db), vault);
 
-        let game = Game::new("unsupported_unknown".to_string(), "123".to_string(), "Unknown Game".to_string());
+        let game = Game::new(
+            "unsupported_unknown".to_string(),
+            "123".to_string(),
+            "Unknown Game".to_string(),
+        );
 
         let res = service.fetch_achievements(&game, &store_mgr).await;
         assert!(res.is_err());
-        assert!(res.unwrap_err().contains("Achievements are currently not supported for store 'unsupported_unknown'"));
+        assert!(res
+            .unwrap_err()
+            .contains("Achievements are currently not supported for store 'unsupported_unknown'"));
     }
 }

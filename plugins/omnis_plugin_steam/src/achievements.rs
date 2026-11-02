@@ -226,7 +226,10 @@ pub async fn fetch_steam_achievements_web_api(
         match client.get(&player_url).send().await {
             Ok(resp) if resp.status().is_success() => resp.text().await.ok(),
             Ok(resp) => {
-                warn!("Steam player achievements returned status {}", resp.status());
+                warn!(
+                    "Steam player achievements returned status {}",
+                    resp.status()
+                );
                 None
             }
             Err(e) => {
@@ -420,7 +423,11 @@ mod tests {
         assert!(ach1.is_unlocked);
         assert_eq!(
             ach1.unlock_time,
-            Some(DateTime::from_timestamp(1609459200, 0).unwrap().with_timezone(&Utc))
+            Some(
+                DateTime::from_timestamp(1609459200, 0)
+                    .unwrap()
+                    .with_timezone(&Utc)
+            )
         );
         assert_eq!(ach1.rarity_percentage, Some(75.4));
         assert!(!ach1.is_hidden);

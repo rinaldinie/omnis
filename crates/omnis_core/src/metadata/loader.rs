@@ -1,5 +1,5 @@
-use std::path::Path;
 use serde_json::{Map, Value};
+use std::path::Path;
 use tracing::warn;
 
 use crate::dynamic_loader::{find_shared_library_in_dir, DynamicPluginLoader};
@@ -42,7 +42,10 @@ impl DynamicPluginScanner {
         } else if path.is_dir() {
             find_shared_library_in_dir(path)
         } else {
-            return Err(format!("Il percorso specificato non esiste: {}", path.display()));
+            return Err(format!(
+                "Il percorso specificato non esiste: {}",
+                path.display()
+            ));
         };
 
         if let Some(ref lib_path) = library_path {
@@ -87,7 +90,8 @@ impl DynamicPluginScanner {
                     &id,
                     settings_map.clone(),
                     dynamic_provider.requires_api_key(),
-                ).await;
+                )
+                .await;
 
                 let info = ProviderInfo {
                     id: id.clone(),
@@ -115,7 +119,11 @@ impl DynamicPluginScanner {
                 Ok(Some(info))
             }
             Err(e) => {
-                warn!("Errore nel caricamento nativo da {}: {}", lib_path.display(), e);
+                warn!(
+                    "Errore nel caricamento nativo da {}: {}",
+                    lib_path.display(),
+                    e
+                );
                 Ok(None)
             }
         }
@@ -136,7 +144,8 @@ impl DynamicPluginScanner {
             &id,
             settings_map.clone(),
             manifest.requires_api_key,
-        ).await;
+        )
+        .await;
 
         let provider: Box<dyn MetadataProvider> = if id == "steamgriddb" {
             let mut p = SteamGridDbProvider::new(registry.client.clone());
@@ -215,11 +224,32 @@ impl DynamicPluginScanner {
 
     fn manifest_from_value(val: &Value) -> Option<PluginManifest> {
         let id = val.get("id").and_then(|v| v.as_str())?.to_string();
-        let name = val.get("name").and_then(|v| v.as_str()).unwrap_or(&id).to_string();
-        let version = val.get("version").and_then(|v| v.as_str()).unwrap_or("1.0.0").to_string();
-        let author = val.get("author").and_then(|v| v.as_str()).unwrap_or("Omnis Community").to_string();
-        let description = val.get("description").and_then(|v| v.as_str()).unwrap_or("").to_string();
-        let plugin_type = val.get("plugin_type").or_else(|| val.get("type")).and_then(|v| v.as_str()).unwrap_or("metadata").to_string();
+        let name = val
+            .get("name")
+            .and_then(|v| v.as_str())
+            .unwrap_or(&id)
+            .to_string();
+        let version = val
+            .get("version")
+            .and_then(|v| v.as_str())
+            .unwrap_or("1.0.0")
+            .to_string();
+        let author = val
+            .get("author")
+            .and_then(|v| v.as_str())
+            .unwrap_or("Omnis Community")
+            .to_string();
+        let description = val
+            .get("description")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+        let plugin_type = val
+            .get("plugin_type")
+            .or_else(|| val.get("type"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("metadata")
+            .to_string();
 
         Some(PluginManifest {
             id,
@@ -228,9 +258,18 @@ impl DynamicPluginScanner {
             author,
             description,
             plugin_type,
-            website: val.get("website").and_then(|v| v.as_str()).map(|s| s.to_string()),
-            key_help_url: val.get("key_help_url").and_then(|v| v.as_str()).map(|s| s.to_string()),
-            requires_api_key: val.get("requires_api_key").and_then(|v| v.as_bool()).unwrap_or(false),
+            website: val
+                .get("website")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
+            key_help_url: val
+                .get("key_help_url")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
+            requires_api_key: val
+                .get("requires_api_key")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false),
             supported_fields: vec![
                 MetadataField::CriticScore,
                 MetadataField::CommunityScore,
@@ -238,10 +277,19 @@ impl DynamicPluginScanner {
             ],
             entry_point: None,
             settings_schema: None,
-            permissions: val.get("permissions").and_then(|p| p.as_array()).map(|arr| {
-                arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect()
-            }).unwrap_or_default(),
-            ui_slots: val.get("ui_slots").and_then(|u| serde_json::from_value(u.clone()).ok()).unwrap_or_default(),
+            permissions: val
+                .get("permissions")
+                .and_then(|p| p.as_array())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                        .collect()
+                })
+                .unwrap_or_default(),
+            ui_slots: val
+                .get("ui_slots")
+                .and_then(|u| serde_json::from_value(u.clone()).ok())
+                .unwrap_or_default(),
         })
     }
 

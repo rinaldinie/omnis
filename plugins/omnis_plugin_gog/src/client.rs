@@ -5,7 +5,8 @@ use omnis_sdk::{
 use serde::{Deserialize, Deserializer, Serialize};
 
 pub const GOG_CLIENT_ID: &str = "46899977096215655";
-pub const GOG_CLIENT_SECRET: &str = "9d85c43b1482497dbbce61f6e4aa173a433796eeae2ca8c5f6129f2dc4de46d9";
+pub const GOG_CLIENT_SECRET: &str =
+    "9d85c43b1482497dbbce61f6e4aa173a433796eeae2ca8c5f6129f2dc4de46d9";
 pub const GOG_REDIRECT_URI: &str = "https://embed.gog.com/on_login_success?origin=client";
 pub const GOG_AUTH_URL: &str = "https://auth.gog.com/auth";
 pub const GOG_TOKEN_URL: &str = "https://auth.gog.com/token";
@@ -259,10 +260,7 @@ pub async fn refresh_token(
 ) -> Result<StoreAccountSession, PluginError> {
     let url = format!(
         "{}?client_id={}&client_secret={}&grant_type=refresh_token&refresh_token={}",
-        GOG_TOKEN_URL,
-        GOG_CLIENT_ID,
-        GOG_CLIENT_SECRET,
-        refresh_token
+        GOG_TOKEN_URL, GOG_CLIENT_ID, GOG_CLIENT_SECRET, refresh_token
     );
 
     let resp = client
@@ -278,10 +276,9 @@ pub async fn refresh_token(
         )));
     }
 
-    let token_resp: GogTokenResponse = resp
-        .json()
-        .await
-        .map_err(|e| PluginError::Parse(format!("Failed to parse GOG token refresh response: {}", e)))?;
+    let token_resp: GogTokenResponse = resp.json().await.map_err(|e| {
+        PluginError::Parse(format!("Failed to parse GOG token refresh response: {}", e))
+    })?;
 
     let user_data = fetch_user_data(client, &token_resp.access_token)
         .await
@@ -327,16 +324,17 @@ pub async fn fetch_user_games(
         .await
         .map_err(|e| PluginError::Io(format!("Failed to read response body: {}", e)))?;
 
-    let games_resp: GogGamesResponse = if let Ok(resp) = serde_json::from_str::<GogGamesResponse>(&body) {
-        resp
-    } else if let Ok(list) = serde_json::from_str::<Vec<u64>>(&body) {
-        GogGamesResponse { owned: list }
-    } else {
-        return Err(PluginError::Parse(format!(
-            "Failed to parse user games response JSON: {}",
-            body
-        )));
-    };
+    let games_resp: GogGamesResponse =
+        if let Ok(resp) = serde_json::from_str::<GogGamesResponse>(&body) {
+            resp
+        } else if let Ok(list) = serde_json::from_str::<Vec<u64>>(&body) {
+            GogGamesResponse { owned: list }
+        } else {
+            return Err(PluginError::Parse(format!(
+                "Failed to parse user games response JSON: {}",
+                body
+            )));
+        };
 
     if games_resp.owned.is_empty() {
         return Ok(Vec::new());
@@ -353,10 +351,14 @@ pub async fn fetch_user_games(
             Ok(prod_resp) if prod_resp.status().is_success() => {
                 let prod_body = prod_resp.text().await.unwrap_or_default();
                 if let Ok(env) = serde_json::from_str::<GogProductsEnvelope>(&prod_body) {
-                    env.products.into_iter().map(|p| p.to_game_details()).collect()
+                    env.products
+                        .into_iter()
+                        .map(|p| p.to_game_details())
+                        .collect()
                 } else if let Ok(items) = serde_json::from_str::<Vec<GogProductItem>>(&prod_body) {
                     items.into_iter().map(|p| p.to_game_details()).collect()
-                } else if let Ok(details) = serde_json::from_str::<Vec<GogGameDetails>>(&prod_body) {
+                } else if let Ok(details) = serde_json::from_str::<Vec<GogGameDetails>>(&prod_body)
+                {
                     details
                 } else {
                     chunk

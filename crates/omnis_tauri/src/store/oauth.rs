@@ -1,8 +1,8 @@
+use omnis_sdk::models::StoreSyncProgressPayload;
+use omnis_sdk::plugin::{CloudStorePlugin, StoreAccountSession};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
-use omnis_sdk::models::StoreSyncProgressPayload;
-use omnis_sdk::plugin::{CloudStorePlugin, StoreAccountSession};
 
 /// Trait implemented by receivers of authenticated OAuth sessions (decoupling OAuth windowing from StoreAccountManager)
 #[async_trait::async_trait]
@@ -88,60 +88,61 @@ impl OAuthLoginService {
             builder = builder.initialization_script(epic_script);
         }
 
-        builder = builder
-            .on_navigation(move |url| {
-                let url_str = url.as_str();
+        builder = builder.on_navigation(move |url| {
+            let url_str = url.as_str();
 
-                if plugin_for_nav.is_redirect_url(url_str) {
-                    if is_exchanging.swap(true, Ordering::SeqCst) {
-                        return false;
-                    }
-
-                    // Immediately hide the OAuth popup window to prevent UI hang or redirect error screens
-                    // without synchronously destroying the webview controller during navigation (which causes native crash in WebView2)
-                    if let Some(win) = app_for_nav.get_webview_window(&label_for_nav) {
-                        let _ = win.hide();
-                    }
-
-                    let app = app_for_nav.clone();
-                    let plugin = plugin_for_nav.clone();
-                    let sid = store_id_for_nav.clone();
-                    let lbl = label_for_nav.clone();
-                    let handler_clone = handler.clone();
-                    let url_str = url.as_str().to_string();
-
-                    tauri::async_runtime::spawn(async move {
-                        match plugin.exchange_code(&url_str).await {
-                            Ok(session) => {
-                                if let Some(win) = app.get_webview_window(&lbl) {
-                                    let _ = win.destroy();
-                                }
-                                handler_clone.on_session_authenticated(&app, &sid, session).await;
-                            }
-                            Err(e) => {
-                                tracing::error!("Errore scambio codice OAuth per {}: {}", sid, e);
-                                if let Some(win) = app.get_webview_window(&lbl) {
-                                    let _ = win.destroy();
-                                }
-                                let _ = app.emit(
-                                    "store-sync-progress",
-                                    StoreSyncProgressPayload {
-                                        store_id: sid,
-                                        current: 0,
-                                        total: 0,
-                                        status: "error".to_string(),
-                                        message: Some(format!("Errore autenticazione: {}", e)),
-                                    },
-                                );
-                            }
-                        }
-                    });
-
-                    false
-                } else {
-                    true
+            if plugin_for_nav.is_redirect_url(url_str) {
+                if is_exchanging.swap(true, Ordering::SeqCst) {
+                    return false;
                 }
-            });
+
+                // Immediately hide the OAuth popup window to prevent UI hang or redirect error screens
+                // without synchronously destroying the webview controller during navigation (which causes native crash in WebView2)
+                if let Some(win) = app_for_nav.get_webview_window(&label_for_nav) {
+                    let _ = win.hide();
+                }
+
+                let app = app_for_nav.clone();
+                let plugin = plugin_for_nav.clone();
+                let sid = store_id_for_nav.clone();
+                let lbl = label_for_nav.clone();
+                let handler_clone = handler.clone();
+                let url_str = url.as_str().to_string();
+
+                tauri::async_runtime::spawn(async move {
+                    match plugin.exchange_code(&url_str).await {
+                        Ok(session) => {
+                            if let Some(win) = app.get_webview_window(&lbl) {
+                                let _ = win.destroy();
+                            }
+                            handler_clone
+                                .on_session_authenticated(&app, &sid, session)
+                                .await;
+                        }
+                        Err(e) => {
+                            tracing::error!("Errore scambio codice OAuth per {}: {}", sid, e);
+                            if let Some(win) = app.get_webview_window(&lbl) {
+                                let _ = win.destroy();
+                            }
+                            let _ = app.emit(
+                                "store-sync-progress",
+                                StoreSyncProgressPayload {
+                                    store_id: sid,
+                                    current: 0,
+                                    total: 0,
+                                    status: "error".to_string(),
+                                    message: Some(format!("Errore autenticazione: {}", e)),
+                                },
+                            );
+                        }
+                    }
+                });
+
+                false
+            } else {
+                true
+            }
+        });
 
         match builder.build() {
             Ok(_) => Ok(()),

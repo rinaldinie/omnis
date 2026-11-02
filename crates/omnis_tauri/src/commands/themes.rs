@@ -133,7 +133,10 @@ impl ThemeScanner {
             theme.custom_css = Some(combined_css);
         } else if let Some(ref inline_css) = theme.custom_css {
             if let Err(sec_err) = omnis_core::validate_theme_css_security(inline_css) {
-                eprintln!("Theme {:?} inline CSS security violation: {}", theme.id, sec_err);
+                eprintln!(
+                    "Theme {:?} inline CSS security violation: {}",
+                    theme.id, sec_err
+                );
                 theme.custom_css = None;
             }
         }
@@ -148,7 +151,10 @@ impl ThemeScanner {
             if let Ok(css_content) = std::fs::read_to_string(&css_file) {
                 if !css_content.trim().is_empty() {
                     if let Err(sec_err) = omnis_core::validate_theme_css_security(&css_content) {
-                        eprintln!("Theme {:?} style.css security violation: {}", theme.id, sec_err);
+                        eprintln!(
+                            "Theme {:?} style.css security violation: {}",
+                            theme.id, sec_err
+                        );
                     } else {
                         combined_css.push_str(&css_content);
                         combined_css.push('\n');
@@ -162,7 +168,10 @@ impl ThemeScanner {
             if add_css_path.exists() && add_css_path != css_file {
                 if let Ok(css_content) = std::fs::read_to_string(&add_css_path) {
                     if let Err(sec_err) = omnis_core::validate_theme_css_security(&css_content) {
-                        eprintln!("Theme {:?} style '{}' security violation: {}", theme.id, style_rel, sec_err);
+                        eprintln!(
+                            "Theme {:?} style '{}' security violation: {}",
+                            theme.id, style_rel, sec_err
+                        );
                     } else {
                         combined_css.push_str(&css_content);
                         combined_css.push('\n');
@@ -186,7 +195,10 @@ impl ThemeScanner {
         let mut theme = serde_json::from_str::<ThemeConfig>(&content).ok()?;
         if let Some(ref inline_css) = theme.custom_css {
             if let Err(sec_err) = omnis_core::validate_theme_css_security(inline_css) {
-                eprintln!("Theme {:?} inline CSS security violation: {}", theme.id, sec_err);
+                eprintln!(
+                    "Theme {:?} inline CSS security violation: {}",
+                    theme.id, sec_err
+                );
                 theme.custom_css = None;
             }
         }
@@ -205,12 +217,22 @@ pub fn get_themes(state: State<'_, AppState>) -> Result<Vec<ThemeConfig>, String
 }
 
 #[tauri::command]
-pub fn save_custom_theme(mut theme: ThemeConfig, state: State<'_, AppState>) -> Result<bool, String> {
+pub fn save_custom_theme(
+    mut theme: ThemeConfig,
+    state: State<'_, AppState>,
+) -> Result<bool, String> {
     if theme.id.is_empty() {
         return Err("ID tema non valido: non può essere vuoto".to_string());
     }
-    if !theme.id.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-') {
-        return Err("ID tema non valido: sono ammessi solo caratteri alfanumerici, trattini e underscore".to_string());
+    if !theme
+        .id
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+    {
+        return Err(
+            "ID tema non valido: sono ammessi solo caratteri alfanumerici, trattini e underscore"
+                .to_string(),
+        );
     }
     if theme.id.contains("..") {
         return Err("ID tema non valido: sequenza traversal vietata".to_string());
@@ -248,17 +270,33 @@ mod tests {
 
     #[test]
     fn test_seed_and_scan_themes_directory() {
-        let temp_dir = std::env::temp_dir().join(format!("omnis_test_themes_{}", uuid::Uuid::new_v4()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("omnis_test_themes_{}", uuid::Uuid::new_v4()));
         let _ = std::fs::create_dir_all(&temp_dir);
 
         let themes = scan_themes_directory(&temp_dir);
-        assert!(!themes.is_empty(), "Builtin themes should be seeded and loaded");
-        assert!(temp_dir.join("README.md").exists(), "README.md should be created");
-        assert!(temp_dir.join("cyberpunk").join("theme.json").exists(), "cyberpunk/theme.json should exist");
-        assert!(temp_dir.join("cinema_trailer").join("theme.json").exists(), "cinema_trailer/theme.json should exist");
+        assert!(
+            !themes.is_empty(),
+            "Builtin themes should be seeded and loaded"
+        );
+        assert!(
+            temp_dir.join("README.md").exists(),
+            "README.md should be created"
+        );
+        assert!(
+            temp_dir.join("cyberpunk").join("theme.json").exists(),
+            "cyberpunk/theme.json should exist"
+        );
+        assert!(
+            temp_dir.join("cinema_trailer").join("theme.json").exists(),
+            "cinema_trailer/theme.json should exist"
+        );
 
         // Verify cinema_trailer theme has video backdrop enabled
-        let cinema = themes.iter().find(|t| t.id == "cinema_trailer").expect("cinema_trailer must exist");
+        let cinema = themes
+            .iter()
+            .find(|t| t.id == "cinema_trailer")
+            .expect("cinema_trailer must exist");
         assert!(cinema.enable_video_backdrop);
         assert_eq!(cinema.video_backdrop_opacity, Some(0.55));
 
@@ -268,9 +306,11 @@ mod tests {
 
         let updated_themes = scan_themes_directory(&temp_dir);
         let cyberpunk = updated_themes.iter().find(|t| t.id == "cyberpunk").unwrap();
-        assert_eq!(cyberpunk.custom_css.as_deref().map(|s| s.trim()), Some(".game-card { border-radius: 20px; }"));
+        assert_eq!(
+            cyberpunk.custom_css.as_deref().map(|s| s.trim()),
+            Some(".game-card { border-radius: 20px; }")
+        );
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
 }
-

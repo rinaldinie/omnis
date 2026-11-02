@@ -19,7 +19,11 @@ pub const MS_AUTH_SCOPE: &str = "service::user.auth.xboxlive.com::MBI_SSL";
 pub struct XboxLiveAuthResponse {
     #[serde(alias = "token", rename = "Token")]
     pub token: String,
-    #[serde(alias = "displayClaims", alias = "display_claims", rename = "DisplayClaims")]
+    #[serde(
+        alias = "displayClaims",
+        alias = "display_claims",
+        rename = "DisplayClaims"
+    )]
     pub display_claims: XboxDisplayClaims,
     #[serde(alias = "issueInstant", alias = "IssueInstant", default)]
     pub issue_instant: Option<String>,
@@ -114,8 +118,9 @@ pub fn extract_token_from_redirect(redirect_url: &str) -> Result<String, PluginE
         for pair in fragment.split('&') {
             if let Some((k, v)) = pair.split_once('=') {
                 if k == "access_token" {
-                    let decoded = urlencoding::decode(v)
-                        .map_err(|e| PluginError::Parse(format!("Failed to decode access_token: {e}")))?;
+                    let decoded = urlencoding::decode(v).map_err(|e| {
+                        PluginError::Parse(format!("Failed to decode access_token: {e}"))
+                    })?;
                     return Ok(decoded.into_owned());
                 }
             }
@@ -128,8 +133,9 @@ pub fn extract_token_from_redirect(redirect_url: &str) -> Result<String, PluginE
         for pair in query.split('&') {
             if let Some((k, v)) = pair.split_once('=') {
                 if k == "access_token" {
-                    let decoded = urlencoding::decode(v)
-                        .map_err(|e| PluginError::Parse(format!("Failed to decode access_token: {e}")))?;
+                    let decoded = urlencoding::decode(v).map_err(|e| {
+                        PluginError::Parse(format!("Failed to decode access_token: {e}"))
+                    })?;
                     return Ok(decoded.into_owned());
                 }
             }
@@ -192,10 +198,11 @@ pub async fn authenticate_xbox_live(
         )));
     }
 
-    let user_auth: XboxLiveAuthResponse = user_resp
-        .json()
-        .await
-        .map_err(|e| PluginError::Parse(format!("Failed to parse Xbox user authentication response: {e}")))?;
+    let user_auth: XboxLiveAuthResponse = user_resp.json().await.map_err(|e| {
+        PluginError::Parse(format!(
+            "Failed to parse Xbox user authentication response: {e}"
+        ))
+    })?;
 
     // 2. Authorize with XSTS endpoint for RelyingParty http://xboxlive.com
     let xsts_payload = serde_json::json!({
@@ -225,10 +232,11 @@ pub async fn authenticate_xbox_live(
         )));
     }
 
-    let xsts_auth: XboxLiveAuthResponse = xsts_resp
-        .json()
-        .await
-        .map_err(|e| PluginError::Parse(format!("Failed to parse Xbox XSTS authorization response: {e}")))?;
+    let xsts_auth: XboxLiveAuthResponse = xsts_resp.json().await.map_err(|e| {
+        PluginError::Parse(format!(
+            "Failed to parse Xbox XSTS authorization response: {e}"
+        ))
+    })?;
 
     // 3. Extract user claims
     let claim = xsts_auth
@@ -236,13 +244,12 @@ pub async fn authenticate_xbox_live(
         .xui
         .first()
         .or_else(|| user_auth.display_claims.xui.first())
-        .ok_or_else(|| PluginError::Other("No Xbox user claims returned from authorization".to_string()))?;
+        .ok_or_else(|| {
+            PluginError::Other("No Xbox user claims returned from authorization".to_string())
+        })?;
 
     let uhs = claim.uhs.clone();
-    let gtg = claim
-        .gtg
-        .clone()
-        .unwrap_or_else(|| "Xbox User".to_string());
+    let gtg = claim.gtg.clone().unwrap_or_else(|| "Xbox User".to_string());
     let account_id = claim.xid.clone().unwrap_or_else(|| uhs.clone());
 
     // Parse token expiration if present or default to 24h
@@ -319,7 +326,8 @@ pub async fn fetch_user_titles(
         format!("XBL3.0 x={};{}", session.user_id, session.access_token)
     };
 
-    let endpoint = "https://titlehub.xboxlive.com/users/me/titles/titlehistory/decoration/scid,image,detail";
+    let endpoint =
+        "https://titlehub.xboxlive.com/users/me/titles/titlehistory/decoration/scid,image,detail";
     tracing::debug!("Fetching Xbox title history from TitleHub endpoint: {endpoint}");
 
     let resp = client

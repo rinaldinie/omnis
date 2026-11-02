@@ -44,9 +44,16 @@ async fn test_marketplace_manager_lifecycle() {
     downloader.set_plugins_dir(temp_dir.clone()).await;
 
     // 1. Initial catalog fetch
-    let catalog = manager.get_catalog(None).await.expect("Catalog should load");
+    let catalog = manager
+        .get_catalog(None)
+        .await
+        .expect("Catalog should load");
     assert_eq!(catalog.plugins.len(), 5);
-    let hltb = catalog.plugins.iter().find(|p| p.id == "howlongtobeat").unwrap();
+    let hltb = catalog
+        .plugins
+        .iter()
+        .find(|p| p.id == "howlongtobeat")
+        .unwrap();
     assert!(!hltb.is_installed);
 
     // 2. Install mock plugin
@@ -57,8 +64,15 @@ async fn test_marketplace_manager_lifecycle() {
     assert_eq!(provider_info.id, "howlongtobeat");
 
     // 3. Catalog reflects installation
-    let catalog_after = manager.get_catalog(None).await.expect("Catalog should refresh");
-    let hltb_after = catalog_after.plugins.iter().find(|p| p.id == "howlongtobeat").unwrap();
+    let catalog_after = manager
+        .get_catalog(None)
+        .await
+        .expect("Catalog should refresh");
+    let hltb_after = catalog_after
+        .plugins
+        .iter()
+        .find(|p| p.id == "howlongtobeat")
+        .unwrap();
     assert!(hltb_after.is_installed);
     assert_eq!(hltb_after.installed_version.as_deref(), Some("1.1.0"));
 
@@ -68,8 +82,15 @@ async fn test_marketplace_manager_lifecycle() {
         .await
         .expect("Uninstallation must succeed");
 
-    let catalog_final = manager.get_catalog(None).await.expect("Catalog should refresh");
-    let hltb_final = catalog_final.plugins.iter().find(|p| p.id == "howlongtobeat").unwrap();
+    let catalog_final = manager
+        .get_catalog(None)
+        .await
+        .expect("Catalog should refresh");
+    let hltb_final = catalog_final
+        .plugins
+        .iter()
+        .find(|p| p.id == "howlongtobeat")
+        .unwrap();
     assert!(!hltb_final.is_installed);
 
     let _ = std::fs::remove_dir_all(&temp_dir);
@@ -85,15 +106,24 @@ async fn test_marketplace_install_retro_achievements() {
     let downloader = Arc::new(crate::metadata::MetadataDownloader::new());
     downloader.set_plugins_dir(temp_dir.clone()).await;
 
-    if let Ok(info) = manager.install_plugin("retro_achievements", &downloader).await {
+    if let Ok(info) = manager
+        .install_plugin("retro_achievements", &downloader)
+        .await
+    {
         assert_eq!(info.id, "retro_achievements");
         assert!(info.is_enabled);
 
         let catalog = manager.get_catalog(None).await.expect("Catalog refresh");
-        let item = catalog.plugins.iter().find(|p| p.id == "retro_achievements").unwrap();
+        let item = catalog
+            .plugins
+            .iter()
+            .find(|p| p.id == "retro_achievements")
+            .unwrap();
         assert!(item.is_installed);
 
-        let _ = manager.uninstall_plugin("retro_achievements", &downloader).await;
+        let _ = manager
+            .uninstall_plugin("retro_achievements", &downloader)
+            .await;
     }
 
     let _ = std::fs::remove_dir_all(&temp_dir);

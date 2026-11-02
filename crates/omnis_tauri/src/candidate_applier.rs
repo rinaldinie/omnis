@@ -59,7 +59,13 @@ impl<'a> CandidateMetadataApplier<'a> {
 
         let appid_hint = Self::resolve_appid_hint(&existing_game, candidate);
         let patch = self
-            .build_patch(uuid, &existing_game, candidate, fields, appid_hint.as_deref())
+            .build_patch(
+                uuid,
+                &existing_game,
+                candidate,
+                fields,
+                appid_hint.as_deref(),
+            )
             .await;
 
         self.db
@@ -87,7 +93,11 @@ impl<'a> CandidateMetadataApplier<'a> {
         candidate: &MetadataCandidateDto,
     ) -> Option<String> {
         if candidate.provider_id == "steam" {
-            if candidate.provider_game_id.chars().all(|c| c.is_ascii_digit()) {
+            if candidate
+                .provider_game_id
+                .chars()
+                .all(|c| c.is_ascii_digit())
+            {
                 Some(candidate.provider_game_id.clone())
             } else if existing_game.library_id == "steam" {
                 Some(existing_game.external_id.clone())
@@ -277,7 +287,11 @@ mod tests {
 
     #[test]
     fn test_resolve_appid_hint_digit_steam() {
-        let game = Game::new("custom".to_string(), "non_numeric".to_string(), "Test Game".to_string());
+        let game = Game::new(
+            "custom".to_string(),
+            "non_numeric".to_string(),
+            "Test Game".to_string(),
+        );
 
         let candidate = MetadataCandidateDto {
             provider_id: "steam".to_string(),

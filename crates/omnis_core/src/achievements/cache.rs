@@ -45,9 +45,7 @@ pub fn default_achievements_cache_dir() -> PathBuf {
     #[cfg(target_family = "unix")]
     {
         if let Ok(xdg_cache) = std::env::var("XDG_CACHE_HOME") {
-            return PathBuf::from(xdg_cache)
-                .join("omnis")
-                .join("achievements");
+            return PathBuf::from(xdg_cache).join("omnis").join("achievements");
         }
         if let Ok(home) = std::env::var("HOME") {
             return PathBuf::from(home)
@@ -246,7 +244,8 @@ mod tests {
             cover_image_path: None,
             background_image_path: None,
         };
-        db.ingest_discovered_batch(&[sample]).expect("Failed ingest");
+        db.ingest_discovered_batch(&[sample])
+            .expect("Failed ingest");
         let games = db.get_all_games().unwrap();
         let game_id = games[0].id;
 
@@ -255,7 +254,9 @@ mod tests {
         let game_folder = temp_dir.join(game_id.to_string());
         tokio::fs::create_dir_all(&game_folder).await.unwrap();
         let pre_existing_file = game_folder.join(format!("{hash}.png"));
-        tokio::fs::write(&pre_existing_file, b"fake_png_data").await.unwrap();
+        tokio::fs::write(&pre_existing_file, b"fake_png_data")
+            .await
+            .unwrap();
 
         let achievements = vec![Achievement {
             id: format!("steam_{}_ach_1", game_id),

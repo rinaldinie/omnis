@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use omnis_sdk::{
-    GameMetadataPatch, MetadataField, MetadataProvider, MetadataSearchRequest, PluginSettingsSchema,
-    SettingField, SettingGroup, SettingType,
+    GameMetadataPatch, MetadataField, MetadataProvider, MetadataSearchRequest,
+    PluginSettingsSchema, SettingField, SettingGroup, SettingType,
 };
 use serde_json::{Map, Value};
 use std::path::{Path, PathBuf};
@@ -89,13 +89,12 @@ impl MetadataProvider for OpenCriticProvider {
                     key: "api_key".to_string(),
                     label: "RapidAPI Key".to_string(),
                     description: Some(
-                        "Chiave RapidAPI per accedere all'endpoint ufficiale OpenCritic".to_string(),
+                        "Chiave RapidAPI per accedere all'endpoint ufficiale OpenCritic"
+                            .to_string(),
                     ),
                     required: true,
                     field_type: SettingType::SecretString {
-                        placeholder: Some(
-                            "Incolla chiave RapidAPI per OpenCritic...".to_string(),
-                        ),
+                        placeholder: Some("Incolla chiave RapidAPI per OpenCritic...".to_string()),
                     },
                 }],
             }],

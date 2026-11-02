@@ -1,7 +1,7 @@
-use std::sync::Arc;
-use serde_json::Value;
-use uuid::Uuid;
 use omnis_sdk::GameMetadataPatch;
+use serde_json::Value;
+use std::sync::Arc;
+use uuid::Uuid;
 
 use super::registry::ProviderRegistry;
 use super::types::*;
@@ -31,8 +31,7 @@ impl MetadataSearchEngine {
         }
 
         // 2. GOG Catalog Search (Official DRM-Free)
-        if (filter == "all" || filter == "gog")
-            && enabled_guard.get("gog").copied().unwrap_or(true)
+        if (filter == "all" || filter == "gog") && enabled_guard.get("gog").copied().unwrap_or(true)
         {
             if let Ok(gog_candidates) = registry.gog_provider.search_candidates(title, 4).await {
                 candidates.extend(gog_candidates);
@@ -158,23 +157,36 @@ impl MetadataSearchEngine {
                 {
                     if let Ok(d_json) = d_resp.json::<Value>().await {
                         if let Some(data) = d_json.get(&appid).and_then(|v| v.get("data")) {
-                            if let Some(sd) = data.get("short_description").and_then(|v| v.as_str()) {
+                            if let Some(sd) = data.get("short_description").and_then(|v| v.as_str())
+                            {
                                 let plain = html_to_plain_text(sd);
                                 if !plain.is_empty() {
                                     desc = plain;
                                 }
                             }
-                            if let Some(rd) = data.get("release_date").and_then(|v| v.get("date")).and_then(|v| v.as_str()) {
+                            if let Some(rd) = data
+                                .get("release_date")
+                                .and_then(|v| v.get("date"))
+                                .and_then(|v| v.as_str())
+                            {
                                 release_date = Some(rd.to_string());
                                 release_year = extract_year(rd);
                             }
-                            if let Some(meta) = data.get("metacritic").and_then(|v| v.get("score")).and_then(|v| v.as_u64()) {
+                            if let Some(meta) = data
+                                .get("metacritic")
+                                .and_then(|v| v.get("score"))
+                                .and_then(|v| v.as_u64())
+                            {
                                 critic_score = Some(meta as u8);
                             }
                             if let Some(g_arr) = data.get("genres").and_then(|v| v.as_array()) {
                                 let g_parsed: Vec<String> = g_arr
                                     .iter()
-                                    .filter_map(|g| g.get("description").and_then(|d| d.as_str()).map(|s| s.to_string()))
+                                    .filter_map(|g| {
+                                        g.get("description")
+                                            .and_then(|d| d.as_str())
+                                            .map(|s| s.to_string())
+                                    })
                                     .collect();
                                 if !g_parsed.is_empty() {
                                     genres = g_parsed;
@@ -424,8 +436,12 @@ impl MetadataSearchEngine {
             provider_game_id: format!("local_{}", Uuid::new_v4()),
             title: title.to_string(),
             release_year: Some(2023),
-            cover_url: Some("https://images.unsplash.com/photo-1542751371-adc38448a05e?w=600".to_string()),
-            background_url: Some("https://images.unsplash.com/photo-1511512578047-dfb367046420?w=1280".to_string()),
+            cover_url: Some(
+                "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=600".to_string(),
+            ),
+            background_url: Some(
+                "https://images.unsplash.com/photo-1511512578047-dfb367046420?w=1280".to_string(),
+            ),
             description: fallback.description.clone(),
             raw_patch: fallback,
         }

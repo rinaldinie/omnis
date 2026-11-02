@@ -92,8 +92,8 @@ pub fn create_backup(
         drop(snap_conn);
 
         // 3. Prepare ZIP options
-        let zip_opts = SimpleFileOptions::default()
-            .compression_method(zip::CompressionMethod::Deflated);
+        let zip_opts =
+            SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
 
         // Write directly to temporary bundle first for atomic commit
         let temp_bundle_path = temp_dir.join("bundle.zip");
@@ -134,19 +134,39 @@ pub fn create_backup(
         // 7. Write custom themes
         let themes_dir = app_dir.join(storage::THEMES_DIR);
         if themes_dir.is_dir() {
-            add_dir_contents_to_zip(&mut zip, &themes_dir, &themes_dir, "custom_themes", zip_opts)?;
+            add_dir_contents_to_zip(
+                &mut zip,
+                &themes_dir,
+                &themes_dir,
+                "custom_themes",
+                zip_opts,
+            )?;
         }
 
         // 8. Write artwork if requested
         if options.include_artwork {
             let covers_dir = app_dir.join(storage::CACHE_DIR).join(storage::COVERS_DIR);
             if covers_dir.is_dir() {
-                add_dir_contents_to_zip(&mut zip, &covers_dir, &covers_dir, "cache/covers", zip_opts)?;
+                add_dir_contents_to_zip(
+                    &mut zip,
+                    &covers_dir,
+                    &covers_dir,
+                    "cache/covers",
+                    zip_opts,
+                )?;
             }
 
-            let backgrounds_dir = app_dir.join(storage::CACHE_DIR).join(storage::BACKGROUNDS_DIR);
+            let backgrounds_dir = app_dir
+                .join(storage::CACHE_DIR)
+                .join(storage::BACKGROUNDS_DIR);
             if backgrounds_dir.is_dir() {
-                add_dir_contents_to_zip(&mut zip, &backgrounds_dir, &backgrounds_dir, "cache/backgrounds", zip_opts)?;
+                add_dir_contents_to_zip(
+                    &mut zip,
+                    &backgrounds_dir,
+                    &backgrounds_dir,
+                    "cache/backgrounds",
+                    zip_opts,
+                )?;
             }
         }
 

@@ -150,7 +150,12 @@ pub fn igdb_game_to_patch(game: &IgdbGame) -> GameMetadataPatch {
         .cover
         .as_ref()
         .and_then(|c| c.image_id.as_deref())
-        .map(|id| format!("https://images.igdb.com/igdb/image/upload/t_cover_big/{}.jpg", id));
+        .map(|id| {
+            format!(
+                "https://images.igdb.com/igdb/image/upload/t_cover_big/{}.jpg",
+                id
+            )
+        });
 
     let bg_image_id = game
         .artworks
@@ -161,8 +166,12 @@ pub fn igdb_game_to_patch(game: &IgdbGame) -> GameMetadataPatch {
                 .as_deref()
                 .and_then(|arr| arr.iter().find_map(|img| img.image_id.as_deref()))
         });
-    let background_url = bg_image_id
-        .map(|id| format!("https://images.igdb.com/igdb/image/upload/t_1080p/{}.jpg", id));
+    let background_url = bg_image_id.map(|id| {
+        format!(
+            "https://images.igdb.com/igdb/image/upload/t_1080p/{}.jpg",
+            id
+        )
+    });
 
     let genres = game
         .genres
@@ -568,7 +577,12 @@ impl MetadataProvider for IgdbMetadataProvider {
             .body(body)
             .send()
             .await
-            .map_err(|e| format!("Errore di rete durante la verifica delle credenziali Twitch: {}", e))?;
+            .map_err(|e| {
+                format!(
+                    "Errore di rete durante la verifica delle credenziali Twitch: {}",
+                    e
+                )
+            })?;
 
         if resp.status().is_success() {
             if let Ok(token_data) = resp.json::<TwitchTokenResponse>().await {
@@ -609,10 +623,7 @@ mod tests {
     fn test_sanitize_apicalypse_query() {
         let raw = r#"Cyberpunk 2077: Phantom "Liberty" \ Extra"#;
         let sanitized = sanitize_apicalypse_query(raw);
-        assert_eq!(
-            sanitized,
-            r#"Cyberpunk 2077: Phantom \"Liberty\" \\ Extra"#
-        );
+        assert_eq!(sanitized, r#"Cyberpunk 2077: Phantom \"Liberty\" \\ Extra"#);
 
         let multiline = "Line 1\r\nLine 2\nLine 3";
         let sanitized_ml = sanitize_apicalypse_query(multiline);
@@ -692,12 +703,15 @@ mod tests {
             ]
         }"#;
 
-        let game: IgdbGame = serde_json::from_str(mock_json)
-            .expect("Failed to deserialize mock IGDB game JSON");
+        let game: IgdbGame =
+            serde_json::from_str(mock_json).expect("Failed to deserialize mock IGDB game JSON");
 
         assert_eq!(game.id, 1942);
         assert_eq!(game.name, "The Witcher 3: Wild Hunt");
-        assert_eq!(game.cover.as_ref().unwrap().image_id.as_deref(), Some("co1wyy"));
+        assert_eq!(
+            game.cover.as_ref().unwrap().image_id.as_deref(),
+            Some("co1wyy")
+        );
 
         let patch = igdb_game_to_patch(&game);
         assert_eq!(
@@ -720,7 +734,10 @@ mod tests {
             vec!["Role-playing (RPG)".to_string(), "Adventure".to_string()]
         );
         assert_eq!(patch.developers, vec!["CD PROJEKT RED".to_string()]);
-        assert_eq!(patch.publishers, vec!["Bandai Namco Entertainment".to_string()]);
+        assert_eq!(
+            patch.publishers,
+            vec!["Bandai Namco Entertainment".to_string()]
+        );
 
         // Candidate DTO test
         let release_year = game.first_release_date.and_then(format_release_year);
@@ -768,7 +785,10 @@ mod tests {
         assert!(provider.requires_api_key());
         assert!(!provider.is_builtin());
         assert_eq!(provider.website(), Some("https://www.igdb.com"));
-        assert_eq!(provider.key_help_url(), Some("https://dev.twitch.tv/console/apps"));
+        assert_eq!(
+            provider.key_help_url(),
+            Some("https://dev.twitch.tv/console/apps")
+        );
 
         let fields = provider.supported_fields();
         assert_eq!(fields.len(), 9);
@@ -799,7 +819,10 @@ mod tests {
         let provider = IgdbMetadataProvider::default();
         {
             let mut guard = provider.token_cache.write().await;
-            *guard = Some(TwitchTokenCache::new("dummy_token", Duration::from_secs(3600)));
+            *guard = Some(TwitchTokenCache::new(
+                "dummy_token",
+                Duration::from_secs(3600),
+            ));
         }
         assert!(provider.token_cache.read().await.is_some());
 
@@ -814,7 +837,10 @@ mod tests {
 
         let res_search = provider.search_candidates("   ", &settings, 5).await;
         assert!(res_search.is_err());
-        assert_eq!(res_search.unwrap_err(), "Titolo di ricerca non valido o vuoto.");
+        assert_eq!(
+            res_search.unwrap_err(),
+            "Titolo di ricerca non valido o vuoto."
+        );
 
         let req = MetadataSearchRequest {
             title: "\t \n".to_string(),
@@ -823,7 +849,10 @@ mod tests {
         };
         let res_fetch = provider.fetch_metadata(&req, &settings).await;
         assert!(res_fetch.is_err());
-        assert_eq!(res_fetch.unwrap_err(), "Titolo di ricerca non valido o vuoto.");
+        assert_eq!(
+            res_fetch.unwrap_err(),
+            "Titolo di ricerca non valido o vuoto."
+        );
     }
 
     #[tokio::test]
@@ -832,13 +861,19 @@ mod tests {
         let settings = Map::new();
         let res = provider.test_connection(&settings).await;
         assert!(res.is_err());
-        assert_eq!(res.unwrap_err(), "Twitch Client ID o Secret non configurati.");
+        assert_eq!(
+            res.unwrap_err(),
+            "Twitch Client ID o Secret non configurati."
+        );
 
         let mut settings_empty_vals = Map::new();
         settings_empty_vals.insert("client_id".to_string(), Value::String("   ".to_string()));
         settings_empty_vals.insert("client_secret".to_string(), Value::String("".to_string()));
         let res2 = provider.test_connection(&settings_empty_vals).await;
         assert!(res2.is_err());
-        assert_eq!(res2.unwrap_err(), "Twitch Client ID o Secret non configurati.");
+        assert_eq!(
+            res2.unwrap_err(),
+            "Twitch Client ID o Secret non configurati."
+        );
     }
 }

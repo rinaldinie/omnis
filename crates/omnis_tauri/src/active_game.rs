@@ -132,7 +132,8 @@ impl ActiveGameManager {
         };
 
         if let Some(pid) = pid_to_kill {
-            let _ = omnis_core::launcher::GameLauncher::kill_process_graceful(pid, timeout_secs).await;
+            let _ =
+                omnis_core::launcher::GameLauncher::kill_process_graceful(pid, timeout_secs).await;
         }
 
         let mut lock = self.current.write().await;
@@ -141,7 +142,10 @@ impl ActiveGameManager {
     }
 
     /// Startup re-attachment: checks if any installed game is currently running on the system (Requirement B2)
-    pub async fn check_and_reattach(&self, db: &omnis_core::db::Database) -> Option<ActiveGameSession> {
+    pub async fn check_and_reattach(
+        &self,
+        db: &omnis_core::db::Database,
+    ) -> Option<ActiveGameSession> {
         // If already tracking, return current
         if let Some(running) = self.get_running().await {
             return Some(running);
@@ -160,12 +164,13 @@ impl ActiveGameManager {
                 continue;
             }
 
-            let target_name: Option<String> = game.play_actions.first().and_then(|action| {
-                match &action.tracking_mode {
-                    omnis_sdk::ProcessTrackingMode::ProcessName(name) => Some(name.clone()),
-                    _ => None,
-                }
-            });
+            let target_name: Option<String> =
+                game.play_actions
+                    .first()
+                    .and_then(|action| match &action.tracking_mode {
+                        omnis_sdk::ProcessTrackingMode::ProcessName(name) => Some(name.clone()),
+                        _ => None,
+                    });
 
             let install_dir = game.install_dir.as_deref();
 
@@ -185,7 +190,11 @@ impl ActiveGameManager {
 
                     let mut lock = self.current.write().await;
                     *lock = Some(reattached.clone());
-                    tracing::info!("Re-attached to running game {} (PID: {}) on startup", game.title, pid);
+                    tracing::info!(
+                        "Re-attached to running game {} (PID: {}) on startup",
+                        game.title,
+                        pid
+                    );
                     return Some(reattached);
                 }
             }
@@ -211,20 +220,35 @@ mod tests {
         assert!(manager.get_running().await.is_none());
 
         let session_id = Uuid::new_v4();
-        manager.set_launching(session_id, "test-game-123".to_string(), "Test Game".to_string()).await;
-        
-        let launching = manager.get_running().await.expect("Session should be active");
+        manager
+            .set_launching(
+                session_id,
+                "test-game-123".to_string(),
+                "Test Game".to_string(),
+            )
+            .await;
+
+        let launching = manager
+            .get_running()
+            .await
+            .expect("Session should be active");
         assert_eq!(launching.state, SessionState::Launching);
         assert_eq!(launching.pid, None);
 
         manager.set_running(&session_id.to_string(), 4242).await;
-        let running = manager.get_running().await.expect("Session should be active");
+        let running = manager
+            .get_running()
+            .await
+            .expect("Session should be active");
         assert_eq!(running.state, SessionState::Running);
         assert_eq!(running.pid, Some(4242));
         assert!(running.process_detected_at.is_some());
 
         manager.add_elapsed(&session_id.to_string(), 60).await;
-        let running_after_checkpoint = manager.get_running().await.expect("Session should be active");
+        let running_after_checkpoint = manager
+            .get_running()
+            .await
+            .expect("Session should be active");
         assert_eq!(running_after_checkpoint.elapsed_seconds, 60);
 
         manager.clear_running().await;

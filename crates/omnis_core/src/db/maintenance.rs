@@ -1,8 +1,8 @@
 use chrono::Utc;
+use omnis_sdk::DiscoveredGame;
 use rusqlite::{params, Result};
 use std::path::PathBuf;
 use uuid::Uuid;
-use omnis_sdk::DiscoveredGame;
 
 use crate::backup::{BackupFrequency, BackupScheduleConfig};
 use crate::db::{Database, LibraryCounts};
@@ -207,7 +207,6 @@ impl CatalogMaintenanceRepository for Database {
 
         self.ingest_discovered_batch(&samples)
     }
-
 
     fn count_games(&self) -> Result<usize> {
         let conn = self.reader();
@@ -434,7 +433,10 @@ impl Database {
     }
 
     #[inline]
-    pub fn save_backup_schedule(&self, config: &BackupScheduleConfig) -> Result<(), rusqlite::Error> {
+    pub fn save_backup_schedule(
+        &self,
+        config: &BackupScheduleConfig,
+    ) -> Result<(), rusqlite::Error> {
         CatalogMaintenanceRepository::save_backup_schedule(self, config)
     }
 
@@ -454,7 +456,9 @@ mod tests {
         let db = Database::open_in_memory().expect("Failed to open test in-memory DB");
 
         // 1. Initial seeded schedule must be default (disabled, max 10)
-        let initial = db.get_backup_schedule().expect("Failed to get initial schedule");
+        let initial = db
+            .get_backup_schedule()
+            .expect("Failed to get initial schedule");
         assert_eq!(initial.frequency, BackupFrequency::Disabled);
         assert_eq!(initial.destination_dir, None);
         assert_eq!(initial.max_rotations, 10);
@@ -470,7 +474,8 @@ mod tests {
             include_artwork: true,
             updated_at: "2026-11-01T08:00:00Z".to_string(),
         };
-        db.save_backup_schedule(&custom_cfg).expect("Failed to save schedule");
+        db.save_backup_schedule(&custom_cfg)
+            .expect("Failed to save schedule");
 
         let saved = db.get_backup_schedule().expect("Failed to reload schedule");
         assert_eq!(saved.frequency, BackupFrequency::Daily);
@@ -481,10 +486,16 @@ mod tests {
 
         // 3. Record backup completed should update last_backup_utc
         let completed_ts = "2026-11-01T12:00:00Z";
-        db.record_backup_completed(completed_ts).expect("Failed to record completion");
+        db.record_backup_completed(completed_ts)
+            .expect("Failed to record completion");
 
-        let after_completed = db.get_backup_schedule().expect("Failed to read after completed");
-        assert_eq!(after_completed.last_backup_utc, Some(completed_ts.to_string()));
+        let after_completed = db
+            .get_backup_schedule()
+            .expect("Failed to read after completed");
+        assert_eq!(
+            after_completed.last_backup_utc,
+            Some(completed_ts.to_string())
+        );
         assert_eq!(after_completed.frequency, BackupFrequency::Daily);
         assert_eq!(after_completed.max_rotations, 5);
         assert!(after_completed.include_artwork);
@@ -498,9 +509,12 @@ mod tests {
             include_artwork: false,
             updated_at: "2026-11-01T13:00:00Z".to_string(),
         };
-        db.save_backup_schedule(&update_without_ts).expect("Failed to save update");
+        db.save_backup_schedule(&update_without_ts)
+            .expect("Failed to save update");
 
-        let preserved = db.get_backup_schedule().expect("Failed to reload after preserve");
+        let preserved = db
+            .get_backup_schedule()
+            .expect("Failed to reload after preserve");
         assert_eq!(preserved.frequency, BackupFrequency::Weekly);
         assert_eq!(preserved.max_rotations, 10); // clamped to 10
         assert_eq!(preserved.last_backup_utc, Some(completed_ts.to_string()));

@@ -1,9 +1,9 @@
+use omnis_sdk::Game;
 use rusqlite::{params, Result};
 use uuid::Uuid;
-use omnis_sdk::Game;
 
-use crate::db::Database;
 use crate::db::games::{map_row_to_game, GAME_COLUMNS};
+use crate::db::Database;
 use crate::search::SearchItem;
 
 /// Repository trait for game full-text search (SQLite FTS5) and in-memory fuzzy matching
@@ -55,7 +55,6 @@ impl GameSearchRepository for Database {
         index.build_from_items(items);
         Ok(())
     }
-
 
     fn search_games_fts(&self, search_term: &str) -> Result<Vec<Uuid>> {
         let trimmed = search_term.trim();
@@ -160,7 +159,6 @@ impl GameSearchRepository for Database {
         }
         Ok(games)
     }
-
 }
 
 // Inherent forwarders on Database for backward compatibility

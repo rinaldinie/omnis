@@ -18,7 +18,11 @@ pub async fn download_all_metadata(
 ) -> Result<usize, String> {
     let downloader = state.downloader.clone();
     let db = state.db.clone();
-    let cache_dir = state.covers_dir.parent().unwrap_or(&state.covers_dir).to_path_buf();
+    let cache_dir = state
+        .covers_dir
+        .parent()
+        .unwrap_or(&state.covers_dir)
+        .to_path_buf();
     let handle = app_handle.clone();
     downloader
         .download_for_all(db, &cache_dir, move |cur, tot, title| {
@@ -47,7 +51,11 @@ pub async fn download_batch_metadata(
         .collect();
     let downloader = state.downloader.clone();
     let db = state.db.clone();
-    let cache_dir = state.covers_dir.parent().unwrap_or(&state.covers_dir).to_path_buf();
+    let cache_dir = state
+        .covers_dir
+        .parent()
+        .unwrap_or(&state.covers_dir)
+        .to_path_buf();
     let handle = app_handle.clone();
     downloader
         .download_for_games(db, uuids, &cache_dir, move |cur, tot, title| {
@@ -71,9 +79,16 @@ pub async fn cancel_metadata_download(state: State<'_, AppState>) -> Result<bool
 }
 
 #[tauri::command]
-pub async fn download_metadata(game_id: String, state: State<'_, AppState>) -> Result<bool, String> {
+pub async fn download_metadata(
+    game_id: String,
+    state: State<'_, AppState>,
+) -> Result<bool, String> {
     let id = Uuid::parse_str(&game_id).map_err(|e| e.to_string())?;
-    let cache_dir = state.covers_dir.parent().unwrap_or(&state.covers_dir).to_path_buf();
+    let cache_dir = state
+        .covers_dir
+        .parent()
+        .unwrap_or(&state.covers_dir)
+        .to_path_buf();
     let downloader = state.downloader.clone();
     downloader
         .download_for_game(&state.db, id, &cache_dir)
@@ -89,7 +104,11 @@ pub async fn enrich_single_game(
     state: State<'_, AppState>,
 ) -> Result<GameDto, String> {
     let id = Uuid::parse_str(&game_id).map_err(|e| e.to_string())?;
-    let cache_dir = state.covers_dir.parent().unwrap_or(&state.covers_dir).to_path_buf();
+    let cache_dir = state
+        .covers_dir
+        .parent()
+        .unwrap_or(&state.covers_dir)
+        .to_path_buf();
     state
         .downloader
         .download_for_game(&state.db, id, &cache_dir)
@@ -181,12 +200,16 @@ pub async fn apply_metadata_candidate(
 }
 
 #[tauri::command]
-pub async fn get_metadata_providers(state: State<'_, AppState>) -> Result<Vec<ProviderInfo>, String> {
+pub async fn get_metadata_providers(
+    state: State<'_, AppState>,
+) -> Result<Vec<ProviderInfo>, String> {
     Ok(state.downloader.get_providers_info().await)
 }
 
 #[tauri::command]
-pub async fn refresh_metadata_providers(state: State<'_, AppState>) -> Result<Vec<ProviderInfo>, String> {
+pub async fn refresh_metadata_providers(
+    state: State<'_, AppState>,
+) -> Result<Vec<ProviderInfo>, String> {
     state.downloader.refresh_external_plugins().await
 }
 
@@ -210,7 +233,10 @@ pub async fn toggle_provider(
     enabled: bool,
     state: State<'_, AppState>,
 ) -> Result<bool, String> {
-    state.downloader.toggle_provider(&provider_id, enabled).await?;
+    state
+        .downloader
+        .toggle_provider(&provider_id, enabled)
+        .await?;
     Ok(true)
 }
 
@@ -219,7 +245,10 @@ pub async fn test_provider_connection(
     provider_id: String,
     state: State<'_, AppState>,
 ) -> Result<String, String> {
-    state.downloader.test_provider_connection(&provider_id).await
+    state
+        .downloader
+        .test_provider_connection(&provider_id)
+        .await
 }
 
 #[tauri::command]

@@ -1,8 +1,8 @@
+use omnis_sdk::{MetadataProvider, MetadataSearchRequest};
+use serde_json::{Map, Value};
 use std::collections::HashMap;
 use std::sync::Arc;
-use serde_json::{Map, Value};
 use tokio::sync::RwLock;
-use omnis_sdk::{MetadataProvider, MetadataSearchRequest};
 
 use super::types::*;
 

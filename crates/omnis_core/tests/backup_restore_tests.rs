@@ -71,8 +71,12 @@ fn test_backup_and_restore_cycle_with_vacuum_and_security() {
     }
 
     // 2. CRITICAL: Insert a secret token (OAuth session token) into the database
-    db.store_secret("steam_oauth_token", b"test_nonce_123", b"super_secret_oauth_token_bytes")
-        .expect("Failed to store test secret");
+    db.store_secret(
+        "steam_oauth_token",
+        b"test_nonce_123",
+        b"super_secret_oauth_token_bytes",
+    )
+    .expect("Failed to store test secret");
 
     assert!(
         db.get_secret("steam_oauth_token").unwrap().is_some(),
@@ -85,7 +89,11 @@ fn test_backup_and_restore_cycle_with_vacuum_and_security() {
 
     let theme_dir = app_dir.join(storage::THEMES_DIR).join("cyberpunk");
     fs::create_dir_all(&theme_dir).unwrap();
-    fs::write(theme_dir.join("theme.json"), r#"{"name":"Cyberpunk Theme"}"#).unwrap();
+    fs::write(
+        theme_dir.join("theme.json"),
+        r#"{"name":"Cyberpunk Theme"}"#,
+    )
+    .unwrap();
 
     let covers_dir = app_dir.join(storage::CACHE_DIR).join(storage::COVERS_DIR);
     fs::create_dir_all(&covers_dir).unwrap();
@@ -98,12 +106,15 @@ fn test_backup_and_restore_cycle_with_vacuum_and_security() {
         keep_last: Some(5),
     };
 
-    let backup_result = create_backup(&db, &app_dir, &backup_options)
-        .expect("create_backup should succeed");
+    let backup_result =
+        create_backup(&db, &app_dir, &backup_options).expect("create_backup should succeed");
 
     assert!(backup_result.backup_path.is_file());
     assert_eq!(
-        backup_result.backup_path.extension().and_then(|e| e.to_str()),
+        backup_result
+            .backup_path
+            .extension()
+            .and_then(|e| e.to_str()),
         Some("zip"),
         "Backup file must have .zip extension"
     );
@@ -111,8 +122,8 @@ fn test_backup_and_restore_cycle_with_vacuum_and_security() {
     assert!(backup_result.artwork_included);
 
     // 5. Inspect backup without mutating database
-    let inspection = inspect_backup(&backup_result.backup_path)
-        .expect("inspect_backup should succeed");
+    let inspection =
+        inspect_backup(&backup_result.backup_path).expect("inspect_backup should succeed");
     assert_eq!(inspection.manifest.total_games, 2);
     assert!(inspection.has_database);
     assert!(inspection.has_settings);
@@ -178,7 +189,9 @@ fn test_backup_and_restore_cycle_with_vacuum_and_security() {
         assert_eq!(restored_count, 2, "Database must have 2 restored games");
 
         let title: String = conn
-            .query_row("SELECT title FROM games WHERE id = 'game_1'", [], |r| r.get(0))
+            .query_row("SELECT title FROM games WHERE id = 'game_1'", [], |r| {
+                r.get(0)
+            })
             .unwrap();
         assert_eq!(title, "Hollow Knight");
     }
@@ -214,7 +227,8 @@ fn test_restore_fails_on_corrupt_database() {
     let file = File::create(&corrupt_backup_file).unwrap();
     let mut zip = ZipWriter::new(file);
 
-    let zip_opts = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
+    let zip_opts =
+        SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
 
     // Valid manifest
     let manifest = omnis_core::BackupManifest {
@@ -222,11 +236,13 @@ fn test_restore_fails_on_corrupt_database() {
         ..Default::default()
     };
     zip.start_file("manifest.json", zip_opts).unwrap();
-    zip.write_all(&serde_json::to_vec(&manifest).unwrap()).unwrap();
+    zip.write_all(&serde_json::to_vec(&manifest).unwrap())
+        .unwrap();
 
     // Corrupt database
     zip.start_file("database.db", zip_opts).unwrap();
-    zip.write_all(b"NOT A VALID SQLITE DATABASE FILE HEADER GIBBERISH").unwrap();
+    zip.write_all(b"NOT A VALID SQLITE DATABASE FILE HEADER GIBBERISH")
+        .unwrap();
 
     zip.finish().unwrap();
 

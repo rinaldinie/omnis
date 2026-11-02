@@ -201,35 +201,30 @@ impl GameLaunchCoordinator {
         let sid_for_pid = session_id_str.clone();
         let gid_for_pid = id.to_string();
 
-        let track_res = GameLauncher::launch_and_track(
-            id,
-            config,
-            install_dir,
-            move |pid| {
-                let mgr = active_mgr_for_pid.clone();
-                let app = app_for_pid.clone();
-                tokio::spawn(async move {
-                    mgr.set_running(&sid_for_pid, pid).await;
-                    let _ = app.emit(
-                        events::GAME_STATUS_CHANGED,
-                        serde_json::json!({
-                            "session_id": sid_for_pid,
-                            "game_id": gid_for_pid,
-                            "state": "running",
-                            "pid": pid,
-                        }),
-                    );
+        let track_res = GameLauncher::launch_and_track(id, config, install_dir, move |pid| {
+            let mgr = active_mgr_for_pid.clone();
+            let app = app_for_pid.clone();
+            tokio::spawn(async move {
+                mgr.set_running(&sid_for_pid, pid).await;
+                let _ = app.emit(
+                    events::GAME_STATUS_CHANGED,
+                    serde_json::json!({
+                        "session_id": sid_for_pid,
+                        "game_id": gid_for_pid,
+                        "state": "running",
+                        "pid": pid,
+                    }),
+                );
 
-                    if let Some(window) = app.get_webview_window("main") {
-                        let _ = window.minimize();
-                    }
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.minimize();
+                }
 
-                    if pid > 0 {
-                        omnis_core::launcher::bring_process_to_foreground_async(pid, 8).await;
-                    }
-                });
-            },
-        )
+                if pid > 0 {
+                    omnis_core::launcher::bring_process_to_foreground_async(pid, 8).await;
+                }
+            });
+        })
         .await;
 
         is_running.store(false, Ordering::SeqCst);
@@ -240,7 +235,11 @@ impl GameLaunchCoordinator {
             Ok(d) if d > 0 => d,
             Ok(_) => (ended_at - started_at).num_seconds().max(0) as u64,
             Err(err) => {
-                tracing::warn!("Errore durante il tracking del processo {}: {}", game_id_str, err);
+                tracing::warn!(
+                    "Errore durante il tracking del processo {}: {}",
+                    game_id_str,
+                    err
+                );
                 (ended_at - started_at).num_seconds().max(0) as u64
             }
         };
@@ -298,7 +297,10 @@ impl GameLaunchCoordinator {
 pub fn build_install_uri(library_id: &str, external_id: &str) -> String {
     match library_id.to_lowercase().as_str() {
         "steam" => format!("steam://install/{}", external_id),
-        "epic" => format!("com.epicgames.launcher://apps/{}?action=install", external_id),
+        "epic" => format!(
+            "com.epicgames.launcher://apps/{}?action=install",
+            external_id
+        ),
         "gog" => format!("goggalaxy://openGameView/{}", external_id),
         "xbox" => format!("ms-windows-store://pdp/?ProductId={}", external_id),
         _ => format!("steam://install/{}", external_id),
@@ -309,7 +311,10 @@ pub fn build_install_uri(library_id: &str, external_id: &str) -> String {
 pub fn build_play_uri(library_id: &str, external_id: &str) -> String {
     match library_id.to_lowercase().as_str() {
         "steam" => format!("steam://rungameid/{}", external_id),
-        "epic" => format!("com.epicgames.launcher://apps/{}?action=launch&silent=true", external_id),
+        "epic" => format!(
+            "com.epicgames.launcher://apps/{}?action=launch&silent=true",
+            external_id
+        ),
         "gog" => format!("goggalaxy://openGameView/{}", external_id),
         "xbox" => format!("ms-windows-store://pdp/?ProductId={}", external_id),
         _ => format!("steam://rungameid/{}", external_id),
@@ -353,7 +358,10 @@ pub fn validate_and_open_store_uri(uri: &str) -> Result<(), String> {
     if !allowed_schemes.iter().any(|scheme| uri.starts_with(scheme)) {
         return Err("Protocollo URI non autorizzato".to_string());
     }
-    if uri.chars().any(|c| c.is_control() || "&|;<>^%\"' \r\n\t".contains(c)) {
+    if uri
+        .chars()
+        .any(|c| c.is_control() || "&|;<>^%\"' \r\n\t".contains(c))
+    {
         return Err("URI contiene caratteri non consentiti".to_string());
     }
 

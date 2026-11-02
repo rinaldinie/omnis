@@ -9,11 +9,16 @@ use serde::{Deserialize, Serialize};
 pub const EPIC_CLIENT_ID: &str = "34a02cf8f4414e29b15921876da36f9a";
 pub const EPIC_REDIRECT_URI: &str = "https://www.epicgames.com/id/api/redirect";
 pub const EPIC_AUTH_URL: &str = "https://www.epicgames.com/id/login?redirectUrl=https%3A%2F%2Fwww.epicgames.com%2Fid%2Fapi%2Fredirect%3FclientId%3D34a02cf8f4414e29b15921876da36f9a%26responseType%3Dcode";
-pub const EPIC_TOKEN_URL: &str = "https://account-public-service-prod03.ol.epicgames.com/account/api/oauth/token";
-pub const EPIC_ENTITLEMENTS_URL: &str = "https://entitlement-public-service-prod08.ol.epicgames.com/entitlement/api/account";
-pub const EPIC_LIBRARY_URL: &str = "https://library-service.live.use1a.on.epicgames.com/library/api/public/items";
-pub const EPIC_PLAYTIME_URL: &str = "https://library-service.live.use1a.on.epicgames.com/library/api/public/playtime/account";
-pub const EPIC_CATALOG_URL: &str = "https://catalog-public-service-prod06.ol.epicgames.com/catalog/api/shared/namespace";
+pub const EPIC_TOKEN_URL: &str =
+    "https://account-public-service-prod03.ol.epicgames.com/account/api/oauth/token";
+pub const EPIC_ENTITLEMENTS_URL: &str =
+    "https://entitlement-public-service-prod08.ol.epicgames.com/entitlement/api/account";
+pub const EPIC_LIBRARY_URL: &str =
+    "https://library-service.live.use1a.on.epicgames.com/library/api/public/items";
+pub const EPIC_PLAYTIME_URL: &str =
+    "https://library-service.live.use1a.on.epicgames.com/library/api/public/playtime/account";
+pub const EPIC_CATALOG_URL: &str =
+    "https://catalog-public-service-prod06.ol.epicgames.com/catalog/api/shared/namespace";
 pub const EPIC_ASSETS_URL: &str = "https://launcher-public-service-prod06.ol.epicgames.com/launcher/api/public/assets/Windows?label=Live";
 pub const EPIC_BASIC_AUTH: &str = "Basic MzRhMDJjZjhmNDQxNGUyOWIxNTkyMTg3NmRhMzZmOWE6ZGFhZmJjY2M3Mzc3NDUwMzlkZmZlNTNkOTRmYzc2Y2Y=";
 pub const EPIC_USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) EpicGamesLauncher";
@@ -175,16 +180,17 @@ pub fn is_valid_game(item: &EpicCatalogItem) -> bool {
 
     if let Some(ref cats) = item.categories {
         // 2. Reject digital extras, plugins, engine items
-        if cats.iter().any(|c| {
-            c.path == "digitalextras"
-                || c.path == "plugins"
-                || c.path == "plugins/engine"
-        }) {
+        if cats
+            .iter()
+            .any(|c| c.path == "digitalextras" || c.path == "plugins" || c.path == "plugins/engine")
+        {
             return false;
         }
 
         // 3. Must have applications or games category if categories are present
-        let has_app_or_game = cats.iter().any(|c| c.path == "applications" || c.path == "games");
+        let has_app_or_game = cats
+            .iter()
+            .any(|c| c.path == "applications" || c.path == "games");
         let is_only_addon = cats.iter().all(|c| c.path.starts_with("addons"));
         if is_only_addon || (!has_app_or_game && !cats.is_empty()) {
             return false;
@@ -215,7 +221,10 @@ pub fn normalize_epic_entitlement(entitlement: &EpicEntitlement) -> DiscoveredGa
         install_dir: None,
         is_installed: false,
         play_action: Some(LaunchConfiguration {
-            executable: format!("com.epicgames.launcher://apps/{}?action=install", external_id),
+            executable: format!(
+                "com.epicgames.launcher://apps/{}?action=install",
+                external_id
+            ),
             arguments: vec![],
             working_dir: None,
             tracking_mode: ProcessTrackingMode::ProcessName("EpicGamesLauncher.exe".to_string()),
@@ -233,7 +242,8 @@ pub fn extract_exchange_code(url_str: &str) -> Option<String> {
     if let Ok(parsed) = url::Url::parse(url_str) {
         // 1. Check query parameters
         for (key, val) in parsed.query_pairs() {
-            if key == "exchangeCode" || key == "code" || key == "authorizationCode" || key == "sid" {
+            if key == "exchangeCode" || key == "code" || key == "authorizationCode" || key == "sid"
+            {
                 return Some(val.into_owned());
             }
         }
@@ -241,7 +251,11 @@ pub fn extract_exchange_code(url_str: &str) -> Option<String> {
         // 2. Check fragment
         if let Some(fragment) = parsed.fragment() {
             for (key, val) in url::form_urlencoded::parse(fragment.as_bytes()) {
-                if key == "exchangeCode" || key == "code" || key == "authorizationCode" || key == "sid" {
+                if key == "exchangeCode"
+                    || key == "code"
+                    || key == "authorizationCode"
+                    || key == "sid"
+                {
                     return Some(val.into_owned());
                 }
             }
@@ -251,22 +265,30 @@ pub fn extract_exchange_code(url_str: &str) -> Option<String> {
     // Fallback: search string directly (checking authorizationCode and exchangeCode before code/sid)
     if let Some(pos) = url_str.find("authorizationCode=") {
         let after = &url_str[pos + 18..];
-        let end = after.find(|c| c == '&' || c == '#' || c == ' ').unwrap_or(after.len());
+        let end = after
+            .find(|c| c == '&' || c == '#' || c == ' ')
+            .unwrap_or(after.len());
         return Some(after[..end].to_string());
     }
     if let Some(pos) = url_str.find("exchangeCode=") {
         let after = &url_str[pos + 13..];
-        let end = after.find(|c| c == '&' || c == '#' || c == ' ').unwrap_or(after.len());
+        let end = after
+            .find(|c| c == '&' || c == '#' || c == ' ')
+            .unwrap_or(after.len());
         return Some(after[..end].to_string());
     }
     if let Some(pos) = url_str.find("sid=") {
         let after = &url_str[pos + 4..];
-        let end = after.find(|c| c == '&' || c == '#' || c == ' ').unwrap_or(after.len());
+        let end = after
+            .find(|c| c == '&' || c == '#' || c == ' ')
+            .unwrap_or(after.len());
         return Some(after[..end].to_string());
     }
     if let Some(pos) = url_str.find("code=") {
         let after = &url_str[pos + 5..];
-        let end = after.find(|c| c == '&' || c == '#' || c == ' ').unwrap_or(after.len());
+        let end = after
+            .find(|c| c == '&' || c == '#' || c == ' ')
+            .unwrap_or(after.len());
         return Some(after[..end].to_string());
     }
 
@@ -372,10 +394,12 @@ pub async fn refresh_token(
         )));
     }
 
-    let token_resp: EpicOAuthTokenResponse = resp
-        .json()
-        .await
-        .map_err(|e| PluginError::Parse(format!("Failed to parse Epic token refresh response: {}", e)))?;
+    let token_resp: EpicOAuthTokenResponse = resp.json().await.map_err(|e| {
+        PluginError::Parse(format!(
+            "Failed to parse Epic token refresh response: {}",
+            e
+        ))
+    })?;
 
     let now = Utc::now().timestamp();
     let expires_at = token_resp.expires_in.map(|exp| now + exp);
@@ -429,7 +453,9 @@ pub async fn discover_epic_candidates(
                         if record.sandbox_type.as_deref() == Some("PRIVATE") {
                             continue;
                         }
-                        if seen_keys.insert((record.namespace.clone(), record.catalog_item_id.clone())) {
+                        if seen_keys
+                            .insert((record.namespace.clone(), record.catalog_item_id.clone()))
+                        {
                             candidates.push(EpicCandidate {
                                 app_name: record.app_name,
                                 catalog_item_id: record.catalog_item_id,
@@ -569,7 +595,8 @@ pub async fn fetch_catalog_items_batch(
         return Ok(std::collections::HashMap::new());
     }
 
-    let mut query_params: Vec<(&str, &str)> = item_ids.iter().map(|id| ("id", id.as_str())).collect();
+    let mut query_params: Vec<(&str, &str)> =
+        item_ids.iter().map(|id| ("id", id.as_str())).collect();
     query_params.push(("country", "US"));
     query_params.push(("locale", "en-US"));
     query_params.push(("includeMainGameDetails", "true"));
@@ -583,7 +610,12 @@ pub async fn fetch_catalog_items_batch(
         .query(&query_params)
         .send()
         .await
-        .map_err(|e| PluginError::Io(format!("Catalog request failed for namespace {}: {}", namespace, e)))?;
+        .map_err(|e| {
+            PluginError::Io(format!(
+                "Catalog request failed for namespace {}: {}",
+                namespace, e
+            ))
+        })?;
 
     if !resp.status().is_success() {
         return Err(PluginError::Other(format!(
@@ -593,10 +625,13 @@ pub async fn fetch_catalog_items_batch(
         )));
     }
 
-    let items: std::collections::HashMap<String, EpicCatalogItem> = resp
-        .json()
-        .await
-        .map_err(|e| PluginError::Parse(format!("Failed to parse catalog items for {}: {}", namespace, e)))?;
+    let items: std::collections::HashMap<String, EpicCatalogItem> =
+        resp.json().await.map_err(|e| {
+            PluginError::Parse(format!(
+                "Failed to parse catalog items for {}: {}",
+                namespace, e
+            ))
+        })?;
 
     Ok(items)
 }
@@ -615,9 +650,13 @@ pub async fn fetch_user_games(
     let playtimes = fetch_playtimes(client, session).await;
 
     // Group candidates by namespace
-    let mut by_namespace: std::collections::HashMap<String, Vec<EpicCandidate>> = std::collections::HashMap::new();
+    let mut by_namespace: std::collections::HashMap<String, Vec<EpicCandidate>> =
+        std::collections::HashMap::new();
     for cand in candidates {
-        by_namespace.entry(cand.namespace.clone()).or_default().push(cand);
+        by_namespace
+            .entry(cand.namespace.clone())
+            .or_default()
+            .push(cand);
     }
 
     let mut discovered_games = Vec::new();
@@ -644,7 +683,9 @@ pub async fn fetch_user_games(
                             let title = sanitize_epic_title(raw_title);
 
                             // Prefer app_name as external_id; fallback to release_info or catalog_item_id
-                            let external_id = if !cand.app_name.is_empty() && cand.app_name != cand.catalog_item_id {
+                            let external_id = if !cand.app_name.is_empty()
+                                && cand.app_name != cand.catalog_item_id
+                            {
                                 cand.app_name.clone()
                             } else if let Some(ref releases) = cat_item.release_info {
                                 releases
@@ -670,7 +711,9 @@ pub async fn fetch_user_games(
                                             cover_image_path = Some(img.url.clone());
                                             break;
                                         }
-                                        "Thumbnail" | "OfferImageTall" | "DieselGameBox" if cover_image_path.is_none() => {
+                                        "Thumbnail" | "OfferImageTall" | "DieselGameBox"
+                                            if cover_image_path.is_none() =>
+                                        {
                                             cover_image_path = Some(img.url.clone());
                                         }
                                         _ => {}
@@ -683,7 +726,9 @@ pub async fn fetch_user_games(
                                             background_image_path = Some(img.url.clone());
                                             break;
                                         }
-                                        "Featured" | "Screenshot" if background_image_path.is_none() => {
+                                        "Featured" | "Screenshot"
+                                            if background_image_path.is_none() =>
+                                        {
                                             background_image_path = Some(img.url.clone());
                                         }
                                         _ => {}
@@ -691,7 +736,8 @@ pub async fn fetch_user_games(
                                 }
                             }
 
-                            let playtime_seconds = playtimes.get(&external_id).copied().unwrap_or(0);
+                            let playtime_seconds =
+                                playtimes.get(&external_id).copied().unwrap_or(0);
 
                             let launch_config = LaunchConfiguration {
                                 executable: format!(

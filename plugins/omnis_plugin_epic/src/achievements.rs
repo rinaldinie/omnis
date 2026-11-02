@@ -281,7 +281,10 @@ pub async fn fetch_epic_achievements_api(
     let mut req = client
         .post("https://graphql.epicgames.com/graphql")
         .header("Content-Type", "application/json")
-        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) EpicGamesLauncher")
+        .header(
+            "User-Agent",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) EpicGamesLauncher",
+        )
         .json(&body);
 
     if let Some(sess) = session {
@@ -299,7 +302,9 @@ pub async fn fetch_epic_achievements_api(
     if !resp.status().is_success() {
         let status = resp.status();
         let err_text = resp.text().await.unwrap_or_default();
-        return Err(format!("Epic achievements GraphQL error ({status}): {err_text}"));
+        return Err(format!(
+            "Epic achievements GraphQL error ({status}): {err_text}"
+        ));
     }
 
     let json_text = resp
@@ -442,11 +447,18 @@ mod tests {
         let ach1 = &achievements[0];
         assert_eq!(ach1.api_name, "QUALIFY_FIRST_ROUND");
         assert_eq!(ach1.display_name, "One Small Trip");
-        assert_eq!(ach1.description.as_deref(), Some("Qualify from your first round"));
+        assert_eq!(
+            ach1.description.as_deref(),
+            Some("Qualify from your first round")
+        );
         assert!(ach1.is_unlocked);
         assert_eq!(
             ach1.unlock_time,
-            Some(DateTime::parse_from_rfc3339("2024-04-10T12:00:00Z").unwrap().with_timezone(&Utc))
+            Some(
+                DateTime::parse_from_rfc3339("2024-04-10T12:00:00Z")
+                    .unwrap()
+                    .with_timezone(&Utc)
+            )
         );
         assert_eq!(ach1.rarity_percentage, Some(88.5));
         assert_eq!(ach1.points, Some(50));

@@ -11,10 +11,7 @@ pub async fn get_day_sessions(
     date: String,
     state: State<'_, AppState>,
 ) -> Result<Vec<DaySessionDto>, String> {
-    state
-        .db
-        .get_day_sessions(&date)
-        .map_err(|e| e.to_string())
+    state.db.get_day_sessions(&date).map_err(|e| e.to_string())
 }
 
 /// Retrieve aggregated global statistics across all library games and sessions
@@ -36,10 +33,7 @@ pub async fn get_game_statistics(
     state: State<'_, AppState>,
 ) -> Result<GameStatsDto, String> {
     let id = Uuid::parse_str(&game_id).map_err(|e| format!("Invalid game ID: {}", e))?;
-    state
-        .db
-        .get_game_statistics(id)
-        .map_err(|e| e.to_string())
+    state.db.get_game_statistics(id).map_err(|e| e.to_string())
 }
 
 /// Reset game session history and optionally zero out playtime across all library games

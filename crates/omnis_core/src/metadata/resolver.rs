@@ -1,6 +1,6 @@
-use std::collections::HashMap;
-use serde_json::{Map, Value};
 use omnis_sdk::{Game, GameMetadataPatch, MetadataProvider, MetadataSearchRequest};
+use serde_json::{Map, Value};
+use std::collections::HashMap;
 
 use super::types::*;
 
@@ -29,10 +29,14 @@ impl MetadataPipelineResolver {
         let mut final_patch = GameMetadataPatch::default();
 
         if pipeline.preserve_existing_artwork {
-            if artwork_pre.remote_cover_to_cache.is_some() && !Self::has_local_artwork(game.cover_image_path.as_deref()) {
+            if artwork_pre.remote_cover_to_cache.is_some()
+                && !Self::has_local_artwork(game.cover_image_path.as_deref())
+            {
                 final_patch.cover_url = artwork_pre.remote_cover_to_cache.clone();
             }
-            if artwork_pre.remote_bg_to_cache.is_some() && !Self::has_local_artwork(game.background_image_path.as_deref()) {
+            if artwork_pre.remote_bg_to_cache.is_some()
+                && !Self::has_local_artwork(game.background_image_path.as_deref())
+            {
                 final_patch.background_url = artwork_pre.remote_bg_to_cache.clone();
             }
         }
@@ -43,10 +47,14 @@ impl MetadataPipelineResolver {
             _ => "steam",
         };
 
-        let effective_details_source = Self::resolve_source_id(&pipeline.details_source, store_native_id);
-        let effective_cover_source = Self::resolve_source_id(&pipeline.cover_source, store_native_id);
-        let effective_background_source = Self::resolve_source_id(&pipeline.background_source, store_native_id);
-        let effective_score_source = Self::resolve_source_id(&pipeline.score_source, store_native_id);
+        let effective_details_source =
+            Self::resolve_source_id(&pipeline.details_source, store_native_id);
+        let effective_cover_source =
+            Self::resolve_source_id(&pipeline.cover_source, store_native_id);
+        let effective_background_source =
+            Self::resolve_source_id(&pipeline.background_source, store_native_id);
+        let effective_score_source =
+            Self::resolve_source_id(&pipeline.score_source, store_native_id);
 
         // 1. Fetch Primary Details & Descriptions (Store-First)
         let details_patch = Self::fetch_details_with_fallback(
@@ -55,7 +63,8 @@ impl MetadataPipelineResolver {
             enabled,
             settings,
             effective_details_source,
-        ).await;
+        )
+        .await;
 
         let mut details_cover_fallback = None;
         let mut details_bg_fallback = None;
@@ -64,7 +73,9 @@ impl MetadataPipelineResolver {
             Self::merge_primary_details(&mut final_patch, game, patch);
 
             if artwork_pre.should_fetch_cover {
-                if effective_cover_source == effective_details_source || effective_cover_source == store_native_id {
+                if effective_cover_source == effective_details_source
+                    || effective_cover_source == store_native_id
+                {
                     final_patch.cover_url = patch.cover_url.clone();
                 } else {
                     details_cover_fallback = patch.cover_url.clone();
@@ -72,7 +83,9 @@ impl MetadataPipelineResolver {
             }
 
             if artwork_pre.should_fetch_background {
-                if effective_background_source == effective_details_source || effective_background_source == store_native_id {
+                if effective_background_source == effective_details_source
+                    || effective_background_source == store_native_id
+                {
                     final_patch.background_url = patch.background_url.clone();
                 } else {
                     details_bg_fallback = patch.background_url.clone();
@@ -93,7 +106,8 @@ impl MetadataPipelineResolver {
             &artwork_pre,
             details_cover_fallback,
             details_bg_fallback,
-        ).await;
+        )
+        .await;
 
         // 3. Resolve Critic & Community Scores if needed
         Self::resolve_scores(
@@ -105,10 +119,12 @@ impl MetadataPipelineResolver {
             settings,
             effective_score_source,
             effective_details_source,
-        ).await;
+        )
+        .await;
 
         // 4. Query enabled external/enrichment providers that contribute extra_metadata (e.g. HowLongToBeat)
-        Self::merge_enrichment_metadata(&mut final_patch, request, providers, enabled, settings).await;
+        Self::merge_enrichment_metadata(&mut final_patch, request, providers, enabled, settings)
+            .await;
 
         // 5. Generate aesthetic fallback only if fields are still empty
         Self::apply_fallback_if_needed(&mut final_patch, game, &fallback_fn);
@@ -132,7 +148,10 @@ impl MetadataPipelineResolver {
         .unwrap_or(false)
     }
 
-    fn evaluate_artwork_prerequisites(game: &Game, pipeline: &MetadataPipelineConfig) -> ArtworkPrerequisites {
+    fn evaluate_artwork_prerequisites(
+        game: &Game,
+        pipeline: &MetadataPipelineConfig,
+    ) -> ArtworkPrerequisites {
         let has_existing_local_cover = Self::has_local_artwork(game.cover_image_path.as_deref());
         let has_existing_local_bg = Self::has_local_artwork(game.background_image_path.as_deref());
 
@@ -196,7 +215,11 @@ impl MetadataPipelineResolver {
             }
         }
 
-        let alt_store = if primary_source == "steam" { "gog" } else { "steam" };
+        let alt_store = if primary_source == "steam" {
+            "gog"
+        } else {
+            "steam"
+        };
         if enabled.get(alt_store).copied().unwrap_or(true) {
             if let Some(prov) = providers.get(alt_store) {
                 let s = settings.get(alt_store).cloned().unwrap_or_default();
@@ -209,11 +232,25 @@ impl MetadataPipelineResolver {
         None
     }
 
-    fn merge_primary_details(final_patch: &mut GameMetadataPatch, game: &Game, patch: &GameMetadataPatch) {
-        if game.description.as_ref().map(|d| d.trim().is_empty()).unwrap_or(true) {
+    fn merge_primary_details(
+        final_patch: &mut GameMetadataPatch,
+        game: &Game,
+        patch: &GameMetadataPatch,
+    ) {
+        if game
+            .description
+            .as_ref()
+            .map(|d| d.trim().is_empty())
+            .unwrap_or(true)
+        {
             final_patch.description = patch.description.clone();
         }
-        if game.release_date.as_ref().map(|r| r.trim().is_empty()).unwrap_or(true) {
+        if game
+            .release_date
+            .as_ref()
+            .map(|r| r.trim().is_empty())
+            .unwrap_or(true)
+        {
             final_patch.release_date = patch.release_date.clone();
         }
         if game.genres.is_empty() {
@@ -250,7 +287,8 @@ impl MetadataPipelineResolver {
         details_bg_fallback: Option<String>,
     ) {
         if artwork_pre.should_fetch_cover && final_patch.cover_url.is_none() {
-            if cover_source != details_source && enabled.get(cover_source).copied().unwrap_or(false) {
+            if cover_source != details_source && enabled.get(cover_source).copied().unwrap_or(false)
+            {
                 if let Some(prov) = providers.get(cover_source) {
                     let s = settings.get(cover_source).cloned().unwrap_or_default();
                     if let Ok(cov_patch) = prov.fetch_metadata(request, &s).await {
@@ -261,7 +299,8 @@ impl MetadataPipelineResolver {
                 }
             }
             if final_patch.cover_url.is_none() {
-                final_patch.cover_url = details_cover_fallback.or(artwork_pre.remote_cover_to_cache.clone());
+                final_patch.cover_url =
+                    details_cover_fallback.or(artwork_pre.remote_cover_to_cache.clone());
             }
         }
 
@@ -277,7 +316,8 @@ impl MetadataPipelineResolver {
                 }
             }
             if final_patch.background_url.is_none() {
-                final_patch.background_url = details_bg_fallback.or(artwork_pre.remote_bg_to_cache.clone());
+                final_patch.background_url =
+                    details_bg_fallback.or(artwork_pre.remote_bg_to_cache.clone());
             }
         }
     }
@@ -293,7 +333,8 @@ impl MetadataPipelineResolver {
         details_source: &str,
     ) {
         if game.critic_score.is_none() && final_patch.critic_score.is_none() {
-            if score_source != details_source && enabled.get(score_source).copied().unwrap_or(false) {
+            if score_source != details_source && enabled.get(score_source).copied().unwrap_or(false)
+            {
                 if let Some(prov) = providers.get(score_source) {
                     let s = settings.get(score_source).cloned().unwrap_or_default();
                     if let Ok(sc_patch) = prov.fetch_metadata(request, &s).await {
@@ -320,16 +361,21 @@ impl MetadataPipelineResolver {
                     let s = settings.get(prov_id).cloned().unwrap_or_default();
                     if let Ok(p_patch) = prov.fetch_metadata(request, &s).await {
                         if let Some(extra) = p_patch.extra_metadata {
-                            let mut current_merged: serde_json::Map<String, serde_json::Value> = final_patch
-                                .extra_metadata
-                                .as_deref()
-                                .and_then(|s| serde_json::from_str(s).ok())
-                                .unwrap_or_default();
-                            if let Ok(incoming) = serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(&extra) {
+                            let mut current_merged: serde_json::Map<String, serde_json::Value> =
+                                final_patch
+                                    .extra_metadata
+                                    .as_deref()
+                                    .and_then(|s| serde_json::from_str(s).ok())
+                                    .unwrap_or_default();
+                            if let Ok(incoming) = serde_json::from_str::<
+                                serde_json::Map<String, serde_json::Value>,
+                            >(&extra)
+                            {
                                 for (k, v) in incoming {
                                     current_merged.insert(k, v);
                                 }
-                                final_patch.extra_metadata = Some(serde_json::to_string(&current_merged).unwrap_or(extra));
+                                final_patch.extra_metadata =
+                                    Some(serde_json::to_string(&current_merged).unwrap_or(extra));
                             } else {
                                 final_patch.extra_metadata = Some(extra);
                             }
@@ -346,13 +392,22 @@ impl MetadataPipelineResolver {
         fallback_fn: &impl Fn(&str, &str) -> GameMetadataPatch,
     ) {
         let needs_fallback_desc = final_patch.description.is_none()
-            && game.description.as_ref().map(|d| d.trim().is_empty()).unwrap_or(true);
+            && game
+                .description
+                .as_ref()
+                .map(|d| d.trim().is_empty())
+                .unwrap_or(true);
         let needs_fallback_rd = final_patch.release_date.is_none()
-            && game.release_date.as_ref().map(|r| r.trim().is_empty()).unwrap_or(true);
+            && game
+                .release_date
+                .as_ref()
+                .map(|r| r.trim().is_empty())
+                .unwrap_or(true);
         let needs_fallback_genres = final_patch.genres.is_empty() && game.genres.is_empty();
         let needs_fallback_devs = final_patch.developers.is_empty() && game.developers.is_empty();
         let needs_fallback_pubs = final_patch.publishers.is_empty() && game.publishers.is_empty();
-        let needs_fallback_scores = final_patch.critic_score.is_none() && game.critic_score.is_none();
+        let needs_fallback_scores =
+            final_patch.critic_score.is_none() && game.critic_score.is_none();
 
         if needs_fallback_desc
             || needs_fallback_genres

@@ -51,14 +51,24 @@ impl GameTrailerResolver {
         }
 
         // 2. Check local trailer files
-        if let Some(path_str) = Self::check_local_disk(&state.app_dir, game_id, external_id, library_id) {
-            state.trailer_cache.write().await.insert(cache_key, path_str.clone());
+        if let Some(path_str) =
+            Self::check_local_disk(&state.app_dir, game_id, external_id, library_id)
+        {
+            state
+                .trailer_cache
+                .write()
+                .await
+                .insert(cache_key, path_str.clone());
             return Ok(Some(path_str));
         }
 
         // 3. Check custom links in database
         if let Some(link_url) = Self::check_db_custom_links(&state.db, game_id) {
-            state.trailer_cache.write().await.insert(cache_key, link_url.clone());
+            state
+                .trailer_cache
+                .write()
+                .await
+                .insert(cache_key, link_url.clone());
             return Ok(Some(link_url));
         }
 
@@ -68,7 +78,11 @@ impl GameTrailerResolver {
             && external_id.chars().all(|c| c.is_ascii_digit())
         {
             if let Some(hls_url) = Self::fetch_steam_store_trailer(external_id).await? {
-                state.trailer_cache.write().await.insert(cache_key, hls_url.clone());
+                state
+                    .trailer_cache
+                    .write()
+                    .await
+                    .insert(cache_key, hls_url.clone());
                 return Ok(Some(hls_url));
             }
         }
@@ -139,7 +153,10 @@ impl GameTrailerResolver {
 
         match client.get(&store_url).send().await {
             Ok(resp) => {
-                if let Ok(body) = resp.json::<HashMap<String, SteamAppDetailsResponse>>().await {
+                if let Ok(body) = resp
+                    .json::<HashMap<String, SteamAppDetailsResponse>>()
+                    .await
+                {
                     if let Some(app_data) = body.get(external_id) {
                         if app_data.success {
                             if let Some(ref data) = app_data.data {

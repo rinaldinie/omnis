@@ -55,7 +55,9 @@ fn test_epic_cloud_plugin_contract_and_normalization() {
 
     // Verify redirect URL detection
     assert!(
-        plugin.is_redirect_url("https://www.epicgames.com/id/api/redirect?code=MOCK_EXCHANGE_CODE_123"),
+        plugin.is_redirect_url(
+            "https://www.epicgames.com/id/api/redirect?code=MOCK_EXCHANGE_CODE_123"
+        ),
         "Should accept Epic redirect callback with code query param"
     );
     assert!(
@@ -80,15 +82,17 @@ fn test_epic_cloud_plugin_contract_and_normalization() {
     assert_eq!(discovered.library_id, "epic");
     assert_eq!(discovered.external_id, "cat_456");
     assert_eq!(discovered.title, "Alan Wake 2");
-    assert!(!discovered.is_installed, "Cloud discovered games must default to is_installed: false");
+    assert!(
+        !discovered.is_installed,
+        "Cloud discovered games must default to is_installed: false"
+    );
     assert_eq!(discovered.install_dir, None);
 
     let play_action = discovered
         .play_action
         .expect("DiscoveredGame must provide a play_action");
     assert_eq!(
-        play_action.executable,
-        "com.epicgames.launcher://apps/cat_456?action=install",
+        play_action.executable, "com.epicgames.launcher://apps/cat_456?action=install",
         "Epic cloud play_action must target launcher install protocol"
     );
     assert_eq!(
@@ -162,7 +166,10 @@ fn test_steam_cloud_plugin_contract_and_normalization() {
     assert_eq!(game.library_id, "steam");
     assert_eq!(game.external_id, "1091500");
     assert_eq!(game.title, "Cyberpunk 2077");
-    assert!(!game.is_installed, "Cloud discovered games must default to is_installed: false");
+    assert!(
+        !game.is_installed,
+        "Cloud discovered games must default to is_installed: false"
+    );
     assert_eq!(game.install_dir, None);
     assert_eq!(game.playtime_seconds, 120 * 60);
 
@@ -171,14 +178,16 @@ fn test_steam_cloud_plugin_contract_and_normalization() {
         .as_ref()
         .expect("DiscoveredGame must provide a play_action");
     assert_eq!(
-        play_action.executable,
-        "steam://install/1091500",
+        play_action.executable, "steam://install/1091500",
         "Steam cloud play_action must target steam install protocol"
     );
 
     assert_eq!(
         game.cover_image_path,
-        Some("https://cdn.cloudflare.steamstatic.com/steam/apps/1091500/library_600x900_2x.jpg".to_string()),
+        Some(
+            "https://cdn.cloudflare.steamstatic.com/steam/apps/1091500/library_600x900_2x.jpg"
+                .to_string()
+        ),
         "Cover image must target Cloudflare Steam CDN vertical capsule image"
     );
     assert_eq!(
@@ -225,7 +234,9 @@ fn test_database_non_destructive_cloud_merge_steam_and_epic() {
             executable: "com.epicgames.launcher://apps/Sugar?action=launch&silent=true".to_string(),
             arguments: vec![],
             working_dir: Some(PathBuf::from(r"C:\Epic\Fortnite")),
-            tracking_mode: ProcessTrackingMode::ProcessName("FortniteClient-Win64-Shipping.exe".to_string()),
+            tracking_mode: ProcessTrackingMode::ProcessName(
+                "FortniteClient-Win64-Shipping.exe".to_string(),
+            ),
         }),
         playtime_seconds: 3600,
         play_count: 4,
@@ -335,7 +346,10 @@ fn test_database_non_destructive_cloud_merge_steam_and_epic() {
     assert_eq!(steam_reloaded.play_count, 15);
     assert_eq!(
         steam_reloaded.cover_image_path,
-        Some("https://cdn.cloudflare.steamstatic.com/steam/apps/730/library_600x900_2x.jpg".to_string())
+        Some(
+            "https://cdn.cloudflare.steamstatic.com/steam/apps/730/library_600x900_2x.jpg"
+                .to_string()
+        )
     );
 
     assert_eq!(epic_reloaded.playtime_seconds, 7200);

@@ -44,10 +44,7 @@ pub trait SessionRepository: Send + Sync {
     ) -> Result<GameSessionRecord, DatabaseError>;
 
     /// Retrieve all recorded play sessions for a given game ordered by started_at DESC
-    fn get_game_sessions(
-        &self,
-        game_id: Uuid,
-    ) -> Result<Vec<GameSessionRecord>, DatabaseError>;
+    fn get_game_sessions(&self, game_id: Uuid) -> Result<Vec<GameSessionRecord>, DatabaseError>;
 
     /// Ingest external historical sessions for games matching the given library_id,
     /// deduplicating against existing sessions and updating playtime metrics.
@@ -250,10 +247,7 @@ impl SessionRepository for Database {
     }
 
     /// Retrieve all recorded play sessions for a given game ordered by started_at DESC
-    fn get_game_sessions(
-        &self,
-        game_id: Uuid,
-    ) -> Result<Vec<GameSessionRecord>, DatabaseError> {
+    fn get_game_sessions(&self, game_id: Uuid) -> Result<Vec<GameSessionRecord>, DatabaseError> {
         let conn = self.reader();
         let mut stmt = conn.prepare(
             "
@@ -306,11 +300,10 @@ impl SessionRepository for Database {
 
         let mut conn = self.writer();
 
-        let mut stmt = conn.prepare(
-            "SELECT id, external_id FROM games WHERE library_id = ?1;",
-        )?;
+        let mut stmt = conn.prepare("SELECT id, external_id FROM games WHERE library_id = ?1;")?;
 
-        let mut store_games: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+        let mut store_games: std::collections::HashMap<String, String> =
+            std::collections::HashMap::new();
         let rows = stmt.query_map(params![library_id], |row| {
             Ok((row.get::<_, String>(1)?, row.get::<_, String>(0)?))
         })?;
@@ -323,7 +316,8 @@ impl SessionRepository for Database {
 
         let tx = conn.transaction()?;
         let mut total_inserted = 0;
-        let mut updated_game_ids: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+        let mut updated_game_ids: std::collections::HashMap<String, String> =
+            std::collections::HashMap::new();
 
         for s in sessions {
             if let Some(game_id) = store_games.get(&s.external_id) {
@@ -350,7 +344,9 @@ impl SessionRepository for Database {
 
                 if inserted > 0 {
                     total_inserted += 1;
-                    let entry = updated_game_ids.entry(game_id.clone()).or_insert_with(|| s.ended_at.clone());
+                    let entry = updated_game_ids
+                        .entry(game_id.clone())
+                        .or_insert_with(|| s.ended_at.clone());
                     if s.ended_at > *entry {
                         *entry = s.ended_at.clone();
                     }
@@ -426,7 +422,13 @@ impl Database {
         delta_seconds: u64,
         current_time: chrono::DateTime<chrono::Utc>,
     ) -> Result<(), DatabaseError> {
-        SessionRepository::checkpoint_play_session(self, session_id, game_id, delta_seconds, current_time)
+        SessionRepository::checkpoint_play_session(
+            self,
+            session_id,
+            game_id,
+            delta_seconds,
+            current_time,
+        )
     }
 
     #[inline]
@@ -438,7 +440,14 @@ impl Database {
         started_at: chrono::DateTime<chrono::Utc>,
         ended_at: chrono::DateTime<chrono::Utc>,
     ) -> Result<GameSessionRecord, DatabaseError> {
-        SessionRepository::finish_play_session(self, session_id, game_id, total_duration, started_at, ended_at)
+        SessionRepository::finish_play_session(
+            self,
+            session_id,
+            game_id,
+            total_duration,
+            started_at,
+            ended_at,
+        )
     }
 
     #[inline]
@@ -449,7 +458,13 @@ impl Database {
         started_at: chrono::DateTime<chrono::Utc>,
         ended_at: chrono::DateTime<chrono::Utc>,
     ) -> Result<GameSessionRecord, DatabaseError> {
-        SessionRepository::record_play_session(self, game_id, duration_seconds, started_at, ended_at)
+        SessionRepository::record_play_session(
+            self,
+            game_id,
+            duration_seconds,
+            started_at,
+            ended_at,
+        )
     }
 
     #[inline]

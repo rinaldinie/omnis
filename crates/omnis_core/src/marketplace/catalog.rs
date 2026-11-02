@@ -46,8 +46,12 @@ impl MarketplaceCatalogService {
 
         match fetched_catalog {
             Some(cat) => Ok(cat),
-            None => serde_json::from_str::<MarketplaceCatalog>(embedded_seed)
-                .map_err(|e| format!("Impossibile analizzare il catalogo seed del marketplace: {}", e)),
+            None => serde_json::from_str::<MarketplaceCatalog>(embedded_seed).map_err(|e| {
+                format!(
+                    "Impossibile analizzare il catalogo seed del marketplace: {}",
+                    e
+                )
+            }),
         }
     }
 

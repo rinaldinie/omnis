@@ -82,7 +82,11 @@ mod tests {
         assert!(patch.genres.contains(&"Open World Adventure".to_string()));
         assert_eq!(patch.publishers, vec!["STEAM".to_string()]);
         assert_eq!(patch.developers, vec!["Official Developer".to_string()]);
-        assert!(patch.description.as_ref().unwrap().contains("The Witcher 3: Wild Hunt"));
+        assert!(patch
+            .description
+            .as_ref()
+            .unwrap()
+            .contains("The Witcher 3: Wild Hunt"));
         assert!(patch.description.as_ref().unwrap().contains("STEAM"));
         assert_eq!(patch.release_date.as_deref(), Some("Recent"));
         assert_eq!(patch.critic_score, Some(88));

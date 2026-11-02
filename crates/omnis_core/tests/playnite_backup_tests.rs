@@ -4,8 +4,8 @@ use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use omnis_core::{
-    execute_playnite_backup_import, inspect_playnite_backup,
-    Database, PlayniteBackupImportOptions, PlayniteBackupInspection,
+    execute_playnite_backup_import, inspect_playnite_backup, Database, PlayniteBackupImportOptions,
+    PlayniteBackupInspection,
 };
 use omnis_sdk::constants::stores;
 use uuid::Uuid;
@@ -102,27 +102,39 @@ fn manual_guid() -> [u8; 16] {
 }
 
 fn steam_guid() -> [u8; 16] {
-    Uuid::parse_str("cb91dfc9-b977-43bf-8e70-55f46e410fab").unwrap().to_bytes_le()
+    Uuid::parse_str("cb91dfc9-b977-43bf-8e70-55f46e410fab")
+        .unwrap()
+        .to_bytes_le()
 }
 
 fn gog_guid() -> [u8; 16] {
-    Uuid::parse_str("aebe8b7c-6dc3-4a66-af31-e7375c6b5e9e").unwrap().to_bytes_le()
+    Uuid::parse_str("aebe8b7c-6dc3-4a66-af31-e7375c6b5e9e")
+        .unwrap()
+        .to_bytes_le()
 }
 
 fn epic_guid() -> [u8; 16] {
-    Uuid::parse_str("00000002-dbd1-46c6-b5d0-b1cb55d14e34").unwrap().to_bytes_le()
+    Uuid::parse_str("00000002-dbd1-46c6-b5d0-b1cb55d14e34")
+        .unwrap()
+        .to_bytes_le()
 }
 
 fn xbox_guid() -> [u8; 16] {
-    Uuid::parse_str("7e4fbb5e-2304-4c2c-9721-402f4586f6a7").unwrap().to_bytes_le()
+    Uuid::parse_str("7e4fbb5e-2304-4c2c-9721-402f4586f6a7")
+        .unwrap()
+        .to_bytes_le()
 }
 
 fn origin_guid() -> [u8; 16] {
-    Uuid::parse_str("85dd7072-76de-42bc-9c2b-000e60e4e843").unwrap().to_bytes_le()
+    Uuid::parse_str("85dd7072-76de-42bc-9c2b-000e60e4e843")
+        .unwrap()
+        .to_bytes_le()
 }
 
 fn amazon_guid() -> [u8; 16] {
-    Uuid::parse_str("402674cd-4af6-4886-b6ec-0e695bfa0688").unwrap().to_bytes_le()
+    Uuid::parse_str("402674cd-4af6-4886-b6ec-0e695bfa0688")
+        .unwrap()
+        .to_bytes_le()
 }
 
 /// Helper to serialize a SyntheticGame into LiteDB BSON document bytes
@@ -351,10 +363,12 @@ impl SyntheticBackupBuilder {
     fn write_to_file(&self, path: &Path) {
         let file = File::create(path).expect("failed to create zip file");
         let mut zip = ZipWriter::new(file);
-        let opts = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
+        let opts =
+            SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
 
         if !self.skip_games_db {
-            zip.start_file("library/games.db", opts).expect("failed to start library/games.db");
+            zip.start_file("library/games.db", opts)
+                .expect("failed to start library/games.db");
             if self.corrupt_litedb {
                 zip.write_all(b"NOT_A_VALID_LITEDB_MAGIC_HEADER_GARBAGE_BYTES_12345")
                     .expect("failed to write corrupt db");
@@ -365,7 +379,8 @@ impl SyntheticBackupBuilder {
         }
 
         for (rel_path, content) in &self.files {
-            zip.start_file(rel_path, opts).expect("failed to start extra file");
+            zip.start_file(rel_path, opts)
+                .expect("failed to start extra file");
             zip.write_all(content).expect("failed to write extra file");
         }
 
@@ -437,7 +452,8 @@ fn seed_game(
             now,
             now,
         ],
-    ).expect("failed to seed game");
+    )
+    .expect("failed to seed game");
 }
 
 fn fetch_game(db: &Database, id: Uuid) -> TestGameRecord {
@@ -520,13 +536,65 @@ fn test_inspect_playnite_backup_accurate_counts_and_metrics() {
 
     // Omnis games:
     // Game 1: Steam App 101, playtime 100, no cover, no background
-    seed_game(&db, id_g1, stores::STEAM, "101", "Game One", 100, 2, 0, None, None, None, None);
+    seed_game(
+        &db,
+        id_g1,
+        stores::STEAM,
+        "101",
+        "Game One",
+        100,
+        2,
+        0,
+        None,
+        None,
+        None,
+        None,
+    );
     // Game 2: Steam App 102, playtime 800, has cover, no background
-    seed_game(&db, id_g2, stores::STEAM, "102", "Game Two", 800, 5, 1, None, Some("/omnis/cov2.jpg"), None, None);
+    seed_game(
+        &db,
+        id_g2,
+        stores::STEAM,
+        "102",
+        "Game Two",
+        800,
+        5,
+        1,
+        None,
+        Some("/omnis/cov2.jpg"),
+        None,
+        None,
+    );
     // Game 3: GOG 201, playtime 500, has cover, has background
-    seed_game(&db, id_g3, stores::GOG, "201", "Game Three", 500, 3, 0, None, Some("/omnis/cov3.jpg"), Some("/omnis/bg3.jpg"), None);
+    seed_game(
+        &db,
+        id_g3,
+        stores::GOG,
+        "201",
+        "Game Three",
+        500,
+        3,
+        0,
+        None,
+        Some("/omnis/cov3.jpg"),
+        Some("/omnis/bg3.jpg"),
+        None,
+    );
     // Game 4: Manual "Custom RPG", playtime 0, no cover, no background
-    seed_game(&db, id_g4, stores::MANUAL, "manual:custom-rpg", "Custom RPG", 0, 0, 0, None, None, None, None);
+    seed_game(
+        &db,
+        id_g4,
+        stores::MANUAL,
+        "manual:custom-rpg",
+        "Custom RPG",
+        0,
+        0,
+        0,
+        None,
+        None,
+        None,
+        None,
+    );
 
     // Backup games:
     // Game 1 (Steam 101): Playtime 600 (>100 -> update), cover in zip, bg in zip
@@ -591,8 +659,8 @@ fn test_inspect_playnite_backup_accurate_counts_and_metrics() {
         .add_file("libraryfiles/files/g5_bg.jpg", b"BG_5")
         .write_to_file(&zip_path);
 
-    let inspection: PlayniteBackupInspection = inspect_playnite_backup(&zip_path, &db)
-        .expect("Inspection failed");
+    let inspection: PlayniteBackupInspection =
+        inspect_playnite_backup(&zip_path, &db).expect("Inspection failed");
 
     // Total games in backup: 6
     assert_eq!(inspection.total_games_in_backup, 6);
@@ -611,7 +679,11 @@ fn test_inspect_playnite_backup_accurate_counts_and_metrics() {
 
     // Verify sample matches structure
     assert_eq!(inspection.sample_matches.len(), 4);
-    let sample_g1 = inspection.sample_matches.iter().find(|s| s.title == "Game One").unwrap();
+    let sample_g1 = inspection
+        .sample_matches
+        .iter()
+        .find(|s| s.title == "Game One")
+        .unwrap();
     assert_eq!(sample_g1.library_id, stores::STEAM);
     assert_eq!(sample_g1.external_id, "101");
     assert_eq!(sample_g1.existing_playtime_seconds, 100);
@@ -620,11 +692,18 @@ fn test_inspect_playnite_backup_accurate_counts_and_metrics() {
     assert!(sample_g1.cover_available);
     assert!(sample_g1.background_available);
 
-    let sample_g2 = inspection.sample_matches.iter().find(|s| s.title == "Game Two").unwrap();
+    let sample_g2 = inspection
+        .sample_matches
+        .iter()
+        .find(|s| s.title == "Game Two")
+        .unwrap();
     assert_eq!(sample_g2.existing_playtime_seconds, 800);
     assert_eq!(sample_g2.backup_playtime_seconds, 300);
     assert!(!sample_g2.has_playtime_update);
-    assert!(!sample_g2.cover_available, "Game Two already has cover in DB");
+    assert!(
+        !sample_g2.cover_available,
+        "Game Two already has cover in DB"
+    );
     assert!(sample_g2.background_available);
 }
 
@@ -642,11 +721,41 @@ fn test_strict_library_only_never_inserts_uncatalogued_games() {
     // Omnis library starts with exactly 2 games
     let id_a = Uuid::new_v4();
     let id_b = Uuid::new_v4();
-    seed_game(&db, id_a, stores::STEAM, "steam_777", "Catalogued Steam Game", 300, 1, 0, None, None, None, None);
-    seed_game(&db, id_b, stores::GOG, "gog_888", "Catalogued GOG Game", 500, 2, 0, None, None, None, None);
+    seed_game(
+        &db,
+        id_a,
+        stores::STEAM,
+        "steam_777",
+        "Catalogued Steam Game",
+        300,
+        1,
+        0,
+        None,
+        None,
+        None,
+        None,
+    );
+    seed_game(
+        &db,
+        id_b,
+        stores::GOG,
+        "gog_888",
+        "Catalogued GOG Game",
+        500,
+        2,
+        0,
+        None,
+        None,
+        None,
+        None,
+    );
 
     let initial_games = db.get_all_games().unwrap();
-    assert_eq!(initial_games.len(), 2, "Library must strictly start with 2 games");
+    assert_eq!(
+        initial_games.len(),
+        2,
+        "Library must strictly start with 2 games"
+    );
 
     // Playnite backup contains 1 matching game and 5 uncatalogued items across different stores
     SyntheticBackupBuilder::new()
@@ -699,12 +808,16 @@ fn test_strict_library_only_never_inserts_uncatalogued_games() {
     let stats = execute_playnite_backup_import(&zip_path, &db, &options, |curr, total, _| {
         progress_count = curr;
         assert!(curr <= total);
-    }).expect("Import execution failed");
+    })
+    .expect("Import execution failed");
 
     // Verify stats
     assert_eq!(stats.total_read, 6);
     assert_eq!(stats.games_merged, 1);
-    assert_eq!(stats.games_created, 0, "Import MUST NEVER create new game records");
+    assert_eq!(
+        stats.games_created, 0,
+        "Import MUST NEVER create new game records"
+    );
     assert_eq!(stats.playtime_updated, 1);
     assert_eq!(progress_count, 6);
 
@@ -719,7 +832,13 @@ fn test_strict_library_only_never_inserts_uncatalogued_games() {
     // Explicitly verify each uncatalogued game does not exist in SQLite
     {
         let conn = db.reader();
-        for uncatalogued_id in &["epic_999", "xbox_111", "origin_222", "amazon_333", "manual:homebrew"] {
+        for uncatalogued_id in &[
+            "epic_999",
+            "xbox_111",
+            "origin_222",
+            "amazon_333",
+            "manual:homebrew",
+        ] {
             let count: i64 = conn
                 .query_row(
                     "SELECT COUNT(*) FROM games WHERE external_id = ?1;",
@@ -727,7 +846,11 @@ fn test_strict_library_only_never_inserts_uncatalogued_games() {
                     |r| r.get(0),
                 )
                 .unwrap();
-            assert_eq!(count, 0, "External ID {} was illegally inserted into games table!", uncatalogued_id);
+            assert_eq!(
+                count, 0,
+                "External ID {} was illegally inserted into games table!",
+                uncatalogued_id
+            );
         }
     }
 
@@ -757,19 +880,90 @@ fn test_non_destructive_playtime_merge() {
 
     // Existing records:
     // Higher in backup: 1000s in DB -> 4000s in backup (should update to 4000)
-    seed_game(&db, id_higher, stores::STEAM, "p_1", "Higher In Backup", 1000, 1, 0, None, None, None, None);
+    seed_game(
+        &db,
+        id_higher,
+        stores::STEAM,
+        "p_1",
+        "Higher In Backup",
+        1000,
+        1,
+        0,
+        None,
+        None,
+        None,
+        None,
+    );
     // Lower in backup: 5000s in DB -> 2000s in backup (should preserve 5000)
-    seed_game(&db, id_lower, stores::STEAM, "p_2", "Lower In Backup", 5000, 1, 0, None, None, None, None);
+    seed_game(
+        &db,
+        id_lower,
+        stores::STEAM,
+        "p_2",
+        "Lower In Backup",
+        5000,
+        1,
+        0,
+        None,
+        None,
+        None,
+        None,
+    );
     // Equal in backup: 3000s in DB -> 3000s in backup (should preserve 3000)
-    seed_game(&db, id_equal, stores::STEAM, "p_3", "Equal In Backup", 3000, 1, 0, None, None, None, None);
+    seed_game(
+        &db,
+        id_equal,
+        stores::STEAM,
+        "p_3",
+        "Equal In Backup",
+        3000,
+        1,
+        0,
+        None,
+        None,
+        None,
+        None,
+    );
     // None in backup: 2500s in DB -> None in backup (should preserve 2500)
-    seed_game(&db, id_none, stores::STEAM, "p_4", "None In Backup", 2500, 1, 0, None, None, None, None);
+    seed_game(
+        &db,
+        id_none,
+        stores::STEAM,
+        "p_4",
+        "None In Backup",
+        2500,
+        1,
+        0,
+        None,
+        None,
+        None,
+        None,
+    );
 
     SyntheticBackupBuilder::new()
-        .add_game(SyntheticGame::new("Higher In Backup").with_game_id("p_1").with_plugin_id(steam_guid()).with_playtime(4000))
-        .add_game(SyntheticGame::new("Lower In Backup").with_game_id("p_2").with_plugin_id(steam_guid()).with_playtime(2000))
-        .add_game(SyntheticGame::new("Equal In Backup").with_game_id("p_3").with_plugin_id(steam_guid()).with_playtime(3000))
-        .add_game(SyntheticGame::new("None In Backup").with_game_id("p_4").with_plugin_id(steam_guid()))
+        .add_game(
+            SyntheticGame::new("Higher In Backup")
+                .with_game_id("p_1")
+                .with_plugin_id(steam_guid())
+                .with_playtime(4000),
+        )
+        .add_game(
+            SyntheticGame::new("Lower In Backup")
+                .with_game_id("p_2")
+                .with_plugin_id(steam_guid())
+                .with_playtime(2000),
+        )
+        .add_game(
+            SyntheticGame::new("Equal In Backup")
+                .with_game_id("p_3")
+                .with_plugin_id(steam_guid())
+                .with_playtime(3000),
+        )
+        .add_game(
+            SyntheticGame::new("None In Backup")
+                .with_game_id("p_4")
+                .with_plugin_id(steam_guid()),
+        )
         .write_to_file(&zip_path);
 
     let options = PlayniteBackupImportOptions {
@@ -782,18 +976,52 @@ fn test_non_destructive_playtime_merge() {
     let stats = execute_playnite_backup_import(&zip_path, &db, &options, |_, _, _| {}).unwrap();
     assert_eq!(stats.playtime_updated, 1);
 
-    assert_eq!(fetch_game(&db, id_higher).playtime_seconds, 4000, "Higher playtime must be updated");
-    assert_eq!(fetch_game(&db, id_lower).playtime_seconds, 5000, "Lower playtime must be preserved");
-    assert_eq!(fetch_game(&db, id_equal).playtime_seconds, 3000, "Equal playtime must be preserved");
-    assert_eq!(fetch_game(&db, id_none).playtime_seconds, 2500, "Existing playtime must be preserved when backup is None");
+    assert_eq!(
+        fetch_game(&db, id_higher).playtime_seconds,
+        4000,
+        "Higher playtime must be updated"
+    );
+    assert_eq!(
+        fetch_game(&db, id_lower).playtime_seconds,
+        5000,
+        "Lower playtime must be preserved"
+    );
+    assert_eq!(
+        fetch_game(&db, id_equal).playtime_seconds,
+        3000,
+        "Equal playtime must be preserved"
+    );
+    assert_eq!(
+        fetch_game(&db, id_none).playtime_seconds,
+        2500,
+        "Existing playtime must be preserved when backup is None"
+    );
 
     // Test with update_playtime = false
     let id_opt_off = Uuid::new_v4();
-    seed_game(&db, id_opt_off, stores::STEAM, "p_off", "Opt Off", 500, 1, 0, None, None, None, None);
+    seed_game(
+        &db,
+        id_opt_off,
+        stores::STEAM,
+        "p_off",
+        "Opt Off",
+        500,
+        1,
+        0,
+        None,
+        None,
+        None,
+        None,
+    );
 
     let zip_opt = env.file_path("test_opt_off.zip");
     SyntheticBackupBuilder::new()
-        .add_game(SyntheticGame::new("Opt Off").with_game_id("p_off").with_plugin_id(steam_guid()).with_playtime(9999))
+        .add_game(
+            SyntheticGame::new("Opt Off")
+                .with_game_id("p_off")
+                .with_plugin_id(steam_guid())
+                .with_playtime(9999),
+        )
         .write_to_file(&zip_opt);
 
     let options_disabled = PlayniteBackupImportOptions {
@@ -802,9 +1030,14 @@ fn test_non_destructive_playtime_merge() {
         update_playtime: false,
         dry_run: false,
     };
-    let stats_dis = execute_playnite_backup_import(&zip_opt, &db, &options_disabled, |_, _, _| {}).unwrap();
+    let stats_dis =
+        execute_playnite_backup_import(&zip_opt, &db, &options_disabled, |_, _, _| {}).unwrap();
     assert_eq!(stats_dis.playtime_updated, 0);
-    assert_eq!(fetch_game(&db, id_opt_off).playtime_seconds, 500, "Playtime must not update when update_playtime is false");
+    assert_eq!(
+        fetch_game(&db, id_opt_off).playtime_seconds,
+        500,
+        "Playtime must not update when update_playtime is false"
+    );
 }
 
 #[test]
@@ -818,24 +1051,89 @@ fn test_non_destructive_play_count_merge() {
     let id_3 = Uuid::new_v4();
 
     // Case 1: DB=5, Backup=20 -> max is 20
-    seed_game(&db, id_1, stores::STEAM, "pc_1", "PC One", 0, 5, 0, None, None, None, None);
+    seed_game(
+        &db,
+        id_1,
+        stores::STEAM,
+        "pc_1",
+        "PC One",
+        0,
+        5,
+        0,
+        None,
+        None,
+        None,
+        None,
+    );
     // Case 2: DB=35, Backup=10 -> max is 35 (preserved!)
-    seed_game(&db, id_2, stores::STEAM, "pc_2", "PC Two", 0, 35, 0, None, None, None, None);
+    seed_game(
+        &db,
+        id_2,
+        stores::STEAM,
+        "pc_2",
+        "PC Two",
+        0,
+        35,
+        0,
+        None,
+        None,
+        None,
+        None,
+    );
     // Case 3: DB=15, Backup=None -> preserved 15
-    seed_game(&db, id_3, stores::STEAM, "pc_3", "PC Three", 0, 15, 0, None, None, None, None);
+    seed_game(
+        &db,
+        id_3,
+        stores::STEAM,
+        "pc_3",
+        "PC Three",
+        0,
+        15,
+        0,
+        None,
+        None,
+        None,
+        None,
+    );
 
     SyntheticBackupBuilder::new()
-        .add_game(SyntheticGame::new("PC One").with_game_id("pc_1").with_plugin_id(steam_guid()).with_play_count(20))
-        .add_game(SyntheticGame::new("PC Two").with_game_id("pc_2").with_plugin_id(steam_guid()).with_play_count(10))
-        .add_game(SyntheticGame::new("PC Three").with_game_id("pc_3").with_plugin_id(steam_guid()))
+        .add_game(
+            SyntheticGame::new("PC One")
+                .with_game_id("pc_1")
+                .with_plugin_id(steam_guid())
+                .with_play_count(20),
+        )
+        .add_game(
+            SyntheticGame::new("PC Two")
+                .with_game_id("pc_2")
+                .with_plugin_id(steam_guid())
+                .with_play_count(10),
+        )
+        .add_game(
+            SyntheticGame::new("PC Three")
+                .with_game_id("pc_3")
+                .with_plugin_id(steam_guid()),
+        )
         .write_to_file(&zip_path);
 
     let options = PlayniteBackupImportOptions::default();
     execute_playnite_backup_import(&zip_path, &db, &options, |_, _, _| {}).unwrap();
 
-    assert_eq!(fetch_game(&db, id_1).play_count, 20, "Play count should take max(5, 20)");
-    assert_eq!(fetch_game(&db, id_2).play_count, 35, "Play count should preserve max(35, 10)");
-    assert_eq!(fetch_game(&db, id_3).play_count, 15, "Play count should preserve existing if backup is None");
+    assert_eq!(
+        fetch_game(&db, id_1).play_count,
+        20,
+        "Play count should take max(5, 20)"
+    );
+    assert_eq!(
+        fetch_game(&db, id_2).play_count,
+        35,
+        "Play count should preserve max(35, 10)"
+    );
+    assert_eq!(
+        fetch_game(&db, id_3).play_count,
+        15,
+        "Play count should preserve existing if backup is None"
+    );
 }
 
 #[test]
@@ -850,27 +1148,121 @@ fn test_non_destructive_favorite_merge() {
     let id_fav_remains_zero = Uuid::new_v4();
 
     // 1. Existing=0, Backup=true -> becomes 1
-    seed_game(&db, id_fav_promoted, stores::STEAM, "fav_1", "Fav 1", 0, 0, 0, None, None, None, None);
+    seed_game(
+        &db,
+        id_fav_promoted,
+        stores::STEAM,
+        "fav_1",
+        "Fav 1",
+        0,
+        0,
+        0,
+        None,
+        None,
+        None,
+        None,
+    );
     // 2. Existing=1, Backup=false -> stays 1 (never reset to 0!)
-    seed_game(&db, id_fav_preserved, stores::STEAM, "fav_2", "Fav 2", 0, 0, 1, None, None, None, None);
+    seed_game(
+        &db,
+        id_fav_preserved,
+        stores::STEAM,
+        "fav_2",
+        "Fav 2",
+        0,
+        0,
+        1,
+        None,
+        None,
+        None,
+        None,
+    );
     // 3. Existing=1, Backup=true -> remains 1
-    seed_game(&db, id_fav_remains_one, stores::STEAM, "fav_3", "Fav 3", 0, 0, 1, None, None, None, None);
+    seed_game(
+        &db,
+        id_fav_remains_one,
+        stores::STEAM,
+        "fav_3",
+        "Fav 3",
+        0,
+        0,
+        1,
+        None,
+        None,
+        None,
+        None,
+    );
     // 4. Existing=0, Backup=false -> remains 0
-    seed_game(&db, id_fav_remains_zero, stores::STEAM, "fav_4", "Fav 4", 0, 0, 0, None, None, None, None);
+    seed_game(
+        &db,
+        id_fav_remains_zero,
+        stores::STEAM,
+        "fav_4",
+        "Fav 4",
+        0,
+        0,
+        0,
+        None,
+        None,
+        None,
+        None,
+    );
 
     SyntheticBackupBuilder::new()
-        .add_game(SyntheticGame::new("Fav 1").with_game_id("fav_1").with_plugin_id(steam_guid()).with_favorite(true))
-        .add_game(SyntheticGame::new("Fav 2").with_game_id("fav_2").with_plugin_id(steam_guid()).with_favorite(false))
-        .add_game(SyntheticGame::new("Fav 3").with_game_id("fav_3").with_plugin_id(steam_guid()).with_favorite(true))
-        .add_game(SyntheticGame::new("Fav 4").with_game_id("fav_4").with_plugin_id(steam_guid()).with_favorite(false))
+        .add_game(
+            SyntheticGame::new("Fav 1")
+                .with_game_id("fav_1")
+                .with_plugin_id(steam_guid())
+                .with_favorite(true),
+        )
+        .add_game(
+            SyntheticGame::new("Fav 2")
+                .with_game_id("fav_2")
+                .with_plugin_id(steam_guid())
+                .with_favorite(false),
+        )
+        .add_game(
+            SyntheticGame::new("Fav 3")
+                .with_game_id("fav_3")
+                .with_plugin_id(steam_guid())
+                .with_favorite(true),
+        )
+        .add_game(
+            SyntheticGame::new("Fav 4")
+                .with_game_id("fav_4")
+                .with_plugin_id(steam_guid())
+                .with_favorite(false),
+        )
         .write_to_file(&zip_path);
 
-    execute_playnite_backup_import(&zip_path, &db, &PlayniteBackupImportOptions::default(), |_, _, _| {}).unwrap();
+    execute_playnite_backup_import(
+        &zip_path,
+        &db,
+        &PlayniteBackupImportOptions::default(),
+        |_, _, _| {},
+    )
+    .unwrap();
 
-    assert_eq!(fetch_game(&db, id_fav_promoted).is_favorite, 1, "Favorite should be promoted to 1");
-    assert_eq!(fetch_game(&db, id_fav_preserved).is_favorite, 1, "Favorite must never be demoted from 1 to 0");
-    assert_eq!(fetch_game(&db, id_fav_remains_one).is_favorite, 1, "Favorite remains 1");
-    assert_eq!(fetch_game(&db, id_fav_remains_zero).is_favorite, 0, "Favorite remains 0");
+    assert_eq!(
+        fetch_game(&db, id_fav_promoted).is_favorite,
+        1,
+        "Favorite should be promoted to 1"
+    );
+    assert_eq!(
+        fetch_game(&db, id_fav_preserved).is_favorite,
+        1,
+        "Favorite must never be demoted from 1 to 0"
+    );
+    assert_eq!(
+        fetch_game(&db, id_fav_remains_one).is_favorite,
+        1,
+        "Favorite remains 1"
+    );
+    assert_eq!(
+        fetch_game(&db, id_fav_remains_zero).is_favorite,
+        0,
+        "Favorite remains 0"
+    );
 }
 
 #[test]
@@ -887,35 +1279,173 @@ fn test_non_destructive_last_activity_and_completion_status_merge() {
     let id_comp_preserve = Uuid::new_v4();
 
     // Newer in backup:
-    seed_game(&db, id_newer, stores::STEAM, "act_1", "Act 1", 0, 0, 0, Some("2026-01-01T00:00:00Z"), None, None, None);
+    seed_game(
+        &db,
+        id_newer,
+        stores::STEAM,
+        "act_1",
+        "Act 1",
+        0,
+        0,
+        0,
+        Some("2026-01-01T00:00:00Z"),
+        None,
+        None,
+        None,
+    );
     // Older in backup:
-    seed_game(&db, id_older, stores::STEAM, "act_2", "Act 2", 0, 0, 0, Some("2026-06-01T00:00:00Z"), None, None, None);
+    seed_game(
+        &db,
+        id_older,
+        stores::STEAM,
+        "act_2",
+        "Act 2",
+        0,
+        0,
+        0,
+        Some("2026-06-01T00:00:00Z"),
+        None,
+        None,
+        None,
+    );
     // DB is None, backup has value:
-    seed_game(&db, id_db_none, stores::STEAM, "act_3", "Act 3", 0, 0, 0, None, None, None, None);
+    seed_game(
+        &db,
+        id_db_none,
+        stores::STEAM,
+        "act_3",
+        "Act 3",
+        0,
+        0,
+        0,
+        None,
+        None,
+        None,
+        None,
+    );
     // Backup is None, DB has value:
-    seed_game(&db, id_backup_none, stores::STEAM, "act_4", "Act 4", 0, 0, 0, Some("2026-03-01T00:00:00Z"), None, None, None);
+    seed_game(
+        &db,
+        id_backup_none,
+        stores::STEAM,
+        "act_4",
+        "Act 4",
+        0,
+        0,
+        0,
+        Some("2026-03-01T00:00:00Z"),
+        None,
+        None,
+        None,
+    );
     // Completion update:
-    seed_game(&db, id_comp_update, stores::STEAM, "act_5", "Act 5", 0, 0, 0, None, None, None, Some("NotPlayed"));
+    seed_game(
+        &db,
+        id_comp_update,
+        stores::STEAM,
+        "act_5",
+        "Act 5",
+        0,
+        0,
+        0,
+        None,
+        None,
+        None,
+        Some("NotPlayed"),
+    );
     // Completion preserve:
-    seed_game(&db, id_comp_preserve, stores::STEAM, "act_6", "Act 6", 0, 0, 0, None, None, None, Some("Playing"));
+    seed_game(
+        &db,
+        id_comp_preserve,
+        stores::STEAM,
+        "act_6",
+        "Act 6",
+        0,
+        0,
+        0,
+        None,
+        None,
+        None,
+        Some("Playing"),
+    );
 
     SyntheticBackupBuilder::new()
-        .add_game(SyntheticGame::new("Act 1").with_game_id("act_1").with_plugin_id(steam_guid()).with_last_activity("2026-09-01T00:00:00Z"))
-        .add_game(SyntheticGame::new("Act 2").with_game_id("act_2").with_plugin_id(steam_guid()).with_last_activity("2025-01-01T00:00:00Z"))
-        .add_game(SyntheticGame::new("Act 3").with_game_id("act_3").with_plugin_id(steam_guid()).with_last_activity("2026-05-01T00:00:00Z"))
-        .add_game(SyntheticGame::new("Act 4").with_game_id("act_4").with_plugin_id(steam_guid()))
-        .add_game(SyntheticGame::new("Act 5").with_game_id("act_5").with_plugin_id(steam_guid()).with_completion("Completed"))
-        .add_game(SyntheticGame::new("Act 6").with_game_id("act_6").with_plugin_id(steam_guid()))
+        .add_game(
+            SyntheticGame::new("Act 1")
+                .with_game_id("act_1")
+                .with_plugin_id(steam_guid())
+                .with_last_activity("2026-09-01T00:00:00Z"),
+        )
+        .add_game(
+            SyntheticGame::new("Act 2")
+                .with_game_id("act_2")
+                .with_plugin_id(steam_guid())
+                .with_last_activity("2025-01-01T00:00:00Z"),
+        )
+        .add_game(
+            SyntheticGame::new("Act 3")
+                .with_game_id("act_3")
+                .with_plugin_id(steam_guid())
+                .with_last_activity("2026-05-01T00:00:00Z"),
+        )
+        .add_game(
+            SyntheticGame::new("Act 4")
+                .with_game_id("act_4")
+                .with_plugin_id(steam_guid()),
+        )
+        .add_game(
+            SyntheticGame::new("Act 5")
+                .with_game_id("act_5")
+                .with_plugin_id(steam_guid())
+                .with_completion("Completed"),
+        )
+        .add_game(
+            SyntheticGame::new("Act 6")
+                .with_game_id("act_6")
+                .with_plugin_id(steam_guid()),
+        )
         .write_to_file(&zip_path);
 
-    execute_playnite_backup_import(&zip_path, &db, &PlayniteBackupImportOptions::default(), |_, _, _| {}).unwrap();
+    execute_playnite_backup_import(
+        &zip_path,
+        &db,
+        &PlayniteBackupImportOptions::default(),
+        |_, _, _| {},
+    )
+    .unwrap();
 
-    assert_eq!(fetch_game(&db, id_newer).last_activity.as_deref(), Some("2026-09-01T00:00:00Z"), "Newer activity should overwrite");
-    assert_eq!(fetch_game(&db, id_older).last_activity.as_deref(), Some("2026-06-01T00:00:00Z"), "Older backup activity must NOT overwrite newer");
-    assert_eq!(fetch_game(&db, id_db_none).last_activity.as_deref(), Some("2026-05-01T00:00:00Z"), "None activity should take backup value");
-    assert_eq!(fetch_game(&db, id_backup_none).last_activity.as_deref(), Some("2026-03-01T00:00:00Z"), "Existing activity preserved when backup is None");
-    assert_eq!(fetch_game(&db, id_comp_update).completion_status.as_deref(), Some("Completed"), "Completion should be updated");
-    assert_eq!(fetch_game(&db, id_comp_preserve).completion_status.as_deref(), Some("Playing"), "Completion preserved when backup has None");
+    assert_eq!(
+        fetch_game(&db, id_newer).last_activity.as_deref(),
+        Some("2026-09-01T00:00:00Z"),
+        "Newer activity should overwrite"
+    );
+    assert_eq!(
+        fetch_game(&db, id_older).last_activity.as_deref(),
+        Some("2026-06-01T00:00:00Z"),
+        "Older backup activity must NOT overwrite newer"
+    );
+    assert_eq!(
+        fetch_game(&db, id_db_none).last_activity.as_deref(),
+        Some("2026-05-01T00:00:00Z"),
+        "None activity should take backup value"
+    );
+    assert_eq!(
+        fetch_game(&db, id_backup_none).last_activity.as_deref(),
+        Some("2026-03-01T00:00:00Z"),
+        "Existing activity preserved when backup is None"
+    );
+    assert_eq!(
+        fetch_game(&db, id_comp_update).completion_status.as_deref(),
+        Some("Completed"),
+        "Completion should be updated"
+    );
+    assert_eq!(
+        fetch_game(&db, id_comp_preserve)
+            .completion_status
+            .as_deref(),
+        Some("Playing"),
+        "Completion preserved when backup has None"
+    );
 }
 
 #[test]
@@ -925,7 +1455,20 @@ fn test_tags_and_categories_synced_on_merge() {
     let db = create_test_db();
 
     let id = Uuid::new_v4();
-    seed_game(&db, id, stores::STEAM, "tag_game", "Tag Game", 0, 0, 0, None, None, None, None);
+    seed_game(
+        &db,
+        id,
+        stores::STEAM,
+        "tag_game",
+        "Tag Game",
+        0,
+        0,
+        0,
+        None,
+        None,
+        None,
+        None,
+    );
 
     SyntheticBackupBuilder::new()
         .add_game(
@@ -937,24 +1480,34 @@ fn test_tags_and_categories_synced_on_merge() {
         )
         .write_to_file(&zip_path);
 
-    let stats = execute_playnite_backup_import(&zip_path, &db, &PlayniteBackupImportOptions::default(), |_, _, _| {}).unwrap();
+    let stats = execute_playnite_backup_import(
+        &zip_path,
+        &db,
+        &PlayniteBackupImportOptions::default(),
+        |_, _, _| {},
+    )
+    .unwrap();
     assert_eq!(stats.tags_added, 2);
     assert_eq!(stats.categories_added, 1);
 
     // Verify relations in sqlite
     let conn = db.reader();
-    let tag_count: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM game_tags WHERE game_id = ?1;",
-        rusqlite::params![id.to_string()],
-        |r| r.get(0),
-    ).unwrap();
+    let tag_count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM game_tags WHERE game_id = ?1;",
+            rusqlite::params![id.to_string()],
+            |r| r.get(0),
+        )
+        .unwrap();
     assert_eq!(tag_count, 2);
 
-    let cat_count: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM game_categories WHERE game_id = ?1;",
-        rusqlite::params![id.to_string()],
-        |r| r.get(0),
-    ).unwrap();
+    let cat_count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM game_categories WHERE game_id = ?1;",
+            rusqlite::params![id.to_string()],
+            |r| r.get(0),
+        )
+        .unwrap();
     assert_eq!(cat_count, 1);
 }
 
@@ -973,7 +1526,20 @@ fn test_image_extraction_to_cache_and_preservation_of_existing() {
     let id_existing = Uuid::new_v4();
 
     // Game 1: Missing cover and background in DB
-    seed_game(&db, id_missing, stores::STEAM, "img_1", "Game Missing Images", 0, 0, 0, None, None, None, None);
+    seed_game(
+        &db,
+        id_missing,
+        stores::STEAM,
+        "img_1",
+        "Game Missing Images",
+        0,
+        0,
+        0,
+        None,
+        None,
+        None,
+        None,
+    );
     // Game 2: Already has cover and background set in DB
     seed_game(
         &db,
@@ -1005,9 +1571,15 @@ fn test_image_extraction_to_cache_and_preservation_of_existing() {
                 .with_cover("sub/img2_cov.jpg")
                 .with_background("sub/img2_bg.jpg"),
         )
-        .add_file("libraryfiles/sub/img1_cov.jpg", b"BINARY_IMAGE_DATA_COVER_1")
+        .add_file(
+            "libraryfiles/sub/img1_cov.jpg",
+            b"BINARY_IMAGE_DATA_COVER_1",
+        )
         .add_file("libraryfiles/sub/img1_bg.jpg", b"BINARY_IMAGE_DATA_BG_1")
-        .add_file("libraryfiles/sub/img2_cov.jpg", b"BINARY_IMAGE_DATA_COVER_2")
+        .add_file(
+            "libraryfiles/sub/img2_cov.jpg",
+            b"BINARY_IMAGE_DATA_COVER_2",
+        )
         .add_file("libraryfiles/sub/img2_bg.jpg", b"BINARY_IMAGE_DATA_BG_2")
         .write_to_file(&zip_path);
 
@@ -1024,16 +1596,31 @@ fn test_image_extraction_to_cache_and_preservation_of_existing() {
 
     // 1. Missing game images must be extracted
     let rec_missing = fetch_game(&db, id_missing);
-    assert!(rec_missing.cover_image_path.is_some(), "Cover must be extracted");
-    assert!(rec_missing.background_image_path.is_some(), "Background must be extracted");
+    assert!(
+        rec_missing.cover_image_path.is_some(),
+        "Cover must be extracted"
+    );
+    assert!(
+        rec_missing.background_image_path.is_some(),
+        "Background must be extracted"
+    );
 
     let extracted_cov = rec_missing.cover_image_path.unwrap();
     let extracted_bg = rec_missing.background_image_path.unwrap();
 
-    assert!(Path::new(&extracted_cov).exists(), "Extracted cover file must exist on disk");
-    assert!(Path::new(&extracted_bg).exists(), "Extracted bg file must exist on disk");
+    assert!(
+        Path::new(&extracted_cov).exists(),
+        "Extracted cover file must exist on disk"
+    );
+    assert!(
+        Path::new(&extracted_bg).exists(),
+        "Extracted bg file must exist on disk"
+    );
 
-    assert_eq!(fs::read(&extracted_cov).unwrap(), b"BINARY_IMAGE_DATA_COVER_1");
+    assert_eq!(
+        fs::read(&extracted_cov).unwrap(),
+        b"BINARY_IMAGE_DATA_COVER_1"
+    );
     assert_eq!(fs::read(&extracted_bg).unwrap(), b"BINARY_IMAGE_DATA_BG_1");
 
     // 2. Existing game images must NEVER be overwritten
@@ -1052,8 +1639,14 @@ fn test_image_extraction_to_cache_and_preservation_of_existing() {
     // Verify cache directory does NOT contain extracted files for game 2
     let unexpected_cov = cache_dir.join(format!("{}_cover.jpg", id_existing));
     let unexpected_bg = cache_dir.join(format!("{}_bg.jpg", id_existing));
-    assert!(!unexpected_cov.exists(), "Cache file for existing cover must not be created");
-    assert!(!unexpected_bg.exists(), "Cache file for existing bg must not be created");
+    assert!(
+        !unexpected_cov.exists(),
+        "Cache file for existing cover must not be created"
+    );
+    assert!(
+        !unexpected_bg.exists(),
+        "Cache file for existing bg must not be created"
+    );
 }
 
 #[test]
@@ -1064,7 +1657,20 @@ fn test_image_import_options_and_dry_run() {
     let db = create_test_db();
 
     let id = Uuid::new_v4();
-    seed_game(&db, id, stores::STEAM, "img_toggle", "Toggle Game", 100, 1, 0, None, None, None, None);
+    seed_game(
+        &db,
+        id,
+        stores::STEAM,
+        "img_toggle",
+        "Toggle Game",
+        100,
+        1,
+        0,
+        None,
+        None,
+        None,
+        None,
+    );
 
     SyntheticBackupBuilder::new()
         .add_game(
@@ -1084,7 +1690,8 @@ fn test_image_import_options_and_dry_run() {
         update_playtime: true,
         dry_run: true,
     };
-    let dry_stats = execute_playnite_backup_import(&zip_path, &db, &dry_options, |_, _, _| {}).unwrap();
+    let dry_stats =
+        execute_playnite_backup_import(&zip_path, &db, &dry_options, |_, _, _| {}).unwrap();
     assert_eq!(dry_stats.games_merged, 1);
     assert_eq!(dry_stats.images_cached, 1);
     assert_eq!(dry_stats.playtime_updated, 1);
@@ -1093,7 +1700,10 @@ fn test_image_import_options_and_dry_run() {
     let rec_dry = fetch_game(&db, id);
     assert_eq!(rec_dry.playtime_seconds, 100);
     assert!(rec_dry.cover_image_path.is_none());
-    assert!(!cache_dir.exists(), "Cache directory should not be created in dry run");
+    assert!(
+        !cache_dir.exists(),
+        "Cache directory should not be created in dry run"
+    );
 
     // Test import_images = false
     let no_img_options = PlayniteBackupImportOptions {
@@ -1102,13 +1712,17 @@ fn test_image_import_options_and_dry_run() {
         update_playtime: true,
         dry_run: false,
     };
-    let live_stats = execute_playnite_backup_import(&zip_path, &db, &no_img_options, |_, _, _| {}).unwrap();
+    let live_stats =
+        execute_playnite_backup_import(&zip_path, &db, &no_img_options, |_, _, _| {}).unwrap();
     assert_eq!(live_stats.images_cached, 0);
     assert_eq!(live_stats.playtime_updated, 1);
 
     let rec_live = fetch_game(&db, id);
     assert_eq!(rec_live.playtime_seconds, 500, "Playtime should update");
-    assert!(rec_live.cover_image_path.is_none(), "Cover must not be imported when import_images is false");
+    assert!(
+        rec_live.cover_image_path.is_none(),
+        "Cover must not be imported when import_images is false"
+    );
 }
 
 // ============================================================================
@@ -1125,9 +1739,35 @@ fn test_manual_game_fallback_matching_by_title_and_store_isolation() {
     let id_steam = Uuid::new_v4();
 
     // 1. Manual game: matched by title collation
-    seed_game(&db, id_manual, stores::MANUAL, "manual:custom-adventure", "Custom Adventure", 50, 1, 0, None, None, None, None);
+    seed_game(
+        &db,
+        id_manual,
+        stores::MANUAL,
+        "manual:custom-adventure",
+        "Custom Adventure",
+        50,
+        1,
+        0,
+        None,
+        None,
+        None,
+        None,
+    );
     // 2. Steam game with same title as in backup, but DIFFERENT external_id
-    seed_game(&db, id_steam, stores::STEAM, "steam_real_id", "Same Name Game", 100, 1, 0, None, None, None, None);
+    seed_game(
+        &db,
+        id_steam,
+        stores::STEAM,
+        "steam_real_id",
+        "Same Name Game",
+        100,
+        1,
+        0,
+        None,
+        None,
+        None,
+        None,
+    );
 
     SyntheticBackupBuilder::new()
         // Manual game with case difference: "  custom ADVENTURE  " and no GameId
@@ -1150,7 +1790,13 @@ fn test_manual_game_fallback_matching_by_title_and_store_isolation() {
     assert_eq!(inspection.matching_games_in_library, 1);
     assert_eq!(inspection.non_matching_games, 1);
 
-    let stats = execute_playnite_backup_import(&zip_path, &db, &PlayniteBackupImportOptions::default(), |_, _, _| {}).unwrap();
+    let stats = execute_playnite_backup_import(
+        &zip_path,
+        &db,
+        &PlayniteBackupImportOptions::default(),
+        |_, _, _| {},
+    )
+    .unwrap();
     assert_eq!(stats.games_merged, 1);
     assert_eq!(stats.playtime_updated, 1);
 
@@ -1173,13 +1819,29 @@ fn test_edge_cases_error_handling() {
     // 1. Non-existent file path returns Err
     let non_existent = env.file_path("does_not_exist.zip");
     assert!(inspect_playnite_backup(&non_existent, &db).is_err());
-    assert!(execute_playnite_backup_import(&non_existent, &db, &PlayniteBackupImportOptions::default(), |_, _, _| {}).is_err());
+    assert!(execute_playnite_backup_import(
+        &non_existent,
+        &db,
+        &PlayniteBackupImportOptions::default(),
+        |_, _, _| {}
+    )
+    .is_err());
 
     // 2. Invalid or non-ZIP file returns Err
     let corrupt_file = env.file_path("not_a_zip.zip");
-    fs::write(&corrupt_file, b"This is just a plain text file, definitely not a ZIP file!").unwrap();
+    fs::write(
+        &corrupt_file,
+        b"This is just a plain text file, definitely not a ZIP file!",
+    )
+    .unwrap();
     assert!(inspect_playnite_backup(&corrupt_file, &db).is_err());
-    assert!(execute_playnite_backup_import(&corrupt_file, &db, &PlayniteBackupImportOptions::default(), |_, _, _| {}).is_err());
+    assert!(execute_playnite_backup_import(
+        &corrupt_file,
+        &db,
+        &PlayniteBackupImportOptions::default(),
+        |_, _, _| {}
+    )
+    .is_err());
 
     // 3. ZIP without library/games.db returns Err
     let no_db_zip = env.file_path("no_games_db.zip");
@@ -1192,7 +1854,12 @@ fn test_edge_cases_error_handling() {
     assert!(inspect_err.is_err());
     assert!(inspect_err.unwrap_err().to_string().contains("games.db"));
 
-    let import_err = execute_playnite_backup_import(&no_db_zip, &db, &PlayniteBackupImportOptions::default(), |_, _, _| {});
+    let import_err = execute_playnite_backup_import(
+        &no_db_zip,
+        &db,
+        &PlayniteBackupImportOptions::default(),
+        |_, _, _| {},
+    );
     assert!(import_err.is_err());
     assert!(import_err.unwrap_err().to_string().contains("games.db"));
 
@@ -1203,7 +1870,13 @@ fn test_edge_cases_error_handling() {
         .write_to_file(&corrupt_db_zip);
 
     assert!(inspect_playnite_backup(&corrupt_db_zip, &db).is_err());
-    assert!(execute_playnite_backup_import(&corrupt_db_zip, &db, &PlayniteBackupImportOptions::default(), |_, _, _| {}).is_err());
+    assert!(execute_playnite_backup_import(
+        &corrupt_db_zip,
+        &db,
+        &PlayniteBackupImportOptions::default(),
+        |_, _, _| {}
+    )
+    .is_err());
 
     // 5. Completely empty ZIP file returns Err
     let empty_zip = env.file_path("empty.zip");
@@ -1213,7 +1886,13 @@ fn test_edge_cases_error_handling() {
         zip.finish().unwrap();
     }
     assert!(inspect_playnite_backup(&empty_zip, &db).is_err());
-    assert!(execute_playnite_backup_import(&empty_zip, &db, &PlayniteBackupImportOptions::default(), |_, _, _| {}).is_err());
+    assert!(execute_playnite_backup_import(
+        &empty_zip,
+        &db,
+        &PlayniteBackupImportOptions::default(),
+        |_, _, _| {}
+    )
+    .is_err());
 }
 
 // ============================================================================
@@ -1293,7 +1972,8 @@ fn test_real_backup_archive_integration() {
 
     // 1. Measure inspection speed and correctness
     let start_inspect = Instant::now();
-    let inspection = inspect_playnite_backup(&backup_path, &db).expect("Failed to inspect real backup archive");
+    let inspection =
+        inspect_playnite_backup(&backup_path, &db).expect("Failed to inspect real backup archive");
     let elapsed_inspect = start_inspect.elapsed();
     println!("Real backup inspection took: {:?}", elapsed_inspect);
 
@@ -1303,7 +1983,10 @@ fn test_real_backup_archive_integration() {
         "Expected ~2064 games in real backup, got {}",
         inspection.total_games_in_backup
     );
-    assert_eq!(inspection.matching_games_in_library, 2, "Only HLD and First Descendant should match");
+    assert_eq!(
+        inspection.matching_games_in_library, 2,
+        "Only HLD and First Descendant should match"
+    );
     assert_eq!(
         inspection.non_matching_games,
         inspection.total_games_in_backup - 2
@@ -1332,8 +2015,14 @@ fn test_real_backup_archive_integration() {
         .find(|s| s.title == "Hyper Light Drifter")
         .expect("Hyper Light Drifter should be present in sample matches");
     assert_eq!(hld_sample.library_id, "amazon");
-    assert_eq!(hld_sample.external_id, "b515a0c1-b73d-4201-aae3-1ef8fb1faf5e");
-    assert!(hld_sample.cover_available, "HLD cover must be available in zip");
+    assert_eq!(
+        hld_sample.external_id,
+        "b515a0c1-b73d-4201-aae3-1ef8fb1faf5e"
+    );
+    assert!(
+        hld_sample.cover_available,
+        "HLD cover must be available in zip"
+    );
 
     // 2. Execute live import from the real archive
     let options = PlayniteBackupImportOptions {
@@ -1345,16 +2034,21 @@ fn test_real_backup_archive_integration() {
 
     let mut reported_progress_total = 0;
     let expected_total = inspection.total_games_in_backup;
-    let stats = execute_playnite_backup_import(&backup_path, &db, &options, |curr, total, _name| {
-        if curr == total {
-            reported_progress_total = curr;
-        }
-    }).expect("Real archive import execution failed");
+    let stats =
+        execute_playnite_backup_import(&backup_path, &db, &options, |curr, total, _name| {
+            if curr == total {
+                reported_progress_total = curr;
+            }
+        })
+        .expect("Real archive import execution failed");
 
     // Verify import statistics
     assert_eq!(stats.total_read, expected_total);
     assert_eq!(stats.games_merged, 2);
-    assert_eq!(stats.games_created, 0, "No new games should be created from real backup");
+    assert_eq!(
+        stats.games_created, 0,
+        "No new games should be created from real backup"
+    );
     assert!(stats.playtime_updated >= 1);
     assert!(stats.images_cached >= 1);
     assert_eq!(reported_progress_total, expected_total);
@@ -1369,14 +2063,26 @@ fn test_real_backup_archive_integration() {
 
     // Verify First Descendant playtime was updated to 1980
     let rec_fd = fetch_game(&db, id_fd);
-    assert_eq!(rec_fd.playtime_seconds, 1980, "First Descendant playtime should update to 1980");
+    assert_eq!(
+        rec_fd.playtime_seconds, 1980,
+        "First Descendant playtime should update to 1980"
+    );
 
     // Verify Hyper Light Drifter cover was extracted to cache
     let rec_hld = fetch_game(&db, id_hld);
-    assert!(rec_hld.cover_image_path.is_some(), "HLD cover must be extracted");
+    assert!(
+        rec_hld.cover_image_path.is_some(),
+        "HLD cover must be extracted"
+    );
     let cover_file = PathBuf::from(rec_hld.cover_image_path.unwrap());
-    assert!(cover_file.exists(), "Extracted HLD cover must exist on disk");
-    assert!(fs::metadata(&cover_file).unwrap().len() > 1000, "HLD cover must be a valid non-empty file");
+    assert!(
+        cover_file.exists(),
+        "Extracted HLD cover must exist on disk"
+    );
+    assert!(
+        fs::metadata(&cover_file).unwrap().len() > 1000,
+        "HLD cover must be a valid non-empty file"
+    );
 
     // Verify unmatched local game was untouched
     let rec_unmatched = fetch_game(&db, id_unmatched);
@@ -1386,7 +2092,8 @@ fn test_real_backup_archive_integration() {
 
 #[test]
 fn test_steam_library_match_with_user_data_if_available() {
-    let backup_path = PathBuf::from("/mnt/d/progetti/omnis/omnis/PlayniteBackup-2026-10-24-10-43-43.zip");
+    let backup_path =
+        PathBuf::from("/mnt/d/progetti/omnis/omnis/PlayniteBackup-2026-10-24-10-43-43.zip");
     let db_path = PathBuf::from("/mnt/c/Users/rinal/AppData/Roaming/Omnis Game Library/library.db");
     if !backup_path.exists() || !db_path.exists() {
         return;
@@ -1403,5 +2110,8 @@ fn test_steam_library_match_with_user_data_if_available() {
     );
     assert!(inspection.total_games_in_backup >= 2060);
     assert_eq!(inspection.unmatched_in_library.len(), 1);
-    assert_eq!(inspection.unmatched_in_library[0].title, "Ubisoft Connect Services");
+    assert_eq!(
+        inspection.unmatched_in_library[0].title,
+        "Ubisoft Connect Services"
+    );
 }

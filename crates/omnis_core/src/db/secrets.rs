@@ -5,12 +5,7 @@ use crate::db::{Database, DatabaseError};
 /// Repository trait for secure credential and secret storage (Requirement D1)
 pub trait SecretRepository: Send + Sync {
     /// Store an encrypted secret record
-    fn store_secret(
-        &self,
-        id: &str,
-        nonce: &[u8],
-        ciphertext: &[u8],
-    ) -> Result<(), DatabaseError>;
+    fn store_secret(&self, id: &str, nonce: &[u8], ciphertext: &[u8]) -> Result<(), DatabaseError>;
 
     /// Retrieve an encrypted secret record by ID
     fn get_secret(&self, id: &str) -> Result<Option<(Vec<u8>, Vec<u8>)>, DatabaseError>;
@@ -20,12 +15,7 @@ pub trait SecretRepository: Send + Sync {
 }
 
 impl SecretRepository for Database {
-    fn store_secret(
-        &self,
-        id: &str,
-        nonce: &[u8],
-        ciphertext: &[u8],
-    ) -> Result<(), DatabaseError> {
+    fn store_secret(&self, id: &str, nonce: &[u8], ciphertext: &[u8]) -> Result<(), DatabaseError> {
         let conn = self.writer();
         let now = chrono::Utc::now().timestamp();
         conn.execute(

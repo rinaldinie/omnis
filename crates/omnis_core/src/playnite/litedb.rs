@@ -1,6 +1,6 @@
-use std::collections::{HashMap, HashSet};
 use chrono::DateTime;
 use serde::{Deserialize, Serialize};
+use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 
 use crate::playnite::PlayniteGameDto;
@@ -239,7 +239,9 @@ pub fn parse_bson_document(slice: &[u8]) -> Option<(BsonDocument, usize)> {
         if pos >= doc_len - 1 {
             return None;
         }
-        let key = std::str::from_utf8(&slice[key_start..pos]).ok()?.to_string();
+        let key = std::str::from_utf8(&slice[key_start..pos])
+            .ok()?
+            .to_string();
         pos += 1; // skip null byte
 
         let value = match elem_type {
@@ -495,7 +497,9 @@ pub fn extract_litedb_document<'a>(
     // Fast path: document fits completely within current page
     if doc_start + doc_len <= curr_page_end {
         if doc_start + doc_len <= data.len() && data[doc_start + doc_len - 1] == 0 {
-            return Some(std::borrow::Cow::Borrowed(&data[doc_start..doc_start + doc_len]));
+            return Some(std::borrow::Cow::Borrowed(
+                &data[doc_start..doc_start + doc_len],
+            ));
         }
         return None;
     }
@@ -528,7 +532,8 @@ pub fn extract_litedb_document<'a>(
             break;
         }
 
-        let available = (page_size - header_size).min(data.len().saturating_sub(p_start + header_size));
+        let available =
+            (page_size - header_size).min(data.len().saturating_sub(p_start + header_size));
         let take = bytes_needed.min(available);
         buf.extend_from_slice(&data[p_start + header_size..p_start + header_size + take]);
         bytes_needed = bytes_needed.saturating_sub(take);
@@ -579,7 +584,9 @@ pub fn scan_litedb_games(data: &[u8]) -> Result<Vec<PlayniteGameDto>, LiteDbErro
                 let elem_type = data[doc_start + 4];
                 // Type byte must be Binary (0x05), String (0x02), or ObjectId (0x07)
                 if elem_type == 0x05 || elem_type == 0x02 || elem_type == 0x07 {
-                    if let Some(doc_bytes) = extract_litedb_document(data, doc_start, page_size, header_size) {
+                    if let Some(doc_bytes) =
+                        extract_litedb_document(data, doc_start, page_size, header_size)
+                    {
                         if let Some((doc, _)) = parse_bson_document(&doc_bytes) {
                             if let Some(game_dto) = bson_doc_to_game_dto(&doc) {
                                 let key = format!(

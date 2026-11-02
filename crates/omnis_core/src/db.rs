@@ -133,9 +133,9 @@ impl Database {
         if dest_ref.exists() {
             let _ = std::fs::remove_file(dest_ref);
         }
-        let dest_str = dest_ref.to_str().ok_or_else(|| {
-            rusqlite::Error::InvalidPath(dest_ref.to_path_buf())
-        })?;
+        let dest_str = dest_ref
+            .to_str()
+            .ok_or_else(|| rusqlite::Error::InvalidPath(dest_ref.to_path_buf()))?;
         let conn = self.writer();
         conn.execute("VACUUM INTO ?1;", rusqlite::params![dest_str])?;
         Ok(())

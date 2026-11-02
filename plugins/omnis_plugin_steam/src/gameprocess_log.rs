@@ -1,8 +1,8 @@
+use chrono::{DateTime, Local, NaiveDateTime, TimeZone, Utc};
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
-use chrono::{DateTime, Local, NaiveDateTime, TimeZone, Utc};
 
 /// Represents an execution session parsed from Steam's `gameprocess_log.txt`
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -38,7 +38,10 @@ pub fn parse_gameprocess_log(log_path: &Path) -> Vec<SteamProcessSession> {
 }
 
 /// Parse Steam's `logs/gameprocess_log.txt` with configurable minimum duration threshold.
-pub fn parse_gameprocess_log_with_min_duration(log_path: &Path, min_duration_seconds: u64) -> Vec<SteamProcessSession> {
+pub fn parse_gameprocess_log_with_min_duration(
+    log_path: &Path,
+    min_duration_seconds: u64,
+) -> Vec<SteamProcessSession> {
     let file = match File::open(log_path) {
         Ok(f) => f,
         Err(_) => return Vec::new(),
@@ -78,11 +81,13 @@ pub fn parse_gameprocess_log_with_min_duration(log_path: &Path, min_duration_sec
                         let pid_str = after_pid.split_whitespace().next().unwrap_or("");
                         let pid = pid_str.parse::<u32>().unwrap_or(0);
 
-                        let entry = active.entry(appid).or_insert_with(|| ActiveProcessTracking {
-                            start_dt_str: timestamp_str.to_string(),
-                            tracked_pids: HashSet::new(),
-                            last_exit_dt_str: None,
-                        });
+                        let entry = active
+                            .entry(appid)
+                            .or_insert_with(|| ActiveProcessTracking {
+                                start_dt_str: timestamp_str.to_string(),
+                                tracked_pids: HashSet::new(),
+                                last_exit_dt_str: None,
+                            });
                         entry.tracked_pids.insert(pid);
                     } else if let Some(exit_pos) = event_part.find("no longer tracking PID ") {
                         let after_pid = &event_part[exit_pos + 23..];
@@ -104,7 +109,10 @@ pub fn parse_gameprocess_log_with_min_duration(log_path: &Path, min_duration_sec
             if let Some(space_idx) = after_remove.find(" from running list") {
                 if let Ok(appid) = after_remove[..space_idx].trim().parse::<u64>() {
                     if let Some(tracking) = active.remove(&appid) {
-                        let end_ts = tracking.last_exit_dt_str.as_deref().unwrap_or(timestamp_str);
+                        let end_ts = tracking
+                            .last_exit_dt_str
+                            .as_deref()
+                            .unwrap_or(timestamp_str);
                         if let (Some(start_utc), Some(end_utc)) = (
                             local_timestamp_to_utc_rfc3339(&tracking.start_dt_str),
                             local_timestamp_to_utc_rfc3339(end_ts),
@@ -140,7 +148,13 @@ mod tests {
 
     #[test]
     fn test_parse_steam_gameprocess_log() {
-        let temp_dir = std::env::temp_dir().join(format!("steam_log_test_{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+        let temp_dir = std::env::temp_dir().join(format!(
+            "steam_log_test_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
         std::fs::create_dir_all(&temp_dir).unwrap();
         let log_file = temp_dir.join("gameprocess_log.txt");
 

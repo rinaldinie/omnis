@@ -6,7 +6,9 @@ use crate::migration;
 use crate::store_manager::StoreAccountManager;
 use crate::tray;
 use crate::types::{AppState, ImageCache};
-use omnis_core::{Database, EventBus, MarketplaceManager, MetadataDownloader, PluginHost, SecretVault};
+use omnis_core::{
+    Database, EventBus, MarketplaceManager, MetadataDownloader, PluginHost, SecretVault,
+};
 use omnis_plugin_epic::EpicLibraryPlugin;
 use omnis_plugin_gog::GogCloudPlugin;
 use omnis_plugin_steam::SteamPlugin;
@@ -82,7 +84,11 @@ impl AppBootstrap {
     pub fn init_plugins(
         plugins_dir: &Path,
         db: Arc<Database>,
-    ) -> (Arc<PluginHost>, Arc<MetadataDownloader>, Arc<MarketplaceManager>) {
+    ) -> (
+        Arc<PluginHost>,
+        Arc<MetadataDownloader>,
+        Arc<MarketplaceManager>,
+    ) {
         let event_bus = EventBus::new(256);
         let mut host = PluginHost::new(event_bus.clone(), db);
         host.register_plugin(Box::new(SteamPlugin::new()));
@@ -95,7 +101,9 @@ impl AppBootstrap {
         let marketplace_clone = marketplace.clone();
         tauri::async_runtime::block_on(async {
             let _ = host.initialize_all().await;
-            downloader_clone.set_plugins_dir(plugins_dir_buf.clone()).await;
+            downloader_clone
+                .set_plugins_dir(plugins_dir_buf.clone())
+                .await;
             marketplace_clone.set_plugins_dir(plugins_dir_buf).await;
         });
 
@@ -167,7 +175,11 @@ impl AppBootstrap {
         app.manage(state);
 
         // Spawn automated background backup scheduler
-        crate::backup_scheduler::spawn_backup_scheduler(db_backup, app_dir_backup, app.handle().clone());
+        crate::backup_scheduler::spawn_backup_scheduler(
+            db_backup,
+            app_dir_backup,
+            app.handle().clone(),
+        );
 
         // Check if an installed game is already running and re-attach session on startup
         tauri::async_runtime::spawn(async move {
@@ -184,7 +196,10 @@ impl AppBootstrap {
 
             match res {
                 Ok(Ok(count)) if count > 0 => {
-                    tracing::info!("Synchronized {} unrecorded Steam sessions on startup", count);
+                    tracing::info!(
+                        "Synchronized {} unrecorded Steam sessions on startup",
+                        count
+                    );
                     use tauri::Emitter;
                     let _ = app_handle_steam.emit(events::LIBRARY_UPDATED, ());
                 }
@@ -264,7 +279,10 @@ impl AppBootstrap {
         }
         if let tauri::WindowEvent::CloseRequested { api, .. } = event {
             let state = window.state::<AppState>();
-            if state.minimize_to_tray.load(std::sync::atomic::Ordering::SeqCst) {
+            if state
+                .minimize_to_tray
+                .load(std::sync::atomic::Ordering::SeqCst)
+            {
                 api.prevent_close();
                 let _ = window.hide();
             }
