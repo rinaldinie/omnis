@@ -46,12 +46,12 @@ jobs:
           fi
 
           if [ -z "$COMMITS" ]; then
-            COMMITS="- Aggiornamento e miglioramenti generali."
+            COMMITS="- General improvements and maintenance."
           fi
 
           {
             echo "body<<EOF"
-            echo "## Novità in $CURRENT_REF"
+            echo "## What's new in $CURRENT_REF"
             echo ""
             echo "$COMMITS"
             echo "EOF"
