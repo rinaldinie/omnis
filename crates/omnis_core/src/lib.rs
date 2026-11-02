@@ -48,7 +48,7 @@ pub use playnite::{
     PlayniteBackupImportOptions, PlayniteBackupInspection, PlayniteBackupMatchSample,
     PlayniteGameDto, PlayniteImportOptions, PlayniteImportStats, PlayniteImporter,
 };
-pub use security::{SecretVault, VaultError, VaultStatus};
+pub use security::{MasterKeyStore, OsKeyringStore, SecretVault, VaultError, VaultStatus};
 pub use theme::{
     parse_and_validate_theme_manifest, validate_theme_css_security, ThemeManifest,
     CURRENT_THEME_API_VERSION,

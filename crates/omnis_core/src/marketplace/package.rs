@@ -9,58 +9,74 @@ use tracing::{info, warn};
 pub struct PluginPackageInstaller;
 
 impl PluginPackageInstaller {
-    /// Download or read local package bytes for a plugin asset, verifying its SHA-256 hash if present
+    /// Download or read local package bytes for a plugin asset.
+    ///
+    /// - `https://`: downloaded and verified against a mandatory SHA-256 digest.
+    /// - `file://`: read from disk (local development), verified if a digest is present.
+    /// - `mock://`: no bytes; the caller installs the local mock fallback.
+    /// - anything else (including plain `http://`) is rejected.
     pub async fn download_or_read_asset(
         client: &reqwest::Client,
         plugin_id: &str,
         asset: &MarketplacePlatformAsset,
     ) -> Result<Option<Vec<u8>>, String> {
-        let is_remote_http =
-            asset.download_url.starts_with("http://") || asset.download_url.starts_with("https://");
-        let is_file_url = asset.download_url.starts_with("file://");
-        let mut downloaded_bytes: Option<Vec<u8>> = None;
+        let url = asset.download_url.trim();
 
-        if is_remote_http {
-            info!(
-                "Scaricamento plugin '{}' da: {}",
-                plugin_id, asset.download_url
-            );
-            if let Ok(resp) = client.get(&asset.download_url).send().await {
-                if resp.status().is_success() {
-                    if let Ok(bytes) = resp.bytes().await {
-                        downloaded_bytes = Some(bytes.to_vec());
-                    }
-                }
-            }
-        } else if is_file_url {
-            info!(
-                "Lettura asset plugin '{}' da URL file: {}",
-                plugin_id, asset.download_url
-            );
-            let local_path = file_url_to_path(&asset.download_url);
-            if local_path.exists() {
-                match std::fs::read(&local_path) {
-                    Ok(bytes) => downloaded_bytes = Some(bytes),
-                    Err(e) => {
-                        return Err(format!(
-                            "Lettura file fallita {}: {}",
-                            local_path.display(),
-                            e
-                        ))
-                    }
-                }
-            } else {
-                return Err(format!("File asset non trovato: {}", local_path.display()));
-            }
+        if url.starts_with("mock://") {
+            return Ok(None);
         }
 
-        if let Some(ref bytes) = downloaded_bytes {
-            if let Some(ref expected_sha256) = asset.sha256 {
-                Self::verify_sha256(bytes, expected_sha256, plugin_id)?;
+        if url.starts_with("https://") {
+            let expected_sha256 = asset
+                .sha256
+                .as_deref()
+                .filter(|h| !h.trim().is_empty())
+                .ok_or_else(|| {
+                    format!(
+                        "Il plugin '{}' non dichiara un hash SHA-256: installazione remota rifiutata",
+                        plugin_id
+                    )
+                })?;
+
+            info!("Scaricamento plugin '{}' da: {}", plugin_id, url);
+            let resp = client
+                .get(url)
+                .send()
+                .await
+                .map_err(|e| format!("Download del plugin '{}' fallito: {}", plugin_id, e))?;
+            if !resp.status().is_success() {
+                return Err(format!(
+                    "Download del plugin '{}' fallito: HTTP {}",
+                    plugin_id,
+                    resp.status()
+                ));
             }
+            let bytes = resp
+                .bytes()
+                .await
+                .map_err(|e| format!("Download del plugin '{}' interrotto: {}", plugin_id, e))?
+                .to_vec();
+
+            Self::verify_sha256(&bytes, expected_sha256, plugin_id)?;
+            return Ok(Some(bytes));
         }
 
-        Ok(downloaded_bytes)
+        if url.starts_with("file://") {
+            info!("Lettura asset plugin '{}' da URL file: {}", plugin_id, url);
+            let local_path = file_url_to_path(url);
+            let bytes = std::fs::read(&local_path)
+                .map_err(|e| format!("Lettura file fallita {}: {}", local_path.display(), e))?;
+            if let Some(expected_sha256) = asset.sha256.as_deref().filter(|h| !h.trim().is_empty())
+            {
+                Self::verify_sha256(&bytes, expected_sha256, plugin_id)?;
+            }
+            return Ok(Some(bytes));
+        }
+
+        Err(format!(
+            "URL del plugin '{}' non consentito (sono ammessi solo https://, file:// e mock://): {}",
+            plugin_id, url
+        ))
     }
 
     /// Verifies SHA-256 integrity of downloaded bytes against expected hash
@@ -69,10 +85,17 @@ impl PluginPackageInstaller {
         expected_sha256: &str,
         plugin_id: &str,
     ) -> Result<(), String> {
+        let expected_sha256 = expected_sha256.trim();
+        if expected_sha256.len() != 64 || !expected_sha256.chars().all(|c| c.is_ascii_hexdigit()) {
+            return Err(format!(
+                "Hash SHA-256 non valido nel catalogo per il plugin '{}': '{}'",
+                plugin_id, expected_sha256
+            ));
+        }
         let mut hasher = Sha256::new();
         hasher.update(bytes);
         let actual_sha256 = format!("{:x}", hasher.finalize());
-        if !expected_sha256.is_empty() && !actual_sha256.eq_ignore_ascii_case(expected_sha256) {
+        if !actual_sha256.eq_ignore_ascii_case(expected_sha256) {
             return Err(format!(
                 "Verifica integrità SHA-256 fallita per il plugin '{}': atteso '{}', calcolato '{}'",
                 plugin_id, expected_sha256, actual_sha256

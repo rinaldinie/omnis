@@ -1,5 +1,6 @@
 //! Application bootstrap coordinator: directory layout, service wiring, and lifecycle hooks
 
+use crate::media_scope::MediaScope;
 use crate::migration;
 use crate::services::{AchievementService, ActiveGameManager};
 use crate::store::StoreAccountManager;
@@ -134,6 +135,16 @@ impl AppBootstrap {
         let (host, downloader, marketplace) = Self::init_plugins(&paths.plugins_dir, db.clone());
         let store_account_manager = Self::init_store_accounts(&paths.app_dir, db.clone());
 
+        let media_scope = Arc::new(MediaScope::new(app.asset_protocol_scope()));
+        let cache_dir = paths.app_dir.join(storage::CACHE_DIR);
+        media_scope.allow_directory(&cache_dir);
+        media_scope.allow_directory(&paths.app_dir.join(storage::TRAILERS_DIR));
+        media_scope.allow_directory(&paths.themes_dir);
+        match db.get_all_games() {
+            Ok(games) => games.iter().for_each(|g| media_scope.allow_game_media(g)),
+            Err(e) => tracing::warn!("Failed to load games for asset scope: {}", e),
+        }
+
         let image_cache = Arc::new(ImageCache::new());
         let active_game_manager = Arc::new(ActiveGameManager::new());
         let achievement_service = Arc::new(AchievementService::new());
@@ -149,6 +160,7 @@ impl AppBootstrap {
             plugins_dir: paths.plugins_dir,
             themes_dir: paths.themes_dir,
             image_cache,
+            media_scope,
             store_account_manager,
             trailer_cache: Arc::new(tokio::sync::RwLock::new(HashMap::new())),
             active_game_manager,

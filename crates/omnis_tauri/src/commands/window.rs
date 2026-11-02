@@ -200,16 +200,21 @@ pub async fn find_executables_in_folder(folder_path: String) -> Result<Vec<Strin
 }
 
 #[tauri::command]
-pub async fn pick_image_file() -> Result<Option<String>, String> {
-    tokio::task::spawn_blocking(|| {
-        let file = rfd::FileDialog::new()
+pub async fn pick_image_file(state: State<'_, AppState>) -> Result<Option<String>, String> {
+    let picked: Option<String> = tokio::task::spawn_blocking(|| {
+        rfd::FileDialog::new()
             .set_title("Seleziona immagine copertina o sfondo")
             .add_filter("Immagini", &["png", "jpg", "jpeg", "webp", "ico", "bmp"])
-            .pick_file();
-        Ok(file.map(|p| p.to_string_lossy().to_string()))
+            .pick_file()
+            .map(|p| p.to_string_lossy().to_string())
     })
     .await
-    .map_err(|e| e.to_string())?
+    .map_err(|e| e.to_string())?;
+    // Allow the picked file so the editor can preview it before saving
+    if let Some(ref path) = picked {
+        state.media_scope.allow_media_file(path);
+    }
+    Ok(picked)
 }
 
 pub fn validate_external_url(url: &str) -> Result<&str, String> {

@@ -134,6 +134,7 @@ pub struct AppState {
     pub plugins_dir: PathBuf,
     pub themes_dir: PathBuf,
     pub image_cache: Arc<ImageCache>,
+    pub media_scope: Arc<crate::media_scope::MediaScope>,
     pub store_account_manager: Arc<crate::store::StoreAccountManager>,
     pub trailer_cache: Arc<tokio::sync::RwLock<HashMap<String, String>>>,
     pub active_game_manager: Arc<crate::services::ActiveGameManager>,

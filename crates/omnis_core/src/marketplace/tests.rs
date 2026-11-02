@@ -139,3 +139,66 @@ fn test_validate_plugin_id() {
     assert!(validate_plugin_id("plugin\\nested").is_err());
     assert!(validate_plugin_id("plugin name").is_err());
 }
+
+fn asset(url: &str, sha256: Option<&str>) -> MarketplacePlatformAsset {
+    MarketplacePlatformAsset {
+        download_url: url.to_string(),
+        filename: "plugin.zip".to_string(),
+        sha256: sha256.map(str::to_string),
+        size_bytes: None,
+    }
+}
+
+#[tokio::test]
+async fn test_download_rejects_plain_http() {
+    let client = reqwest::Client::new();
+    let a = asset("http://example.com/plugin.zip", Some(&"a".repeat(64)));
+    let err = PluginPackageInstaller::download_or_read_asset(&client, "p", &a)
+        .await
+        .unwrap_err();
+    assert!(err.contains("non consentito"));
+}
+
+#[tokio::test]
+async fn test_download_requires_sha256_for_https() {
+    let client = reqwest::Client::new();
+    for sha in [None, Some(""), Some("   ")] {
+        let a = asset("https://example.invalid/plugin.zip", sha);
+        let err = PluginPackageInstaller::download_or_read_asset(&client, "p", &a)
+            .await
+            .unwrap_err();
+        assert!(err.contains("SHA-256"), "unexpected error: {err}");
+    }
+}
+
+#[tokio::test]
+async fn test_download_rejects_unknown_scheme_and_allows_mock() {
+    let client = reqwest::Client::new();
+    let a = asset("ftp://example.com/plugin.zip", None);
+    assert!(
+        PluginPackageInstaller::download_or_read_asset(&client, "p", &a)
+            .await
+            .is_err()
+    );
+    let a = asset("mock://plugin.zip", None);
+    assert_eq!(
+        PluginPackageInstaller::download_or_read_asset(&client, "p", &a)
+            .await
+            .unwrap(),
+        None
+    );
+}
+
+#[test]
+fn test_verify_sha256() {
+    let bytes = b"omnis";
+    let digest = {
+        use sha2::{Digest, Sha256};
+        format!("{:x}", Sha256::digest(bytes))
+    };
+    assert!(PluginPackageInstaller::verify_sha256(bytes, &digest, "p").is_ok());
+    assert!(PluginPackageInstaller::verify_sha256(bytes, &digest.to_uppercase(), "p").is_ok());
+    assert!(PluginPackageInstaller::verify_sha256(bytes, &"0".repeat(64), "p").is_err());
+    assert!(PluginPackageInstaller::verify_sha256(bytes, "", "p").is_err());
+    assert!(PluginPackageInstaller::verify_sha256(bytes, "not-a-hash", "p").is_err());
+}

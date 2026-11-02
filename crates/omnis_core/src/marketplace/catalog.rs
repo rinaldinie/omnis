@@ -20,12 +20,30 @@ impl MarketplaceCatalogService {
 
         let target_url = custom_url.or(Some(DEFAULT_CATALOG_URL));
         if let Some(url) = target_url {
-            if url.starts_with("http://") || url.starts_with("https://") {
-                if let Ok(resp) = client.get(url).send().await {
-                    if resp.status().is_success() {
-                        if let Ok(cat) = resp.json::<MarketplaceCatalog>().await {
-                            fetched_catalog = Some(cat);
+            if url.starts_with("http://") {
+                tracing::warn!(
+                    "Catalogo marketplace su HTTP non cifrato rifiutato ({}), uso del catalogo integrato",
+                    url
+                );
+            } else if url.starts_with("https://") {
+                match client.get(url).send().await {
+                    Ok(resp) if resp.status().is_success() => {
+                        match resp.json::<MarketplaceCatalog>().await {
+                            Ok(cat) => fetched_catalog = Some(cat),
+                            Err(e) => {
+                                tracing::warn!("Catalogo marketplace non valido ({}): {}", url, e)
+                            }
                         }
+                    }
+                    Ok(resp) => {
+                        tracing::warn!(
+                            "Catalogo marketplace non disponibile ({}): HTTP {}",
+                            url,
+                            resp.status()
+                        )
+                    }
+                    Err(e) => {
+                        tracing::warn!("Catalogo marketplace non raggiungibile ({}): {}", url, e)
                     }
                 }
             } else {

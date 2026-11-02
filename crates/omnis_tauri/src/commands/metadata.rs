@@ -129,6 +129,7 @@ pub async fn enrich_single_game(
     let _ = app_handle.emit(events::GAME_UPDATED, &game_id);
     let _ = app_handle.emit(events::LIBRARY_UPDATED, ());
 
+    state.media_scope.allow_game_media(&game);
     Ok(game_to_dto(game, &state.image_cache))
 }
 
@@ -173,6 +174,7 @@ pub async fn refresh_game_howlongtobeat(
     let _ = app_handle.emit(events::GAME_UPDATED, &game_id);
     let _ = app_handle.emit(events::LIBRARY_UPDATED, ());
 
+    state.media_scope.allow_game_media(&updated_game);
     Ok(game_to_dto(updated_game, &state.image_cache))
 }
 

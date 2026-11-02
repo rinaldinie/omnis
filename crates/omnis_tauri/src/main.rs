@@ -4,6 +4,7 @@
 mod bootstrap;
 mod builtin_themes;
 mod commands;
+mod media_scope;
 mod migration;
 mod services;
 mod store;

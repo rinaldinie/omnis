@@ -22,7 +22,13 @@ pub struct AddCustomGamePayload {
 pub async fn get_games(state: State<'_, AppState>) -> Result<Vec<GameDto>, String> {
     let games = state.db.get_all_games().map_err(|e| e.to_string())?;
     let cache = &state.image_cache;
-    Ok(games.into_iter().map(|g| game_to_dto(g, cache)).collect())
+    Ok(games
+        .into_iter()
+        .map(|g| {
+            state.media_scope.allow_game_media(&g);
+            game_to_dto(g, cache)
+        })
+        .collect())
 }
 
 #[tauri::command]
@@ -170,7 +176,7 @@ pub async fn add_custom_game(
 
     let install_dir = exe_path.parent().map(|p| p.to_path_buf());
 
-    state
+    let game = state
         .db
         .insert_custom_game(
             id,
@@ -180,7 +186,9 @@ pub async fn add_custom_game(
             vec![launch_config],
             payload.cover_image_path,
         )
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    state.media_scope.allow_game_media(&game);
+    Ok(game)
 }
 
 #[tauri::command]
@@ -192,6 +200,7 @@ pub async fn update_game_metadata(
         .db
         .update_game(&game_update)
         .map_err(|e| e.to_string())?;
+    state.media_scope.allow_game_media(&updated);
     if let Some(ref p) = updated.cover_image_path {
         state.image_cache.invalidate(p);
     }
