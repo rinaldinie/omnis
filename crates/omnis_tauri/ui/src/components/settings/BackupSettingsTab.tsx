@@ -13,14 +13,18 @@ import { ScheduleBackupSection } from './backup/ScheduleBackupSection';
 import { RestoreBackupSection } from './backup/RestoreBackupSection';
 import { RestoreConfirmModal } from './backup/RestoreConfirmModal';
 
+export type BackupSubSection = 'manual' | 'schedule' | 'restore' | 'all';
+
 export interface BackupSettingsTabProps {
   onClose?: () => void;
   onRestoreComplete?: () => void;
+  activeSection?: BackupSubSection;
 }
 
 export const BackupSettingsTab: React.FC<BackupSettingsTabProps> = ({
   onClose,
   onRestoreComplete,
+  activeSection = 'all',
 }) => {
   const { t } = useTranslation();
 
@@ -341,35 +345,41 @@ export const BackupSettingsTab: React.FC<BackupSettingsTabProps> = ({
         </div>
       )}
 
-      {/* CARD 1: CREA BACKUP */}
-      <ManualBackupSection
-        selectedDestination={selectedDestination}
-        includeArtwork={includeArtwork}
-        setIncludeArtwork={setIncludeArtwork}
-        isCreatingBackup={isCreatingBackup}
-        lastBackupResult={lastBackupResult}
-        onPickDestinationFolder={handlePickDestinationFolder}
-        onCreateBackup={handleCreateBackup}
-        formatDate={formatDate}
-      />
+      {/* CARD 1: CREA BACKUP MANUALE */}
+      {(activeSection === 'manual' || activeSection === 'all') && (
+        <ManualBackupSection
+          selectedDestination={selectedDestination}
+          includeArtwork={includeArtwork}
+          setIncludeArtwork={setIncludeArtwork}
+          isCreatingBackup={isCreatingBackup}
+          lastBackupResult={lastBackupResult}
+          onPickDestinationFolder={handlePickDestinationFolder}
+          onCreateBackup={handleCreateBackup}
+          formatDate={formatDate}
+        />
+      )}
 
       {/* CARD 2: BACKUP AUTOMATICO & SCHEDULAZIONE */}
-      <ScheduleBackupSection
-        scheduleConfig={scheduleConfig}
-        setScheduleConfig={setScheduleConfig}
-        isSavingSchedule={isSavingSchedule}
-        onPickAutoDestinationFolder={handlePickAutoDestinationFolder}
-        onSaveSchedule={handleSaveSchedule}
-        renderNextBackupBadge={renderNextBackupBadge}
-        formatDate={formatDate}
-      />
+      {(activeSection === 'schedule' || activeSection === 'all') && (
+        <ScheduleBackupSection
+          scheduleConfig={scheduleConfig}
+          setScheduleConfig={setScheduleConfig}
+          isSavingSchedule={isSavingSchedule}
+          onPickAutoDestinationFolder={handlePickAutoDestinationFolder}
+          onSaveSchedule={handleSaveSchedule}
+          renderNextBackupBadge={renderNextBackupBadge}
+          formatDate={formatDate}
+        />
+      )}
 
       {/* CARD 3: RIPRISTINA BACKUP */}
-      <RestoreBackupSection
-        isInspecting={isInspecting}
-        isRestoring={isRestoring}
-        onPickFileToRestore={handlePickFileToRestore}
-      />
+      {(activeSection === 'restore' || activeSection === 'all') && (
+        <RestoreBackupSection
+          isInspecting={isInspecting}
+          isRestoring={isRestoring}
+          onPickFileToRestore={handlePickFileToRestore}
+        />
+      )}
 
       {/* CONFIRMATION RESTORE MODAL */}
       <RestoreConfirmModal

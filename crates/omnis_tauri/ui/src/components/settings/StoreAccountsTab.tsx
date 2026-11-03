@@ -28,9 +28,12 @@ import { DisconnectStoreModal, StoreCleanupMode } from "../modals/DisconnectStor
 
 export type { StoreAccount, StoreSyncProgress, StoreIntegrationSettings };
 
-interface StoreAccountsTabProps {
+export interface StoreAccountsTabProps {
   onSyncComplete?: () => void;
   onClose?: () => void;
+  selectedStoreId?: string;
+  onSelectStore?: (storeId: string) => void;
+  hideTabBar?: boolean;
 }
 
 interface VaultStatus {
@@ -46,7 +49,7 @@ interface StoreItemMeta {
   isCustom?: boolean;
 }
 
-const STORE_LIST: StoreItemMeta[] = [
+export const STORE_LIST: StoreItemMeta[] = [
   {
     id: "steam",
     name: "Steam",
@@ -82,9 +85,18 @@ const STORE_LIST: StoreItemMeta[] = [
 export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
   onSyncComplete,
   onClose,
+  selectedStoreId: controlledStoreId,
+  onSelectStore,
+  hideTabBar = false,
 }) => {
   const { t, locale } = useTranslation();
-  const [selectedStoreId, setSelectedStoreId] = useState<string>("steam");
+  const [internalStoreId, setInternalStoreId] = useState<string>("steam");
+  const selectedStoreId = controlledStoreId ?? internalStoreId;
+
+  const setSelectedStoreId = (id: string) => {
+    setInternalStoreId(id);
+    onSelectStore?.(id);
+  };
   const [accounts, setAccounts] = useState<StoreAccount[]>(DEFAULT_ACCOUNTS);
   const [settingsMap, setSettingsMap] = useState<Record<string, StoreIntegrationSettings>>({});
   const [vaultStatus, setVaultStatus] = useState<VaultStatus | null>(null);
@@ -439,46 +451,48 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
       )}
 
       {/* Sub-tab Navigation matching General and Achievements tab header */}
-      <div
-        className="flex items-center gap-1 border-b px-6 py-2.5 bg-black/20 shrink-0 overflow-x-auto custom-scrollbar"
-        style={{ borderColor: "var(--border-color)" }}
-      >
-        {STORE_LIST.map((store) => {
-          const acc = accounts.find((a) => a.store_id === store.id);
-          const isSelected = selectedStoreId === store.id;
-          const isConn = acc?.is_connected;
+      {!hideTabBar && (
+        <div
+          className="flex items-center gap-1 border-b px-6 py-2.5 bg-black/20 shrink-0 overflow-x-auto custom-scrollbar"
+          style={{ borderColor: "var(--border-color)" }}
+        >
+          {STORE_LIST.map((store) => {
+            const acc = accounts.find((a) => a.store_id === store.id);
+            const isSelected = selectedStoreId === store.id;
+            const isConn = acc?.is_connected;
 
-          return (
-            <button
-              key={store.id}
-              type="button"
-              onClick={() => {
-                soundEffects.playNav();
-                setSelectedStoreId(store.id);
-              }}
-              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative flex items-center gap-2 cursor-pointer whitespace-nowrap ${isSelected
-                ? "text-sky-400 bg-sky-500/10 shadow-xs"
-                : "text-slate-400 hover:text-white hover:bg-white/5"
-                }`}
-            >
-              {store.icon("w-3.5 h-3.5 shrink-0")}
-              <span>{store.name}</span>
-              <span
-                className={`w-1.5 h-1.5 rounded-full shrink-0 ${isConn ? "bg-emerald-400 animate-pulse" : "bg-slate-600"
+            return (
+              <button
+                key={store.id}
+                type="button"
+                onClick={() => {
+                  soundEffects.playNav();
+                  setSelectedStoreId(store.id);
+                }}
+                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative flex items-center gap-2 cursor-pointer whitespace-nowrap ${isSelected
+                  ? "text-sky-400 bg-sky-500/10 shadow-xs"
+                  : "text-slate-400 hover:text-white hover:bg-white/5"
                   }`}
-                title={
-                  isConn
-                    ? t("store_accounts.authenticated")
-                    : t("store_accounts.not_authenticated")
-                }
-              />
-              {isSelected && (
-                <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-sky-400 rounded-full" />
-              )}
-            </button>
-          );
-        })}
-      </div>
+              >
+                {store.icon("w-3.5 h-3.5 shrink-0")}
+                <span>{store.name}</span>
+                <span
+                  className={`w-1.5 h-1.5 rounded-full shrink-0 ${isConn ? "bg-emerald-400 animate-pulse" : "bg-slate-600"
+                    }`}
+                  title={
+                    isConn
+                      ? t("store_accounts.authenticated")
+                      : t("store_accounts.not_authenticated")
+                  }
+                />
+                {isSelected && (
+                  <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-sky-400 rounded-full" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Main Content for Selected Store */}
       <div className="flex-1 overflow-y-auto p-6 space-y-5 custom-scrollbar min-h-0">

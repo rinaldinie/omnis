@@ -9,11 +9,9 @@ import {
   RotateCcw,
   Save,
   Play,
-  Sliders,
   Sparkles,
   Info,
   Monitor,
-  Bell,
   ShieldCheck,
   SlidersHorizontal,
   RefreshCw,
@@ -27,15 +25,18 @@ import { api } from '../../api';
 import { useUpdater } from '../../hooks/useAppUpdater';
 import { BackupSettingsTab } from './BackupSettingsTab';
 
-type GeneralSubTab = 'language' | 'audio' | 'window' | 'appearance' | 'data' | 'updates';
+export type GeneralSubTab = 'language' | 'audio' | 'window' | 'appearance' | 'data' | 'updates';
 
-interface GeneralSettingsTabProps {
+export interface GeneralSettingsTabProps {
   onClose?: () => void;
   soundEnabled: boolean;
   onToggleSound: () => void;
   onOpenThemes: () => void;
   currentThemeName: string;
   onOpenPlayniteImport?: () => void;
+  activeSubTab?: GeneralSubTab;
+  onSubTabChange?: (tab: GeneralSubTab) => void;
+  hideSubTabBar?: boolean;
 }
 
 export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
@@ -45,10 +46,19 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
   onOpenThemes,
   currentThemeName,
   onOpenPlayniteImport,
+  activeSubTab: controlledSubTab,
+  onSubTabChange,
+  hideSubTabBar = false,
 }) => {
   const { locale, setLocale, t } = useTranslation();
   const updater = useUpdater();
-  const [activeSubTab, setActiveSubTab] = useState<GeneralSubTab>('language');
+  const [internalSubTab, setInternalSubTab] = useState<GeneralSubTab>('language');
+  const activeSubTab = controlledSubTab ?? internalSubTab;
+
+  const setActiveSubTab = (tab: GeneralSubTab) => {
+    setInternalSubTab(tab);
+    onSubTabChange?.(tab);
+  };
   const [savedSuccess, setSavedSuccess] = useState(false);
 
   const [minimizeToTray, setMinimizeToTray] = useState<boolean>(() => {
@@ -123,127 +133,129 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
   return (
     <div className="flex-1 flex flex-col min-h-0 select-none">
       {/* Sub-tab Navigation matching settings_01.jpg layout */}
-      <div
-        className="flex items-center gap-1 border-b px-6 py-2.5 bg-black/20 shrink-0 overflow-x-auto"
-        style={{ borderColor: 'var(--border-color)' }}
-      >
-        <button
-          type="button"
-          onClick={() => {
-            soundEffects.playNav();
-            setActiveSubTab('language');
-          }}
-          className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative flex items-center gap-2 ${
-            activeSubTab === 'language'
-              ? 'text-sky-400 bg-sky-500/10 shadow-xs'
-              : 'text-slate-400 hover:text-white hover:bg-white/5'
-          }`}
+      {!hideSubTabBar && (
+        <div
+          className="flex items-center gap-1 border-b px-6 py-2.5 bg-black/20 shrink-0 overflow-x-auto"
+          style={{ borderColor: 'var(--border-color)' }}
         >
-          <Globe className="w-3.5 h-3.5" />
-          <span>{t('general_settings.tab_language')}</span>
-          {activeSubTab === 'language' && (
-            <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-sky-400 rounded-full" />
-          )}
-        </button>
+          <button
+            type="button"
+            onClick={() => {
+              soundEffects.playNav();
+              setActiveSubTab('language');
+            }}
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative flex items-center gap-2 ${
+              activeSubTab === 'language'
+                ? 'text-sky-400 bg-sky-500/10 shadow-xs'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Globe className="w-3.5 h-3.5" />
+            <span>{t('general_settings.tab_language')}</span>
+            {activeSubTab === 'language' && (
+              <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-sky-400 rounded-full" />
+            )}
+          </button>
 
-        <button
-          type="button"
-          onClick={() => {
-            soundEffects.playNav();
-            setActiveSubTab('audio');
-          }}
-          className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative flex items-center gap-2 ${
-            activeSubTab === 'audio'
-              ? 'text-sky-400 bg-sky-500/10 shadow-xs'
-              : 'text-slate-400 hover:text-white hover:bg-white/5'
-          }`}
-        >
-          <Volume2 className="w-3.5 h-3.5" />
-          <span>{t('general_settings.tab_audio')}</span>
-          {activeSubTab === 'audio' && (
-            <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-sky-400 rounded-full" />
-          )}
-        </button>
+          <button
+            type="button"
+            onClick={() => {
+              soundEffects.playNav();
+              setActiveSubTab('audio');
+            }}
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative flex items-center gap-2 ${
+              activeSubTab === 'audio'
+                ? 'text-sky-400 bg-sky-500/10 shadow-xs'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Volume2 className="w-3.5 h-3.5" />
+            <span>{t('general_settings.tab_audio')}</span>
+            {activeSubTab === 'audio' && (
+              <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-sky-400 rounded-full" />
+            )}
+          </button>
 
-        <button
-          type="button"
-          onClick={() => {
-            soundEffects.playNav();
-            setActiveSubTab('window');
-          }}
-          className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative flex items-center gap-2 ${
-            activeSubTab === 'window'
-              ? 'text-sky-400 bg-sky-500/10 shadow-xs'
-              : 'text-slate-400 hover:text-white hover:bg-white/5'
-          }`}
-        >
-          <Minimize2 className="w-3.5 h-3.5" />
-          <span>{t('general_settings.tab_window')}</span>
-          {activeSubTab === 'window' && (
-            <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-sky-400 rounded-full" />
-          )}
-        </button>
+          <button
+            type="button"
+            onClick={() => {
+              soundEffects.playNav();
+              setActiveSubTab('window');
+            }}
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative flex items-center gap-2 ${
+              activeSubTab === 'window'
+                ? 'text-sky-400 bg-sky-500/10 shadow-xs'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Minimize2 className="w-3.5 h-3.5" />
+            <span>{t('general_settings.tab_window')}</span>
+            {activeSubTab === 'window' && (
+              <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-sky-400 rounded-full" />
+            )}
+          </button>
 
-        <button
-          type="button"
-          onClick={() => {
-            soundEffects.playNav();
-            setActiveSubTab('appearance');
-          }}
-          className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative flex items-center gap-2 ${
-            activeSubTab === 'appearance'
-              ? 'text-sky-400 bg-sky-500/10 shadow-xs'
-              : 'text-slate-400 hover:text-white hover:bg-white/5'
-          }`}
-        >
-          <Palette className="w-3.5 h-3.5" />
-          <span>{t('general_settings.tab_appearance')}</span>
-          {activeSubTab === 'appearance' && (
-            <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-sky-400 rounded-full" />
-          )}
-        </button>
+          <button
+            type="button"
+            onClick={() => {
+              soundEffects.playNav();
+              setActiveSubTab('appearance');
+            }}
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative flex items-center gap-2 ${
+              activeSubTab === 'appearance'
+                ? 'text-sky-400 bg-sky-500/10 shadow-xs'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Palette className="w-3.5 h-3.5" />
+            <span>{t('general_settings.tab_appearance')}</span>
+            {activeSubTab === 'appearance' && (
+              <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-sky-400 rounded-full" />
+            )}
+          </button>
 
-        <button
-          type="button"
-          onClick={() => {
-            soundEffects.playNav();
-            setActiveSubTab('data');
-          }}
-          className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative flex items-center gap-2 ${
-            activeSubTab === 'data'
-              ? 'text-sky-400 bg-sky-500/10 shadow-xs'
-              : 'text-slate-400 hover:text-white hover:bg-white/5'
-          }`}
-        >
-          <FolderArchive className="w-3.5 h-3.5" />
-          <span>{t('general_settings.tab_data') || 'Dati & Backup'}</span>
-          {activeSubTab === 'data' && (
-            <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-sky-400 rounded-full" />
-          )}
-        </button>
+          <button
+            type="button"
+            onClick={() => {
+              soundEffects.playNav();
+              setActiveSubTab('data');
+            }}
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative flex items-center gap-2 ${
+              activeSubTab === 'data'
+                ? 'text-sky-400 bg-sky-500/10 shadow-xs'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <FolderArchive className="w-3.5 h-3.5" />
+            <span>{t('general_settings.tab_data') || 'Dati & Backup'}</span>
+            {activeSubTab === 'data' && (
+              <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-sky-400 rounded-full" />
+            )}
+          </button>
 
-        <button
-          type="button"
-          onClick={() => {
-            soundEffects.playNav();
-            setActiveSubTab('updates');
-          }}
-          className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative flex items-center gap-2 ${
-            activeSubTab === 'updates'
-              ? 'text-sky-400 bg-sky-500/10 shadow-xs'
-              : 'text-slate-400 hover:text-white hover:bg-white/5'
-          }`}
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${updater?.status === 'checking' ? 'animate-spin' : ''}`} />
-          <span>{t('general_settings.tab_updates')}</span>
-          {updater?.status === 'available' && (
-            <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" />
-          )}
-          {activeSubTab === 'updates' && (
-            <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-sky-400 rounded-full" />
-          )}
-        </button>
-      </div>
+          <button
+            type="button"
+            onClick={() => {
+              soundEffects.playNav();
+              setActiveSubTab('updates');
+            }}
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative flex items-center gap-2 ${
+              activeSubTab === 'updates'
+                ? 'text-sky-400 bg-sky-500/10 shadow-xs'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${updater?.status === 'checking' ? 'animate-spin' : ''}`} />
+            <span>{t('general_settings.tab_updates')}</span>
+            {updater?.status === 'available' && (
+              <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" />
+            )}
+            {activeSubTab === 'updates' && (
+              <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-sky-400 rounded-full" />
+            )}
+          </button>
+        </div>
+      )}
 
       {/* Main SubTab Content Area */}
       <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">

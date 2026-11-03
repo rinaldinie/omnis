@@ -116,17 +116,30 @@ export function saveAchievementsConfig(cfg: AchievementsConfig) {
   }
 }
 
-type SubTab = "sources" | "view" | "misc" | "appearance" | "ignored";
+export type AchievementSubTab = "sources" | "view" | "misc" | "appearance" | "ignored";
+type SubTab = AchievementSubTab;
 
-interface AchievementsSettingsTabProps {
+export interface AchievementsSettingsTabProps {
   onClose?: () => void;
+  activeSubTab?: AchievementSubTab;
+  onSubTabChange?: (tab: AchievementSubTab) => void;
+  hideTabBar?: boolean;
 }
 
 export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = ({
   onClose,
+  activeSubTab: controlledSubTab,
+  onSubTabChange,
+  hideTabBar = false,
 }) => {
   const { t, locale } = useTranslation();
-  const [activeSubTab, setActiveSubTab] = useState<SubTab>("sources");
+  const [internalSubTab, setInternalSubTab] = useState<SubTab>("sources");
+  const activeSubTab = controlledSubTab ?? internalSubTab;
+
+  const setActiveSubTab = (tab: SubTab) => {
+    setInternalSubTab(tab);
+    onSubTabChange?.(tab);
+  };
   const [config, setConfig] = useState<AchievementsConfig>(loadAchievementsConfig);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
@@ -192,98 +205,100 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
   return (
     <div className="flex-1 flex flex-col min-h-0 select-none">
       {/* Sub-tab Navigation matching settings_01.jpg */}
-      <div
-        className="flex items-center gap-1 border-b px-6 py-2.5 bg-black/20 shrink-0 overflow-x-auto"
-        style={{ borderColor: "var(--border-color)" }}
-      >
-        <button
-          type="button"
-          onClick={() => {
-            soundEffects.playNav();
-            setActiveSubTab("sources");
-          }}
-          className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative ${activeSubTab === "sources"
-            ? "text-sky-400 bg-sky-500/10 shadow-xs"
-            : "text-slate-400 hover:text-white hover:bg-white/5"
-            }`}
+      {!hideTabBar && (
+        <div
+          className="flex items-center gap-1 border-b px-6 py-2.5 bg-black/20 shrink-0 overflow-x-auto"
+          style={{ borderColor: "var(--border-color)" }}
         >
-          <span>{t("achievements_settings.tab_sources")}</span>
-          {activeSubTab === "sources" && (
-            <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-sky-400 rounded-full" />
-          )}
-        </button>
+          <button
+            type="button"
+            onClick={() => {
+              soundEffects.playNav();
+              setActiveSubTab("sources");
+            }}
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative ${activeSubTab === "sources"
+              ? "text-sky-400 bg-sky-500/10 shadow-xs"
+              : "text-slate-400 hover:text-white hover:bg-white/5"
+              }`}
+          >
+            <span>{t("achievements_settings.tab_sources")}</span>
+            {activeSubTab === "sources" && (
+              <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-sky-400 rounded-full" />
+            )}
+          </button>
 
-        <button
-          type="button"
-          onClick={() => {
-            soundEffects.playNav();
-            setActiveSubTab("view");
-          }}
-          className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative ${activeSubTab === "view"
-            ? "text-sky-400 bg-sky-500/10 shadow-xs"
-            : "text-slate-400 hover:text-white hover:bg-white/5"
-            }`}
-        >
-          <span>{t("achievements_settings.tab_view")}</span>
-          {activeSubTab === "view" && (
-            <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-sky-400 rounded-full" />
-          )}
-        </button>
+          <button
+            type="button"
+            onClick={() => {
+              soundEffects.playNav();
+              setActiveSubTab("view");
+            }}
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative ${activeSubTab === "view"
+              ? "text-sky-400 bg-sky-500/10 shadow-xs"
+              : "text-slate-400 hover:text-white hover:bg-white/5"
+              }`}
+          >
+            <span>{t("achievements_settings.tab_view")}</span>
+            {activeSubTab === "view" && (
+              <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-sky-400 rounded-full" />
+            )}
+          </button>
 
-        <button
-          type="button"
-          onClick={() => {
-            soundEffects.playNav();
-            setActiveSubTab("misc");
-          }}
-          className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative ${activeSubTab === "misc"
-            ? "text-sky-400 bg-sky-500/10 shadow-xs"
-            : "text-slate-400 hover:text-white hover:bg-white/5"
-            }`}
-        >
-          <span>{t("achievements_settings.tab_misc")}</span>
-          {activeSubTab === "misc" && (
-            <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-sky-400 rounded-full" />
-          )}
-        </button>
+          <button
+            type="button"
+            onClick={() => {
+              soundEffects.playNav();
+              setActiveSubTab("misc");
+            }}
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative ${activeSubTab === "misc"
+              ? "text-sky-400 bg-sky-500/10 shadow-xs"
+              : "text-slate-400 hover:text-white hover:bg-white/5"
+              }`}
+          >
+            <span>{t("achievements_settings.tab_misc")}</span>
+            {activeSubTab === "misc" && (
+              <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-sky-400 rounded-full" />
+            )}
+          </button>
 
-        <button
-          type="button"
-          onClick={() => {
-            soundEffects.playNav();
-            setActiveSubTab("appearance");
-          }}
-          className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative ${activeSubTab === "appearance"
-            ? "text-sky-400 bg-sky-500/10 shadow-xs"
-            : "text-slate-400 hover:text-white hover:bg-white/5"
-            }`}
-        >
-          <span>{t("achievements_settings.tab_appearance")}</span>
-          {activeSubTab === "appearance" && (
-            <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-sky-400 rounded-full" />
-          )}
-        </button>
+          <button
+            type="button"
+            onClick={() => {
+              soundEffects.playNav();
+              setActiveSubTab("appearance");
+            }}
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative ${activeSubTab === "appearance"
+              ? "text-sky-400 bg-sky-500/10 shadow-xs"
+              : "text-slate-400 hover:text-white hover:bg-white/5"
+              }`}
+          >
+            <span>{t("achievements_settings.tab_appearance")}</span>
+            {activeSubTab === "appearance" && (
+              <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-sky-400 rounded-full" />
+            )}
+          </button>
 
-        <button
-          type="button"
-          onClick={() => {
-            soundEffects.playNav();
-            setActiveSubTab("ignored");
-          }}
-          className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative ${activeSubTab === "ignored"
-            ? "text-sky-400 bg-sky-500/10 shadow-xs"
-            : "text-slate-400 hover:text-white hover:bg-white/5"
-            }`}
-        >
-          <span>{t("achievements_settings.tab_ignored")}</span>
-          {activeSubTab === "ignored" && (
-            <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-sky-400 rounded-full" />
-          )}
-        </button>
-      </div>
+          <button
+            type="button"
+            onClick={() => {
+              soundEffects.playNav();
+              setActiveSubTab("ignored");
+            }}
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative ${activeSubTab === "ignored"
+              ? "text-sky-400 bg-sky-500/10 shadow-xs"
+              : "text-slate-400 hover:text-white hover:bg-white/5"
+              }`}
+          >
+            <span>{t("achievements_settings.tab_ignored")}</span>
+            {activeSubTab === "ignored" && (
+              <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-sky-400 rounded-full" />
+            )}
+          </button>
+        </div>
+      )}
 
       {/* Main SubTab Content Area */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+      <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
         {/* SUBTAB 1: SOURCES */}
         {activeSubTab === "sources" && (
           <div className="space-y-6 font-sans">
