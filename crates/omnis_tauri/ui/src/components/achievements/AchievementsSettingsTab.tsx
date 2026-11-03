@@ -6,6 +6,8 @@ import {
   Save,
   RotateCcw,
   Sparkles,
+  Trophy,
+  Medal,
   Check,
   Trash2,
 } from "lucide-react";
@@ -36,8 +38,9 @@ export interface AchievementsConfig {
   badgeSize: "md" | "lg";
 
   // Appearance & Rarity
-  ultraRareThreshold: number; // e.g. 10.0
-  rareThreshold: number; // e.g. 25.0
+  ultraRareThreshold: number; // e.g. 5.0
+  rareThreshold: number; // e.g. 20.0
+  uncommonThreshold: number; // e.g. 50.0
   goldenGlowUltraRare: boolean;
   revealSecretsByDefault: boolean;
 
@@ -73,8 +76,9 @@ const DEFAULT_CONFIG: AchievementsConfig = {
   showRarityBadges: true,
   badgeSize: "md",
 
-  ultraRareThreshold: 10.0,
-  rareThreshold: 25.0,
+  ultraRareThreshold: 5.0,
+  rareThreshold: 20.0,
+  uncommonThreshold: 50.0,
   goldenGlowUltraRare: true,
   revealSecretsByDefault: false,
 
@@ -90,6 +94,7 @@ const DEFAULT_CONFIG: AchievementsConfig = {
 };
 
 const STORAGE_KEY = "omnis_achievements_config";
+export const ACHIEVEMENTS_CONFIG_EVENT = "omnis:achievements-config-changed";
 
 export function loadAchievementsConfig(): AchievementsConfig {
   try {
@@ -106,9 +111,49 @@ export function loadAchievementsConfig(): AchievementsConfig {
 export function saveAchievementsConfig(cfg: AchievementsConfig) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent(ACHIEVEMENTS_CONFIG_EVENT, { detail: cfg }));
+    }
   } catch (e) {
     console.warn("Failed to save achievements config to localStorage:", e);
   }
+}
+
+/** Hook to reactively subscribe to changes in the achievements configuration */
+export function useAchievementsConfig(): AchievementsConfig {
+  const [config, setConfig] = useState<AchievementsConfig>(loadAchievementsConfig);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handler = (e: Event) => {
+      const custom = e as CustomEvent<AchievementsConfig>;
+      if (custom.detail) {
+        setConfig(custom.detail);
+      } else {
+        setConfig(loadAchievementsConfig());
+      }
+    };
+
+    const storageHandler = (e: StorageEvent) => {
+      if (e.key === STORAGE_KEY && e.newValue) {
+        try {
+          setConfig({ ...DEFAULT_CONFIG, ...JSON.parse(e.newValue) });
+        } catch {
+          setConfig(loadAchievementsConfig());
+        }
+      }
+    };
+
+    window.addEventListener(ACHIEVEMENTS_CONFIG_EVENT, handler);
+    window.addEventListener("storage", storageHandler);
+    return () => {
+      window.removeEventListener(ACHIEVEMENTS_CONFIG_EVENT, handler);
+      window.removeEventListener("storage", storageHandler);
+    };
+  }, []);
+
+  return config;
 }
 
 export type AchievementSubTab = "sources" | "view" | "misc" | "appearance" | "ignored";
@@ -158,6 +203,7 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
     return () => {
       if (unlisten) unlisten();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Accordion state matching settings_01.jpg
@@ -175,7 +221,24 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
   };
 
   const update = <K extends keyof AchievementsConfig>(key: K, val: AchievementsConfig[K]) => {
-    setConfig((prev) => ({ ...prev, [key]: val }));
+    setConfig((prev) => {
+      const next = { ...prev, [key]: val };
+      // Keep threshold consistency: ultraRare <= rare <= uncommon
+      if (key === "ultraRareThreshold") {
+        const num = val as number;
+        if (next.rareThreshold < num) next.rareThreshold = num;
+        if (next.uncommonThreshold < next.rareThreshold) next.uncommonThreshold = next.rareThreshold;
+      } else if (key === "rareThreshold") {
+        const num = val as number;
+        if (next.ultraRareThreshold > num) next.ultraRareThreshold = num;
+        if (next.uncommonThreshold < num) next.uncommonThreshold = num;
+      } else if (key === "uncommonThreshold") {
+        const num = val as number;
+        if (next.rareThreshold > num) next.rareThreshold = num;
+        if (next.ultraRareThreshold > next.rareThreshold) next.ultraRareThreshold = next.rareThreshold;
+      }
+      return next;
+    });
   };
 
   const handleToggleSyncOnGameExit = (next: boolean) => {
@@ -643,14 +706,14 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                       color: "var(--accent-primary)",
                     }}
                   >
-                    &lt; {config.ultraRareThreshold}%
+                    ≤ {config.ultraRareThreshold}%
                   </span>
                 }
               >
                 <input
                   type="range"
-                  min={1}
-                  max={20}
+                  min={0.5}
+                  max={15}
                   step={0.5}
                   value={config.ultraRareThreshold}
                   onChange={(e) => update("ultraRareThreshold", Number(e.target.value))}
@@ -660,6 +723,7 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
               </SettingRow>
 
               <SettingRow
+                icon={<Trophy className="w-4 h-4" />}
                 title={t("achievements_settings.rare_threshold")}
                 description={t("achievements_settings.rare_desc")}
                 badge={
@@ -671,17 +735,46 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                       color: "var(--accent-primary)",
                     }}
                   >
-                    &lt; {config.rareThreshold}%
+                    ≤ {config.rareThreshold}%
                   </span>
                 }
               >
                 <input
                   type="range"
-                  min={10}
-                  max={50}
+                  min={5}
+                  max={40}
                   step={1}
                   value={config.rareThreshold}
                   onChange={(e) => update("rareThreshold", Number(e.target.value))}
+                  style={{ accentColor: "var(--accent-primary)" }}
+                  className="w-28 cursor-pointer"
+                />
+              </SettingRow>
+
+              <SettingRow
+                icon={<Medal className="w-4 h-4" />}
+                title={t("achievements_settings.uncommon_threshold")}
+                description={t("achievements_settings.uncommon_desc")}
+                badge={
+                  <span
+                    className="font-mono font-bold text-xs px-2 py-0.5 rounded border"
+                    style={{
+                      backgroundColor: "color-mix(in srgb, var(--accent-primary) 15%, transparent)",
+                      borderColor: "color-mix(in srgb, var(--accent-primary) 30%, transparent)",
+                      color: "var(--accent-primary)",
+                    }}
+                  >
+                    ≤ {config.uncommonThreshold}%
+                  </span>
+                }
+              >
+                <input
+                  type="range"
+                  min={20}
+                  max={80}
+                  step={1}
+                  value={config.uncommonThreshold}
+                  onChange={(e) => update("uncommonThreshold", Number(e.target.value))}
                   style={{ accentColor: "var(--accent-primary)" }}
                   className="w-28 cursor-pointer"
                 />

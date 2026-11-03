@@ -1,23 +1,25 @@
 import React from "react";
-import { Award, Lock, Sparkles, Trophy } from "lucide-react";
+import { Award, Lock, Sparkles, Trophy, Medal } from "lucide-react";
 import { Achievement, GameAchievementsSummary, GameDto } from "../../types";
-import { achievementIconSrc, RARE_PERCENT, ULTRA_RARE_PERCENT } from "../achievements";
+import {
+  achievementIconSrc,
+  useAchievementsConfig,
+  getRarityTier,
+  isUltraRareAchievement,
+  isRareAchievement,
+  isUncommonAchievement,
+  isCommonAchievement,
+  getRarityColor,
+  RarityIcon,
+  RarityTier,
+} from "../achievements";
 import soundEffects from "../../utils/soundEffects";
 import { ArtImage } from "./FullscreenCards";
 import { Glyph } from "./ConsoleChrome";
 
-type AchievementFilter = "all" | "unlocked" | "locked" | "ultrarare";
+type AchievementFilter = "all" | "unlocked" | "locked" | "ultrarare" | "rare" | "uncommon" | "common";
 export type AchievementSort = "default" | "recent" | "rarity" | "name";
 const SORTS: AchievementSort[] = ["default", "recent", "rarity", "name"];
-
-const isUltraRare = (a: Achievement) => a.rarity_percentage !== null && a.rarity_percentage < ULTRA_RARE_PERCENT;
-
-function rarityColor(percent: number | null): string {
-  if (percent === null) return "rgba(255, 255, 255, 0.55)";
-  if (percent < ULTRA_RARE_PERCENT) return "#fbbf24";
-  if (percent < RARE_PERCENT) return "#67e8f9";
-  return "rgba(255, 255, 255, 0.7)";
-}
 
 function sortAchievements(list: Achievement[], sort: AchievementSort): Achievement[] {
   const sorted = [...list];
@@ -56,6 +58,7 @@ export const FullscreenAchievementsPage: React.FC<FullscreenAchievementsPageProp
 }) => {
   const [filter, setFilter] = React.useState<AchievementFilter>("all");
   const [sort, setSort] = React.useState<AchievementSort>("default");
+  const config = useAchievementsConfig();
   const [focusedIndex, setFocusedIndex] = React.useState(0);
   const [revealed, setRevealed] = React.useState<Set<string>>(() => new Set());
   const rowRefs = React.useRef<Array<HTMLDivElement | null>>([]);
@@ -74,25 +77,43 @@ export const FullscreenAchievementsPage: React.FC<FullscreenAchievementsPageProp
       all: achievements.length,
       unlocked: achievements.filter((a) => a.is_unlocked).length,
       locked: achievements.filter((a) => !a.is_unlocked).length,
-      ultrarare: achievements.filter(isUltraRare).length,
+      ultrarare: achievements.filter((a) => isUltraRareAchievement(a, config.ultraRareThreshold)).length,
+      rare: achievements.filter((a) => isRareAchievement(a, config.rareThreshold, config.ultraRareThreshold)).length,
+      uncommon: achievements.filter((a) => isUncommonAchievement(a, config.uncommonThreshold, config.rareThreshold)).length,
+      common: achievements.filter((a) => isCommonAchievement(a, config.uncommonThreshold)).length,
     }),
-    [achievements]
+    [achievements, config.ultraRareThreshold, config.rareThreshold, config.uncommonThreshold]
   );
   const filters = React.useMemo<AchievementFilter[]>(
-    () => ["all", "unlocked", "locked", ...(counts.ultrarare > 0 ? (["ultrarare"] as const) : [])],
-    [counts.ultrarare]
+    () => [
+      "all",
+      "unlocked",
+      "locked",
+      ...(counts.ultrarare > 0 ? (["ultrarare"] as const) : []),
+      ...(counts.rare > 0 ? (["rare"] as const) : []),
+      ...(counts.uncommon > 0 ? (["uncommon"] as const) : []),
+      ...(counts.common > 0 ? (["common"] as const) : []),
+    ],
+    [counts.ultrarare, counts.rare, counts.uncommon, counts.common]
   );
 
   const visible = React.useMemo(() => {
-    const filtered = achievements.filter((a) =>
-      filter === "unlocked" ? a.is_unlocked : filter === "locked" ? !a.is_unlocked : filter === "ultrarare" ? isUltraRare(a) : true
-    );
+    const filtered = achievements.filter((a) => {
+      if (filter === "unlocked") return a.is_unlocked;
+      if (filter === "locked") return !a.is_unlocked;
+      if (filter === "ultrarare") return isUltraRareAchievement(a, config.ultraRareThreshold);
+      if (filter === "rare") return isRareAchievement(a, config.rareThreshold, config.ultraRareThreshold);
+      if (filter === "uncommon") return isUncommonAchievement(a, config.uncommonThreshold, config.rareThreshold);
+      if (filter === "common") return isCommonAchievement(a, config.uncommonThreshold);
+      return true;
+    });
     return sortAchievements(filtered, sort);
-  }, [achievements, filter, sort]);
+  }, [achievements, filter, sort, config.ultraRareThreshold, config.rareThreshold, config.uncommonThreshold]);
 
   const safeIndex = Math.min(focusedIndex, Math.max(0, visible.length - 1));
   const focused = visible[safeIndex];
-  const isSecret = (a: Achievement) => a.is_hidden && !a.is_unlocked && !revealed.has(a.id);
+  const isSecret = (a: Achievement) =>
+    a.is_hidden && !a.is_unlocked && !revealed.has(a.id) && !config.revealSecretsByDefault;
   const canReveal = isOpen && !!focused && isSecret(focused);
 
   React.useEffect(() => {
@@ -235,7 +256,20 @@ export const FullscreenAchievementsPage: React.FC<FullscreenAchievementsPageProp
                     }
                   >
                     {id === "ultrarare" && <Sparkles className="w-4 h-4 text-amber-400" />}
-                    {t(id === "ultrarare" ? "achievements.ultra_rare" : `achievements.${id}`)}
+                    {id === "rare" && <Trophy className="w-4 h-4 text-amber-500" />}
+                    {id === "uncommon" && <Medal className="w-4 h-4 text-sky-400" />}
+                    {id === "common" && <Award className="w-4 h-4 text-slate-400" />}
+                    {t(
+                      id === "ultrarare"
+                        ? "achievements.ultra_rare"
+                        : id === "rare"
+                        ? "achievements.rare"
+                        : id === "uncommon"
+                        ? "achievements.uncommon"
+                        : id === "common"
+                        ? "achievements.common"
+                        : `achievements.${id}`
+                    )}
                     <span className="tabular-nums opacity-60">{counts[id]}</span>
                   </button>
                 );
@@ -271,6 +305,12 @@ export const FullscreenAchievementsPage: React.FC<FullscreenAchievementsPageProp
             {visible.map((ach, idx) => {
               const isFocused = idx === safeIndex;
               const secret = isSecret(ach);
+              const tier = getRarityTier(
+                ach.rarity_percentage,
+                config.ultraRareThreshold,
+                config.rareThreshold,
+                config.uncommonThreshold
+              );
               return (
                 <div
                   key={ach.id}
@@ -287,7 +327,12 @@ export const FullscreenAchievementsPage: React.FC<FullscreenAchievementsPageProp
                     boxShadow: isFocused ? "0 0 0 0.15rem rgba(255, 255, 255, 0.7)" : "none",
                   }}
                 >
-                  <AchievementIcon achievement={ach} secret={secret} />
+                  <AchievementIcon
+                    achievement={ach}
+                    secret={secret}
+                    tier={tier}
+                    goldenGlow={config.goldenGlowUltraRare}
+                  />
 
                   <div className="flex-1 min-w-0">
                     <p className={`text-xl font-semibold truncate ${ach.is_unlocked ? "text-white" : "text-white/70"}`}>
@@ -298,14 +343,22 @@ export const FullscreenAchievementsPage: React.FC<FullscreenAchievementsPageProp
                     </p>
                   </div>
 
-                  <div className="w-56 shrink-0 flex flex-col items-end gap-1 text-right">
-                    {ach.rarity_percentage !== null && (
+                  <div className="w-64 shrink-0 flex flex-col items-end gap-1 text-right">
+                    {config.showRarityBadges && ach.rarity_percentage !== null && (
                       <span
                         className="flex items-center gap-1.5 text-base font-semibold tabular-nums"
-                        style={{ color: rarityColor(ach.rarity_percentage) }}
+                        style={{
+                          color: getRarityColor(
+                            ach.rarity_percentage,
+                            config.ultraRareThreshold,
+                            config.rareThreshold,
+                            config.uncommonThreshold
+                          ),
+                        }}
                       >
-                        {isUltraRare(ach) && <Sparkles className="w-4 h-4" />}
-                        {t("console_ui.achievement_rarity", { percent: ach.rarity_percentage.toFixed(1) })}
+                        <RarityIcon tier={tier} className="w-4 h-4" />
+                        <span>{t("achievements.tier_" + tier)}</span>
+                        <span className="opacity-70 font-mono">({ach.rarity_percentage.toFixed(1)}%)</span>
                       </span>
                     )}
                     {ach.is_unlocked ? (
@@ -318,7 +371,7 @@ export const FullscreenAchievementsPage: React.FC<FullscreenAchievementsPageProp
                         {t("achievements.locked")}
                       </span>
                     )}
-                    {ach.points !== null && (
+                    {config.showPoints && ach.points !== null && (
                       <span className="text-sm font-semibold text-emerald-300 tabular-nums">{ach.points} G</span>
                     )}
                   </div>
@@ -344,15 +397,46 @@ export const FullscreenAchievementsPage: React.FC<FullscreenAchievementsPageProp
   );
 };
 
-function AchievementIcon({ achievement, secret }: { achievement: Achievement; secret: boolean }) {
+function AchievementIcon({
+  achievement,
+  secret,
+  tier,
+  goldenGlow,
+}: {
+  achievement: Achievement;
+  secret: boolean;
+  tier: RarityTier;
+  goldenGlow: boolean;
+}) {
   const [failed, setFailed] = React.useState(false);
   const src = achievementIconSrc(achievement);
-  const ultraRare = achievement.is_unlocked && isUltraRare(achievement);
+
+  const getShadow = () => {
+    if (
+      !achievement.is_unlocked ||
+      achievement.rarity_percentage === null ||
+      achievement.rarity_percentage === undefined
+    ) {
+      return "none";
+    }
+    if (tier === "ultra_rare") {
+      return goldenGlow
+        ? "0 0 0 0.15rem #fbbf24, 0 0 1rem rgba(251, 191, 36, 0.4)"
+        : "0 0 0 0.15rem #fbbf24";
+    }
+    if (tier === "rare") {
+      return "0 0 0 0.12rem #f59e0b, 0 0 0.75rem rgba(245, 158, 11, 0.3)";
+    }
+    if (tier === "uncommon") {
+      return "0 0 0 0.12rem #38bdf8, 0 0 0.6rem rgba(56, 189, 248, 0.25)";
+    }
+    return "none";
+  };
 
   return (
     <div
       className="relative w-16 h-16 rounded-md overflow-hidden shrink-0 bg-slate-900"
-      style={{ boxShadow: ultraRare ? "0 0 0 0.15rem #fbbf24, 0 0 1rem rgba(251, 191, 36, 0.4)" : "none" }}
+      style={{ boxShadow: getShadow() }}
     >
       {secret ? (
         <div className="w-full h-full flex flex-col items-center justify-center text-slate-500">

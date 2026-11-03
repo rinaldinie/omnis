@@ -574,6 +574,8 @@ export interface TranslationSchema {
     ultra_rare_desc: string;
     rare_threshold: string;
     rare_desc: string;
+    uncommon_threshold: string;
+    uncommon_desc: string;
     golden_glow: string;
     golden_glow_desc: string;
     reveal_secrets: string;
@@ -920,6 +922,13 @@ export interface TranslationSchema {
     unlocked: string;
     locked: string;
     ultra_rare: string;
+    rare: string;
+    uncommon: string;
+    common: string;
+    tier_ultra_rare: string;
+    tier_rare: string;
+    tier_uncommon: string;
+    tier_common: string;
     sync: string;
     syncing: string;
     all: string;
