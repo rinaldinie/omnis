@@ -7,6 +7,9 @@ import { shouldAutoScanOnStartup, shouldShowOnboarding } from "../components/mod
 import { loadAchievementsConfig, saveAchievementsConfig } from "../components/achievements";
 import { SessionToastInfo, SyncBannerInfo } from "../components/common/AppToasts";
 
+/** How long the session-ended toast stays on screen */
+export const SESSION_TOAST_MS = 6000;
+
 export interface UseAppEventsOptions {
   loadGames: () => Promise<void>;
   refreshLibrary: () => Promise<void>;
@@ -272,7 +275,7 @@ export function useAppEvents({
           });
           toastTimeoutRef.current = setTimeout(() => {
             setSessionToast(null);
-          }, 6000);
+          }, SESSION_TOAST_MS);
 
           loadGames();
         });

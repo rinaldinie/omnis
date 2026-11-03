@@ -340,6 +340,8 @@ export const ja: TranslationSchema = {
     stats_activity: 'アクティビティ',
     stats_top_games: 'よくプレイしたゲーム',
     stats_breakdown: 'プレイ時間の内訳',
+    session_time: '今回のセッション',
+    total_playtime: '合計',
   },
   app_status: {
     theme_activated: 'テーマ「{name}」を適用しました',

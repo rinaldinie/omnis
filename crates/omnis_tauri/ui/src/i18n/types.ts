@@ -356,6 +356,8 @@ export interface TranslationSchema {
     stats_activity: string;
     stats_top_games: string;
     stats_breakdown: string;
+    session_time: string;
+    total_playtime: string;
   };
   app_status: {
     theme_activated: string;
