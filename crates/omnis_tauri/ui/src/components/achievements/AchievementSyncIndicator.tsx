@@ -48,7 +48,7 @@ export const AchievementSyncIndicator: React.FC<AchievementSyncIndicatorProps> =
     <div
       role="status"
       aria-live="polite"
-      className="fixed bottom-8 left-10 z-40 pointer-events-none select-none flex items-center gap-2.5 px-4 py-2 rounded-lg shadow-xl omnis-fade-in max-w-md"
+      className="fixed bottom-20 left-10 z-[55] pointer-events-none select-none flex items-center gap-2.5 px-4 py-2 rounded-lg shadow-xl omnis-fade-in max-w-md"
       style={{ backgroundColor: "var(--bg-surface)", color: "var(--text-muted)" }}
     >
       {icon}

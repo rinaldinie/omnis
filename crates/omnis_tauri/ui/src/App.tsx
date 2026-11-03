@@ -514,6 +514,8 @@ export default function App() {
     setHomeFocusZone,
     isMenuOpen,
     setIsMenuOpen,
+    consolePage,
+    setConsolePage,
   } = useGamepadNavigation({
     isFullscreen,
     toggleFullscreen,
@@ -649,6 +651,7 @@ export default function App() {
           <FullscreenView
             focusedGame={focusedGame}
             filteredGames={fullscreenGames}
+            allGames={games}
             focusedIndex={focusedIndex}
             setFocusedIndex={setFocusedIndex}
             setSelectedGame={setSelectedGame}
@@ -705,6 +708,8 @@ export default function App() {
             setHomeFocusZone={setHomeFocusZone}
             isMenuOpen={isMenuOpen}
             setIsMenuOpen={setIsMenuOpen}
+            consolePage={consolePage}
+            setConsolePage={setConsolePage}
             themes={themes}
             onSelectTheme={selectTheme}
           />

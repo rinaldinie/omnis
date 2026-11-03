@@ -1,8 +1,8 @@
 import React from "react";
 import { Play } from "lucide-react";
-import { GameDto, ActiveGameSession } from "../../types";
+import { GameDto, ActiveGameSession, GameAchievementsSummary } from "../../types";
 import { ArtImage } from "./FullscreenCards";
-import { GameAchievementsGallery } from "../achievements";
+import { FullscreenAchievementsCard } from "./FullscreenAchievementsCard";
 
 export interface HeroActionDefinition {
   labelKey: string;
@@ -30,9 +30,12 @@ export interface FullscreenDetailsOverlayProps {
   setNotice: (message: string) => void;
   soundEffects: { playSelect: () => void };
   playtimeLabel: (game: GameDto) => string;
-  achievementsFocusedIndex: number;
-  setAchievementsFocusedIndex: (idx: number) => void;
-  setTotalAchievements: (total: number) => void;
+  /** Achievements of the details game; the card is hidden for stores without achievements */
+  achievementsSupported: boolean;
+  achievementsSummary: GameAchievementsSummary | null;
+  achievementsLoading: boolean;
+  achievementsCardRef: React.RefObject<HTMLButtonElement>;
+  onOpenAchievements: () => void;
   storeLabels: Record<string, string>;
   renderStoreIcon: (library: string) => React.ReactNode;
   t: (key: string, params?: Record<string, any>) => string;
@@ -58,9 +61,11 @@ export const FullscreenDetailsOverlay: React.FC<FullscreenDetailsOverlayProps> =
   setNotice,
   soundEffects,
   playtimeLabel,
-  achievementsFocusedIndex,
-  setAchievementsFocusedIndex,
-  setTotalAchievements,
+  achievementsSupported,
+  achievementsSummary,
+  achievementsLoading,
+  achievementsCardRef,
+  onOpenAchievements,
   storeLabels,
   renderStoreIcon,
   t,
@@ -222,6 +227,21 @@ export const FullscreenDetailsOverlay: React.FC<FullscreenDetailsOverlayProps> =
           </dl>
         </section>
 
+        {/* Achievements */}
+        {achievementsSupported && (
+          <section className="px-16 pb-10 max-w-6xl">
+            <FullscreenAchievementsCard
+              ref={achievementsCardRef}
+              summary={achievementsSummary}
+              loading={achievementsLoading}
+              library={activeDetailGame.library}
+              isFocused={detailsFocusedSection === "achievements"}
+              onOpen={onOpenAchievements}
+              t={t}
+            />
+          </section>
+        )}
+
         {/* About */}
         <section className="px-16 pb-10 max-w-5xl">
           <h3 className="text-sm font-semibold uppercase tracking-widest text-white/50 mb-3">
@@ -230,24 +250,6 @@ export const FullscreenDetailsOverlay: React.FC<FullscreenDetailsOverlayProps> =
           <p className="text-lg leading-relaxed whitespace-pre-line text-white/85">
             {activeDetailGame.description || t("fullscreen.no_desc")}
           </p>
-        </section>
-
-        {/* Achievements */}
-        <section
-          className="mx-16 p-6 rounded-lg transition-shadow duration-200"
-          style={{
-            backgroundColor: "rgba(255, 255, 255, 0.04)",
-            boxShadow: detailsFocusedSection === "achievements" ? "0 0 0 0.15rem rgba(255, 255, 255, 0.6)" : "none",
-          }}
-        >
-          <GameAchievementsGallery
-            key={activeDetailGame.id}
-            game={activeDetailGame}
-            isFullscreen={true}
-            focusedIndex={achievementsFocusedIndex}
-            onFocusIndexChange={setAchievementsFocusedIndex}
-            onTotalAchievementsChange={setTotalAchievements}
-          />
         </section>
       </div>
     </div>

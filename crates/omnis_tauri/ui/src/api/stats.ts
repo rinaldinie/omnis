@@ -4,6 +4,7 @@ import type { GameStatsDto, GlobalStatsDto } from "../types";
 export const statsApi = {
   /** Fetch aggregated statistics across all played games */
   getGlobalStatistics: (params?: {
+    year?: number;
     startDate?: string;
     endDate?: string;
   }): Promise<GlobalStatsDto> =>

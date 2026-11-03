@@ -20,6 +20,7 @@ import {
   Minimize2,
   Monitor,
   Power,
+  BarChart3,
 } from "lucide-react";
 import { GameDto, ThemeConfig } from "../../types";
 import { SUPPORTED_LOCALES } from "../../i18n/types";
@@ -64,6 +65,8 @@ export interface UseFullscreenMenuOptions {
   handleMinimize: () => void;
   openConfirm: (kind: "exit" | "desktop" | "uninstall") => void;
   confirm: any;
+  /** Opens the console statistics page */
+  onOpenStatistics?: () => void;
   t: (key: string, params?: Record<string, any>) => string;
 }
 
@@ -100,6 +103,7 @@ export function useFullscreenMenu({
   handleMinimize,
   openConfirm,
   confirm,
+  onOpenStatistics,
   t,
 }: UseFullscreenMenuOptions) {
   const hasUpdate =
@@ -238,6 +242,18 @@ export function useFullscreenMenu({
       value: t(`console_ui.sort_${sortMode}`),
       onActivate: () => cycleSort(1),
       onAdjust: cycleSort,
+    });
+  }
+  if (onOpenStatistics) {
+    menuItems.push({
+      id: "statistics",
+      icon: BarChart3,
+      section: "library",
+      label: t("console_ui.statistics"),
+      onActivate: () => {
+        setIsMenuOpen?.(false);
+        onOpenStatistics();
+      },
     });
   }
   if (filteredGames.length > 1) {
