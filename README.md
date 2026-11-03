@@ -6,6 +6,8 @@
 
 > High-performance, modular, open-source universal game library manager and launcher built with Rust and Tauri v2.
 
+![Omnis library grid view](assets/screenshots/library-grid.webp)
+
 ---
 
 ## Overview
@@ -27,6 +29,14 @@ Omnis aggregates your PC gaming library across platforms into a single, cohesive
 - **Themes & Localization**: Built-in themes with a slot-based theme API; UI available in English, Italian, French, German, Spanish and Japanese.
 - **Extensibility**: 3-Tier plugin model (built-in Tier 0 integrations, native Tier 1 C-ABI dynamic plugins, and an experimental Tier 2 WebAssembly sandbox, not yet integrated into the app).
 - **Auto-Update**: Signed in-app updates via the Tauri updater.
+
+### Screenshots
+
+| Game details | Fullscreen mode |
+| :---: | :---: |
+| ![Game details with hero banner, OpenCritic score and HowLongToBeat estimates](assets/screenshots/game-details.webp) | ![Controller-first fullscreen mode](assets/screenshots/fullscreen-mode.webp) |
+| **Statistics dashboard** | **Achievements** |
+| ![Statistics dashboard with activity heatmap and playtime breakdown](assets/screenshots/statistics-dashboard.webp) | ![Achievements gallery and per-game session statistics](assets/screenshots/achievements.webp) |
 
 ---
 
