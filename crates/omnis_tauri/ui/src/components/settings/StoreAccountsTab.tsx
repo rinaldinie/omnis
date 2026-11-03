@@ -25,6 +25,7 @@ import {
   formatLastSync,
 } from "../store_accounts/types";
 import { DisconnectStoreModal, StoreCleanupMode } from "../modals/DisconnectStoreModal";
+import { SettingGroup, SettingRow, ToggleSwitch } from "./SettingsControls";
 
 export type { StoreAccount, StoreSyncProgress, StoreIntegrationSettings };
 
@@ -262,6 +263,8 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
     last_sync: null,
   };
 
+  const currentMeta = STORE_LIST.find((s) => s.id === selectedStoreId) || STORE_LIST[0];
+
   const updateSetting = <K extends keyof StoreIntegrationSettings>(
     key: K,
     val: StoreIntegrationSettings[K]
@@ -469,16 +472,27 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
                   soundEffects.playNav();
                   setSelectedStoreId(store.id);
                 }}
-                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative flex items-center gap-2 cursor-pointer whitespace-nowrap ${isSelected
-                  ? "text-sky-400 bg-sky-500/10 shadow-xs"
-                  : "text-slate-400 hover:text-white hover:bg-white/5"
-                  }`}
+                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+                  isSelected
+                    ? "shadow-xs"
+                    : "text-slate-400 hover:text-white hover:bg-white/5"
+                }`}
+                style={
+                  isSelected
+                    ? {
+                        backgroundColor: "color-mix(in srgb, var(--accent-primary) 12%, transparent)",
+                        color: "var(--accent-primary)",
+                      }
+                    : undefined
+                }
               >
                 {store.icon("w-3.5 h-3.5 shrink-0")}
                 <span>{store.name}</span>
                 <span
-                  className={`w-1.5 h-1.5 rounded-full shrink-0 ${isConn ? "bg-emerald-400 animate-pulse" : "bg-slate-600"
-                    }`}
+                  className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                    isConn ? "animate-pulse" : "bg-slate-600"
+                  }`}
+                  style={isConn ? { backgroundColor: "var(--accent-primary)" } : undefined}
                   title={
                     isConn
                       ? t("store_accounts.authenticated")
@@ -486,7 +500,10 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
                   }
                 />
                 {isSelected && (
-                  <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-sky-400 rounded-full" />
+                  <span
+                    className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full"
+                    style={{ backgroundColor: "var(--accent-primary)" }}
+                  />
                 )}
               </button>
             );
@@ -496,341 +513,378 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
 
       {/* Main Content for Selected Store */}
       <div className="flex-1 overflow-y-auto p-6 space-y-5 custom-scrollbar min-h-0">
-        {/* Option 1: Importa i giochi installati */}
-        <label className="flex items-center gap-3 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={currentSettings.import_installed}
-            onChange={(e) => updateSetting("import_installed", e.target.checked)}
-            style={{ accentColor: "var(--accent-primary)" }}
-            className="w-4 h-4 rounded border-white/20 bg-slate-900 cursor-pointer"
-          />
-          <span className="text-sm font-semibold text-white">
-            {t("store_accounts.import_installed")}
-          </span>
-        </label>
+        <SettingGroup
+          title={currentMeta.name}
+          description="Gestisci la connessione e le modalità di importazione dei giochi."
+          icon={currentMeta.icon("w-4 h-4")}
+        >
+          <SettingRow
+            title={t("store_accounts.import_installed")}
+            description="Rileva ed elenca i giochi installati localmente sul computer."
+          >
+            <ToggleSwitch
+              checked={currentSettings.import_installed}
+              onChange={(val) => updateSetting("import_installed", val)}
+              ariaLabel={t("store_accounts.import_installed")}
+            />
+          </SettingRow>
 
-        {/* Option 2: Connetti l'account */}
-        <div className="space-y-4 pt-1">
-          <div className="flex items-center justify-between">
-            <label className="flex items-center gap-3 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={currentSettings.connect_account}
-                onChange={(e) => updateSetting("connect_account", e.target.checked)}
-                style={{ accentColor: "var(--accent-primary)" }}
-                className="w-4 h-4 rounded border-white/20 bg-slate-900 cursor-pointer"
-              />
-              <span className="text-sm font-semibold text-white">
-                {t("store_accounts.connect_account")}
-              </span>
-            </label>
-
-            {/* Auth status pill */}
-            <div>
-              {currentAccount.is_connected ? (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                  <Check className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>
-                    {t("store_accounts.authenticated")}
-                  </span>
+          <SettingRow
+            title={t("store_accounts.connect_account")}
+            description="Collega l'account per sincronizzare libreria cloud, tempi di gioco e dettagli."
+            badge={
+              currentAccount.is_connected ? (
+                <span
+                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold border"
+                  style={{
+                    backgroundColor: "color-mix(in srgb, var(--accent-primary) 15%, transparent)",
+                    borderColor: "color-mix(in srgb, var(--accent-primary) 30%, transparent)",
+                    color: "var(--accent-primary)",
+                  }}
+                >
+                  <Check className="w-2.5 h-2.5 stroke-[3]" />
+                  <span>{t("store_accounts.authenticated")}</span>
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-800 text-slate-400 border border-white/10">
-                  <span>
-                    {t("store_accounts.not_authenticated")}
-                  </span>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-white/5 text-slate-400 border border-white/10">
+                  <span>{t("store_accounts.not_authenticated")}</span>
                 </span>
+              )
+            }
+          >
+            <ToggleSwitch
+              checked={currentSettings.connect_account}
+              onChange={(val) => updateSetting("connect_account", val)}
+              ariaLabel={t("store_accounts.connect_account")}
+            />
+          </SettingRow>
+        </SettingGroup>
+
+        {/* Sub-options when "Connetti l'account" is enabled */}
+        {currentSettings.connect_account && (
+          <div className="space-y-4 animate-in fade-in duration-200">
+            <SettingGroup
+              title="Filtri & Opzioni Sincronizzazione"
+              description="Personalizza quali contenuti sincronizzare dalla piattaforma."
+            >
+              <SettingRow
+                title={t("store_accounts.import_uninstalled")}
+                description="Importa nella libreria Omnis anche i titoli posseduti ma non scaricati."
+              >
+                <ToggleSwitch
+                  checked={currentSettings.import_uninstalled}
+                  onChange={(val) => updateSetting("import_uninstalled", val)}
+                  ariaLabel={t("store_accounts.import_uninstalled")}
+                />
+              </SettingRow>
+
+              <SettingRow
+                title={t("store_accounts.ignore_other_accounts")}
+                description="Ignora i giochi installati da altri account utente rilevati localmente."
+              >
+                <ToggleSwitch
+                  checked={currentSettings.ignore_other_accounts}
+                  onChange={(val) => updateSetting("ignore_other_accounts", val)}
+                  ariaLabel={t("store_accounts.ignore_other_accounts")}
+                />
+              </SettingRow>
+
+              {selectedStoreId === "steam" && (
+                <>
+                  <SettingRow
+                    title={t("store_accounts.import_free_items")}
+                    description="Include oggetti gratuiti, software e strumenti associati alla licenza Steam."
+                  >
+                    <ToggleSwitch
+                      checked={currentSettings.import_free_items || false}
+                      onChange={(val) => updateSetting("import_free_items", val)}
+                      ariaLabel={t("store_accounts.import_free_items")}
+                    />
+                  </SettingRow>
+
+                  <SettingRow
+                    title={t("store_accounts.import_family_sharing")}
+                    description="Include i titoli condivisi dagli altri membri della famiglia Steam."
+                  >
+                    <ToggleSwitch
+                      checked={currentSettings.import_family_sharing ?? true}
+                      onChange={(val) => updateSetting("import_family_sharing", val)}
+                      ariaLabel={t("store_accounts.import_family_sharing")}
+                    />
+                  </SettingRow>
+                </>
               )}
+
+              {selectedStoreId === "xbox" && (
+                <SettingRow
+                  title={t("store_accounts.include_game_pass")}
+                  description="Importa il catalogo dei titoli disponibili con abbonamento Xbox Game Pass."
+                >
+                  <ToggleSwitch
+                    checked={currentSettings.import_game_pass ?? true}
+                    onChange={(val) => updateSetting("import_game_pass", val)}
+                    ariaLabel={t("store_accounts.include_game_pass")}
+                  />
+                </SettingRow>
+              )}
+            </SettingGroup>
+
+            {/* STEAM SPECIFIC: API KEY LOGIN */}
+            {selectedStoreId === "steam" && (
+              <div
+                className="p-4 rounded-2xl border space-y-4 shadow-xs"
+                style={{
+                  backgroundColor: "var(--bg-card)",
+                  borderColor: "var(--border-color)",
+                }}
+              >
+                {/* Steam Active Session Banner & Disconnect */}
+                {currentAccount.is_connected && (
+                  <div
+                    className="flex items-center justify-between p-3.5 rounded-xl border"
+                    style={{
+                      backgroundColor: "color-mix(in srgb, var(--accent-primary) 10%, transparent)",
+                      borderColor: "color-mix(in srgb, var(--accent-primary) 25%, transparent)",
+                    }}
+                  >
+                    <div className="flex items-center gap-3">
+                      {currentAccount.avatar_url ? (
+                        <img
+                          src={currentAccount.avatar_url}
+                          alt="Avatar"
+                          className="w-8 h-8 rounded-full border object-cover"
+                          style={{ borderColor: "var(--accent-primary)" }}
+                        />
+                      ) : (
+                        <div
+                          className="w-8 h-8 rounded-full border flex items-center justify-center font-bold text-xs"
+                          style={{
+                            backgroundColor: "color-mix(in srgb, var(--accent-primary) 20%, transparent)",
+                            borderColor: "var(--accent-primary)",
+                            color: "var(--accent-primary)",
+                          }}
+                        >
+                          <SteamIcon className="w-4 h-4 text-[#66c0f4]" />
+                        </div>
+                      )}
+                      <div>
+                        <p className="text-xs font-bold text-white">
+                          {currentAccount.username || t("store_accounts.connected_user")}
+                        </p>
+                        <p className="text-[11px]" style={{ color: "var(--accent-primary)" }}>
+                          {t("store_accounts.active_session")}
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleRequestDisconnect("steam", "Steam")}
+                      disabled={actionLoading["steam"]}
+                      className="px-3 py-1.5 rounded-lg border border-rose-500/30 text-rose-300 hover:bg-rose-500/15 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      <span>{t("store_accounts.disconnect")}</span>
+                    </button>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-2 h-2 rounded-full"
+                      style={{ backgroundColor: "var(--accent-primary)" }}
+                    />
+                    <label className="text-xs font-bold" style={{ color: "var(--accent-primary)" }}>
+                      {t("store_accounts.api_key_login")}
+                    </label>
+                  </div>
+                  <span
+                    className="text-[10px] uppercase font-mono px-2 py-0.5 rounded border"
+                    style={{
+                      backgroundColor: "color-mix(in srgb, var(--accent-primary) 15%, transparent)",
+                      borderColor: "color-mix(in srgb, var(--accent-primary) 30%, transparent)",
+                      color: "var(--accent-primary)",
+                    }}
+                  >
+                    {t("store_accounts.required_for_achievements")}
+                  </span>
+                </div>
+
+                {/* ID Account Field */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <label className="font-semibold text-slate-300">
+                      {t("store_accounts.account_id")}
+                    </label>
+                    <a
+                      href="https://steamcommunity.com/my"
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        openExternalUrl("https://steamcommunity.com/my");
+                      }}
+                      className="text-xs font-bold inline-flex items-center gap-1 cursor-pointer hover:underline"
+                      style={{ color: "var(--accent-primary)" }}
+                    >
+                      <span>{t("store_accounts.get_account_id")}</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+                  <input
+                    type="text"
+                    value={currentSettings.account_id || ""}
+                    onChange={(e) => updateSetting("account_id", e.target.value.trim())}
+                    placeholder={t("store_accounts.account_id_placeholder")}
+                    className="w-full bg-slate-900/90 border border-white/20 rounded-xl px-3 py-2 text-xs font-mono text-white placeholder-slate-500 focus:outline-hidden shadow-inner"
+                    style={{ borderColor: "var(--border-color)" }}
+                  />
+                </div>
+
+                {/* Chiave API Field */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <label className="font-semibold text-slate-300">
+                      {t("store_accounts.api_key")}
+                    </label>
+                    <a
+                      href="https://steamcommunity.com/dev/apikey"
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        openExternalUrl("https://steamcommunity.com/dev/apikey");
+                      }}
+                      className="text-xs font-bold inline-flex items-center gap-1 cursor-pointer hover:underline"
+                      style={{ color: "var(--accent-primary)" }}
+                    >
+                      <span>{t("store_accounts.get_api_key")}</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+                  <input
+                    type="password"
+                    value={currentSettings.api_key || ""}
+                    onChange={(e) => updateSetting("api_key", e.target.value.trim())}
+                    placeholder={t("store_accounts.api_key_placeholder")}
+                    className="w-full bg-slate-900/90 border border-white/20 rounded-xl px-3 py-2 text-xs font-mono text-white placeholder-slate-500 focus:outline-hidden shadow-inner"
+                    style={{ borderColor: "var(--border-color)" }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* OAUTH STORES: EPIC, GOG, XBOX */}
+            {selectedStoreId !== "steam" && (
+              <div
+                className="p-4 rounded-2xl border space-y-3 shadow-xs"
+                style={{
+                  backgroundColor: "var(--bg-card)",
+                  borderColor: "var(--border-color)",
+                }}
+              >
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-semibold text-slate-300">
+                    {t("store_accounts.cloud_auth")}
+                  </span>
+                  {currentAccount.last_sync && (
+                    <span className="text-[11px] text-slate-400">
+                      {t("store_accounts.last_sync", {
+                        time: formatLastSync(currentAccount.last_sync, locale, t("store_accounts.never_synced")),
+                      })}
+                    </span>
+                  )}
+                </div>
+
+                {currentAccount.is_connected ? (
+                  <div
+                    className="flex items-center justify-between p-3.5 rounded-xl border"
+                    style={{
+                      backgroundColor: "color-mix(in srgb, var(--accent-primary) 10%, transparent)",
+                      borderColor: "color-mix(in srgb, var(--accent-primary) 25%, transparent)",
+                    }}
+                  >
+                    <div className="flex items-center gap-3">
+                      {currentAccount.avatar_url ? (
+                        <img
+                          src={currentAccount.avatar_url}
+                          alt="Avatar"
+                          className="w-8 h-8 rounded-full border object-cover"
+                          style={{ borderColor: "var(--accent-primary)" }}
+                        />
+                      ) : (
+                        <div
+                          className="w-8 h-8 rounded-full border flex items-center justify-center font-bold text-xs"
+                          style={{
+                            backgroundColor: "color-mix(in srgb, var(--accent-primary) 20%, transparent)",
+                            borderColor: "var(--accent-primary)",
+                            color: "var(--accent-primary)",
+                          }}
+                        >
+                          {currentAccount.username?.charAt(0).toUpperCase() || "U"}
+                        </div>
+                      )}
+                      <div>
+                        <p className="text-xs font-bold text-white">
+                          {currentAccount.username || t("store_accounts.connected_user")}
+                        </p>
+                        <p className="text-[11px]" style={{ color: "var(--accent-primary)" }}>
+                          {t("store_accounts.active_session")}
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const sName = STORE_LIST.find((s) => s.id === selectedStoreId)?.name || selectedStoreId;
+                        handleRequestDisconnect(selectedStoreId, sName);
+                      }}
+                      disabled={actionLoading[selectedStoreId]}
+                      className="px-3 py-1.5 rounded-lg border border-rose-500/30 text-rose-300 hover:bg-rose-500/15 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      <span>{t("store_accounts.disconnect")}</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/10">
+                    <p className="text-xs text-slate-400">
+                      {t("store_accounts.oauth_desc")}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleConnectOAuth}
+                      disabled={actionLoading[selectedStoreId]}
+                      className="px-4 py-2 rounded-xl text-white text-xs font-bold transition-all shadow-md flex items-center gap-1.5 shrink-0 cursor-pointer disabled:opacity-50 hover:brightness-110 active:scale-95"
+                      style={{
+                        backgroundColor: "var(--accent-primary)",
+                        boxShadow: "0 4px 14px var(--accent-glow)",
+                      }}
+                    >
+                      <LogIn className="w-3.5 h-3.5" />
+                      <span>{t("store_accounts.connect")}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Troubleshoot link */}
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowTroubleshoot(true)}
+                className="text-xs font-semibold hover:underline flex items-center gap-1 cursor-pointer"
+                style={{ color: "var(--accent-primary)" }}
+              >
+                <HelpCircle className="w-3.5 h-3.5" />
+                <span>{t("store_accounts.troubleshoot")}</span>
+              </button>
             </div>
           </div>
-
-          {/* Sub-options indented under "Connetti l'account" */}
-          {currentSettings.connect_account && (
-            <div className="ml-7 pl-4 border-l border-white/10 space-y-4 animate-in fade-in">
-              <label className="flex items-center gap-3 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={currentSettings.import_uninstalled}
-                  onChange={(e) => updateSetting("import_uninstalled", e.target.checked)}
-                  style={{ accentColor: "var(--accent-primary)" }}
-                  className="w-4 h-4 rounded border-white/20 bg-slate-900 cursor-pointer"
-                />
-                <span className="text-xs text-slate-200 font-medium">
-                  {t("store_accounts.import_uninstalled")}
-                </span>
-              </label>
-
-              <label className="flex items-center gap-3 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={currentSettings.ignore_other_accounts}
-                  onChange={(e) => updateSetting("ignore_other_accounts", e.target.checked)}
-                  style={{ accentColor: "var(--accent-primary)" }}
-                  className="w-4 h-4 rounded border-white/20 bg-slate-900 cursor-pointer"
-                />
-                <span className="text-xs text-slate-200 font-medium">
-                  {t("store_accounts.ignore_other_accounts")}
-                </span>
-              </label>
-
-              {/* STEAM SPECIFIC: API KEY LOGIN */}
-              {selectedStoreId === "steam" && (
-                <div className="p-4 rounded-xl bg-black/40 border border-sky-500/30 space-y-4">
-                  {/* Steam Active Session Banner & Disconnect */}
-                  {currentAccount.is_connected && (
-                    <div className="flex items-center justify-between p-3 rounded-xl bg-sky-500/10 border border-sky-500/30">
-                      <div className="flex items-center gap-3">
-                        {currentAccount.avatar_url ? (
-                          <img
-                            src={currentAccount.avatar_url}
-                            alt="Avatar"
-                            className="w-8 h-8 rounded-full border border-sky-400/40 object-cover"
-                          />
-                        ) : (
-                          <div className="w-8 h-8 rounded-full bg-sky-500/20 border border-sky-400/40 flex items-center justify-center font-bold text-xs text-sky-300">
-                            <SteamIcon className="w-4 h-4 text-[#66c0f4]" />
-                          </div>
-                        )}
-                        <div>
-                          <p className="text-xs font-bold text-white">
-                            {currentAccount.username || t("store_accounts.connected_user")}
-                          </p>
-                          <p className="text-[11px] text-sky-300">
-                            {t("store_accounts.active_session")}
-                          </p>
-                        </div>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => handleRequestDisconnect("steam", "Steam")}
-                        disabled={actionLoading["steam"]}
-                        className="px-3 py-1.5 rounded-lg border border-rose-500/30 text-rose-300 hover:bg-rose-500/15 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                      >
-                        <LogOut className="w-3.5 h-3.5" />
-                        <span>{t("store_accounts.disconnect")}</span>
-                      </button>
-                    </div>
-                  )}
-
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="radio"
-                        id="api_login"
-                        name="steam_auth_type"
-                        checked={true}
-                        readOnly
-                        className="text-sky-500"
-                      />
-                      <label htmlFor="api_login" className="text-xs font-bold text-sky-300">
-                        {t("store_accounts.api_key_login")}
-                      </label>
-                    </div>
-                    <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-500/30">
-                      {t("store_accounts.required_for_achievements")}
-                    </span>
-                  </div>
-
-                  {/* ID Account Field */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between text-xs">
-                      <label className="font-semibold text-slate-300">
-                        {t("store_accounts.account_id")}
-                      </label>
-                      <a
-                        href="https://steamcommunity.com/my"
-                        target="_blank"
-                        rel="noreferrer"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          openExternalUrl("https://steamcommunity.com/my");
-                        }}
-                        className="text-sky-400 hover:text-sky-300 text-xs font-bold inline-flex items-center gap-1 cursor-pointer"
-                      >
-                        <span>
-                          {t("store_accounts.get_account_id")}
-                        </span>
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    </div>
-                    <input
-                      type="text"
-                      value={currentSettings.account_id || ""}
-                      onChange={(e) => updateSetting("account_id", e.target.value.trim())}
-                      placeholder={t("store_accounts.account_id_placeholder")}
-                      className="w-full bg-slate-900/90 border border-white/20 rounded-xl px-3 py-2 text-xs font-mono text-white placeholder-slate-500 focus:outline-none focus:border-sky-400 shadow-inner"
-                    />
-                  </div>
-
-                  {/* Chiave API Field */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between text-xs">
-                      <label className="font-semibold text-slate-300">
-                        {t("store_accounts.api_key")}
-                      </label>
-                      <a
-                        href="https://steamcommunity.com/dev/apikey"
-                        target="_blank"
-                        rel="noreferrer"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          openExternalUrl("https://steamcommunity.com/dev/apikey");
-                        }}
-                        className="text-sky-400 hover:text-sky-300 text-xs font-bold inline-flex items-center gap-1 cursor-pointer"
-                      >
-                        <span>
-                          {t("store_accounts.get_api_key")}
-                        </span>
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    </div>
-                    <input
-                      type="password"
-                      value={currentSettings.api_key || ""}
-                      onChange={(e) => updateSetting("api_key", e.target.value.trim())}
-                      placeholder={t("store_accounts.api_key_placeholder")}
-                      className="w-full bg-slate-900/90 border border-white/20 rounded-xl px-3 py-2 text-xs font-mono text-white placeholder-slate-500 focus:outline-none focus:border-sky-400 shadow-inner"
-                    />
-                  </div>
-
-                  {/* Extra Steam Options */}
-                  <div className="pt-2 border-t border-white/10 space-y-2.5">
-                    <label className="flex items-center gap-3 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={currentSettings.import_free_items || false}
-                        onChange={(e) => updateSetting("import_free_items", e.target.checked)}
-                        style={{ accentColor: "var(--accent-primary)" }}
-                        className="w-4 h-4 rounded border-white/20 bg-slate-900 cursor-pointer"
-                      />
-                      <span className="text-xs text-slate-300 font-medium">
-                        {t("store_accounts.import_free_items")}
-                      </span>
-                    </label>
-
-                    <label className="flex items-center gap-3 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={currentSettings.import_family_sharing ?? true}
-                        onChange={(e) => updateSetting("import_family_sharing", e.target.checked)}
-                        style={{ accentColor: "var(--accent-primary)" }}
-                        className="w-4 h-4 rounded border-white/20 bg-slate-900 cursor-pointer"
-                      />
-                      <span className="text-xs text-slate-300 font-medium">
-                        {t("store_accounts.import_family_sharing")}
-                      </span>
-                    </label>
-                  </div>
-                </div>
-              )}
-
-              {/* OAUTH STORES: EPIC, GOG, XBOX */}
-              {selectedStoreId !== "steam" && (
-                <div className="p-4 rounded-xl bg-black/40 border border-white/10 space-y-3">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-semibold text-slate-300">
-                      {t("store_accounts.cloud_auth")}
-                    </span>
-                    {currentAccount.last_sync && (
-                      <span className="text-[11px] text-slate-400">
-                        {t("store_accounts.last_sync", { time: formatLastSync(currentAccount.last_sync, locale, t("store_accounts.never_synced")) })}
-                      </span>
-                    )}
-                  </div>
-
-                  {currentAccount.is_connected ? (
-                    <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
-                      <div className="flex items-center gap-3">
-                        {currentAccount.avatar_url ? (
-                          <img
-                            src={currentAccount.avatar_url}
-                            alt="Avatar"
-                            className="w-8 h-8 rounded-full border border-emerald-400/40 object-cover"
-                          />
-                        ) : (
-                          <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center font-bold text-xs text-emerald-300">
-                            {currentAccount.username?.charAt(0).toUpperCase() || "U"}
-                          </div>
-                        )}
-                        <div>
-                          <p className="text-xs font-bold text-white">
-                            {currentAccount.username || t("store_accounts.connected_user")}
-                          </p>
-                          <p className="text-[11px] text-emerald-300">
-                            {t("store_accounts.active_session")}
-                          </p>
-                        </div>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const sName = STORE_LIST.find((s) => s.id === selectedStoreId)?.name || selectedStoreId;
-                          handleRequestDisconnect(selectedStoreId, sName);
-                        }}
-                        disabled={actionLoading[selectedStoreId]}
-                        className="px-3 py-1.5 rounded-lg border border-rose-500/30 text-rose-300 hover:bg-rose-500/15 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                      >
-                        <LogOut className="w-3.5 h-3.5" />
-                        <span>{t("store_accounts.disconnect")}</span>
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/10">
-                      <p className="text-xs text-slate-400">
-                        {t("store_accounts.oauth_desc")}
-                      </p>
-                      <button
-                        type="button"
-                        onClick={handleConnectOAuth}
-                        disabled={actionLoading[selectedStoreId]}
-                        className="px-4 py-2 rounded-xl text-white text-xs font-bold transition-all shadow-md flex items-center gap-1.5 shrink-0 cursor-pointer disabled:opacity-50 hover:brightness-110 active:scale-95"
-                        style={{
-                          backgroundColor: "var(--accent-primary)",
-                          boxShadow: "0 4px 14px var(--accent-glow)",
-                        }}
-                      >
-                        <LogIn className="w-3.5 h-3.5" />
-                        <span>{t("store_accounts.connect")}</span>
-                      </button>
-                    </div>
-                  )}
-
-                  {selectedStoreId === "xbox" && (
-                    <label className="flex items-center gap-3 cursor-pointer select-none pt-1">
-                      <input
-                        type="checkbox"
-                        checked={currentSettings.import_game_pass ?? true}
-                        onChange={(e) => updateSetting("import_game_pass", e.target.checked)}
-                        style={{ accentColor: "var(--accent-primary)" }}
-                        className="w-4 h-4 rounded border-white/20 bg-slate-900 cursor-pointer"
-                      />
-                      <span className="text-xs text-slate-300 font-medium">
-                        {t("store_accounts.include_game_pass")}
-                      </span>
-                    </label>
-                  )}
-                </div>
-              )}
-
-              {/* Troubleshoot link */}
-              <div>
-                <button
-                  type="button"
-                  onClick={() => setShowTroubleshoot(true)}
-                  className="text-xs text-sky-400 hover:text-sky-300 font-semibold underline underline-offset-2 flex items-center gap-1 cursor-pointer"
-                >
-                  <HelpCircle className="w-3.5 h-3.5" />
-                  <span>
-                    {t("store_accounts.troubleshoot")}
-                  </span>
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
+        )}
       </div>
 
       {/* FOOTER */}

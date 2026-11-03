@@ -3,6 +3,7 @@ import { Archive, FolderOpen, Loader2, FileCheck, Check } from 'lucide-react';
 import { useTranslation } from '../../../i18n';
 import { soundEffects } from '../../../utils/soundEffects';
 import type { BackupResultDto } from '../../../types';
+import { ToggleSwitch } from '../SettingsControls';
 
 interface ManualBackupSectionProps {
   selectedDestination: string;
@@ -91,26 +92,23 @@ export const ManualBackupSection: React.FC<ManualBackupSectionProps> = ({
       {/* OPTIONS: ARTWORK INCLUSION */}
       <div className="pt-2 flex items-center justify-between border-t border-white/5">
         <div className="flex items-center gap-3">
-          <input
-            id="includeArtworkCheckbox"
-            type="checkbox"
+          <ToggleSwitch
             checked={includeArtwork}
-            onChange={(e) => {
+            onChange={(val) => {
               soundEffects.playSelect();
-              setIncludeArtwork(e.target.checked);
+              setIncludeArtwork(val);
             }}
-            style={{ accentColor: 'var(--accent-primary)' }}
-            className="w-4 h-4 rounded bg-slate-900 border-white/20 cursor-pointer"
+            ariaLabel={t('backup_settings.include_artwork_title') || 'Includi copertine e sfondi in cache'}
           />
-          <label htmlFor="includeArtworkCheckbox" className="text-xs text-slate-300 cursor-pointer select-none">
-            <span className="font-bold text-white">
+          <div className="text-xs text-slate-300 select-none">
+            <span className="font-bold text-white block">
               {t('backup_settings.include_artwork_title') || 'Includi copertine e sfondi in cache'}
             </span>
             <span className="block text-[11px] text-slate-400">
               {t('backup_settings.include_artwork_desc') ||
                 'Inclusione completa di tutte le immagini della cache locale nel file .zip.'}
             </span>
-          </label>
+          </div>
         </div>
 
         {/* BACKUP BUTTON */}
@@ -166,7 +164,7 @@ export const ManualBackupSection: React.FC<ManualBackupSectionProps> = ({
               salvati alle {formatDate(lastBackupResult.timestamp)}
             </span>
           </div>
-          <span className="text-[11px] text-sky-300/80 font-mono">
+          <span className="text-[11px] font-mono" style={{ color: 'var(--accent-primary)' }}>
             {(lastBackupResult.file_size_bytes / (1024 * 1024)).toFixed(2)} MB
           </span>
         </div>

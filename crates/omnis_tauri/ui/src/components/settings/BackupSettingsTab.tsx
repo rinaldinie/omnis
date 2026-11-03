@@ -303,8 +303,18 @@ export const BackupSettingsTab: React.FC<BackupSettingsTabProps> = ({
     }
 
     return (
-      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">
-        <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
+      <span
+        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border"
+        style={{
+          backgroundColor: 'color-mix(in srgb, var(--accent-primary) 15%, transparent)',
+          borderColor: 'color-mix(in srgb, var(--accent-primary) 30%, transparent)',
+          color: 'var(--accent-primary)',
+        }}
+      >
+        <span
+          className="w-1.5 h-1.5 rounded-full animate-pulse"
+          style={{ backgroundColor: 'var(--accent-primary)' }}
+        />
         {t('backup_settings.schedule_status_active') || 'Attivo (in attesa di trigger)'}
       </span>
     );

@@ -10,3 +10,4 @@ export * from './backup/ManualBackupSection';
 export * from './backup/ScheduleBackupSection';
 export * from './backup/RestoreBackupSection';
 export * from './backup/RestoreConfirmModal';
+export * from './SettingsControls';

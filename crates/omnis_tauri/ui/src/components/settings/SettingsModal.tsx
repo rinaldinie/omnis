@@ -245,10 +245,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             badge: (
               <span
                 className={`w-2 h-2 rounded-full shrink-0 transition-colors ${
-                  isConnected
-                    ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]'
-                    : 'bg-slate-600'
+                  !isConnected ? 'bg-slate-600' : ''
                 }`}
+                style={
+                  isConnected
+                    ? {
+                        backgroundColor: 'var(--accent-primary)',
+                        boxShadow: '0 0 8px var(--accent-glow)',
+                      }
+                    : undefined
+                }
                 title={isConnected ? 'Connesso' : 'Non connesso'}
               />
             ),

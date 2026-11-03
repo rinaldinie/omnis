@@ -3,6 +3,7 @@ import { Calendar, Clock, FolderOpen, AlertTriangle, Loader2, Save } from 'lucid
 import { useTranslation } from '../../../i18n';
 import { soundEffects } from '../../../utils/soundEffects';
 import type { BackupScheduleConfigDto } from '../../../types';
+import { ToggleSwitch } from '../SettingsControls';
 
 interface ScheduleBackupSectionProps {
   scheduleConfig: BackupScheduleConfigDto | null;
@@ -192,7 +193,8 @@ export const ScheduleBackupSection: React.FC<ScheduleBackupSectionProps> = ({
                     }
               );
             }}
-            className="flex-1 h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+            className="flex-1 h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer"
+            style={{ accentColor: 'var(--accent-primary)' }}
           />
           <input
             id="maxRotationsInput"
@@ -212,7 +214,8 @@ export const ScheduleBackupSection: React.FC<ScheduleBackupSectionProps> = ({
                     }
               );
             }}
-            className="w-16 px-2.5 py-1.5 text-center bg-slate-900 border border-white/20 rounded-xl text-white font-bold font-mono text-xs focus:outline-none focus:border-indigo-500"
+            className="w-16 px-2.5 py-1.5 text-center bg-slate-900 border rounded-xl text-white font-bold font-mono text-xs focus:outline-hidden"
+            style={{ borderColor: 'var(--border-color)' }}
           />
         </div>
         <p className="text-[11px] text-slate-400 leading-relaxed">
@@ -267,30 +270,24 @@ export const ScheduleBackupSection: React.FC<ScheduleBackupSectionProps> = ({
       {/* OPTIONS & SAVE BUTTON */}
       <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-t border-white/5">
         <div className="flex items-center gap-3">
-          <input
-            id="autoIncludeArtworkCheckbox"
-            type="checkbox"
+          <ToggleSwitch
             checked={scheduleConfig?.include_artwork ?? false}
-            onChange={(e) => {
+            onChange={(val) => {
               soundEffects.playSelect();
               setScheduleConfig((prev) =>
                 prev
-                  ? { ...prev, include_artwork: e.target.checked }
+                  ? { ...prev, include_artwork: val }
                   : {
                       frequency: 'disabled',
                       max_rotations: 5,
-                      include_artwork: e.target.checked,
+                      include_artwork: val,
                     }
               );
             }}
-            style={{ accentColor: 'var(--accent-primary)' }}
-            className="w-4 h-4 rounded bg-slate-900 border-white/20 cursor-pointer"
+            ariaLabel={t('backup_settings.auto_include_artwork_title') || 'Includi artwork nei backup automatici'}
           />
-          <label
-            htmlFor="autoIncludeArtworkCheckbox"
-            className="text-xs text-slate-300 cursor-pointer select-none"
-          >
-            <span className="font-bold text-white">
+          <div className="text-xs text-slate-300 select-none">
+            <span className="font-bold text-white block">
               {t('backup_settings.auto_include_artwork_title') ||
                 'Includi artwork nei backup automatici'}
             </span>
@@ -298,7 +295,7 @@ export const ScheduleBackupSection: React.FC<ScheduleBackupSectionProps> = ({
               {t('backup_settings.auto_include_artwork_desc') ||
                 'Aumenta la dimensione dei file .zip salvando anche cover e sfondi della cache'}
             </span>
-          </label>
+          </div>
         </div>
 
         {/* SAVE SCHEDULE BUTTON */}

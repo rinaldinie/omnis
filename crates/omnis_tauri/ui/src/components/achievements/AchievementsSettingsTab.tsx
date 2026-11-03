@@ -6,19 +6,14 @@ import {
   Save,
   RotateCcw,
   Sparkles,
-  Trophy,
   Check,
-  FolderOpen,
-  Volume2,
-  Sliders,
-  Eye,
   Trash2,
-  ExternalLink,
 } from "lucide-react";
 import soundEffects from "../../utils/soundEffects";
 import { useTranslation } from "../../i18n";
 import { api, TAURI_EVENTS } from "../../api";
 import { listen } from "@tauri-apps/api/event";
+import { SettingGroup, SettingRow, ToggleSwitch } from "../settings/SettingsControls";
 
 export interface AchievementsConfig {
   // Provider sources
@@ -210,90 +205,46 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
           className="flex items-center gap-1 border-b px-6 py-2.5 bg-black/20 shrink-0 overflow-x-auto"
           style={{ borderColor: "var(--border-color)" }}
         >
-          <button
-            type="button"
-            onClick={() => {
-              soundEffects.playNav();
-              setActiveSubTab("sources");
-            }}
-            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative ${activeSubTab === "sources"
-              ? "text-sky-400 bg-sky-500/10 shadow-xs"
-              : "text-slate-400 hover:text-white hover:bg-white/5"
-              }`}
-          >
-            <span>{t("achievements_settings.tab_sources")}</span>
-            {activeSubTab === "sources" && (
-              <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-sky-400 rounded-full" />
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              soundEffects.playNav();
-              setActiveSubTab("view");
-            }}
-            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative ${activeSubTab === "view"
-              ? "text-sky-400 bg-sky-500/10 shadow-xs"
-              : "text-slate-400 hover:text-white hover:bg-white/5"
-              }`}
-          >
-            <span>{t("achievements_settings.tab_view")}</span>
-            {activeSubTab === "view" && (
-              <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-sky-400 rounded-full" />
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              soundEffects.playNav();
-              setActiveSubTab("misc");
-            }}
-            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative ${activeSubTab === "misc"
-              ? "text-sky-400 bg-sky-500/10 shadow-xs"
-              : "text-slate-400 hover:text-white hover:bg-white/5"
-              }`}
-          >
-            <span>{t("achievements_settings.tab_misc")}</span>
-            {activeSubTab === "misc" && (
-              <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-sky-400 rounded-full" />
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              soundEffects.playNav();
-              setActiveSubTab("appearance");
-            }}
-            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative ${activeSubTab === "appearance"
-              ? "text-sky-400 bg-sky-500/10 shadow-xs"
-              : "text-slate-400 hover:text-white hover:bg-white/5"
-              }`}
-          >
-            <span>{t("achievements_settings.tab_appearance")}</span>
-            {activeSubTab === "appearance" && (
-              <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-sky-400 rounded-full" />
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              soundEffects.playNav();
-              setActiveSubTab("ignored");
-            }}
-            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative ${activeSubTab === "ignored"
-              ? "text-sky-400 bg-sky-500/10 shadow-xs"
-              : "text-slate-400 hover:text-white hover:bg-white/5"
-              }`}
-          >
-            <span>{t("achievements_settings.tab_ignored")}</span>
-            {activeSubTab === "ignored" && (
-              <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-sky-400 rounded-full" />
-            )}
-          </button>
+          {(
+            [
+              { id: "sources", label: t("achievements_settings.tab_sources") },
+              { id: "view", label: t("achievements_settings.tab_view") },
+              { id: "misc", label: t("achievements_settings.tab_misc") },
+              { id: "appearance", label: t("achievements_settings.tab_appearance") },
+              { id: "ignored", label: t("achievements_settings.tab_ignored") },
+            ] as const
+          ).map((tab) => {
+            const isSelected = activeSubTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => {
+                  soundEffects.playNav();
+                  setActiveSubTab(tab.id);
+                }}
+                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative cursor-pointer ${
+                  isSelected ? "shadow-xs" : "text-slate-400 hover:text-white hover:bg-white/5"
+                }`}
+                style={
+                  isSelected
+                    ? {
+                        backgroundColor: "color-mix(in srgb, var(--accent-primary) 12%, transparent)",
+                        color: "var(--accent-primary)",
+                      }
+                    : undefined
+                }
+              >
+                <span>{tab.label}</span>
+                {isSelected && (
+                  <span
+                    className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full"
+                    style={{ backgroundColor: "var(--accent-primary)" }}
+                  />
+                )}
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -309,9 +260,9 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                 className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-300 hover:text-white"
               >
                 {openSections.stores ? (
-                  <ChevronUp className="w-4 h-4 text-sky-400" />
+                  <ChevronUp className="w-4 h-4" style={{ color: "var(--accent-primary)" }} />
                 ) : (
-                  <ChevronDown className="w-4 h-4 text-sky-400" />
+                  <ChevronDown className="w-4 h-4" style={{ color: "var(--accent-primary)" }} />
                 )}
                 <span>{t("achievements_settings.stores_group")}</span>
               </div>
@@ -320,18 +271,16 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                 <div className="pl-6 space-y-3">
                   {/* Steam */}
                   <div className="flex items-center justify-between py-1 group">
-                    <label className="flex items-center gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
+                    <div className="flex items-center gap-3">
+                      <ToggleSwitch
                         checked={config.enableSteam}
-                        onChange={(e) => update("enableSteam", e.target.checked)}
-                        style={{ accentColor: "var(--accent-primary)" }}
-                  className="w-4 h-4 rounded border-white/20 bg-slate-900 cursor-pointer"
+                        onChange={(val) => update("enableSteam", val)}
+                        ariaLabel={t("achievements_settings.enable_store", { store: "Steam" })}
                       />
                       <span className="text-xs text-slate-200 font-medium group-hover:text-white">
                         {t("achievements_settings.enable_store", { store: "Steam" })}
                       </span>
-                    </label>
+                    </div>
                     <div className="flex items-center gap-4">
                       <span className="text-xs font-mono text-slate-400">315/366</span>
                       <button
@@ -341,7 +290,7 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                             activeTooltip === "steam" ? null : "steam"
                           )
                         }
-                        className="text-slate-500 hover:text-sky-400 transition-colors"
+                        className="text-slate-500 hover:text-white transition-colors cursor-pointer"
                         title={t("achievements_settings.store_info_title", { store: "Steam" })}
                       >
                         <HelpCircle className="w-4 h-4" />
@@ -351,18 +300,16 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
 
                   {/* GOG */}
                   <div className="flex items-center justify-between py-1 group">
-                    <label className="flex items-center gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
+                    <div className="flex items-center gap-3">
+                      <ToggleSwitch
                         checked={config.enableGog}
-                        onChange={(e) => update("enableGog", e.target.checked)}
-                        style={{ accentColor: "var(--accent-primary)" }}
-                  className="w-4 h-4 rounded border-white/20 bg-slate-900 cursor-pointer"
+                        onChange={(val) => update("enableGog", val)}
+                        ariaLabel={t("achievements_settings.enable_store", { store: "GOG" })}
                       />
                       <span className="text-xs text-slate-200 font-medium group-hover:text-white">
                         {t("achievements_settings.enable_store", { store: "GOG" })}
                       </span>
-                    </label>
+                    </div>
                     <div className="flex items-center gap-4">
                       <span className="text-xs font-mono text-slate-400">67/78</span>
                       <button
@@ -370,7 +317,7 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                         onClick={() =>
                           setActiveTooltip(activeTooltip === "gog" ? null : "gog")
                         }
-                        className="text-slate-500 hover:text-sky-400 transition-colors"
+                        className="text-slate-500 hover:text-white transition-colors cursor-pointer"
                         title={t("achievements_settings.store_info_title", { store: "GOG" })}
                       >
                         <HelpCircle className="w-4 h-4" />
@@ -380,18 +327,16 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
 
                   {/* Epic Games */}
                   <div className="flex items-center justify-between py-1 group">
-                    <label className="flex items-center gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
+                    <div className="flex items-center gap-3">
+                      <ToggleSwitch
                         checked={config.enableEpic}
-                        onChange={(e) => update("enableEpic", e.target.checked)}
-                        style={{ accentColor: "var(--accent-primary)" }}
-                  className="w-4 h-4 rounded border-white/20 bg-slate-900 cursor-pointer"
+                        onChange={(val) => update("enableEpic", val)}
+                        ariaLabel={t("achievements_settings.enable_store", { store: "Epic Games" })}
                       />
                       <span className="text-xs text-slate-200 font-medium group-hover:text-white">
                         {t("achievements_settings.enable_store", { store: "Epic Games" })}
                       </span>
-                    </label>
+                    </div>
                     <div className="flex items-center gap-4">
                       <span className="text-xs font-mono text-slate-400">24/45</span>
                       <button
@@ -399,7 +344,7 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                         onClick={() =>
                           setActiveTooltip(activeTooltip === "epic" ? null : "epic")
                         }
-                        className="text-slate-500 hover:text-sky-400 transition-colors"
+                        className="text-slate-500 hover:text-white transition-colors cursor-pointer"
                         title={t("achievements_settings.store_info_title", { store: "Epic Games" })}
                       >
                         <HelpCircle className="w-4 h-4" />
@@ -409,18 +354,16 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
 
                   {/* Xbox */}
                   <div className="flex items-center justify-between py-1 group">
-                    <label className="flex items-center gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
+                    <div className="flex items-center gap-3">
+                      <ToggleSwitch
                         checked={config.enableXbox}
-                        onChange={(e) => update("enableXbox", e.target.checked)}
-                        style={{ accentColor: "var(--accent-primary)" }}
-                  className="w-4 h-4 rounded border-white/20 bg-slate-900 cursor-pointer"
+                        onChange={(val) => update("enableXbox", val)}
+                        ariaLabel={t("achievements_settings.enable_store", { store: "Xbox" })}
                       />
                       <span className="text-xs text-slate-200 font-medium group-hover:text-white">
                         {t("achievements_settings.enable_store", { store: "Xbox" })}
                       </span>
-                    </label>
+                    </div>
                     <div className="flex items-center gap-4">
                       <span className="text-xs font-mono text-slate-400">7/7</span>
                       <button
@@ -428,7 +371,7 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                         onClick={() =>
                           setActiveTooltip(activeTooltip === "xbox" ? null : "xbox")
                         }
-                        className="text-slate-500 hover:text-sky-400 transition-colors"
+                        className="text-slate-500 hover:text-white transition-colors cursor-pointer"
                         title={t("achievements_settings.store_info_title", { store: "Xbox Live" })}
                       >
                         <HelpCircle className="w-4 h-4" />
@@ -438,18 +381,16 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
 
                   {/* Origin */}
                   <div className="flex items-center justify-between py-1 group opacity-60">
-                    <label className="flex items-center gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
+                    <div className="flex items-center gap-3">
+                      <ToggleSwitch
                         checked={config.enableOrigin}
-                        onChange={(e) => update("enableOrigin", e.target.checked)}
-                        style={{ accentColor: "var(--accent-primary)" }}
-                  className="w-4 h-4 rounded border-white/20 bg-slate-900 cursor-pointer"
+                        onChange={(val) => update("enableOrigin", val)}
+                        ariaLabel={t("achievements_settings.enable_store", { store: "Origin / EA" })}
                       />
                       <span className="text-xs text-slate-200 font-medium group-hover:text-white">
                         {t("achievements_settings.enable_store", { store: "Origin / EA" })}
                       </span>
-                    </label>
+                    </div>
                     <div className="flex items-center gap-4">
                       <span className="text-xs font-mono text-slate-400">0/0</span>
                       <span className="text-[10px] text-amber-400/80 font-bold px-2 py-0.5 rounded-full bg-amber-400/10">
@@ -463,14 +404,23 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
 
             {/* Help / Info Dialog */}
             {activeTooltip && (
-              <div className="p-4 rounded-xl bg-slate-900/90 border border-sky-500/30 text-xs text-slate-300 space-y-2">
+              <div
+                className="p-4 rounded-2xl border text-xs text-slate-300 space-y-2"
+                style={{
+                  backgroundColor: "var(--bg-surface)",
+                  borderColor: "var(--border-color)",
+                }}
+              >
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-sky-300 uppercase tracking-wider text-[11px]">
+                  <span
+                    className="font-bold uppercase tracking-wider text-[11px]"
+                    style={{ color: "var(--accent-primary)" }}
+                  >
                     {t("achievements_settings.provider_info")}
                   </span>
                   <button
                     onClick={() => setActiveTooltip(null)}
-                    className="text-slate-400 hover:text-white text-xs font-bold"
+                    className="text-slate-400 hover:text-white text-xs font-bold cursor-pointer"
                   >
                     ✕
                   </button>
@@ -502,227 +452,201 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
 
         {/* SUBTAB 2: EXTENSION VIEW */}
         {activeSubTab === "view" && (
-          <div className="space-y-5 text-xs font-sans">
-            <h4 className="font-bold text-slate-300 uppercase tracking-wider text-[11px]">
-              {t("achievements_settings.view_heading")}
-            </h4>
-
-            <div className="space-y-4">
-              <label className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] cursor-pointer hover:bg-white/[0.04]">
-                <div>
-                  <span className="font-bold text-white block">{t("achievements_settings.progress_bar")}</span>
-                  <span className="text-slate-400">{t("achievements_settings.progress_bar_desc")}</span>
-                </div>
-                <input
-                  type="checkbox"
+          <div className="space-y-4">
+            <SettingGroup
+              title={t("achievements_settings.view_heading")}
+              description="Personalizza la visualizzazione degli obiettivi nella libreria."
+            >
+              <SettingRow
+                title={t("achievements_settings.progress_bar")}
+                description={t("achievements_settings.progress_bar_desc")}
+              >
+                <ToggleSwitch
                   checked={config.showProgressBar}
-                  onChange={(e) => update("showProgressBar", e.target.checked)}
-                  style={{ accentColor: "var(--accent-primary)" }}
-                    className="w-4 h-4 rounded border-white/20 bg-slate-900 cursor-pointer"
+                  onChange={(val) => update("showProgressBar", val)}
+                  ariaLabel={t("achievements_settings.progress_bar")}
                 />
-              </label>
+              </SettingRow>
 
-              <label className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] cursor-pointer hover:bg-white/[0.04]">
-                <div>
-                  <span className="font-bold text-white block">{t("achievements_settings.points")}</span>
-                  <span className="text-slate-400">{t("achievements_settings.points_desc")}</span>
-                </div>
-                <input
-                  type="checkbox"
+              <SettingRow
+                title={t("achievements_settings.points")}
+                description={t("achievements_settings.points_desc")}
+              >
+                <ToggleSwitch
                   checked={config.showPoints}
-                  onChange={(e) => update("showPoints", e.target.checked)}
-                  style={{ accentColor: "var(--accent-primary)" }}
-                    className="w-4 h-4 rounded border-white/20 bg-slate-900 cursor-pointer"
+                  onChange={(val) => update("showPoints", val)}
+                  ariaLabel={t("achievements_settings.points")}
                 />
-              </label>
+              </SettingRow>
 
-              <label className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] cursor-pointer hover:bg-white/[0.04]">
-                <div>
-                  <span className="font-bold text-white block">{t("achievements_settings.rarity_badges")}</span>
-                  <span className="text-slate-400">{t("achievements_settings.rarity_badges_desc")}</span>
-                </div>
-                <input
-                  type="checkbox"
+              <SettingRow
+                title={t("achievements_settings.rarity_badges")}
+                description={t("achievements_settings.rarity_badges_desc")}
+              >
+                <ToggleSwitch
                   checked={config.showRarityBadges}
-                  onChange={(e) => update("showRarityBadges", e.target.checked)}
-                  style={{ accentColor: "var(--accent-primary)" }}
-                    className="w-4 h-4 rounded border-white/20 bg-slate-900 cursor-pointer"
+                  onChange={(val) => update("showRarityBadges", val)}
+                  ariaLabel={t("achievements_settings.rarity_badges")}
                 />
-              </label>
+              </SettingRow>
 
-              <div className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/[0.06]">
-                <div>
-                  <span className="font-bold text-white block">{t("achievements_settings.icon_size")}</span>
-                  <span className="text-slate-400">{t("achievements_settings.icon_size_desc")}</span>
-                </div>
+              <SettingRow
+                title={t("achievements_settings.icon_size")}
+                description={t("achievements_settings.icon_size_desc")}
+              >
                 <select
                   value={config.badgeSize}
                   onChange={(e) => update("badgeSize", e.target.value as "md" | "lg")}
-                  className="px-3 py-1.5 rounded-lg bg-slate-900 border border-white/10 text-white font-medium"
+                  className="px-3 py-1.5 rounded-xl bg-slate-900 border text-white font-medium text-xs focus:outline-hidden"
+                  style={{ borderColor: "var(--border-color)" }}
                 >
                   <option value="md">{t("achievements_settings.opt_md")}</option>
                   <option value="lg">{t("achievements_settings.opt_lg")}</option>
                 </select>
-              </div>
-            </div>
+              </SettingRow>
+            </SettingGroup>
           </div>
         )}
 
         {/* SUBTAB 3: MISC & CACHE */}
         {activeSubTab === "misc" && (
-          <div className="space-y-6 text-xs font-sans">
+          <div className="space-y-4">
             {/* Synchronization Section */}
-            <div className="space-y-4">
-              <h4 className="font-bold text-slate-300 uppercase tracking-wider text-[11px]">
-                {t("achievements_settings.sync_heading")}
-              </h4>
-
-              <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] space-y-2">
-                <div className="flex items-center justify-between">
+            <SettingGroup
+              title={t("achievements_settings.sync_heading")}
+              description="Controlla quando e come gli obiettivi vengono scaricati dal cloud."
+            >
+              <SettingRow
+                title={t("achievements_settings.startup_sync_interval")}
+                description={
                   <div>
-                    <span className="font-bold text-white block">
-                      {t("achievements_settings.startup_sync_interval")}
-                    </span>
-                    <span className="text-slate-400">
-                      {t("achievements_settings.startup_sync_interval_desc")}
+                    <span>{t("achievements_settings.startup_sync_interval_desc")}</span>
+                    <span className="block text-[10px] text-slate-500 mt-0.5">
+                      {config.lastLibrarySyncTimestamp
+                        ? t("achievements_settings.last_sync", {
+                            time: new Date(
+                              config.lastLibrarySyncTimestamp > 1e11
+                                ? config.lastLibrarySyncTimestamp
+                                : config.lastLibrarySyncTimestamp * 1000
+                            ).toLocaleString(locale),
+                          })
+                        : t("achievements_settings.last_sync_never")}
                     </span>
                   </div>
-                  <select
-                    value={config.startupSyncInterval ?? "3"}
-                    onChange={(e) =>
-                      update(
-                        "startupSyncInterval",
-                        e.target.value as AchievementsConfig["startupSyncInterval"]
-                      )
-                    }
-                    className="px-3 py-1.5 rounded-lg bg-slate-900 border border-white/10 text-white font-medium"
-                  >
-                    <option value="always">{t("achievements_settings.opt_sync_always")}</option>
-                    <option value="1">{t("achievements_settings.opt_sync_1_day")}</option>
-                    <option value="3">{t("achievements_settings.opt_sync_3_days")}</option>
-                    <option value="7">{t("achievements_settings.opt_sync_7_days")}</option>
-                    <option value="never">{t("achievements_settings.opt_sync_never")}</option>
-                  </select>
-                </div>
-                <div className="text-[11px] text-slate-400 pt-1.5 border-t border-white/[0.04]">
-                  {config.lastLibrarySyncTimestamp
-                    ? t("achievements_settings.last_sync", {
-                        time: new Date(
-                          config.lastLibrarySyncTimestamp > 1e11
-                            ? config.lastLibrarySyncTimestamp
-                            : config.lastLibrarySyncTimestamp * 1000
-                        ).toLocaleString(locale),
-                      })
-                    : t("achievements_settings.last_sync_never")}
-                </div>
-              </div>
+                }
+              >
+                <select
+                  value={config.startupSyncInterval ?? "3"}
+                  onChange={(e) =>
+                    update(
+                      "startupSyncInterval",
+                      e.target.value as AchievementsConfig["startupSyncInterval"]
+                    )
+                  }
+                  className="px-3 py-1.5 rounded-xl bg-slate-900 border text-white font-medium text-xs focus:outline-hidden"
+                  style={{ borderColor: "var(--border-color)" }}
+                >
+                  <option value="always">{t("achievements_settings.opt_sync_always")}</option>
+                  <option value="1">{t("achievements_settings.opt_sync_1_day")}</option>
+                  <option value="3">{t("achievements_settings.opt_sync_3_days")}</option>
+                  <option value="7">{t("achievements_settings.opt_sync_7_days")}</option>
+                  <option value="never">{t("achievements_settings.opt_sync_never")}</option>
+                </select>
+              </SettingRow>
 
-              <label className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] cursor-pointer hover:bg-white/[0.04]">
-                <div>
-                  <span className="font-bold text-white block">
-                    {t("achievements_settings.sync_on_game_exit")}
-                  </span>
-                  <span className="text-slate-400">
-                    {t("achievements_settings.sync_on_game_exit_desc")}
-                  </span>
-                </div>
-                <input
-                  type="checkbox"
+              <SettingRow
+                title={t("achievements_settings.sync_on_game_exit")}
+                description={t("achievements_settings.sync_on_game_exit_desc")}
+              >
+                <ToggleSwitch
                   checked={config.syncOnGameExit}
-                  onChange={(e) => handleToggleSyncOnGameExit(e.target.checked)}
-                  style={{ accentColor: "var(--accent-primary)" }}
-                    className="w-4 h-4 rounded border-white/20 bg-slate-900 cursor-pointer"
+                  onChange={(val) => handleToggleSyncOnGameExit(val)}
+                  ariaLabel={t("achievements_settings.sync_on_game_exit")}
                 />
-              </label>
-            </div>
+              </SettingRow>
+            </SettingGroup>
 
             {/* Cache & Performance Section */}
-            <div className="space-y-4">
-              <h4 className="font-bold text-slate-300 uppercase tracking-wider text-[11px]">
-                {t("achievements_settings.cache_heading")}
-              </h4>
+            <SettingGroup
+              title={t("achievements_settings.cache_heading")}
+              description="Gestisci la cache locale e le performance di rete."
+            >
+              <SettingRow
+                title={t("achievements_settings.cache_enable")}
+                description={t("achievements_settings.cache_enable_desc")}
+              >
+                <ToggleSwitch
+                  checked={config.enableLocalIconCache}
+                  onChange={(val) => update("enableLocalIconCache", val)}
+                  ariaLabel={t("achievements_settings.cache_enable")}
+                />
+              </SettingRow>
 
-              <div className="space-y-4">
-                <label className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] cursor-pointer hover:bg-white/[0.04]">
-                  <div>
-                    <span className="font-bold text-white block">{t("achievements_settings.cache_enable")}</span>
-                    <span className="text-slate-400">
-                      {t("achievements_settings.cache_enable_desc")}
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={config.enableLocalIconCache}
-                    onChange={(e) => update("enableLocalIconCache", e.target.checked)}
-                    style={{ accentColor: "var(--accent-primary)" }}
-                    className="w-4 h-4 rounded border-white/20 bg-slate-900 cursor-pointer"
-                  />
-                </label>
+              <SettingRow
+                title={t("achievements_settings.concurrency")}
+                description={t("achievements_settings.concurrency_desc")}
+                badge={
+                  <span
+                    className="font-mono font-bold text-xs px-2 py-0.5 rounded border"
+                    style={{
+                      backgroundColor: "color-mix(in srgb, var(--accent-primary) 15%, transparent)",
+                      borderColor: "color-mix(in srgb, var(--accent-primary) 30%, transparent)",
+                      color: "var(--accent-primary)",
+                    }}
+                  >
+                    {t("achievements_settings.threads", { count: config.concurrencyLimit })}
+                  </span>
+                }
+              >
+                <input
+                  type="range"
+                  min={1}
+                  max={16}
+                  value={config.concurrencyLimit}
+                  onChange={(e) => update("concurrencyLimit", Number(e.target.value))}
+                  style={{ accentColor: "var(--accent-primary)" }}
+                  className="w-28 cursor-pointer"
+                />
+              </SettingRow>
 
-                <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="font-bold text-white block">{t("achievements_settings.concurrency")}</span>
-                      <span className="text-slate-400">
-                        {t("achievements_settings.concurrency_desc")}
-                      </span>
-                    </div>
-                    <span className="font-mono font-bold text-sky-400 text-sm">
-                      {t("achievements_settings.threads", { count: config.concurrencyLimit })}
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min={1}
-                    max={16}
-                    value={config.concurrencyLimit}
-                    onChange={(e) => update("concurrencyLimit", Number(e.target.value))}
-                    style={{ accentColor: "var(--accent-primary)" }}
-                    className="w-full cursor-pointer"
-                  />
-                </div>
-
-                <label className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] cursor-pointer hover:bg-white/[0.04]">
-                  <div>
-                    <span className="font-bold text-white block">{t("achievements_settings.sounds")}</span>
-                    <span className="text-slate-400">{t("achievements_settings.sounds_desc")}</span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={config.playSounds}
-                    onChange={(e) => update("playSounds", e.target.checked)}
-                    style={{ accentColor: "var(--accent-primary)" }}
-                    className="w-4 h-4 rounded border-white/20 bg-slate-900 cursor-pointer"
-                  />
-                </label>
-              </div>
-            </div>
+              <SettingRow
+                title={t("achievements_settings.sounds")}
+                description={t("achievements_settings.sounds_desc")}
+              >
+                <ToggleSwitch
+                  checked={config.playSounds}
+                  onChange={(val) => update("playSounds", val)}
+                  ariaLabel={t("achievements_settings.sounds")}
+                />
+              </SettingRow>
+            </SettingGroup>
           </div>
         )}
 
         {/* SUBTAB 4: APPEARANCE & RARITY */}
         {activeSubTab === "appearance" && (
-          <div className="space-y-5 text-xs font-sans">
-            <h4 className="font-bold text-slate-300 uppercase tracking-wider text-[11px]">
-              {t("achievements_settings.rarity_heading")}
-            </h4>
-
-            <div className="space-y-4">
-              <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] space-y-2">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="font-bold text-amber-400 block flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5" />
-                      <span>{t("achievements_settings.ultra_rare_threshold")}</span>
-                    </span>
-                    <span className="text-slate-400">
-                      {t("achievements_settings.ultra_rare_desc")}
-                    </span>
-                  </div>
-                  <span className="font-mono font-bold text-amber-400 text-sm">
+          <div className="space-y-4">
+            <SettingGroup
+              title={t("achievements_settings.rarity_heading")}
+              description="Configura le soglie percentuali per considerare un obiettivo Raro o Ultra Raro."
+            >
+              <SettingRow
+                icon={<Sparkles className="w-4 h-4" />}
+                title={t("achievements_settings.ultra_rare_threshold")}
+                description={t("achievements_settings.ultra_rare_desc")}
+                badge={
+                  <span
+                    className="font-mono font-bold text-xs px-2 py-0.5 rounded border"
+                    style={{
+                      backgroundColor: "color-mix(in srgb, var(--accent-primary) 15%, transparent)",
+                      borderColor: "color-mix(in srgb, var(--accent-primary) 30%, transparent)",
+                      color: "var(--accent-primary)",
+                    }}
+                  >
                     &lt; {config.ultraRareThreshold}%
                   </span>
-                </div>
+                }
+              >
                 <input
                   type="range"
                   min={1}
@@ -730,22 +654,27 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                   step={0.5}
                   value={config.ultraRareThreshold}
                   onChange={(e) => update("ultraRareThreshold", Number(e.target.value))}
-                  className="w-full accent-amber-400 cursor-pointer"
+                  style={{ accentColor: "var(--accent-primary)" }}
+                  className="w-28 cursor-pointer"
                 />
-              </div>
+              </SettingRow>
 
-              <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] space-y-2">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="font-bold text-cyan-400 block">{t("achievements_settings.rare_threshold")}</span>
-                    <span className="text-slate-400">
-                      {t("achievements_settings.rare_desc")}
-                    </span>
-                  </div>
-                  <span className="font-mono font-bold text-cyan-400 text-sm">
+              <SettingRow
+                title={t("achievements_settings.rare_threshold")}
+                description={t("achievements_settings.rare_desc")}
+                badge={
+                  <span
+                    className="font-mono font-bold text-xs px-2 py-0.5 rounded border"
+                    style={{
+                      backgroundColor: "color-mix(in srgb, var(--accent-primary) 15%, transparent)",
+                      borderColor: "color-mix(in srgb, var(--accent-primary) 30%, transparent)",
+                      color: "var(--accent-primary)",
+                    }}
+                  >
                     &lt; {config.rareThreshold}%
                   </span>
-                </div>
+                }
+              >
                 <input
                   type="range"
                   min={10}
@@ -753,40 +682,33 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                   step={1}
                   value={config.rareThreshold}
                   onChange={(e) => update("rareThreshold", Number(e.target.value))}
-                  className="w-full accent-cyan-400 cursor-pointer"
+                  style={{ accentColor: "var(--accent-primary)" }}
+                  className="w-28 cursor-pointer"
                 />
-              </div>
+              </SettingRow>
 
-              <label className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] cursor-pointer hover:bg-white/[0.04]">
-                <div>
-                  <span className="font-bold text-white block">{t("achievements_settings.golden_glow")}</span>
-                  <span className="text-slate-400">{t("achievements_settings.golden_glow_desc")}</span>
-                </div>
-                <input
-                  type="checkbox"
+              <SettingRow
+                title={t("achievements_settings.golden_glow")}
+                description={t("achievements_settings.golden_glow_desc")}
+              >
+                <ToggleSwitch
                   checked={config.goldenGlowUltraRare}
-                  onChange={(e) => update("goldenGlowUltraRare", e.target.checked)}
-                  style={{ accentColor: "var(--accent-primary)" }}
-                    className="w-4 h-4 rounded border-white/20 bg-slate-900 cursor-pointer"
+                  onChange={(val) => update("goldenGlowUltraRare", val)}
+                  ariaLabel={t("achievements_settings.golden_glow")}
                 />
-              </label>
+              </SettingRow>
 
-              <label className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] cursor-pointer hover:bg-white/[0.04]">
-                <div>
-                  <span className="font-bold text-white block">{t("achievements_settings.reveal_secrets")}</span>
-                  <span className="text-slate-400">
-                    {t("achievements_settings.reveal_secrets_desc")}
-                  </span>
-                </div>
-                <input
-                  type="checkbox"
+              <SettingRow
+                title={t("achievements_settings.reveal_secrets")}
+                description={t("achievements_settings.reveal_secrets_desc")}
+              >
+                <ToggleSwitch
                   checked={config.revealSecretsByDefault}
-                  onChange={(e) => update("revealSecretsByDefault", e.target.checked)}
-                  style={{ accentColor: "var(--accent-primary)" }}
-                    className="w-4 h-4 rounded border-white/20 bg-slate-900 cursor-pointer"
+                  onChange={(val) => update("revealSecretsByDefault", val)}
+                  ariaLabel={t("achievements_settings.reveal_secrets")}
                 />
-              </label>
-            </div>
+              </SettingRow>
+            </SettingGroup>
           </div>
         )}
 
@@ -847,7 +769,10 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
 
         <div className="flex items-center gap-3">
           {savedSuccess && (
-            <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-400 animate-in fade-in duration-200">
+            <span
+              className="flex items-center gap-1.5 text-xs font-bold animate-in fade-in duration-200"
+              style={{ color: "var(--accent-primary)" }}
+            >
               <Check className="w-3.5 h-3.5" />
               <span>{t("achievements_settings.saved")}</span>
             </span>
