@@ -45,7 +45,14 @@ export const ScheduleBackupSection: React.FC<ScheduleBackupSectionProps> = ({
     >
       <div className="flex items-start justify-between">
         <div className="flex items-start gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 flex items-center justify-center shrink-0 shadow-md">
+          <div
+            className="w-12 h-12 rounded-2xl border flex items-center justify-center shrink-0 shadow-md"
+            style={{
+              backgroundColor: 'color-mix(in srgb, var(--accent-primary) 15%, transparent)',
+              borderColor: 'color-mix(in srgb, var(--accent-primary) 30%, transparent)',
+              color: 'var(--accent-primary)',
+            }}
+          >
             <Calendar className="w-6 h-6" />
           </div>
           <div>
@@ -71,7 +78,14 @@ export const ScheduleBackupSection: React.FC<ScheduleBackupSectionProps> = ({
         }}
       >
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 flex items-center justify-center shrink-0">
+          <div
+            className="w-9 h-9 rounded-xl border flex items-center justify-center shrink-0"
+            style={{
+              backgroundColor: 'color-mix(in srgb, var(--accent-primary) 15%, transparent)',
+              borderColor: 'color-mix(in srgb, var(--accent-primary) 30%, transparent)',
+              color: 'var(--accent-primary)',
+            }}
+          >
             <Clock className="w-4 h-4" />
           </div>
           <div>
@@ -120,9 +134,18 @@ export const ScheduleBackupSection: React.FC<ScheduleBackupSectionProps> = ({
                         }
                   );
                 }}
+                style={
+                  isSelected
+                    ? {
+                        backgroundColor: 'var(--accent-primary)',
+                        borderColor: 'var(--accent-primary)',
+                        boxShadow: '0 4px 14px var(--accent-glow)',
+                      }
+                    : undefined
+                }
                 className={`px-3 py-2.5 rounded-xl text-xs font-semibold transition-all border text-center flex items-center justify-center gap-1.5 cursor-pointer ${
                   isSelected
-                    ? 'bg-indigo-600 border-indigo-400 text-white shadow-md shadow-indigo-600/30 font-bold'
+                    ? 'text-white font-bold'
                     : 'bg-white/5 border-white/10 hover:bg-white/10 text-slate-300 hover:text-white'
                 }`}
               >
@@ -139,7 +162,14 @@ export const ScheduleBackupSection: React.FC<ScheduleBackupSectionProps> = ({
           <label htmlFor="maxRotationsInput" className="text-xs font-bold text-slate-300">
             {t('backup_settings.rotation_label') || 'Copie rotanti da conservare:'}
           </label>
-          <span className="px-2.5 py-0.5 rounded-lg bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 font-bold font-mono text-xs">
+          <span
+            className="px-2.5 py-0.5 rounded-lg border font-bold font-mono text-xs"
+            style={{
+              backgroundColor: 'color-mix(in srgb, var(--accent-primary) 15%, transparent)',
+              borderColor: 'color-mix(in srgb, var(--accent-primary) 30%, transparent)',
+              color: 'var(--accent-primary)',
+            }}
+          >
             {scheduleConfig?.max_rotations ?? 5} / 10
           </span>
         </div>
@@ -215,7 +245,7 @@ export const ScheduleBackupSection: React.FC<ScheduleBackupSectionProps> = ({
             onClick={onPickAutoDestinationFolder}
             className="px-4 py-2.5 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 text-white text-xs font-bold flex items-center gap-2 transition-all cursor-pointer hover:border-white/30 active:scale-95"
           >
-            <FolderOpen className="w-4 h-4 text-indigo-400" />
+            <FolderOpen className="w-4 h-4" style={{ color: 'var(--accent-primary)' }} />
             <span>{t('backup_settings.btn_choose_folder') || 'Scegli cartella...'}</span>
           </button>
         </div>
@@ -253,7 +283,8 @@ export const ScheduleBackupSection: React.FC<ScheduleBackupSectionProps> = ({
                     }
               );
             }}
-            className="w-4 h-4 rounded text-indigo-500 bg-slate-900 border-white/20 focus:ring-indigo-500 cursor-pointer"
+            style={{ accentColor: 'var(--accent-primary)' }}
+            className="w-4 h-4 rounded bg-slate-900 border-white/20 cursor-pointer"
           />
           <label
             htmlFor="autoIncludeArtworkCheckbox"
@@ -278,8 +309,16 @@ export const ScheduleBackupSection: React.FC<ScheduleBackupSectionProps> = ({
           className={`px-6 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-lg cursor-pointer ${
             isSavingSchedule
               ? 'bg-slate-700 text-slate-400 cursor-not-allowed opacity-60'
-              : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/30 hover:scale-[1.02] active:scale-95'
+              : 'text-white hover:brightness-110 hover:scale-[1.02] active:scale-95'
           }`}
+          style={
+            !isSavingSchedule
+              ? {
+                  backgroundColor: 'var(--accent-primary)',
+                  boxShadow: '0 4px 14px var(--accent-glow)',
+                }
+              : undefined
+          }
         >
           {isSavingSchedule ? (
             <>

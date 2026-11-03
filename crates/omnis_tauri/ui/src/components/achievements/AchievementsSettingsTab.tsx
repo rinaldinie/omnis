@@ -325,7 +325,8 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                         type="checkbox"
                         checked={config.enableSteam}
                         onChange={(e) => update("enableSteam", e.target.checked)}
-                        className="w-4 h-4 rounded border-white/20 bg-slate-900 text-sky-500 focus:ring-sky-400"
+                        style={{ accentColor: "var(--accent-primary)" }}
+                  className="w-4 h-4 rounded border-white/20 bg-slate-900 cursor-pointer"
                       />
                       <span className="text-xs text-slate-200 font-medium group-hover:text-white">
                         {t("achievements_settings.enable_store", { store: "Steam" })}
@@ -355,7 +356,8 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                         type="checkbox"
                         checked={config.enableGog}
                         onChange={(e) => update("enableGog", e.target.checked)}
-                        className="w-4 h-4 rounded border-white/20 bg-slate-900 text-sky-500 focus:ring-sky-400"
+                        style={{ accentColor: "var(--accent-primary)" }}
+                  className="w-4 h-4 rounded border-white/20 bg-slate-900 cursor-pointer"
                       />
                       <span className="text-xs text-slate-200 font-medium group-hover:text-white">
                         {t("achievements_settings.enable_store", { store: "GOG" })}
@@ -383,7 +385,8 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                         type="checkbox"
                         checked={config.enableEpic}
                         onChange={(e) => update("enableEpic", e.target.checked)}
-                        className="w-4 h-4 rounded border-white/20 bg-slate-900 text-sky-500 focus:ring-sky-400"
+                        style={{ accentColor: "var(--accent-primary)" }}
+                  className="w-4 h-4 rounded border-white/20 bg-slate-900 cursor-pointer"
                       />
                       <span className="text-xs text-slate-200 font-medium group-hover:text-white">
                         {t("achievements_settings.enable_store", { store: "Epic Games" })}
@@ -411,7 +414,8 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                         type="checkbox"
                         checked={config.enableXbox}
                         onChange={(e) => update("enableXbox", e.target.checked)}
-                        className="w-4 h-4 rounded border-white/20 bg-slate-900 text-sky-500 focus:ring-sky-400"
+                        style={{ accentColor: "var(--accent-primary)" }}
+                  className="w-4 h-4 rounded border-white/20 bg-slate-900 cursor-pointer"
                       />
                       <span className="text-xs text-slate-200 font-medium group-hover:text-white">
                         {t("achievements_settings.enable_store", { store: "Xbox" })}
@@ -439,7 +443,8 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                         type="checkbox"
                         checked={config.enableOrigin}
                         onChange={(e) => update("enableOrigin", e.target.checked)}
-                        className="w-4 h-4 rounded border-white/20 bg-slate-900 text-sky-500 focus:ring-sky-400"
+                        style={{ accentColor: "var(--accent-primary)" }}
+                  className="w-4 h-4 rounded border-white/20 bg-slate-900 cursor-pointer"
                       />
                       <span className="text-xs text-slate-200 font-medium group-hover:text-white">
                         {t("achievements_settings.enable_store", { store: "Origin / EA" })}
@@ -512,7 +517,8 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                   type="checkbox"
                   checked={config.showProgressBar}
                   onChange={(e) => update("showProgressBar", e.target.checked)}
-                  className="w-4 h-4 rounded border-white/20 bg-slate-900 text-sky-500"
+                  style={{ accentColor: "var(--accent-primary)" }}
+                    className="w-4 h-4 rounded border-white/20 bg-slate-900 cursor-pointer"
                 />
               </label>
 
@@ -525,7 +531,8 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                   type="checkbox"
                   checked={config.showPoints}
                   onChange={(e) => update("showPoints", e.target.checked)}
-                  className="w-4 h-4 rounded border-white/20 bg-slate-900 text-sky-500"
+                  style={{ accentColor: "var(--accent-primary)" }}
+                    className="w-4 h-4 rounded border-white/20 bg-slate-900 cursor-pointer"
                 />
               </label>
 
@@ -538,7 +545,8 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                   type="checkbox"
                   checked={config.showRarityBadges}
                   onChange={(e) => update("showRarityBadges", e.target.checked)}
-                  className="w-4 h-4 rounded border-white/20 bg-slate-900 text-sky-500"
+                  style={{ accentColor: "var(--accent-primary)" }}
+                    className="w-4 h-4 rounded border-white/20 bg-slate-900 cursor-pointer"
                 />
               </label>
 
@@ -622,7 +630,8 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                   type="checkbox"
                   checked={config.syncOnGameExit}
                   onChange={(e) => handleToggleSyncOnGameExit(e.target.checked)}
-                  className="w-4 h-4 rounded border-white/20 bg-slate-900 text-sky-500"
+                  style={{ accentColor: "var(--accent-primary)" }}
+                    className="w-4 h-4 rounded border-white/20 bg-slate-900 cursor-pointer"
                 />
               </label>
             </div>
@@ -645,7 +654,8 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                     type="checkbox"
                     checked={config.enableLocalIconCache}
                     onChange={(e) => update("enableLocalIconCache", e.target.checked)}
-                    className="w-4 h-4 rounded border-white/20 bg-slate-900 text-sky-500"
+                    style={{ accentColor: "var(--accent-primary)" }}
+                    className="w-4 h-4 rounded border-white/20 bg-slate-900 cursor-pointer"
                   />
                 </label>
 
@@ -667,7 +677,8 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                     max={16}
                     value={config.concurrencyLimit}
                     onChange={(e) => update("concurrencyLimit", Number(e.target.value))}
-                    className="w-full accent-sky-500 cursor-pointer"
+                    style={{ accentColor: "var(--accent-primary)" }}
+                    className="w-full cursor-pointer"
                   />
                 </div>
 
@@ -680,7 +691,8 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                     type="checkbox"
                     checked={config.playSounds}
                     onChange={(e) => update("playSounds", e.target.checked)}
-                    className="w-4 h-4 rounded border-white/20 bg-slate-900 text-sky-500"
+                    style={{ accentColor: "var(--accent-primary)" }}
+                    className="w-4 h-4 rounded border-white/20 bg-slate-900 cursor-pointer"
                   />
                 </label>
               </div>
@@ -754,7 +766,8 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                   type="checkbox"
                   checked={config.goldenGlowUltraRare}
                   onChange={(e) => update("goldenGlowUltraRare", e.target.checked)}
-                  className="w-4 h-4 rounded border-white/20 bg-slate-900 text-sky-500"
+                  style={{ accentColor: "var(--accent-primary)" }}
+                    className="w-4 h-4 rounded border-white/20 bg-slate-900 cursor-pointer"
                 />
               </label>
 
@@ -769,7 +782,8 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                   type="checkbox"
                   checked={config.revealSecretsByDefault}
                   onChange={(e) => update("revealSecretsByDefault", e.target.checked)}
-                  className="w-4 h-4 rounded border-white/20 bg-slate-900 text-sky-500"
+                  style={{ accentColor: "var(--accent-primary)" }}
+                    className="w-4 h-4 rounded border-white/20 bg-slate-900 cursor-pointer"
                 />
               </label>
             </div>

@@ -40,7 +40,14 @@ export const RestoreConfirmModal: React.FC<RestoreConfirmModalProps> = ({
         }}
       >
         <div className="flex items-center gap-3 border-b pb-4" style={{ borderColor: 'var(--border-color)' }}>
-          <div className="w-10 h-10 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center border border-purple-500/30">
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center border"
+            style={{
+              backgroundColor: 'color-mix(in srgb, var(--accent-primary) 15%, transparent)',
+              borderColor: 'color-mix(in srgb, var(--accent-primary) 30%, transparent)',
+              color: 'var(--accent-primary)',
+            }}
+          >
             <RotateCcw className="w-5 h-5" />
           </div>
           <div>
@@ -125,7 +132,11 @@ export const RestoreConfirmModal: React.FC<RestoreConfirmModalProps> = ({
             type="button"
             disabled={isRestoring}
             onClick={onConfirm}
-            className="px-6 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition-all shadow-lg shadow-purple-600/30 flex items-center gap-2 cursor-pointer hover:scale-[1.02] active:scale-95"
+            className="px-6 py-2.5 rounded-xl text-white text-xs font-bold transition-all shadow-lg flex items-center gap-2 cursor-pointer hover:brightness-110 hover:scale-[1.02] active:scale-95 disabled:opacity-50"
+            style={{
+              backgroundColor: 'var(--accent-primary)',
+              boxShadow: '0 4px 14px var(--accent-glow)',
+            }}
           >
             {isRestoring ? (
               <>

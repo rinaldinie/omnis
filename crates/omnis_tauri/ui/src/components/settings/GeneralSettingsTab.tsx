@@ -279,15 +279,20 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
                     key={loc.code}
                     type="button"
                     onClick={() => handleSelectLanguage(loc.code)}
-                    className={`flex items-center justify-between p-3.5 rounded-2xl border text-left transition-all ${
+                    className={`flex items-center justify-between p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
                       isSelected
-                        ? 'ring-2 shadow-lg bg-sky-500/10 border-sky-400'
+                        ? 'ring-1 ring-[var(--accent-primary)]'
                         : 'bg-white/[0.02] border-white/10 hover:bg-white/5 hover:border-slate-500 opacity-80 hover:opacity-100'
                     }`}
-                    style={{
-                      borderColor: isSelected ? 'var(--accent-primary)' : undefined,
-                      boxShadow: isSelected ? '0 0 15px var(--accent-glow)' : undefined,
-                    }}
+                    style={
+                      isSelected
+                        ? {
+                            backgroundColor: 'color-mix(in srgb, var(--accent-primary) 12%, transparent)',
+                            borderColor: 'var(--accent-primary)',
+                            boxShadow: '0 0 15px var(--accent-glow)',
+                          }
+                        : undefined
+                    }
                   >
                     <div className="flex items-center gap-3">
                       <span className="text-2xl leading-none">{loc.flag}</span>
@@ -340,7 +345,7 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
               <div className="space-y-1">
                 <div className="flex items-center gap-2 text-sm font-bold text-white">
                   {soundEnabled ? (
-                    <Volume2 className="w-4 h-4 text-emerald-400" />
+                    <Volume2 className="w-4 h-4" style={{ color: 'var(--accent-primary)' }} />
                   ) : (
                     <VolumeX className="w-4 h-4 text-slate-400" />
                   )}
@@ -353,11 +358,20 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
               <button
                 type="button"
                 onClick={onToggleSound}
-                className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all shrink-0 ${
+                className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all shrink-0 cursor-pointer ${
                   soundEnabled
-                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30 shadow-md'
+                    ? 'shadow-xs hover:brightness-110'
                     : 'bg-white/5 text-slate-400 border-white/10 hover:bg-white/10'
                 }`}
+                style={
+                  soundEnabled
+                    ? {
+                        backgroundColor: 'color-mix(in srgb, var(--accent-primary) 15%, transparent)',
+                        borderColor: 'color-mix(in srgb, var(--accent-primary) 40%, transparent)',
+                        color: 'var(--accent-primary)',
+                      }
+                    : undefined
+                }
               >
                 {soundEnabled ? t('common.enabled') : t('common.disabled')}
               </button>
@@ -366,7 +380,7 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
             {/* Interactive Sound Preview Box */}
             <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/10 space-y-3">
               <div className="flex items-center gap-2 text-xs font-bold text-slate-300">
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <Sparkles className="w-3.5 h-3.5" style={{ color: 'var(--accent-primary)' }} />
                 <span>
                   {t('general_settings.sound_test_title')}
                 </span>
@@ -380,9 +394,9 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
                   type="button"
                   disabled={!soundEnabled}
                   onClick={() => soundEffects.playSelect()}
-                  className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 active:scale-95 text-xs font-semibold text-slate-200 transition-all disabled:opacity-30 disabled:pointer-events-none"
+                  className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 active:scale-95 text-xs font-semibold text-slate-200 transition-all disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
                 >
-                  <Play className="w-3 h-3 text-indigo-400" />
+                  <Play className="w-3 h-3" style={{ color: 'var(--accent-primary)' }} />
                   <span>{t('general_settings.sound_select')}</span>
                 </button>
 
@@ -390,9 +404,9 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
                   type="button"
                   disabled={!soundEnabled}
                   onClick={() => soundEffects.playNav()}
-                  className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 active:scale-95 text-xs font-semibold text-slate-200 transition-all disabled:opacity-30 disabled:pointer-events-none"
+                  className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 active:scale-95 text-xs font-semibold text-slate-200 transition-all disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
                 >
-                  <Play className="w-3 h-3 text-sky-400" />
+                  <Play className="w-3 h-3" style={{ color: 'var(--accent-primary)' }} />
                   <span>{t('general_settings.sound_nav')}</span>
                 </button>
 
@@ -400,9 +414,9 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
                   type="button"
                   disabled={!soundEnabled}
                   onClick={() => soundEffects.playLaunch()}
-                  className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 active:scale-95 text-xs font-semibold text-slate-200 transition-all disabled:opacity-30 disabled:pointer-events-none"
+                  className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 active:scale-95 text-xs font-semibold text-slate-200 transition-all disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
                 >
-                  <Play className="w-3 h-3 text-emerald-400" />
+                  <Play className="w-3 h-3" style={{ color: 'var(--accent-primary)' }} />
                   <span>{t('general_settings.sound_launch')}</span>
                 </button>
               </div>
@@ -432,7 +446,7 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
             <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/10 flex items-center justify-between gap-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-2 text-sm font-bold text-white">
-                  <Minimize2 className="w-4 h-4 text-cyan-400" />
+                  <Minimize2 className="w-4 h-4" style={{ color: minimizeToTray ? 'var(--accent-primary)' : 'var(--text-muted)' }} />
                   <span>{t('settings_modal.minimize_to_tray')}</span>
                 </div>
                 <p className="text-xs text-slate-400 max-w-md">
@@ -442,11 +456,20 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
               <button
                 type="button"
                 onClick={handleToggleMinimizeToTray}
-                className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all shrink-0 ${
+                className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all shrink-0 cursor-pointer ${
                   minimizeToTray
-                    ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 hover:bg-cyan-500/30 shadow-md'
+                    ? 'shadow-xs hover:brightness-110'
                     : 'bg-white/5 text-slate-400 border-white/10 hover:bg-white/10'
                 }`}
+                style={
+                  minimizeToTray
+                    ? {
+                        backgroundColor: 'color-mix(in srgb, var(--accent-primary) 15%, transparent)',
+                        borderColor: 'color-mix(in srgb, var(--accent-primary) 40%, transparent)',
+                        color: 'var(--accent-primary)',
+                      }
+                    : undefined
+                }
               >
                 {minimizeToTray ? t('common.enabled') : t('common.disabled')}
               </button>
@@ -455,7 +478,7 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
             {/* Process Engine Card */}
             <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/10 space-y-2">
               <div className="flex items-center gap-2 text-xs font-bold text-slate-200">
-                <Monitor className="w-4 h-4 text-indigo-400" />
+                <Monitor className="w-4 h-4" style={{ color: 'var(--accent-primary)' }} />
                 <span>
                   {t('general_settings.process_engine_title')}
                 </span>
@@ -465,8 +488,15 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
               </p>
             </div>
 
-            <div className="p-3.5 rounded-xl border border-cyan-500/20 bg-cyan-500/5 text-cyan-300 flex items-start gap-3 text-xs">
-              <Info className="w-4 h-4 shrink-0 text-cyan-400 mt-0.5" />
+            <div
+              className="p-3.5 rounded-xl border flex items-start gap-3 text-xs"
+              style={{
+                backgroundColor: 'color-mix(in srgb, var(--accent-primary) 8%, transparent)',
+                borderColor: 'color-mix(in srgb, var(--accent-primary) 25%, transparent)',
+                color: 'var(--text-primary)',
+              }}
+            >
+              <Info className="w-4 h-4 shrink-0 mt-0.5" style={{ color: 'var(--accent-primary)' }} />
               <div className="leading-relaxed">
                 {t('general_settings.fullscreen_shortcut_note')}
               </div>
@@ -478,7 +508,7 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
         {activeSubTab === 'appearance' && (
           <div className="space-y-5">
             <div className="flex items-center gap-2 text-xs font-black tracking-wider uppercase text-slate-300">
-              <Palette className="w-4 h-4 text-purple-400" />
+              <Palette className="w-4 h-4" style={{ color: 'var(--accent-primary)' }} />
               <span>{t('settings_modal.theme_section')}</span>
             </div>
             <p className="text-xs text-slate-400 leading-relaxed">
@@ -489,7 +519,7 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
             <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/10 flex items-center justify-between gap-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-2 text-sm font-bold text-white">
-                  <Palette className="w-4 h-4 text-purple-400" />
+                  <Palette className="w-4 h-4" style={{ color: 'var(--accent-primary)' }} />
                   <span>
                     {t('general_settings.active_theme_label')}
                   </span>
@@ -501,14 +531,14 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
               <button
                 type="button"
                 onClick={onOpenThemes}
-                className="px-4 py-2 rounded-xl text-xs font-bold border transition-all hover:bg-white/10 flex items-center gap-2 shrink-0"
+                className="px-4 py-2 rounded-xl text-xs font-bold border transition-all hover:bg-white/10 flex items-center gap-2 shrink-0 cursor-pointer"
                 style={{
                   backgroundColor: 'var(--bg-card)',
                   borderColor: 'var(--border-color)',
                   color: 'var(--text-primary)',
                 }}
               >
-                <SlidersHorizontal className="w-3.5 h-3.5" />
+                <SlidersHorizontal className="w-3.5 h-3.5" style={{ color: 'var(--accent-primary)' }} />
                 <span>{t('topbar.themes')}</span>
               </button>
             </div>
@@ -517,7 +547,7 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
             <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/10 flex items-center justify-between gap-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-2 text-sm font-bold text-white">
-                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  <Sparkles className="w-4 h-4" style={{ color: animationsEnabled ? 'var(--accent-primary)' : 'var(--text-muted)' }} />
                   <span>
                     {t('general_settings.smooth_animations_title')}
                   </span>
@@ -529,11 +559,20 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
               <button
                 type="button"
                 onClick={handleToggleAnimations}
-                className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all shrink-0 ${
+                className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all shrink-0 cursor-pointer ${
                   animationsEnabled
-                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30 shadow-md'
+                    ? 'shadow-xs hover:brightness-110'
                     : 'bg-white/5 text-slate-400 border-white/10 hover:bg-white/10'
                 }`}
+                style={
+                  animationsEnabled
+                    ? {
+                        backgroundColor: 'color-mix(in srgb, var(--accent-primary) 15%, transparent)',
+                        borderColor: 'color-mix(in srgb, var(--accent-primary) 40%, transparent)',
+                        color: 'var(--accent-primary)',
+                      }
+                    : undefined
+                }
               >
                 {animationsEnabled ? t('common.enabled') : t('common.disabled')}
               </button>
@@ -545,7 +584,14 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
               style={{ borderColor: 'var(--border-color)' }}
             >
               <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center border border-sky-500/30 shrink-0 mt-0.5">
+                <div
+                  className="w-9 h-9 rounded-lg flex items-center justify-center border shrink-0 mt-0.5"
+                  style={{
+                    backgroundColor: 'color-mix(in srgb, var(--accent-primary) 15%, transparent)',
+                    borderColor: 'color-mix(in srgb, var(--accent-primary) 30%, transparent)',
+                    color: 'var(--accent-primary)',
+                  }}
+                >
                   <RefreshCw className="w-4 h-4" />
                 </div>
                 <div>
@@ -558,9 +604,18 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
                 onClick={handleToggleAutoScan}
                 className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all shrink-0 cursor-pointer ${
                   autoScanOnStartup
-                    ? 'bg-sky-500/20 text-sky-300 border-sky-500/40 hover:bg-sky-500/30 shadow-md'
+                    ? 'shadow-xs hover:brightness-110'
                     : 'bg-white/5 text-slate-400 border-white/10 hover:bg-white/10'
                 }`}
+                style={
+                  autoScanOnStartup
+                    ? {
+                        backgroundColor: 'color-mix(in srgb, var(--accent-primary) 15%, transparent)',
+                        borderColor: 'color-mix(in srgb, var(--accent-primary) 40%, transparent)',
+                        color: 'var(--accent-primary)',
+                      }
+                    : undefined
+                }
               >
                 {autoScanOnStartup ? t('common.enabled') : t('common.disabled')}
               </button>
@@ -632,7 +687,14 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
               <div className="p-5 rounded-2xl border border-white/10 bg-slate-800/40 space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center border border-sky-500/30">
+                    <div
+                      className="w-9 h-9 rounded-xl flex items-center justify-center border"
+                      style={{
+                        backgroundColor: 'color-mix(in srgb, var(--accent-primary) 15%, transparent)',
+                        borderColor: 'color-mix(in srgb, var(--accent-primary) 30%, transparent)',
+                        color: 'var(--accent-primary)',
+                      }}
+                    >
                       <Sparkles className="w-5 h-5" />
                     </div>
                     <div>
@@ -729,7 +791,8 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
                       }
                     }}
                     disabled={updater.status === 'checking'}
-                    className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition-all shadow-md flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    className="px-4 py-2 rounded-xl text-white text-xs font-bold transition-all shadow-md flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer hover:brightness-110 active:opacity-90"
+                    style={{ backgroundColor: 'var(--accent-primary)' }}
                   >
                     {updater.status === 'checking' && <RefreshCw className="w-4 h-4 animate-spin" />}
                     <span>

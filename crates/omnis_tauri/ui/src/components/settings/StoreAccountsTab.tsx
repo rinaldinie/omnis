@@ -502,7 +502,8 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
             type="checkbox"
             checked={currentSettings.import_installed}
             onChange={(e) => updateSetting("import_installed", e.target.checked)}
-            className="w-4 h-4 rounded border-white/20 bg-slate-900 text-sky-500 focus:ring-sky-400 cursor-pointer"
+            style={{ accentColor: "var(--accent-primary)" }}
+            className="w-4 h-4 rounded border-white/20 bg-slate-900 cursor-pointer"
           />
           <span className="text-sm font-semibold text-white">
             {t("store_accounts.import_installed")}
@@ -517,7 +518,8 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
                 type="checkbox"
                 checked={currentSettings.connect_account}
                 onChange={(e) => updateSetting("connect_account", e.target.checked)}
-                className="w-4 h-4 rounded border-white/20 bg-slate-900 text-sky-500 focus:ring-sky-400 cursor-pointer"
+                style={{ accentColor: "var(--accent-primary)" }}
+                className="w-4 h-4 rounded border-white/20 bg-slate-900 cursor-pointer"
               />
               <span className="text-sm font-semibold text-white">
                 {t("store_accounts.connect_account")}
@@ -551,7 +553,8 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
                   type="checkbox"
                   checked={currentSettings.import_uninstalled}
                   onChange={(e) => updateSetting("import_uninstalled", e.target.checked)}
-                  className="w-4 h-4 rounded border-white/20 bg-slate-900 text-sky-500 focus:ring-sky-400 cursor-pointer"
+                  style={{ accentColor: "var(--accent-primary)" }}
+                  className="w-4 h-4 rounded border-white/20 bg-slate-900 cursor-pointer"
                 />
                 <span className="text-xs text-slate-200 font-medium">
                   {t("store_accounts.import_uninstalled")}
@@ -563,7 +566,8 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
                   type="checkbox"
                   checked={currentSettings.ignore_other_accounts}
                   onChange={(e) => updateSetting("ignore_other_accounts", e.target.checked)}
-                  className="w-4 h-4 rounded border-white/20 bg-slate-900 text-sky-500 focus:ring-sky-400 cursor-pointer"
+                  style={{ accentColor: "var(--accent-primary)" }}
+                  className="w-4 h-4 rounded border-white/20 bg-slate-900 cursor-pointer"
                 />
                 <span className="text-xs text-slate-200 font-medium">
                   {t("store_accounts.ignore_other_accounts")}
@@ -698,7 +702,8 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
                         type="checkbox"
                         checked={currentSettings.import_free_items || false}
                         onChange={(e) => updateSetting("import_free_items", e.target.checked)}
-                        className="w-4 h-4 rounded border-white/20 bg-slate-900 text-sky-500 focus:ring-sky-400 cursor-pointer"
+                        style={{ accentColor: "var(--accent-primary)" }}
+                        className="w-4 h-4 rounded border-white/20 bg-slate-900 cursor-pointer"
                       />
                       <span className="text-xs text-slate-300 font-medium">
                         {t("store_accounts.import_free_items")}
@@ -710,7 +715,8 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
                         type="checkbox"
                         checked={currentSettings.import_family_sharing ?? true}
                         onChange={(e) => updateSetting("import_family_sharing", e.target.checked)}
-                        className="w-4 h-4 rounded border-white/20 bg-slate-900 text-sky-500 focus:ring-sky-400 cursor-pointer"
+                        style={{ accentColor: "var(--accent-primary)" }}
+                        className="w-4 h-4 rounded border-white/20 bg-slate-900 cursor-pointer"
                       />
                       <span className="text-xs text-slate-300 font-medium">
                         {t("store_accounts.import_family_sharing")}
@@ -780,7 +786,11 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
                         type="button"
                         onClick={handleConnectOAuth}
                         disabled={actionLoading[selectedStoreId]}
-                        className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-xs font-bold transition-all shadow-md flex items-center gap-1.5 shrink-0 cursor-pointer disabled:opacity-50"
+                        className="px-4 py-2 rounded-xl text-white text-xs font-bold transition-all shadow-md flex items-center gap-1.5 shrink-0 cursor-pointer disabled:opacity-50 hover:brightness-110 active:scale-95"
+                        style={{
+                          backgroundColor: "var(--accent-primary)",
+                          boxShadow: "0 4px 14px var(--accent-glow)",
+                        }}
                       >
                         <LogIn className="w-3.5 h-3.5" />
                         <span>{t("store_accounts.connect")}</span>
@@ -794,7 +804,8 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
                         type="checkbox"
                         checked={currentSettings.import_game_pass ?? true}
                         onChange={(e) => updateSetting("import_game_pass", e.target.checked)}
-                        className="w-4 h-4 rounded border-white/20 bg-slate-900 text-sky-500 focus:ring-sky-400 cursor-pointer"
+                        style={{ accentColor: "var(--accent-primary)" }}
+                        className="w-4 h-4 rounded border-white/20 bg-slate-900 cursor-pointer"
                       />
                       <span className="text-xs text-slate-300 font-medium">
                         {t("store_accounts.include_game_pass")}
@@ -937,7 +948,8 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
               <button
                 type="button"
                 onClick={() => setShowTroubleshoot(false)}
-                className="px-5 py-2 rounded-xl text-xs font-bold bg-sky-500 hover:bg-sky-400 text-slate-950 transition-colors"
+                className="px-5 py-2 rounded-xl text-xs font-bold text-white transition-all cursor-pointer hover:brightness-110 active:scale-95"
+                style={{ backgroundColor: "var(--accent-primary)" }}
               >
                 {t("store_accounts.troubleshoot_got_it")}
               </button>

@@ -37,7 +37,14 @@ export const ManualBackupSection: React.FC<ManualBackupSectionProps> = ({
     >
       <div className="flex items-start justify-between">
         <div className="flex items-start gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-sky-500/15 border border-sky-500/30 text-sky-400 flex items-center justify-center shrink-0 shadow-md">
+          <div
+            className="w-12 h-12 rounded-2xl border flex items-center justify-center shrink-0 shadow-md"
+            style={{
+              backgroundColor: 'color-mix(in srgb, var(--accent-primary) 15%, transparent)',
+              borderColor: 'color-mix(in srgb, var(--accent-primary) 30%, transparent)',
+              color: 'var(--accent-primary)',
+            }}
+          >
             <Archive className="w-6 h-6" />
           </div>
           <div>
@@ -75,7 +82,7 @@ export const ManualBackupSection: React.FC<ManualBackupSectionProps> = ({
             onClick={onPickDestinationFolder}
             className="px-4 py-2.5 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 text-white text-xs font-bold flex items-center gap-2 transition-all cursor-pointer hover:border-white/30 active:scale-95"
           >
-            <FolderOpen className="w-4 h-4 text-sky-400" />
+            <FolderOpen className="w-4 h-4" style={{ color: 'var(--accent-primary)' }} />
             <span>{t('backup_settings.btn_choose_folder') || 'Scegli cartella...'}</span>
           </button>
         </div>
@@ -92,7 +99,8 @@ export const ManualBackupSection: React.FC<ManualBackupSectionProps> = ({
               soundEffects.playSelect();
               setIncludeArtwork(e.target.checked);
             }}
-            className="w-4 h-4 rounded text-sky-500 bg-slate-900 border-white/20 focus:ring-sky-500 cursor-pointer"
+            style={{ accentColor: 'var(--accent-primary)' }}
+            className="w-4 h-4 rounded bg-slate-900 border-white/20 cursor-pointer"
           />
           <label htmlFor="includeArtworkCheckbox" className="text-xs text-slate-300 cursor-pointer select-none">
             <span className="font-bold text-white">
@@ -113,8 +121,16 @@ export const ManualBackupSection: React.FC<ManualBackupSectionProps> = ({
           className={`px-6 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-lg cursor-pointer ${
             isCreatingBackup
               ? 'bg-slate-700 text-slate-400 cursor-not-allowed opacity-60'
-              : 'bg-sky-500 hover:bg-sky-400 text-white shadow-sky-500/20 hover:scale-[1.02] active:scale-95'
+              : 'text-white hover:brightness-110 hover:scale-[1.02] active:scale-95'
           }`}
+          style={
+            !isCreatingBackup
+              ? {
+                  backgroundColor: 'var(--accent-primary)',
+                  boxShadow: '0 4px 14px var(--accent-glow)',
+                }
+              : undefined
+          }
         >
           {isCreatingBackup ? (
             <>
@@ -132,9 +148,16 @@ export const ManualBackupSection: React.FC<ManualBackupSectionProps> = ({
 
       {/* LAST BACKUP SUMMARY BANNER */}
       {lastBackupResult && (
-        <div className="p-3.5 rounded-xl bg-sky-500/10 border border-sky-500/25 flex items-center justify-between text-xs text-sky-200">
+        <div
+          className="p-3.5 rounded-xl border flex items-center justify-between text-xs"
+          style={{
+            backgroundColor: 'color-mix(in srgb, var(--accent-primary) 10%, transparent)',
+            borderColor: 'color-mix(in srgb, var(--accent-primary) 25%, transparent)',
+            color: 'var(--text-primary)',
+          }}
+        >
           <div className="flex items-center gap-2">
-            <Check className="w-4 h-4 text-sky-400" />
+            <Check className="w-4 h-4" style={{ color: 'var(--accent-primary)' }} />
             <span>
               {t('backup_settings.last_backup_prefix') || 'Ultimo backup:'}{' '}
               <strong>

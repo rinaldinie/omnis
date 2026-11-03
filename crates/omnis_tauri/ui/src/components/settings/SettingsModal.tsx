@@ -221,7 +221,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             label: t('general_settings.tab_updates', { defaultValue: 'Aggiornamenti' }),
             icon: (c = 'w-4 h-4') => <RefreshCw className={`${c} ${updater?.status === 'checking' ? 'animate-spin' : ''}`} />,
             badge: updater?.status === 'available' ? (
-              <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" title="Nuovo aggiornamento disponibile" />
+              <span
+                className="w-2 h-2 rounded-full animate-pulse"
+                style={{ backgroundColor: 'var(--accent-primary)' }}
+                title="Nuovo aggiornamento disponibile"
+              />
             ) : undefined,
             keywords: ['aggiornamenti', 'updates', 'versione', 'update', 'changelog', 'download'],
           },
@@ -427,7 +431,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             {/* Quick Search Input */}
             <div className="p-3 border-b border-white/5 shrink-0">
               <div
-                className="relative flex items-center rounded-xl border px-2.5 py-1.5 transition-all focus-within:border-sky-400 focus-within:ring-1 focus-within:ring-sky-400"
+                className="relative flex items-center rounded-xl border px-2.5 py-1.5 transition-all focus-within:border-[var(--accent-primary)] focus-within:ring-1 focus-within:ring-[var(--accent-primary)]"
                 style={{
                   backgroundColor: 'var(--bg-card)',
                   borderColor: 'var(--border-color)',
@@ -466,7 +470,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setSearchQuery('')}
-                    className="mt-2 text-xs font-semibold text-sky-400 hover:underline cursor-pointer"
+                    className="mt-2 text-xs font-semibold hover:underline cursor-pointer"
+                    style={{ color: 'var(--accent-primary)' }}
                   >
                     Azzera filtro
                   </button>
@@ -555,7 +560,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <span className="text-slate-400 font-medium">{activeGroup?.label}</span>
                 <span className="text-slate-600">/</span>
                 <span className="text-white font-bold flex items-center gap-1.5">
-                  {activeItem?.icon('w-3.5 h-3.5 text-sky-400')}
+                  <span style={{ color: 'var(--accent-primary)' }}>
+                    {activeItem?.icon('w-3.5 h-3.5')}
+                  </span>
                   {activeItem?.label}
                 </span>
               </div>
@@ -680,13 +687,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center">
-                          <FolderArchive className="w-5 h-5 text-amber-400" />
+                        <div
+                          className="w-10 h-10 rounded-xl border flex items-center justify-center"
+                          style={{
+                            backgroundColor: 'color-mix(in srgb, var(--accent-primary) 15%, transparent)',
+                            borderColor: 'color-mix(in srgb, var(--accent-primary) 30%, transparent)',
+                            color: 'var(--accent-primary)',
+                          }}
+                        >
+                          <FolderArchive className="w-5 h-5" />
                         </div>
                         <div>
                           <h4 className="text-base font-bold text-white flex items-center gap-2">
                             {t('general_settings.playnite_card_title') || 'Importazione Backup Playnite'}
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                            <span
+                              className="px-2 py-0.5 rounded text-[10px] font-bold border"
+                              style={{
+                                backgroundColor: 'color-mix(in srgb, var(--accent-primary) 15%, transparent)',
+                                borderColor: 'color-mix(in srgb, var(--accent-primary) 30%, transparent)',
+                                color: 'var(--accent-primary)',
+                              }}
+                            >
                               Beta
                             </span>
                           </h4>
@@ -705,7 +726,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             onClose();
                             onOpenPlayniteImport();
                           }}
-                          className="px-5 py-2.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition-all shadow-md flex items-center gap-2 cursor-pointer font-sans"
+                          className="px-5 py-2.5 rounded-xl text-xs font-bold text-white transition-all shadow-md flex items-center gap-2 cursor-pointer font-sans hover:brightness-110 active:scale-95"
+                          style={{
+                            backgroundColor: 'var(--accent-primary)',
+                            boxShadow: '0 4px 14px var(--accent-glow)',
+                          }}
                         >
                           <FolderArchive className="w-4 h-4" />
                           <span>{t('general_settings.playnite_card_btn') || 'Avvia Importazione...'}</span>

@@ -25,7 +25,14 @@ export const RestoreBackupSection: React.FC<RestoreBackupSectionProps> = ({
     >
       <div className="flex items-start justify-between">
         <div className="flex items-start gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-purple-500/15 border border-purple-500/30 text-purple-400 flex items-center justify-center shrink-0 shadow-md">
+          <div
+            className="w-12 h-12 rounded-2xl border flex items-center justify-center shrink-0 shadow-md"
+            style={{
+              backgroundColor: 'color-mix(in srgb, var(--accent-primary) 15%, transparent)',
+              borderColor: 'color-mix(in srgb, var(--accent-primary) 30%, transparent)',
+              color: 'var(--accent-primary)',
+            }}
+          >
             <RotateCcw className="w-6 h-6" />
           </div>
           <div>
@@ -60,7 +67,11 @@ export const RestoreBackupSection: React.FC<RestoreBackupSectionProps> = ({
           type="button"
           disabled={isInspecting || isRestoring}
           onClick={onPickFileToRestore}
-          className="px-6 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition-all shadow-lg shadow-purple-600/20 flex items-center gap-2 cursor-pointer hover:scale-[1.02] active:scale-95"
+          className="px-6 py-2.5 rounded-xl text-white text-xs font-bold transition-all shadow-lg flex items-center gap-2 cursor-pointer hover:brightness-110 hover:scale-[1.02] active:scale-95 disabled:opacity-50"
+          style={{
+            backgroundColor: 'var(--accent-primary)',
+            boxShadow: '0 4px 14px var(--accent-glow)',
+          }}
         >
           {isInspecting ? (
             <>
