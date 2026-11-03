@@ -6,9 +6,85 @@ import { Achievement, GameAchievementsSummary, GameDto } from "../../types";
 
 const ACHIEVEMENT_STORES = ["steam", "xbox", "gog", "epic"];
 
-/** Rarity tiers by share of players who unlocked the achievement */
-export const ULTRA_RARE_PERCENT = 10;
-export const RARE_PERCENT = 25;
+export type RarityTier = "ultra_rare" | "rare" | "uncommon" | "common";
+
+/** Rarity tiers by share of players who unlocked the achievement (SuccessStory / PlayStation standards) */
+export const ULTRA_RARE_PERCENT = 5.0;
+export const RARE_PERCENT = 20.0;
+export const UNCOMMON_PERCENT = 50.0;
+
+/** Computes the rarity tier of an achievement based on global unlock percentage */
+export function getRarityTier(
+  percentage: number | null | undefined,
+  ultraRareThreshold: number = ULTRA_RARE_PERCENT,
+  rareThreshold: number = RARE_PERCENT,
+  uncommonThreshold: number = UNCOMMON_PERCENT
+): RarityTier {
+  if (percentage === null || percentage === undefined) return "common";
+  if (percentage <= ultraRareThreshold) return "ultra_rare";
+  if (percentage <= rareThreshold) return "rare";
+  if (percentage <= uncommonThreshold) return "uncommon";
+  return "common";
+}
+
+/** Checks if an achievement is ultra-rare according to the configured threshold (default <= 5%) */
+export function isUltraRareAchievement(
+  achievement: { rarity_percentage?: number | null } | number | null | undefined,
+  threshold: number = ULTRA_RARE_PERCENT
+): boolean {
+  const p = typeof achievement === "number" ? achievement : achievement?.rarity_percentage;
+  return p !== null && p !== undefined && p <= threshold;
+}
+
+/** Checks if an achievement is rare according to the configured thresholds (default > 5% and <= 20%) */
+export function isRareAchievement(
+  achievement: { rarity_percentage?: number | null } | number | null | undefined,
+  rareThreshold: number = RARE_PERCENT,
+  ultraRareThreshold: number = ULTRA_RARE_PERCENT
+): boolean {
+  const p = typeof achievement === "number" ? achievement : achievement?.rarity_percentage;
+  return p !== null && p !== undefined && p > ultraRareThreshold && p <= rareThreshold;
+}
+
+/** Checks if an achievement is uncommon according to the configured thresholds (default > 20% and <= 50%) */
+export function isUncommonAchievement(
+  achievement: { rarity_percentage?: number | null } | number | null | undefined,
+  uncommonThreshold: number = UNCOMMON_PERCENT,
+  rareThreshold: number = RARE_PERCENT
+): boolean {
+  const p = typeof achievement === "number" ? achievement : achievement?.rarity_percentage;
+  return p !== null && p !== undefined && p > rareThreshold && p <= uncommonThreshold;
+}
+
+/** Checks if an achievement is common according to the configured threshold (default > 50%) */
+export function isCommonAchievement(
+  achievement: { rarity_percentage?: number | null } | number | null | undefined,
+  uncommonThreshold: number = UNCOMMON_PERCENT
+): boolean {
+  const p = typeof achievement === "number" ? achievement : achievement?.rarity_percentage;
+  return p !== null && p !== undefined && p > uncommonThreshold;
+}
+
+/** Resolves UI accent color based on achievement rarity tier or percentage */
+export function getRarityColor(
+  percent: number | null | undefined,
+  ultraRareThreshold: number = ULTRA_RARE_PERCENT,
+  rareThreshold: number = RARE_PERCENT,
+  uncommonThreshold: number = UNCOMMON_PERCENT
+): string {
+  if (percent === null || percent === undefined) return "rgba(255, 255, 255, 0.55)";
+  const tier = getRarityTier(percent, ultraRareThreshold, rareThreshold, uncommonThreshold);
+  switch (tier) {
+    case "ultra_rare":
+      return "#fbbf24"; // golden amber
+    case "rare":
+      return "#f59e0b"; // warm gold / amber-500
+    case "uncommon":
+      return "#38bdf8"; // silver / sky-400
+    case "common":
+      return "#94a3b8"; // bronze / slate-400
+  }
+}
 
 /** Icon to show for an achievement: cached local file first, then the locked or unlocked store image */
 export function achievementIconSrc(achievement: Achievement): string {

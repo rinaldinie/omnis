@@ -1,8 +1,17 @@
 import React, { useState } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
-import { Lock, Eye, Sparkles, Award } from "lucide-react";
+import { Lock, Eye, Award } from "lucide-react";
 import { Achievement } from "../../types";
 import { useTranslation } from "../../i18n/i18nContext";
+import {
+  AchievementsConfig,
+  useAchievementsConfig,
+} from "./AchievementsSettingsTab";
+import {
+  getRarityTier,
+  getRarityColor,
+} from "./useGameAchievements";
+import { RarityIcon, getRarityBadgeClasses } from "./RarityIcon";
 
 interface AchievementBadgeProps {
   achievement: Achievement;
@@ -10,16 +19,21 @@ interface AchievementBadgeProps {
   isFocused?: boolean;
   onClick?: () => void;
   onFocus?: () => void;
+  config?: AchievementsConfig;
 }
 
 export const AchievementBadge: React.FC<AchievementBadgeProps> = ({
   achievement,
-  size = "md",
+  size,
   isFocused = false,
   onClick,
   onFocus,
+  config: propConfig,
 }) => {
   const { t, locale } = useTranslation();
+  const activeConfig = useAchievementsConfig();
+  const config = propConfig ?? activeConfig;
+
   const [revealed, setRevealed] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
@@ -74,19 +88,19 @@ export const AchievementBadge: React.FC<AchievementBadgeProps> = ({
     return `${vClass} ${hClass}`;
   }, [horizontalAlign, verticalAlign]);
 
-  const isUltraRare =
-    achievement.rarity_percentage !== null &&
-    achievement.rarity_percentage !== undefined &&
-    achievement.rarity_percentage < 10.0;
-
-  const isRare =
-    achievement.rarity_percentage !== null &&
-    achievement.rarity_percentage !== undefined &&
-    achievement.rarity_percentage >= 10.0 &&
-    achievement.rarity_percentage < 25.0;
+  const tier = getRarityTier(
+    achievement.rarity_percentage,
+    config.ultraRareThreshold,
+    config.rareThreshold,
+    config.uncommonThreshold
+  );
+  const rarityClasses = getRarityBadgeClasses(tier);
 
   const isSecretLocked =
-    achievement.is_hidden && !achievement.is_unlocked && !revealed;
+    achievement.is_hidden &&
+    !achievement.is_unlocked &&
+    !revealed &&
+    !config.revealSecretsByDefault;
 
   // Resolve image source
   const imageSource = React.useMemo(() => {
@@ -108,8 +122,9 @@ export const AchievementBadge: React.FC<AchievementBadgeProps> = ({
     achievement.is_unlocked,
   ]);
 
+  const effectiveSize = size || config.badgeSize || "md";
   const sizeClasses =
-    size === "lg" ? "w-[72px] h-[72px]" : "w-[56px] h-[56px]";
+    effectiveSize === "lg" ? "w-[72px] h-[72px]" : "w-[56px] h-[56px]";
 
   const formatUnlockDate = (dateStr: string) => {
     try {
@@ -146,10 +161,12 @@ export const AchievementBadge: React.FC<AchievementBadgeProps> = ({
             ? "scale-110 ring-4 ring-indigo-500 shadow-2xl z-20"
             : "hover:scale-105"
         } ${
-          isUltraRare && achievement.is_unlocked
-            ? "ring-2 ring-amber-400 shadow-[0_0_16px_rgba(251,191,36,0.45)]"
-            : isRare && achievement.is_unlocked
-            ? "ring-1.5 ring-cyan-400/80 shadow-[0_0_12px_rgba(34,211,238,0.35)]"
+          achievement.is_unlocked &&
+          achievement.rarity_percentage !== null &&
+          achievement.rarity_percentage !== undefined
+            ? tier === "ultra_rare" && !config.goldenGlowUltraRare
+              ? "border-2 border-amber-400/80"
+              : rarityClasses.glow
             : "border border-white/10"
         } ${
           achievement.is_unlocked
@@ -185,15 +202,21 @@ export const AchievementBadge: React.FC<AchievementBadgeProps> = ({
           </div>
         )}
 
-        {/* Ultra-rare sparkles marker */}
-        {isUltraRare && achievement.is_unlocked && (
-          <div className="absolute top-1 right-1 p-0.5 bg-amber-500/90 rounded-full shadow-xs">
-            <Sparkles className="w-2.5 h-2.5 text-slate-950" />
-          </div>
-        )}
+        {/* Rarity marker */}
+        {config.showRarityBadges &&
+          achievement.is_unlocked &&
+          achievement.rarity_percentage !== null &&
+          achievement.rarity_percentage !== undefined && (
+            <div
+              className={`absolute top-1 right-1 p-0.5 rounded-full ${rarityClasses.markerBadge}`}
+              title={t("achievements.tier_" + tier)}
+            >
+              <RarityIcon tier={tier} className="w-2.5 h-2.5" />
+            </div>
+          )}
 
         {/* Gamerscore points pill */}
-        {achievement.points !== null && achievement.points !== undefined && (
+        {config.showPoints && achievement.points !== null && achievement.points !== undefined && (
           <div className="absolute bottom-1 right-1 px-1 py-0.2 bg-black/75 backdrop-blur-xs rounded text-[9px] font-black text-emerald-400 border border-emerald-500/30">
             {achievement.points}G
           </div>
@@ -206,9 +229,12 @@ export const AchievementBadge: React.FC<AchievementBadgeProps> = ({
           className={`absolute ${positionClasses} w-72 p-4 rounded-2xl border shadow-2xl backdrop-blur-xl z-50 pointer-events-auto transition-all animate-in fade-in zoom-in-95 duration-150`}
           style={{
             backgroundColor: "rgba(15, 23, 42, 0.95)",
-            borderColor: isUltraRare
-              ? "rgba(251, 191, 36, 0.6)"
-              : "rgba(255, 255, 255, 0.12)",
+            borderColor: getRarityColor(
+              achievement.rarity_percentage,
+              config.ultraRareThreshold,
+              config.rareThreshold,
+              config.uncommonThreshold
+            ),
           }}
         >
           <div className="flex items-start gap-3">
@@ -235,14 +261,14 @@ export const AchievementBadge: React.FC<AchievementBadgeProps> = ({
                     ? t("achievements.secret_title")
                     : achievement.display_name}
                 </h4>
-                {achievement.points !== null && achievement.points !== undefined && (
+                {config.showPoints && achievement.points !== null && achievement.points !== undefined && (
                   <span className="text-[10px] font-black text-emerald-400 shrink-0">
                     +{achievement.points} G
                   </span>
                 )}
               </div>
 
-              <div className="flex items-center gap-1.5 mt-0.5">
+              <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                 {achievement.is_unlocked ? (
                   <span className="text-[10px] font-bold text-emerald-400 flex items-center gap-1">
                     ✓ {t("achievements.unlocked")}
@@ -253,18 +279,15 @@ export const AchievementBadge: React.FC<AchievementBadgeProps> = ({
                   </span>
                 )}
 
-                {achievement.rarity_percentage !== null &&
+                {config.showRarityBadges &&
+                  achievement.rarity_percentage !== null &&
                   achievement.rarity_percentage !== undefined && (
                     <span
-                      className={`text-[9px] font-black px-1.5 py-0.5 rounded-full ${
-                        isUltraRare
-                          ? "bg-amber-400/20 text-amber-300 border border-amber-400/40"
-                          : isRare
-                          ? "bg-cyan-400/20 text-cyan-300 border border-cyan-400/40"
-                          : "bg-white/10 text-slate-300"
-                      }`}
+                      className={`text-[9px] font-black px-1.5 py-0.5 rounded-full flex items-center gap-1 border ${rarityClasses.bg} ${rarityClasses.text} ${rarityClasses.border}`}
                     >
-                      {achievement.rarity_percentage.toFixed(1)}%
+                      <RarityIcon tier={tier} className="w-2.5 h-2.5 shrink-0" />
+                      <span>{t("achievements.tier_" + tier)}</span>
+                      <span className="opacity-70 font-mono">({achievement.rarity_percentage.toFixed(1)}%)</span>
                     </span>
                   )}
               </div>

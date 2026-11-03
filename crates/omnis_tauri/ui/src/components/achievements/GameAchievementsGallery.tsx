@@ -1,11 +1,19 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { api, TAURI_EVENTS } from "../../api";
 import { listen } from "@tauri-apps/api/event";
-import { Trophy, RefreshCw, Sparkles, Award, Lock, CheckCircle2, AlertCircle, Settings } from "lucide-react";
-import { Achievement, GameAchievementsSummary, GameDto } from "../../types";
+import { Trophy, Medal, RefreshCw, Sparkles, Award, Lock, CheckCircle2, AlertCircle, Settings } from "lucide-react";
+import { GameAchievementsSummary, GameDto } from "../../types";
 import { AchievementBadge } from "./AchievementBadge";
 import soundEffects from "../../utils/soundEffects";
 import { useTranslation } from "../../i18n";
+import { useAchievementsConfig } from "./AchievementsSettingsTab";
+import {
+  getRarityTier,
+  isUltraRareAchievement,
+  isRareAchievement,
+  isUncommonAchievement,
+  isCommonAchievement,
+} from "./useGameAchievements";
 
 interface GameAchievementsGalleryProps {
   game: GameDto;
@@ -16,7 +24,7 @@ interface GameAchievementsGalleryProps {
   onTotalAchievementsChange?: (total: number) => void;
 }
 
-type FilterType = "all" | "unlocked" | "locked" | "ultrarare";
+type FilterType = "all" | "unlocked" | "locked" | "ultrarare" | "rare" | "uncommon" | "common";
 
 export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = ({
   game,
@@ -27,7 +35,8 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
   onTotalAchievementsChange,
 }) => {
   const isFullscreenMode = isFullscreen || isBigPicture;
-  const { t, locale } = useTranslation();
+  const { t } = useTranslation();
+  const config = useAchievementsConfig();
   const isSupportedStore =
     game.library === "steam" ||
     game.library === "xbox" ||
@@ -119,7 +128,7 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
         setRefreshing(false);
       }
     }
-  }, [game.id, isSupportedStore]);
+  }, [game.id, isSupportedStore, t]);
 
   useEffect(() => {
     activeGameIdRef.current = game.id;
@@ -130,7 +139,7 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
         activeGameIdRef.current = "";
       }
     };
-  }, [fetchAchievements, game.id]);
+  }, [fetchAchievements, game.id, setFocusedIndex]);
 
   // Pick up background syncs (startup pass, post-session refresh) without a loading flicker
   useEffect(() => {
@@ -169,20 +178,30 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
         earnedPoints: 0,
         ultraRareCount: 0,
         rareCount: 0,
+        uncommonCount: 0,
         commonCount: 0,
       };
     }
 
     let ultraRare = 0;
     let rare = 0;
+    let uncommon = 0;
     let common = 0;
 
     for (const ach of summary.achievements) {
       if (ach.rarity_percentage !== null && ach.rarity_percentage !== undefined) {
-        if (ach.rarity_percentage < 10.0) {
+        const tier = getRarityTier(
+          ach.rarity_percentage,
+          config.ultraRareThreshold,
+          config.rareThreshold,
+          config.uncommonThreshold
+        );
+        if (tier === "ultra_rare") {
           ultraRare++;
-        } else if (ach.rarity_percentage < 25.0) {
+        } else if (tier === "rare") {
           rare++;
+        } else if (tier === "uncommon") {
+          uncommon++;
         } else {
           common++;
         }
@@ -197,9 +216,10 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
       earnedPoints: summary.earned_points,
       ultraRareCount: ultraRare,
       rareCount: rare,
+      uncommonCount: uncommon,
       commonCount: common,
     };
-  }, [summary]);
+  }, [summary, config.ultraRareThreshold, config.rareThreshold, config.uncommonThreshold]);
 
   // Filtered achievements
   const filteredAchievements = useMemo(() => {
@@ -211,16 +231,25 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
       case "locked":
         return summary.achievements.filter((a) => !a.is_unlocked);
       case "ultrarare":
-        return summary.achievements.filter(
-          (a) =>
-            a.rarity_percentage !== null &&
-            a.rarity_percentage !== undefined &&
-            a.rarity_percentage < 10.0
+        return summary.achievements.filter((a) =>
+          isUltraRareAchievement(a, config.ultraRareThreshold)
+        );
+      case "rare":
+        return summary.achievements.filter((a) =>
+          isRareAchievement(a, config.rareThreshold, config.ultraRareThreshold)
+        );
+      case "uncommon":
+        return summary.achievements.filter((a) =>
+          isUncommonAchievement(a, config.uncommonThreshold, config.rareThreshold)
+        );
+      case "common":
+        return summary.achievements.filter((a) =>
+          isCommonAchievement(a, config.uncommonThreshold)
         );
       default:
         return summary.achievements;
     }
-  }, [summary, activeFilter]);
+  }, [summary, activeFilter, config.ultraRareThreshold, config.rareThreshold, config.uncommonThreshold]);
 
   // Notify parent of total filtered achievements
   useEffect(() => {
@@ -373,7 +402,7 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
             </h3>
             <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-400 font-medium">
               <span>{stats.percentage}% {t("achievements.completed")}</span>
-              {stats.totalPoints > 0 && (
+              {config.showPoints && stats.totalPoints > 0 && (
                 <>
                   <span className="text-white/20">•</span>
                   <span className="text-emerald-400 font-bold">
@@ -386,12 +415,34 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
         </div>
 
         {/* Rarity & Refresh action */}
-        <div className="flex items-center gap-2">
-          {stats.ultraRareCount > 0 && (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-400/10 border border-amber-400/30 text-[11px] font-bold text-amber-300 shadow-xs">
-              <Sparkles className="w-3 h-3 text-amber-400" />
-              <span>{stats.ultraRareCount} {t("achievements.ultra_rare")}</span>
-            </span>
+        <div className="flex items-center gap-2 flex-wrap">
+          {config.showRarityBadges && (
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {stats.ultraRareCount > 0 && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-400/10 border border-amber-400/30 text-[11px] font-bold text-amber-300 shadow-xs">
+                  <Sparkles className="w-3 h-3 text-amber-400" />
+                  <span>{stats.ultraRareCount} {t("achievements.ultra_rare")}</span>
+                </span>
+              )}
+              {stats.rareCount > 0 && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[11px] font-bold text-amber-400 shadow-xs">
+                  <Trophy className="w-3 h-3 text-amber-500" />
+                  <span>{stats.rareCount} {t("achievements.rare")}</span>
+                </span>
+              )}
+              {stats.uncommonCount > 0 && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-sky-400/10 border border-sky-400/30 text-[11px] font-bold text-sky-300 shadow-xs">
+                  <Medal className="w-3 h-3 text-sky-400" />
+                  <span>{stats.uncommonCount} {t("achievements.uncommon")}</span>
+                </span>
+              )}
+              {stats.commonCount > 0 && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-400/10 border border-slate-400/30 text-[11px] font-bold text-slate-300 shadow-xs">
+                  <Award className="w-3 h-3 text-slate-400" />
+                  <span>{stats.commonCount} {t("achievements.common")}</span>
+                </span>
+              )}
+            </div>
           )}
 
           {refreshing && (
@@ -423,12 +474,14 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
       {renderFeedbackBanner()}
 
       {/* Progress Bar */}
-      <div className="w-full h-2 rounded-full bg-white/[0.05] overflow-hidden p-0.5">
-        <div
-          className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-amber-400 transition-all duration-500 shadow-xs"
-          style={{ width: `${Math.max(stats.percentage, 2)}%` }}
-        />
-      </div>
+      {config.showProgressBar && (
+        <div className="w-full h-2 rounded-full bg-white/[0.05] overflow-hidden p-0.5">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-amber-400 transition-all duration-500 shadow-xs"
+            style={{ width: `${Math.max(stats.percentage, 2)}%` }}
+          />
+        </div>
+      )}
 
       {/* Filter Pills */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
@@ -492,6 +545,57 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
             <span>{t("achievements.ultra_rare")} ({stats.ultraRareCount})</span>
           </button>
         )}
+
+        {stats.rareCount > 0 && (
+          <button
+            onClick={() => {
+              soundEffects.playNav();
+              setActiveFilter("rare");
+            }}
+            className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              activeFilter === "rare"
+                ? "bg-amber-500 text-slate-950 font-black shadow-sm shadow-amber-500/30"
+                : "bg-white/[0.04] text-amber-400 hover:bg-white/[0.08]"
+            }`}
+          >
+            <Trophy className="w-3 h-3 text-amber-500" />
+            <span>{t("achievements.rare")} ({stats.rareCount})</span>
+          </button>
+        )}
+
+        {stats.uncommonCount > 0 && (
+          <button
+            onClick={() => {
+              soundEffects.playNav();
+              setActiveFilter("uncommon");
+            }}
+            className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              activeFilter === "uncommon"
+                ? "bg-sky-500 text-slate-950 font-black shadow-sm shadow-sky-500/30"
+                : "bg-white/[0.04] text-sky-300 hover:bg-white/[0.08]"
+            }`}
+          >
+            <Medal className="w-3 h-3 text-sky-400" />
+            <span>{t("achievements.uncommon")} ({stats.uncommonCount})</span>
+          </button>
+        )}
+
+        {stats.commonCount > 0 && (
+          <button
+            onClick={() => {
+              soundEffects.playNav();
+              setActiveFilter("common");
+            }}
+            className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              activeFilter === "common"
+                ? "bg-slate-300 text-slate-950 font-black shadow-sm shadow-slate-300/30"
+                : "bg-white/[0.04] text-slate-300 hover:bg-white/[0.08]"
+            }`}
+          >
+            <Award className="w-3 h-3 text-slate-400" />
+            <span>{t("achievements.common")} ({stats.commonCount})</span>
+          </button>
+        )}
       </div>
 
       {/* Achievements Badge Grid */}
@@ -500,7 +604,8 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
           <AchievementBadge
             key={ach.id}
             achievement={ach}
-            size={isFullscreenMode ? "lg" : "md"}
+            size={isFullscreenMode ? "lg" : config.badgeSize}
+            config={config}
             isFocused={isFullscreenMode && effectiveFocusedIndex === idx}
             onClick={() => soundEffects.playSelect()}
             onFocus={() => {
