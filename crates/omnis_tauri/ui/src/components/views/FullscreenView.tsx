@@ -301,7 +301,11 @@ export default function FullscreenView({
   }, [layout, gridColumns, onGridColumnsChange]);
 
   // Viewport height
-  const [viewportHeightRem, setViewportHeightRem] = React.useState<number>(0);
+  const [viewportHeightRem, setViewportHeightRem] = React.useState<number>(() => {
+    if (typeof window === "undefined") return 60;
+    const remPx = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+    return window.innerHeight / remPx;
+  });
   React.useEffect(() => {
     const measure = () => {
       const remPx = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
@@ -340,6 +344,7 @@ export default function FullscreenView({
     homeFocusZone === "recent" && showRecentRow
       ? recentGames[safeRecentIndex] || focusedGame
       : focusedGame;
+  const isInfoGameRunning = !!infoGame && activeGame?.game_id === infoGame.id;
 
   // Confirmation dialog state
   const [confirm, setConfirm] = React.useState<{ kind: ConfirmKind; game?: GameDto } | null>(null);
@@ -395,45 +400,66 @@ export default function FullscreenView({
     t,
   });
 
+  // Leave the row when it disappears (filter, search, layout or window size change)
+  React.useEffect(() => {
+    if (homeFocusZone === "recent" && !showRecentRow) setHomeFocusZone?.("carousel");
+  }, [homeFocusZone, showRecentRow, setHomeFocusZone]);
+
+  const showRecentRowRef = React.useRef(showRecentRow);
+  showRecentRowRef.current = showRecentRow;
+  const recentGamesRef = React.useRef(recentGames);
+  recentGamesRef.current = recentGames;
+  const safeRecentIndexRef = React.useRef(safeRecentIndex);
+  safeRecentIndexRef.current = safeRecentIndex;
+  const filteredGamesRef = React.useRef(filteredGames);
+  filteredGamesRef.current = filteredGames;
+  const handleLaunchRef = React.useRef(handleLaunch);
+  handleLaunchRef.current = handleLaunch;
+
   // Recent row events
   React.useEffect(() => {
     const handleRecentNav = (e: Event) => {
       const dir = (e as CustomEvent<{ direction: "left" | "right" }>).detail?.direction;
-      if (!dir || !showRecentRow || recentGames.length === 0) return;
+      if (!dir || !showRecentRowRef.current || recentGamesRef.current.length === 0) return;
       setRecentIndex((prev) => {
-        const next = dir === "right" ? Math.min(recentGames.length - 1, prev + 1) : Math.max(0, prev - 1);
-        if (next !== prev) soundEffects.playNav();
+        const cur = Math.min(prev, Math.max(0, recentGamesRef.current.length - 1));
+        const next = dir === "right" ? Math.min(recentGamesRef.current.length - 1, cur + 1) : Math.max(0, cur - 1);
+        if (next !== cur) soundEffects.playNav();
+        safeRecentIndexRef.current = next;
         return next;
       });
     };
 
-    const handleRecentActionA = () => {
-      if (!showRecentRow || recentGames.length === 0) return;
-      const game = recentGames[safeRecentIndex];
+    const handleRecentAction = (e: Event) => {
+      const action = (e as CustomEvent<{ action?: "launch" | "details" }>).detail?.action ?? "launch";
+      if (!showRecentRowRef.current || recentGamesRef.current.length === 0) return;
+      const game = recentGamesRef.current[safeRecentIndexRef.current];
       if (!game) return;
       soundEffects.playSelect();
-      const targetIdx = filteredGames.findIndex((g) => g.id === game.id);
+      if (action === "launch") {
+        handleLaunchRef.current(game.id);
+        return;
+      }
+      const targetIdx = filteredGamesRef.current.findIndex((g) => g.id === game.id);
       if (targetIdx !== -1) {
         setFocusedIndex(targetIdx);
         setHomeFocusZone?.("carousel");
         setShowFullscreenDetails(true);
       } else {
-        handleLaunch(game.id);
+        handleLaunchRef.current(game.id);
       }
     };
 
     window.addEventListener("omnis:recent-nav", handleRecentNav);
-    window.addEventListener("omnis:recent-action-a", handleRecentActionA);
+    window.addEventListener("omnis:recent-action", handleRecentAction);
+    window.addEventListener("omnis:recent-action-a", handleRecentAction);
     return () => {
       window.removeEventListener("omnis:recent-nav", handleRecentNav);
-      window.removeEventListener("omnis:recent-action-a", handleRecentActionA);
+      window.removeEventListener("omnis:recent-action", handleRecentAction);
+      window.removeEventListener("omnis:recent-action-a", handleRecentAction);
     };
   }, [
-    showRecentRow,
-    recentGames,
-    safeRecentIndex,
-    filteredGames,
-    handleLaunch,
+    setRecentIndex,
     setFocusedIndex,
     setHomeFocusZone,
     setShowFullscreenDetails,
@@ -647,14 +673,18 @@ export default function FullscreenView({
       const target = e.target as HTMLElement | null;
       if (target?.tagName === "INPUT" || target?.tagName === "TEXTAREA" || target?.isContentEditable) return;
       if (isMenuOpen || showFullscreenDetails || consolePage || e.ctrlKey || e.altKey || e.metaKey) return;
-      if ((e.key.toLowerCase() === "k" || e.key === "Delete") && isFocusedGameRunning && handleKillRunningGame) {
+      if (
+        (e.key.toLowerCase() === "k" || e.key === "Delete") &&
+        (isFocusedGameRunning || isInfoGameRunning) &&
+        handleKillRunningGame
+      ) {
         e.preventDefault();
         handleKillRunningGame();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isFocusedGameRunning, handleKillRunningGame, isMenuOpen, showFullscreenDetails, consolePage]);
+  }, [isFocusedGameRunning, isInfoGameRunning, handleKillRunningGame, isMenuOpen, showFullscreenDetails, consolePage]);
 
   // Confirmation dialog input
   React.useEffect(() => {
@@ -702,8 +732,6 @@ export default function FullscreenView({
   // Controller legend
   const legendLeft = [{ kind: "menu" as const, label: t("console_ui.menu") }];
   let legendRight;
-
-  const isInfoGameRunning = !!infoGame && activeGame?.game_id === infoGame.id;
 
   if (consolePage === "achievements") {
     legendRight = [
@@ -757,6 +785,20 @@ export default function FullscreenView({
   } else if (homeFocusZone === "topbar") {
     legendRight = [
       { kind: "a" as const, label: t("console_ui.menu") },
+      { kind: "b" as const, label: t("console_ui.back") },
+    ];
+  } else if (homeFocusZone === "recent") {
+    legendRight = [
+      { kind: "bumpers" as const, label: t("console_ui.category") },
+      { kind: "y" as const, label: t("console_ui.search") },
+      ...(filteredGames.length > 0
+        ? [
+            { kind: "x" as const, label: t("console_ui.details") },
+            isInfoGameRunning
+              ? { kind: "key" as const, glyphLabel: "K", label: t("console_ui.stop"), tone: "danger" as const }
+              : { kind: "a" as const, label: infoGame?.is_installed ? t("console_ui.play") : t("console_ui.install") },
+          ]
+        : []),
       { kind: "b" as const, label: t("console_ui.back") },
     ];
   } else {

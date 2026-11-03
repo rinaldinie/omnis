@@ -826,7 +826,8 @@ export function useGamepadNavigation({
             dispatchRecent("nav", { direction: e.key === "ArrowRight" ? "right" : "left" });
             return;
           }
-          if (e.key === "Enter") {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
             dispatchRecent("action", { action: "launch" });
             return;
           }
@@ -864,9 +865,10 @@ export function useGamepadNavigation({
             if (next !== prev) soundEffects.playNav();
             return next;
           });
-        } else if (e.key === "Enter") {
+        } else if (e.key === "Enter" || e.key === " ") {
           const current = filteredGames[focusedIndex];
           if (current) {
+            e.preventDefault();
             soundEffects.playSelect();
             handleLaunch(current.id);
           }
