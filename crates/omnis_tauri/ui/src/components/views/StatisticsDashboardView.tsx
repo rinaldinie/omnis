@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { api } from "../../api";
 import { GlobalStatsDto } from "../../types";
 import ActivityHeatmapCalendar from "../stats/ActivityHeatmapCalendar";
@@ -6,7 +6,7 @@ import DistributionBar from "../stats/DistributionBar";
 import QuickStatsCards from "../stats/QuickStatsCards";
 import BacklogProgressCard from "../stats/BacklogProgressCard";
 import ResetStatisticsModal from "../stats/ResetStatisticsModal";
-import { RefreshCw, Sparkles, TrendingUp, Trash2, Check } from "lucide-react";
+import { RefreshCw, Sparkles, TrendingUp, Trash2, Check, Calendar, ChevronDown } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import soundEffects from "../../utils/soundEffects";
 
@@ -91,10 +91,16 @@ export default function StatisticsDashboardView({
   const activeDaysCount =
     stats?.activity_heatmap.filter((d) => d.duration_seconds > 0).length || 0;
 
-  const availableYears =
-    stats?.available_years && stats.available_years.length > 0
-      ? stats.available_years
-      : [currentYear - 1, currentYear];
+  const availableYears = useMemo(() => {
+    const list =
+      stats?.available_years && stats.available_years.length > 0
+        ? [...stats.available_years]
+        : [currentYear, currentYear - 1];
+    if (!list.includes(selectedYear)) {
+      list.push(selectedYear);
+    }
+    return list.sort((a, b) => b - a);
+  }, [stats?.available_years, selectedYear, currentYear]);
 
   return (
     <div
@@ -141,7 +147,7 @@ export default function StatisticsDashboardView({
               soundEffects.playSelect();
               setShowResetModal(true);
             }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold text-rose-400 hover:text-rose-300 transition-all cursor-pointer"
+            className="h-[34px] flex items-center gap-1.5 px-3 rounded-xl border text-xs font-semibold text-rose-400 hover:text-rose-300 transition-all cursor-pointer"
             style={{
               backgroundColor: "color-mix(in srgb, #f43f5e 12%, transparent)",
               borderColor: "color-mix(in srgb, #f43f5e 30%, transparent)",
@@ -152,43 +158,51 @@ export default function StatisticsDashboardView({
             <span className="hidden sm:inline">{t("statistics.reset_button")}</span>
           </button>
 
-          {/* Dynamic Year Selector */}
-          <div
-            className="flex items-center p-1 rounded-xl border overflow-x-auto max-w-[280px] custom-scrollbar"
-            style={{
-              backgroundColor: "var(--bg-surface)",
-              borderColor: "var(--border-color)",
-            }}
-          >
-            {availableYears.map((yr) => (
-              <button
-                key={yr}
-                onClick={() => {
-                  soundEffects.playSelect();
-                  setSelectedYear(yr);
-                }}
-                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
-                  selectedYear === yr
-                    ? "text-white shadow"
-                    : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                }`}
-                style={{
-                  backgroundColor:
-                    selectedYear === yr
-                      ? "var(--accent-primary, #6366f1)"
-                      : "transparent",
-                }}
-              >
-                {yr}
-              </button>
-            ))}
+          {/* Dynamic Year Selector Dropdown */}
+          <div className="relative inline-flex items-center">
+            <Calendar
+              className="w-3.5 h-3.5 absolute left-2.5 text-[var(--text-muted)] pointer-events-none"
+              aria-hidden="true"
+            />
+            <select
+              value={selectedYear}
+              onChange={(e) => {
+                soundEffects.playSelect();
+                setSelectedYear(Number(e.target.value));
+              }}
+              title={t("statistics.select_year")}
+              aria-label={t("statistics.select_year")}
+              className="h-[34px] appearance-none pl-8 pr-7 rounded-xl border text-xs font-semibold transition-all cursor-pointer outline-none hover:border-[var(--accent-primary,#6366f1)] focus:border-[var(--accent-primary,#6366f1)] focus:ring-1 focus:ring-[var(--accent-primary,#6366f1)]"
+              style={{
+                backgroundColor: "var(--bg-surface)",
+                borderColor: "var(--border-color)",
+                color: "var(--text-primary)",
+              }}
+            >
+              {availableYears.map((yr) => (
+                <option
+                  key={yr}
+                  value={yr}
+                  style={{
+                    backgroundColor: "var(--bg-card, #1e293b)",
+                    color: "var(--text-primary, #ffffff)",
+                  }}
+                >
+                  {yr}
+                </option>
+              ))}
+            </select>
+            <ChevronDown
+              className="w-3.5 h-3.5 absolute right-2 text-[var(--text-muted)] pointer-events-none"
+              aria-hidden="true"
+            />
           </div>
 
           {/* Refresh button */}
           <button
             onClick={handleRefresh}
             disabled={refreshing}
-            className="p-2 rounded-xl border text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-all disabled:opacity-50 cursor-pointer"
+            className="h-[34px] w-[34px] flex items-center justify-center rounded-xl border text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-all disabled:opacity-50 cursor-pointer"
             style={{
               backgroundColor: "var(--bg-surface)",
               borderColor: "var(--border-color)",

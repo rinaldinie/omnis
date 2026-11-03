@@ -1250,5 +1250,6 @@ export interface TranslationSchema {
     session_time_range: string;
     view_game_in_library: string;
     and_more_sessions: string;
+    select_year: string;
   };
 }

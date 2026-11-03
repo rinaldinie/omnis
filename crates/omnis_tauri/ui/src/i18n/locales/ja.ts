@@ -1234,5 +1234,6 @@ export const ja: TranslationSchema = {
     session_time_range: '{start} ～ {end}',
     view_game_in_library: 'ライブラリで開く',
     and_more_sessions: '他 {count} 件のセッション...',
+    select_year: '年を選択',
   },
 };

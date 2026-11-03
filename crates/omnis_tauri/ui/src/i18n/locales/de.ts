@@ -1234,5 +1234,6 @@ export const de: TranslationSchema = {
     session_time_range: '{start} – {end}',
     view_game_in_library: 'In Bibliothek öffnen',
     and_more_sessions: '+{count} weitere Sitzungen...',
+    select_year: 'Jahr auswählen',
   },
 };
