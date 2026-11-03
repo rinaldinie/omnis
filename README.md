@@ -4,7 +4,7 @@
 [![Release](https://img.shields.io/github/v/release/rinaldinie/omnis)](https://github.com/rinaldinie/omnis/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-> High-performance, modular, open-source universal game library manager and launcher built with Rust and Tauri v2.
+> Modern, lightweight, open-source universal game launcher built in Rust.
 
 ![Omnis library grid view](assets/screenshots/library-grid.webp)
 
