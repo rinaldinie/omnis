@@ -271,10 +271,14 @@ async fn test_gog_metadata_high_res_and_low_res_upgrade() {
         cover_image_path: Some("https://images.gog-statics.com/mock_glx_logo.jpg".to_string()),
         background_image_path: None,
     };
-    db.ingest_discovered_batch(&[gog_game]).expect("Ingest failed");
+    db.ingest_discovered_batch(&[gog_game])
+        .expect("Ingest failed");
 
     let games = db.get_all_games().expect("Get games failed");
-    let witcher2 = games.into_iter().find(|g| g.external_id == "1207658930").unwrap();
+    let witcher2 = games
+        .into_iter()
+        .find(|g| g.external_id == "1207658930")
+        .unwrap();
 
     let temp_cache =
         std::env::temp_dir().join(format!("omnis_test_gog_hd_{}", uuid::Uuid::new_v4()));
@@ -285,7 +289,11 @@ async fn test_gog_metadata_high_res_and_low_res_upgrade() {
         .download_for_game(&db, witcher2.id, &temp_cache)
         .await;
 
-    assert!(patch_result.is_ok(), "Download failed: {:?}", patch_result.err());
+    assert!(
+        patch_result.is_ok(),
+        "Download failed: {:?}",
+        patch_result.err()
+    );
     let patch = patch_result.unwrap();
 
     if let Some(ref cover) = patch.cover_url {

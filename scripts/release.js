@@ -15,6 +15,21 @@ const doBuild = args.includes("--build");
 const doPush = args.includes("--push");
 const isForce = args.includes("--force") || args.includes("-f");
 
+function findCargo() {
+  const cargoCandidates = [
+    "cargo",
+    "/mnt/c/Users/rinal/.cargo/bin/cargo.exe",
+  ];
+  for (const cmd of cargoCandidates) {
+    try {
+      execSync(`${cmd} --version`, { stdio: "ignore" });
+      return cmd;
+    } catch {}
+  }
+  return "cargo";
+}
+const cargoCmd = findCargo();
+
 // Pre-flight check: working tree status
 try {
   const status = execSync("git status --porcelain", { cwd: rootDir, encoding: "utf-8" }).trim();
@@ -28,6 +43,21 @@ try {
   }
 } catch (e) {
   console.warn("⚠️ Warning: Could not verify git status:", e.message);
+}
+
+// Pre-flight check: Rust formatting (cargo fmt)
+try {
+  console.log("🔍 Checking code formatting with cargo fmt...");
+  execSync(`${cargoCmd} fmt --all -- --check`, { cwd: rootDir, stdio: "inherit" });
+  console.log("✓ Code formatting is OK");
+} catch (e) {
+  if (isForce) {
+    console.warn("⚠️ Warning: Rust code is not formatted (--force specified, proceeding anyway).");
+  } else {
+    console.error("\n❌ Error: Rust code formatting check failed (cargo fmt --all -- --check).");
+    console.error("👉 Run 'cargo fmt --all', commit your changes, and re-run the release script.\n");
+    process.exit(1);
+  }
 }
 
 // 1. Read current version from root Cargo.toml
@@ -88,16 +118,9 @@ try {
 }
 
 // Optional cargo update if cargo binary is available
-const cargoCandidates = [
-  "cargo",
-  "/mnt/c/Users/rinal/.cargo/bin/cargo.exe",
-];
-for (const cmd of cargoCandidates) {
-  try {
-    execSync(`${cmd} check --package omnis_tauri`, { cwd: rootDir, stdio: "pipe" });
-    break;
-  } catch {}
-}
+try {
+  execSync(`${cargoCmd} check --package omnis_tauri`, { cwd: rootDir, stdio: "pipe" });
+} catch {}
 
 // 4. Git commit & tag
 try {

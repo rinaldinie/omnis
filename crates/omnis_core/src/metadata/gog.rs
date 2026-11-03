@@ -344,28 +344,36 @@ impl MetadataProvider for GogMetadataProvider {
                                     .embedded
                                     .as_ref()
                                     .and_then(|e| e.developers.as_ref())
-                                    .map(|devs| devs.iter().filter_map(|d| d.name.clone()).collect())
+                                    .map(|devs| {
+                                        devs.iter().filter_map(|d| d.name.clone()).collect()
+                                    })
                                     .unwrap_or_default();
 
                                 let publishers = v2_data
                                     .embedded
                                     .as_ref()
                                     .and_then(|e| e.publishers.as_ref())
-                                    .map(|pubs| pubs.iter().filter_map(|p| p.name.clone()).collect())
+                                    .map(|pubs| {
+                                        pubs.iter().filter_map(|p| p.name.clone()).collect()
+                                    })
                                     .unwrap_or_default();
 
                                 let genres = v2_data
                                     .embedded
                                     .as_ref()
                                     .and_then(|e| e.tags.as_ref())
-                                    .map(|tags| tags.iter().filter_map(|t| t.name.clone()).collect())
+                                    .map(|tags| {
+                                        tags.iter().filter_map(|t| t.name.clone()).collect()
+                                    })
                                     .unwrap_or_default();
 
                                 let features = v2_data
                                     .embedded
                                     .as_ref()
                                     .and_then(|e| e.features.as_ref())
-                                    .map(|feats| feats.iter().filter_map(|f| f.name.clone()).collect())
+                                    .map(|feats| {
+                                        feats.iter().filter_map(|f| f.name.clone()).collect()
+                                    })
                                     .unwrap_or_default();
 
                                 if cover_url.is_some() || desc.is_some() {
@@ -426,7 +434,10 @@ impl MetadataProvider for GogMetadataProvider {
         // Optional: fetch description lead if available from GOG product details
         let prod_id = first.id_string();
         let description = if !prod_id.is_empty() {
-            let details_url = format!("https://api.gog.com/products/{}?expand=description", prod_id);
+            let details_url = format!(
+                "https://api.gog.com/products/{}?expand=description",
+                prod_id
+            );
             if let Ok(details_resp) = self.client.get(&details_url).send().await {
                 if details_resp.status().is_success() {
                     details_resp

@@ -61,10 +61,7 @@ AI_IMPLEMENTATION_SPEC.md
 
 # --- IDE & Editor Settings ---
 .idea/
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
+.vscode/
 *.swp
 *.swo
 *~

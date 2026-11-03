@@ -169,7 +169,9 @@ impl MetadataPipelineResolver {
 
         let remote_cover_to_cache = game.cover_image_path.as_ref().and_then(|p| {
             let p_trim = p.trim();
-            if (p_trim.starts_with("http://") || p_trim.starts_with("https://")) && !has_low_res_cover {
+            if (p_trim.starts_with("http://") || p_trim.starts_with("https://"))
+                && !has_low_res_cover
+            {
                 Some(p_trim.to_string())
             } else {
                 None
@@ -184,7 +186,9 @@ impl MetadataPipelineResolver {
 
         let remote_bg_to_cache = game.background_image_path.as_ref().and_then(|p| {
             let p_trim = p.trim();
-            if (p_trim.starts_with("http://") || p_trim.starts_with("https://")) && !has_low_res_steam_banner_bg {
+            if (p_trim.starts_with("http://") || p_trim.starts_with("https://"))
+                && !has_low_res_steam_banner_bg
+            {
                 Some(p_trim.to_string())
             } else {
                 None
