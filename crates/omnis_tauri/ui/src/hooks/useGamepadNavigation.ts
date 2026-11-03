@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import type { MutableRefObject } from "react";
 import soundEffects from "../utils/soundEffects";
 import { GameDto } from "../types";
 
@@ -22,6 +23,8 @@ interface UseGamepadNavigationProps {
 }
 
 export type HomeFocusZone = "carousel" | "topbar" | "recent";
+/** Full-screen console pages drawn above the home screen and the details page */
+export type ConsolePage = "achievements" | "stats";
 export type ControllerType = "xbox" | "playstation" | "nintendo";
 export type InputDevice = "keyboard" | "gamepad";
 export type ControllerStyleSetting = "auto" | "xbox" | "playstation" | "nintendo" | "keyboard";
@@ -39,7 +42,7 @@ export function detectControllerType(id: string): ControllerType {
  * Gives the fullscreen view a chance to handle Back (e.g. to dismiss a confirmation dialog).
  * Returns true when the view consumed it.
  */
-function interceptBack(scope: "menu" | "details"): boolean {
+function interceptBack(scope: "menu" | "details" | "page"): boolean {
   const event = new CustomEvent(`omnis:${scope}-back`, { cancelable: true });
   window.dispatchEvent(event);
   return event.defaultPrevented;
@@ -47,6 +50,11 @@ function interceptBack(scope: "menu" | "details"): boolean {
 
 function dispatchRecent(type: "nav" | "action", detail: Record<string, string>) {
   window.dispatchEvent(new CustomEvent(`omnis:recent-${type}`, { detail }));
+}
+
+/** Input events of the open console page: nav (direction), action-a, action-y, bumper (direction -1 / 1) */
+function dispatchPage(type: "nav" | "action-a" | "action-y" | "bumper", detail?: Record<string, unknown>) {
+  window.dispatchEvent(new CustomEvent(`omnis:page-${type}`, { detail }));
 }
 
 /** Index reached moving one row in a grid with `cols` columns; unchanged when there is no row that way. */
@@ -88,6 +96,7 @@ export function useGamepadNavigation({
   const [showFullscreenDetails, setShowFullscreenDetails] = useState<boolean>(false);
   const [homeFocusZone, setHomeFocusZone] = useState<HomeFocusZone>("carousel");
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
+  const [consolePage, setConsolePage] = useState<ConsolePage | null>(null);
 
   // Dynamic input device detection: switch to keyboard on mouse or key input
   useEffect(() => {
@@ -116,6 +125,7 @@ export function useGamepadNavigation({
       setIsMenuOpen(false);
       setHomeFocusZone("carousel");
       setShowFullscreenDetails(false);
+      setConsolePage(null);
     }
   }, [isFullscreen]);
 
@@ -137,6 +147,7 @@ export function useGamepadNavigation({
   const showFullscreenDetailsRef = useRef(showFullscreenDetails);
   const homeFocusZoneRef = useRef(homeFocusZone);
   const isMenuOpenRef = useRef(isMenuOpen);
+  const consolePageRef = useRef(consolePage);
 
   // Sync refs on each render
   isFullscreenRef.current = isFullscreen;
@@ -155,6 +166,7 @@ export function useGamepadNavigation({
   showFullscreenDetailsRef.current = showFullscreenDetails;
   homeFocusZoneRef.current = homeFocusZone;
   isMenuOpenRef.current = isMenuOpen;
+  consolePageRef.current = consolePage;
 
   // Input timing & edge-triggering refs (persistent across renders)
   const awaitingNeutralStateRef = useRef<boolean>(false);
@@ -284,8 +296,38 @@ export function useGamepadNavigation({
         if (rawUp && !rawDown) currentDirY = -1;
         else if (rawDown && !rawUp) currentDirY = 1;
 
+        // Fires on a new press, then repeats while the direction is held
+        const repeatAxis = (
+          dir: number,
+          dirRef: MutableRefObject<number>,
+          startRef: MutableRefObject<number>,
+          lastRef: MutableRefObject<number>,
+          fire: () => void
+        ) => {
+          if (dir === 0) {
+            dirRef.current = 0;
+            startRef.current = 0;
+          } else if (dirRef.current !== dir) {
+            dirRef.current = dir;
+            startRef.current = now;
+            lastRef.current = now;
+            fire();
+          } else if (now - startRef.current >= 380 && now - lastRef.current >= 170) {
+            lastRef.current = now;
+            fire();
+          }
+        };
+
         if (isFullscreenRef.current) {
-          if (showFullscreenDetailsRef.current) {
+          if (consolePageRef.current) {
+            // Console page (achievements, statistics) owns both axes
+            repeatAxis(currentDirX, navDirectionRef, navStartTimeRef, lastNavTimeRef, () =>
+              dispatchPage("nav", { direction: currentDirX === 1 ? "right" : "left" })
+            );
+            repeatAxis(currentDirY, navDirectionYRef, navStartYTimeRef, lastNavYTimeRef, () =>
+              dispatchPage("nav", { direction: currentDirY === 1 ? "down" : "up" })
+            );
+          } else if (showFullscreenDetailsRef.current) {
             // When in Fullscreen Details: handle horizontal navigation
             if (currentDirX !== 0) {
               if (navDirectionRef.current !== currentDirX) {
@@ -513,7 +555,20 @@ export function useGamepadNavigation({
         const isEdgeGuide = isEdge(16) || isEdge(17);
 
         if (isFullscreenRef.current) {
-          if (isEdgeA) {
+          if (consolePageRef.current) {
+            if (isEdgeA) {
+              dispatchPage("action-a");
+            } else if (isEdgeB) {
+              if (!interceptBack("page")) {
+                soundEffects.playSelect();
+                setConsolePage(null);
+              }
+            } else if (isEdgeY) {
+              dispatchPage("action-y");
+            } else if (isEdgeLB || isEdgeRB) {
+              dispatchPage("bumper", { direction: isEdgeLB ? -1 : 1 });
+            }
+          } else if (isEdgeA) {
             if (showFullscreenDetailsRef.current) {
               window.dispatchEvent(new CustomEvent("omnis:details-action-a"));
             } else if (isMenuOpenRef.current) {
@@ -636,6 +691,34 @@ export function useGamepadNavigation({
       }
 
       if (isFullscreen) {
+        if (consolePage) {
+          const plainKey = !e.ctrlKey && !e.altKey && !e.metaKey;
+          const arrows: Record<string, string> = {
+            ArrowUp: "up",
+            ArrowDown: "down",
+            ArrowLeft: "left",
+            ArrowRight: "right",
+          };
+          if (e.key === "Escape") {
+            if (!interceptBack("page")) {
+              soundEffects.playSelect();
+              setConsolePage(null);
+            }
+          } else if (e.key === "Enter") {
+            dispatchPage("action-a");
+          } else if (arrows[e.key]) {
+            e.preventDefault();
+            dispatchPage("nav", { direction: arrows[e.key] });
+          } else if (plainKey && (e.key.toLowerCase() === "q" || e.key.toLowerCase() === "e")) {
+            e.preventDefault();
+            dispatchPage("bumper", { direction: e.key.toLowerCase() === "q" ? -1 : 1 });
+          } else if (plainKey && (e.key.toLowerCase() === "y" || e.key.toLowerCase() === "s")) {
+            e.preventDefault();
+            dispatchPage("action-y");
+          }
+          return;
+        }
+
         if (showFullscreenDetails) {
           if (e.key === "Escape") {
             if (!interceptBack("details")) {
@@ -815,6 +898,7 @@ export function useGamepadNavigation({
     showFullscreenDetails,
     homeFocusZone,
     isMenuOpen,
+    consolePage,
     selectedGame,
     showVirtualKeyboard,
     toggleFullscreen,
@@ -840,5 +924,7 @@ export function useGamepadNavigation({
     setHomeFocusZone,
     isMenuOpen,
     setIsMenuOpen,
+    consolePage,
+    setConsolePage,
   };
 }

@@ -21,7 +21,7 @@ import { useActiveGameTimer } from "../../context/ActiveGameTimerContext";
 import { GameSortMode } from "../../utils/sortGames";
 import { useUpdater } from "../../hooks/useAppUpdater";
 import { useUiScale } from "../../hooks/useUiScale";
-import type { HomeFocusZone } from "../../hooks/useGamepadNavigation";
+import type { ConsolePage, HomeFocusZone } from "../../hooks/useGamepadNavigation";
 import {
   useClock,
   useInputPrompt,
@@ -41,6 +41,9 @@ import { FullscreenDetailsOverlay } from "../fullscreen/FullscreenDetailsOverlay
 import { FullscreenTopBar } from "../fullscreen/FullscreenTopBar";
 import { FullscreenHomeContent } from "../fullscreen/FullscreenHomeContent";
 import { FullscreenOverlays } from "../fullscreen/FullscreenOverlays";
+import { FullscreenAchievementsPage } from "../fullscreen/FullscreenAchievementsPage";
+import { FullscreenStatsPage } from "../fullscreen/FullscreenStatsPage";
+import { useGameAchievements } from "../achievements";
 import { useFullscreenMenu } from "../fullscreen/useFullscreenMenu";
 import {
   STORE_LABELS,
@@ -52,6 +55,8 @@ import {
 interface FullscreenViewProps {
   focusedGame: GameDto | null;
   filteredGames: GameDto[];
+  /** Whole library, unfiltered (statistics page) */
+  allGames?: GameDto[];
   focusedIndex: number;
   setFocusedIndex: (idx: number) => void;
   setSelectedGame: (game: GameDto) => void;
@@ -104,6 +109,8 @@ interface FullscreenViewProps {
   setHomeFocusZone?: (zone: HomeFocusZone) => void;
   isMenuOpen?: boolean;
   setIsMenuOpen?: React.Dispatch<React.SetStateAction<boolean>>;
+  consolePage?: ConsolePage | null;
+  setConsolePage?: (page: ConsolePage | null) => void;
   themes?: ThemeConfig[];
   onSelectTheme?: (theme: ThemeConfig) => void;
 }
@@ -133,6 +140,7 @@ function readSavedLayout(): LibraryLayout {
 export default function FullscreenView({
   focusedGame,
   filteredGames,
+  allGames,
   focusedIndex,
   setFocusedIndex,
   counts,
@@ -173,6 +181,8 @@ export default function FullscreenView({
   setHomeFocusZone,
   isMenuOpen = false,
   setIsMenuOpen,
+  consolePage = null,
+  setConsolePage,
   themes = [],
   onSelectTheme,
 }: FullscreenViewProps) {
@@ -251,7 +261,7 @@ export default function FullscreenView({
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
       if (target?.tagName === "INPUT" || target?.tagName === "TEXTAREA" || target?.isContentEditable) return;
-      if ((e.key.toLowerCase() === "g" || e.key === "Tab") && !e.ctrlKey && !e.altKey && !isMenuOpen && !showFullscreenDetails) {
+      if ((e.key.toLowerCase() === "g" || e.key === "Tab") && !e.ctrlKey && !e.altKey && !isMenuOpen && !showFullscreenDetails && !consolePage) {
         e.preventDefault();
         handleToggle();
       }
@@ -262,7 +272,7 @@ export default function FullscreenView({
       window.removeEventListener("omnis:toggle-layout", handleToggle);
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [toggleLayout, isMenuOpen, showFullscreenDetails]);
+  }, [toggleLayout, isMenuOpen, showFullscreenDetails, consolePage]);
 
   const gridRef = React.useRef<HTMLDivElement>(null);
   const [gridColumns, setGridColumns] = React.useState(0);
@@ -381,6 +391,7 @@ export default function FullscreenView({
     handleMinimize,
     openConfirm,
     confirm,
+    onOpenStatistics: setConsolePage ? () => setConsolePage("stats") : undefined,
     t,
   });
 
@@ -511,18 +522,28 @@ export default function FullscreenView({
     ],
     [hasGameActions, detailInstalled]
   );
-  const [achievementsFocusedIndex, setAchievementsFocusedIndex] = React.useState<number>(-1);
-  const [totalAchievements, setTotalAchievements] = React.useState<number>(0);
   const detailsScrollRef = React.useRef<HTMLDivElement>(null);
+  const achievementsCardRef = React.useRef<HTMLButtonElement>(null);
+  const {
+    summary: achievementsSummary,
+    loading: achievementsLoading,
+    supported: achievementsSupported,
+  } = useGameAchievements(showFullscreenDetails ? activeDetailGame : null);
+  const hasAchievements = !!achievementsSummary && achievementsSummary.total_count > 0;
+  const [canRevealAchievement, setCanRevealAchievement] = React.useState(false);
 
   React.useEffect(() => {
     if (showFullscreenDetails) {
       setDetailsFocusedSection("hero");
       setHeroFocusedButton("launch");
-      setAchievementsFocusedIndex(-1);
       detailsScrollRef.current?.scrollTo({ top: 0, behavior: "instant" });
     }
   }, [showFullscreenDetails]);
+
+  // The achievements page belongs to the details page: it never outlives it
+  React.useEffect(() => {
+    if (consolePage === "achievements" && !showFullscreenDetails) setConsolePage?.(null);
+  }, [consolePage, showFullscreenDetails, setConsolePage]);
 
   // Details navigation
   React.useEffect(() => {
@@ -533,44 +554,46 @@ export default function FullscreenView({
       if (!dir || confirm) return;
 
       if (dir === "down") {
-        if (detailsFocusedSection === "hero") {
+        if (detailsFocusedSection === "hero" && hasAchievements) {
           setDetailsFocusedSection("achievements");
-          setAchievementsFocusedIndex(0);
           soundEffects.playNav();
-          detailsScrollRef.current?.scrollBy({ top: 380, behavior: "smooth" });
+          achievementsCardRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
         } else {
           detailsScrollRef.current?.scrollBy({ top: 220, behavior: "smooth" });
         }
       } else if (dir === "up") {
         if (detailsFocusedSection === "achievements") {
           setDetailsFocusedSection("hero");
-          setAchievementsFocusedIndex(-1);
           soundEffects.playNav();
           detailsScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
         } else {
           detailsScrollRef.current?.scrollBy({ top: -220, behavior: "smooth" });
         }
-      } else if (dir === "left" || dir === "right") {
-        if (detailsFocusedSection === "hero") {
-          setHeroFocusedButton((prev) => {
-            const current = Math.max(0, heroButtons.indexOf(prev));
-            const nextIdx = Math.max(0, Math.min(heroButtons.length - 1, current + (dir === "right" ? 1 : -1)));
-            if (heroButtons[nextIdx] !== prev) soundEffects.playNav();
-            return heroButtons[nextIdx];
-          });
-        } else if (dir === "left" && totalAchievements > 0) {
-          setAchievementsFocusedIndex((prev) => (prev <= 0 ? totalAchievements - 1 : prev - 1));
-          soundEffects.playNav();
-        } else if (totalAchievements > 0) {
-          setAchievementsFocusedIndex((prev) => (prev < 0 ? 0 : (prev + 1) % totalAchievements));
-          soundEffects.playNav();
-        }
+      } else if (detailsFocusedSection === "hero") {
+        setHeroFocusedButton((prev) => {
+          const current = Math.max(0, heroButtons.indexOf(prev));
+          const nextIdx = Math.max(0, Math.min(heroButtons.length - 1, current + (dir === "right" ? 1 : -1)));
+          if (heroButtons[nextIdx] !== prev) soundEffects.playNav();
+          return heroButtons[nextIdx];
+        });
       }
     };
 
     window.addEventListener("omnis:details-nav", handleDetailsNav);
     return () => window.removeEventListener("omnis:details-nav", handleDetailsNav);
-  }, [showFullscreenDetails, detailsFocusedSection, totalAchievements, heroButtons, confirm]);
+  }, [showFullscreenDetails, detailsFocusedSection, hasAchievements, heroButtons, confirm]);
+
+  // A section without achievements cannot keep the focus (e.g. after a sync emptied it)
+  React.useEffect(() => {
+    if (detailsFocusedSection === "achievements" && !hasAchievements) setDetailsFocusedSection("hero");
+  }, [detailsFocusedSection, hasAchievements]);
+
+  const openAchievementsPage = React.useCallback(() => {
+    if (!hasAchievements) return;
+    soundEffects.playSelect();
+    setDetailsFocusedSection("achievements");
+    setConsolePage?.("achievements");
+  }, [hasAchievements, setConsolePage]);
 
   // Details action A
   React.useEffect(() => {
@@ -578,8 +601,12 @@ export default function FullscreenView({
 
     const handleActionA = () => {
       if (confirm) return;
+      if (detailsFocusedSection === "achievements") {
+        openAchievementsPage();
+        return;
+      }
       soundEffects.playSelect();
-      if (detailsFocusedSection !== "hero" || !activeDetailGame) return;
+      if (!activeDetailGame) return;
       if (heroFocusedButton === "back") {
         setShowFullscreenDetails(false);
       } else if (heroFocusedButton === "launch") {
@@ -610,6 +637,7 @@ export default function FullscreenView({
     setShowFullscreenDetails,
     confirm,
     onGameAction,
+    openAchievementsPage,
     t,
   ]);
 
@@ -618,7 +646,7 @@ export default function FullscreenView({
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
       if (target?.tagName === "INPUT" || target?.tagName === "TEXTAREA" || target?.isContentEditable) return;
-      if (isMenuOpen || showFullscreenDetails || e.ctrlKey || e.altKey || e.metaKey) return;
+      if (isMenuOpen || showFullscreenDetails || consolePage || e.ctrlKey || e.altKey || e.metaKey) return;
       if ((e.key.toLowerCase() === "k" || e.key === "Delete") && isFocusedGameRunning && handleKillRunningGame) {
         e.preventDefault();
         handleKillRunningGame();
@@ -626,7 +654,7 @@ export default function FullscreenView({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isFocusedGameRunning, handleKillRunningGame, isMenuOpen, showFullscreenDetails]);
+  }, [isFocusedGameRunning, handleKillRunningGame, isMenuOpen, showFullscreenDetails, consolePage]);
 
   // Confirmation dialog input
   React.useEffect(() => {
@@ -677,7 +705,20 @@ export default function FullscreenView({
 
   const isInfoGameRunning = !!infoGame && activeGame?.game_id === infoGame.id;
 
-  if (confirm) {
+  if (consolePage === "achievements") {
+    legendRight = [
+      { kind: "bumpers" as const, label: t("console_ui.filter") },
+      { kind: "y" as const, label: t("console_ui.sort_by") },
+      ...(canRevealAchievement ? [{ kind: "a" as const, label: t("console_ui.reveal") }] : []),
+      { kind: "b" as const, label: t("console_ui.back") },
+    ];
+  } else if (consolePage === "stats") {
+    legendRight = [
+      { kind: "key" as const, glyphLabel: "▲ ▼", label: t("console_ui.scroll") },
+      { kind: "bumpers" as const, label: t("console_ui.year") },
+      { kind: "b" as const, label: t("console_ui.back") },
+    ];
+  } else if (confirm) {
     legendRight = [
       { kind: "a" as const, label: t("console_ui.select") },
       { kind: "b" as const, label: t("common.cancel") },
@@ -692,7 +733,7 @@ export default function FullscreenView({
     legendRight =
       detailsFocusedSection === "hero"
         ? [
-            { kind: "key" as const, glyphLabel: "▼", label: t("achievements.title") },
+            ...(hasAchievements ? [{ kind: "key" as const, glyphLabel: "▼", label: t("achievements.title") }] : []),
             {
               kind: "a" as const,
               label:
@@ -709,8 +750,8 @@ export default function FullscreenView({
             { kind: "b" as const, label: t("console_ui.back") },
           ]
         : [
-            { kind: "key" as const, glyphLabel: "◄ ►", label: t("achievements.title") },
             { kind: "key" as const, glyphLabel: "▲", label: t("console_ui.play") },
+            { kind: "a" as const, label: t("console_ui.view_all") },
             { kind: "b" as const, label: t("console_ui.back") },
           ];
   } else if (homeFocusZone === "topbar") {
@@ -834,11 +875,32 @@ export default function FullscreenView({
         setNotice={setNotice}
         soundEffects={soundEffects}
         playtimeLabel={playtimeLabel}
-        achievementsFocusedIndex={achievementsFocusedIndex}
-        setAchievementsFocusedIndex={setAchievementsFocusedIndex}
-        setTotalAchievements={setTotalAchievements}
+        achievementsSupported={achievementsSupported}
+        achievementsSummary={achievementsSummary}
+        achievementsLoading={achievementsLoading}
+        achievementsCardRef={achievementsCardRef}
+        onOpenAchievements={openAchievementsPage}
         storeLabels={STORE_LABELS}
         renderStoreIcon={(lib) => <StoreIcon library={lib} className="w-4 h-4" />}
+        t={t}
+      />
+
+      {/* CONSOLE PAGES */}
+      <FullscreenAchievementsPage
+        isOpen={consolePage === "achievements"}
+        game={activeDetailGame}
+        summary={achievementsSummary}
+        loading={achievementsLoading}
+        onClose={() => setConsolePage?.(null)}
+        onCanRevealChange={setCanRevealAchievement}
+        locale={locale}
+        t={t}
+      />
+      <FullscreenStatsPage
+        isOpen={consolePage === "stats"}
+        games={allGames ?? filteredGames}
+        onClose={() => setConsolePage?.(null)}
+        locale={locale}
         t={t}
       />
 

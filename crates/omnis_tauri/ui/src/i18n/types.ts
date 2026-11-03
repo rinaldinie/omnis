@@ -338,6 +338,24 @@ export interface TranslationSchema {
     controller_glyphs: string;
     controller_keyboard: string;
     live: string;
+    statistics: string;
+    filter: string;
+    reveal: string;
+    scroll: string;
+    year: string;
+    view_all: string;
+    recent_unlocks: string;
+    no_unlocks_yet: string;
+    achievement_rarity: string;
+    achievement_sort_default: string;
+    achievement_sort_recent: string;
+    achievement_sort_rarity: string;
+    achievement_sort_name: string;
+    stats_sessions: string;
+    stats_monthly: string;
+    stats_activity: string;
+    stats_top_games: string;
+    stats_breakdown: string;
   };
   app_status: {
     theme_activated: string;
