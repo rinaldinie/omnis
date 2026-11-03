@@ -945,6 +945,9 @@ export default function FullscreenView({
       <FullscreenOverlays
         notice={notice}
         sessionToast={sessionToast}
+        sessionGame={
+          sessionToast ? (allGames ?? filteredGames).find((g) => g.id === sessionToast.gameId) ?? null : null
+        }
         onDismissToast={onDismissToast}
         updater={updater}
         scaleHintVisible={scaleHintVisible}

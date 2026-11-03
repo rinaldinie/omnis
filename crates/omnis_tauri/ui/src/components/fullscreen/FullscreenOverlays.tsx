@@ -1,7 +1,9 @@
 import React from "react";
 import { CheckCircle2, Gamepad2, Sparkles, Type } from "lucide-react";
+import { GameDto } from "../../types";
+import { SESSION_TOAST_MS } from "../../hooks/useAppEvents";
+import { ArtImage } from "./FullscreenCards";
 import { ControllerLegend, LegendEntry } from "./ConsoleChrome";
-import { duration } from "./constants";
 
 export interface FullscreenOverlaysProps {
   notice: string | null;
@@ -10,6 +12,8 @@ export interface FullscreenOverlaysProps {
     durationSeconds: number;
     gameId: string;
   } | null;
+  /** Library entry of the game whose session just ended (artwork and total playtime) */
+  sessionGame?: GameDto | null;
   onDismissToast?: () => void;
   updater: any;
   scaleHintVisible: boolean;
@@ -19,9 +23,19 @@ export interface FullscreenOverlaysProps {
   t: (key: string, params?: Record<string, any>) => string;
 }
 
+/** "2h 05m" / "42 min" / "< 1 min" */
+function sessionLength(seconds: number): string {
+  const totalMinutes = Math.floor(seconds / 60);
+  if (totalMinutes < 1) return "< 1 min";
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return hours > 0 ? `${hours}h ${minutes.toString().padStart(2, "0")}m` : `${minutes} min`;
+}
+
 export const FullscreenOverlays: React.FC<FullscreenOverlaysProps> = ({
   notice,
   sessionToast,
+  sessionGame,
   onDismissToast,
   updater,
   scaleHintVisible,
@@ -43,32 +57,86 @@ export const FullscreenOverlays: React.FC<FullscreenOverlaysProps> = ({
         </div>
       )}
 
-      {/* SESSION ENDED TOAST */}
+      {/* SESSION ENDED SUMMARY */}
       {sessionToast && (
         <div
-          className="fixed top-8 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 pl-5 pr-3 py-3 rounded-lg shadow-2xl omnis-rise-in max-w-xl"
-          style={{ backgroundColor: "var(--bg-surface)", borderLeft: "0.25rem solid #34d399" }}
+          role="status"
+          aria-live="polite"
+          onClick={onDismissToast}
+          className="fixed top-20 right-10 z-[55] w-[30rem] max-w-[calc(100vw-5rem)] overflow-hidden rounded-xl omnis-rise-in cursor-pointer select-none"
+          style={{
+            // Opaque even when the theme surface is translucent
+            background: "linear-gradient(var(--bg-surface), var(--bg-surface)), var(--bg-base)",
+            boxShadow: "0 24px 60px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.06)",
+          }}
         >
-          <Gamepad2 className="w-7 h-7 text-emerald-400 shrink-0" />
-          <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-widest text-emerald-300">
-              {t("fullscreen.session_ended")}
-            </p>
-            <p className="text-lg font-semibold text-white truncate">{sessionToast.title}</p>
-            <p className="text-sm text-white/65">
-              {t("fullscreen.played_time")} {duration(sessionToast.durationSeconds)}
-            </p>
-          </div>
-          {onDismissToast && (
-            <button
-              type="button"
-              onClick={onDismissToast}
-              className="ml-2 w-8 h-8 rounded-full flex items-center justify-center text-white/60"
-              title={t("common.close")}
-            >
-              ✕
-            </button>
+          {sessionGame?.background_image && (
+            <div className="absolute inset-0 opacity-25 pointer-events-none">
+              <ArtImage
+                sources={[sessionGame.background_image]}
+                title={sessionGame.title}
+                library={sessionGame.library}
+                showFallbackTitle={false}
+              />
+              <div
+                className="absolute inset-0"
+                style={{ background: "linear-gradient(90deg, var(--bg-surface) 30%, transparent)" }}
+              />
+            </div>
           )}
+
+          <div className="relative flex items-center gap-5 p-4">
+            <div className="w-16 h-[5.5rem] rounded-md overflow-hidden shrink-0 bg-black/40 shadow-lg">
+              {sessionGame ? (
+                <ArtImage
+                  sources={[sessionGame.cover_image, sessionGame.background_image]}
+                  title={sessionGame.title}
+                  library={sessionGame.library}
+                  showFallbackTitle={false}
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-white/50">
+                  <Gamepad2 className="w-7 h-7" />
+                </div>
+              )}
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "var(--accent-primary)" }}>
+                {t("fullscreen.session_ended")}
+              </p>
+              <p className="mt-0.5 text-xl font-bold text-white truncate">{sessionToast.title}</p>
+              <div className="mt-2 flex items-end gap-6">
+                <div>
+                  <p className="text-[0.7rem] font-semibold uppercase tracking-wider text-white/50">
+                    {t("console_ui.session_time")}
+                  </p>
+                  <p className="text-2xl font-bold text-white tabular-nums leading-tight">
+                    +{sessionLength(sessionToast.durationSeconds)}
+                  </p>
+                </div>
+                {sessionGame && sessionGame.playtime_seconds > 0 && (
+                  <div>
+                    <p className="text-[0.7rem] font-semibold uppercase tracking-wider text-white/50">
+                      {t("console_ui.total_playtime")}
+                    </p>
+                    <p className="text-lg font-semibold text-white/80 tabular-nums leading-tight">
+                      {sessionLength(sessionGame.playtime_seconds)}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Time left before the summary goes away */}
+          <div className="relative h-1 bg-white/10">
+            <div
+              key={`${sessionToast.gameId}-${sessionToast.durationSeconds}`}
+              className="h-full omnis-drain"
+              style={{ backgroundColor: "var(--accent-primary)", animationDuration: `${SESSION_TOAST_MS}ms` }}
+            />
+          </div>
         </div>
       )}
 

@@ -1,4 +1,5 @@
 import React from "react";
+import { Monitor, Power, Trash2 } from "lucide-react";
 import { GameDto } from "../../types";
 
 export interface ConfirmState {
@@ -14,6 +15,9 @@ export interface FullscreenConfirmDialogProps {
   t: (key: string, params?: Record<string, any>) => string;
 }
 
+const KIND_ICON = { exit: Power, desktop: Monitor, uninstall: Trash2 } as const;
+
+/** Console confirmation sheet: full-width stacked actions, confirm on top, cancel focused by default. */
 export const FullscreenConfirmDialog: React.FC<FullscreenConfirmDialogProps> = ({
   confirm,
   confirmFocus,
@@ -23,28 +27,57 @@ export const FullscreenConfirmDialog: React.FC<FullscreenConfirmDialogProps> = (
 }) => {
   if (!confirm) return null;
 
+  const isDanger = confirm.kind !== "desktop";
+  const Icon = KIND_ICON[confirm.kind];
+  const tint = isDanger ? "#fb7185" : "var(--accent-primary)";
+
+  const title =
+    confirm.kind === "exit"
+      ? t("console_ui.confirm_exit")
+      : confirm.kind === "desktop"
+      ? t("console_ui.confirm_desktop")
+      : t("console_ui.confirm_uninstall", { title: confirm.game?.title ?? "" });
+  const description =
+    confirm.kind === "exit"
+      ? t("fullscreen.exit_app_desc")
+      : confirm.kind === "uninstall"
+      ? t("console_ui.confirm_uninstall_desc")
+      : null;
+  const confirmLabel =
+    confirm.kind === "exit"
+      ? t("console_ui.exit")
+      : confirm.kind === "desktop"
+      ? t("console_ui.desktop_mode")
+      : t("console_ui.action_uninstall");
+
   return (
-    <div className="fixed inset-0 z-[45] flex items-center justify-center bg-black/60 omnis-fade-in">
+    <div className="fixed inset-0 z-[48] flex items-center justify-center bg-black/70 backdrop-blur-md omnis-fade-in">
       <div
-        className="w-[30rem] max-w-[90vw] rounded-xl p-8 flex flex-col gap-6 shadow-2xl omnis-rise-in"
-        style={{ backgroundColor: "var(--bg-surface)" }}
+        className="relative w-[32rem] max-w-[90vw] overflow-hidden rounded-2xl px-10 pt-10 pb-8 flex flex-col items-center text-center shadow-2xl omnis-rise-in"
+        style={{
+          backgroundColor: "var(--bg-surface)",
+          boxShadow: "0 30px 80px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.06)",
+        }}
       >
-        <div>
-          <h2 className="text-2xl font-semibold text-white">
-            {confirm.kind === "exit"
-              ? t("console_ui.confirm_exit")
-              : confirm.kind === "desktop"
-              ? t("console_ui.confirm_desktop")
-              : t("console_ui.confirm_uninstall", { title: confirm.game?.title ?? "" })}
-          </h2>
-          {confirm.kind === "uninstall" && (
-            <p className="mt-2 text-base text-white/65">{t("console_ui.confirm_uninstall_desc")}</p>
-          )}
+        <div
+          className="absolute inset-x-0 top-0 h-32 pointer-events-none"
+          style={{ background: `radial-gradient(ellipse at top, color-mix(in srgb, ${tint} 22%, transparent), transparent 70%)` }}
+        />
+
+        <div
+          className="relative w-16 h-16 rounded-full flex items-center justify-center"
+          style={{ backgroundColor: `color-mix(in srgb, ${tint} 16%, transparent)`, color: tint }}
+        >
+          <Icon className="w-8 h-8" />
         </div>
-        <div className="flex justify-end gap-3">
-          {(["cancel", "confirm"] as const).map((button) => {
+
+        <h2 className="relative mt-6 text-3xl font-bold text-white tracking-tight">{title}</h2>
+        {description && <p className="relative mt-2 text-base text-white/60">{description}</p>}
+
+        <div className="relative mt-8 w-full flex flex-col gap-3">
+          {(["confirm", "cancel"] as const).map((button) => {
             const isFocused = confirmFocus === button;
-            const isDanger = button === "confirm" && confirm.kind !== "desktop";
+            const danger = button === "confirm" && isDanger;
             return (
               <button
                 type="button"
@@ -53,24 +86,19 @@ export const FullscreenConfirmDialog: React.FC<FullscreenConfirmDialogProps> = (
                   soundEffects.playSelect();
                   onSelectButton(button);
                 }}
-                className="cursor-pointer px-6 py-3 rounded-md text-base font-semibold uppercase tracking-wider transition-all duration-150 border-none"
+                className="cursor-pointer w-full flex items-center justify-center px-6 py-4 rounded-lg text-lg font-semibold uppercase tracking-wider transition-all duration-150 border-none"
                 style={
                   isFocused
                     ? {
-                        backgroundColor: isDanger ? "#e11d48" : "#ffffff",
-                        color: isDanger ? "#ffffff" : "#0b0f19",
-                        transform: "scale(1.04)",
+                        backgroundColor: danger ? "#e11d48" : "#ffffff",
+                        color: danger ? "#ffffff" : "#0b0f19",
+                        transform: "scale(1.02)",
+                        boxShadow: danger ? "0 10px 30px rgba(225, 29, 72, 0.35)" : "0 10px 30px rgba(0, 0, 0, 0.35)",
                       }
-                    : { backgroundColor: "rgba(255, 255, 255, 0.1)", color: "rgba(255, 255, 255, 0.85)" }
+                    : { backgroundColor: "rgba(255, 255, 255, 0.07)", color: "rgba(255, 255, 255, 0.8)" }
                 }
               >
-                {button === "cancel"
-                  ? t("common.cancel")
-                  : confirm.kind === "exit"
-                  ? t("console_ui.exit")
-                  : confirm.kind === "desktop"
-                  ? t("console_ui.desktop_mode")
-                  : t("console_ui.action_uninstall")}
+                {button === "cancel" ? t("common.cancel") : confirmLabel}
               </button>
             );
           })}
