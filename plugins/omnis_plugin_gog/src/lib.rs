@@ -363,7 +363,8 @@ mod tests {
 
     #[test]
     fn test_gog_product_item_images_mapping() {
-        let product = client::GogProductItem {
+        // 1. Logos and icons must NOT be mapped as covers
+        let product_with_only_logos = client::GogProductItem {
             id: 1207658691,
             title: "Unreal Tournament 2004".to_string(),
             game_type: Some("game".to_string()),
@@ -372,6 +373,7 @@ mod tests {
             images: Some(client::GogProductImages {
                 box_art: None,
                 box_art_camel: None,
+                cover_vertical: None,
                 background: Some("//images-3.gog-statics.com/ut2004_bg.jpg".to_string()),
                 logo: Some("//images-3.gog-statics.com/ut2004_logo.jpg".to_string()),
                 logo2x: Some("//images-2.gog-statics.com/ut2004_logo_2x.jpg".to_string()),
@@ -380,16 +382,71 @@ mod tests {
             }),
         };
 
-        let details = product
+        let details = product_with_only_logos
             .to_game_details()
             .expect("Game details must be present");
         assert_eq!(
-            details.image,
-            Some("//images-2.gog-statics.com/ut2004_logo_2x.jpg".to_string())
+            details.image, None,
+            "Low-resolution logo2x/logo/icon must NOT be mapped to cover image"
         );
         assert_eq!(
             details.background,
             Some("//images-3.gog-statics.com/ut2004_bg.jpg".to_string())
+        );
+
+        // 2. High-definition box_art or coverVertical MUST be preserved
+        let product_with_box_art = client::GogProductItem {
+            id: 1207658691,
+            title: "Unreal Tournament 2004".to_string(),
+            game_type: Some("game".to_string()),
+            is_installable: Some(true),
+            image: None,
+            images: Some(client::GogProductImages {
+                box_art: Some("//images-3.gog-statics.com/ut2004_box.jpg".to_string()),
+                box_art_camel: None,
+                cover_vertical: None,
+                background: Some("//images-3.gog-statics.com/ut2004_bg.jpg".to_string()),
+                logo: Some("//images-3.gog-statics.com/ut2004_logo.jpg".to_string()),
+                logo2x: Some("//images-2.gog-statics.com/ut2004_logo_2x.jpg".to_string()),
+                icon: None,
+                sidebar_icon: None,
+            }),
+        };
+        let details_box = product_with_box_art
+            .to_game_details()
+            .expect("Game details must be present");
+        assert_eq!(
+            details_box.image,
+            Some("//images-3.gog-statics.com/ut2004_box.jpg".to_string())
+        );
+    }
+
+    #[test]
+    fn test_gog_v2_envelope_deserialization() {
+        let v2_json = r#"{
+            "_links": {
+                "boxArtImage": {
+                    "href": "https://images.gog-statics.com/vertical_hd_cover.jpg"
+                },
+                "galaxyBackgroundImage": {
+                    "href": "https://images.gog-statics.com/galaxy_bg.jpg"
+                },
+                "icon": {
+                    "href": "https://images.gog-statics.com/icon.png"
+                }
+            }
+        }"#;
+
+        let parsed: client::GogV2GameEnvelope =
+            serde_json::from_str(v2_json).expect("Failed to parse GOG v2 envelope");
+        let links = parsed.links.expect("Links must be present");
+        assert_eq!(
+            links.box_art_image.and_then(|h| h.href),
+            Some("https://images.gog-statics.com/vertical_hd_cover.jpg".to_string())
+        );
+        assert_eq!(
+            links.galaxy_background_image.and_then(|h| h.href),
+            Some("https://images.gog-statics.com/galaxy_bg.jpg".to_string())
         );
     }
 

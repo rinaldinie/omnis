@@ -256,6 +256,59 @@ async fn test_pipeline_preserve_existing_artwork() {
 }
 
 #[tokio::test]
+async fn test_gog_metadata_high_res_and_low_res_upgrade() {
+    let db = Database::open_in_memory().expect("Failed to open DB");
+    let gog_game = omnis_sdk::DiscoveredGame {
+        library_id: "gog".to_string(),
+        external_id: "1207658930".to_string(),
+        title: "The Witcher 2: Assassins of Kings Enhanced Edition".to_string(),
+        install_dir: None,
+        is_installed: false,
+        play_action: None,
+        playtime_seconds: 0,
+        play_count: 0,
+        last_activity: None,
+        cover_image_path: Some("https://images.gog-statics.com/mock_glx_logo.jpg".to_string()),
+        background_image_path: None,
+    };
+    db.ingest_discovered_batch(&[gog_game]).expect("Ingest failed");
+
+    let games = db.get_all_games().expect("Get games failed");
+    let witcher2 = games.into_iter().find(|g| g.external_id == "1207658930").unwrap();
+
+    let temp_cache =
+        std::env::temp_dir().join(format!("omnis_test_gog_hd_{}", uuid::Uuid::new_v4()));
+    let _ = std::fs::create_dir_all(&temp_cache);
+
+    let downloader = MetadataDownloader::new();
+    let patch_result = downloader
+        .download_for_game(&db, witcher2.id, &temp_cache)
+        .await;
+
+    assert!(patch_result.is_ok(), "Download failed: {:?}", patch_result.err());
+    let patch = patch_result.unwrap();
+
+    if let Some(ref cover) = patch.cover_url {
+        assert!(
+            !cover.contains("_glx_logo") && !cover.contains("icon.png"),
+            "GOG cover must be high definition vertical artwork, not logo or icon: {}",
+            cover
+        );
+    }
+
+    let reloaded = db.get_game_by_id(witcher2.id).unwrap().unwrap();
+    if let Some(ref path) = reloaded.cover_image_path {
+        assert!(
+            !path.contains("_glx_logo"),
+            "Low-res _glx_logo must be upgraded to high-def cover in database: {}",
+            path
+        );
+    }
+
+    let _ = std::fs::remove_dir_all(&temp_cache);
+}
+
+#[tokio::test]
 async fn test_download_for_all_cancellation() {
     let db = Arc::new(Database::open_in_memory().expect("Failed to open DB"));
     db.seed_sample_games().expect("Failed to seed");

@@ -23,7 +23,6 @@ fn normalize_gog_url(s: &str) -> String {
 #[derive(Debug, Deserialize)]
 struct GogProductDetailsDto {
     description: Option<GogDescriptionLeadDto>,
-    images: Option<GogProductImagesDto>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -32,10 +31,49 @@ struct GogDescriptionLeadDto {
 }
 
 #[derive(Debug, Deserialize)]
-struct GogProductImagesDto {
-    background: Option<String>,
-    logo2x: Option<String>,
-    logo: Option<String>,
+struct GogV2GameDto {
+    description: Option<String>,
+    overview: Option<String>,
+    #[serde(rename = "_links")]
+    links: Option<GogV2LinksDto>,
+    #[serde(rename = "_embedded")]
+    embedded: Option<GogV2EmbeddedDto>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GogV2LinksDto {
+    #[serde(rename = "boxArtImage")]
+    box_art_image: Option<GogV2HrefDto>,
+    #[serde(rename = "galaxyBackgroundImage")]
+    galaxy_background_image: Option<GogV2HrefDto>,
+    #[serde(rename = "backgroundImage")]
+    background_image: Option<GogV2HrefDto>,
+    icon: Option<GogV2HrefDto>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GogV2HrefDto {
+    href: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GogV2EmbeddedDto {
+    product: Option<GogV2ProductDto>,
+    developers: Option<Vec<GogV2NamedEntityDto>>,
+    publishers: Option<Vec<GogV2NamedEntityDto>>,
+    tags: Option<Vec<GogV2NamedEntityDto>>,
+    features: Option<Vec<GogV2NamedEntityDto>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GogV2ProductDto {
+    #[serde(rename = "globalReleaseDate")]
+    global_release_date: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GogV2NamedEntityDto {
+    name: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -250,46 +288,103 @@ impl MetadataProvider for GogMetadataProvider {
         request: &MetadataSearchRequest,
         _settings: &Map<String, Value>,
     ) -> Result<GameMetadataPatch, String> {
-        // 1. If external_id is numeric and library is GOG, query GOG products API directly
+        // 1. If external_id is numeric and library is GOG, query GOG v2 games API directly for high-definition artwork & details
         if request.library_id.eq_ignore_ascii_case(stores::GOG) {
             if let Some(ref ext_id) = request.external_id {
                 if ext_id.chars().all(|c| c.is_ascii_digit()) && !ext_id.is_empty() {
-                    let url = format!("https://api.gog.com/products/{}?expand=description", ext_id);
-                    if let Ok(resp) = self.client.get(&url).send().await {
+                    let v2_url = format!("https://api.gog.com/v2/games/{}", ext_id);
+                    if let Ok(resp) = self.client.get(&v2_url).send().await {
                         if resp.status().is_success() {
-                            if let Ok(data) = resp.json::<GogProductDetailsDto>().await {
-                                let desc = data
+                            if let Ok(v2_data) = resp.json::<GogV2GameDto>().await {
+                                let cover_url = v2_data
+                                    .links
+                                    .as_ref()
+                                    .and_then(|l| l.box_art_image.as_ref())
+                                    .and_then(|h| h.href.as_deref())
+                                    .map(normalize_gog_url);
+
+                                let background_url = v2_data
+                                    .links
+                                    .as_ref()
+                                    .and_then(|l| {
+                                        l.galaxy_background_image
+                                            .as_ref()
+                                            .or(l.background_image.as_ref())
+                                    })
+                                    .and_then(|h| h.href.as_deref())
+                                    .map(normalize_gog_url);
+
+                                let icon_url = v2_data
+                                    .links
+                                    .as_ref()
+                                    .and_then(|l| l.icon.as_ref())
+                                    .and_then(|h| h.href.as_deref())
+                                    .map(normalize_gog_url);
+
+                                let desc = v2_data
                                     .description
-                                    .and_then(|d| d.lead)
                                     .as_deref()
+                                    .or(v2_data.overview.as_deref())
                                     .map(html_to_plain_text);
-                                let mut cover_url = None;
-                                let mut bg_url = None;
 
-                                if let Some(images) = data.images {
-                                    if let Some(bg) = images.background {
-                                        bg_url = Some(normalize_gog_url(&bg));
-                                    }
-                                    if let Some(logo) = images.logo2x.or(images.logo) {
-                                        cover_url = Some(normalize_gog_url(&logo));
-                                    }
+                                let release_date = v2_data
+                                    .embedded
+                                    .as_ref()
+                                    .and_then(|e| e.product.as_ref())
+                                    .and_then(|p| p.global_release_date.clone())
+                                    .map(|rd| {
+                                        if rd.len() >= 10 {
+                                            rd[..10].to_string()
+                                        } else {
+                                            rd
+                                        }
+                                    });
+
+                                let developers = v2_data
+                                    .embedded
+                                    .as_ref()
+                                    .and_then(|e| e.developers.as_ref())
+                                    .map(|devs| devs.iter().filter_map(|d| d.name.clone()).collect())
+                                    .unwrap_or_default();
+
+                                let publishers = v2_data
+                                    .embedded
+                                    .as_ref()
+                                    .and_then(|e| e.publishers.as_ref())
+                                    .map(|pubs| pubs.iter().filter_map(|p| p.name.clone()).collect())
+                                    .unwrap_or_default();
+
+                                let genres = v2_data
+                                    .embedded
+                                    .as_ref()
+                                    .and_then(|e| e.tags.as_ref())
+                                    .map(|tags| tags.iter().filter_map(|t| t.name.clone()).collect())
+                                    .unwrap_or_default();
+
+                                let features = v2_data
+                                    .embedded
+                                    .as_ref()
+                                    .and_then(|e| e.features.as_ref())
+                                    .map(|feats| feats.iter().filter_map(|f| f.name.clone()).collect())
+                                    .unwrap_or_default();
+
+                                if cover_url.is_some() || desc.is_some() {
+                                    return Ok(GameMetadataPatch {
+                                        description: desc,
+                                        release_date,
+                                        cover_url,
+                                        background_url,
+                                        icon_url,
+                                        critic_score: None,
+                                        community_score: None,
+                                        genres,
+                                        developers,
+                                        publishers,
+                                        tags: Vec::new(),
+                                        features,
+                                        extra_metadata: None,
+                                    });
                                 }
-
-                                return Ok(GameMetadataPatch {
-                                    description: desc,
-                                    release_date: None,
-                                    cover_url,
-                                    background_url: bg_url,
-                                    icon_url: None,
-                                    critic_score: None,
-                                    community_score: None,
-                                    genres: Vec::new(),
-                                    developers: Vec::new(),
-                                    publishers: Vec::new(),
-                                    tags: Vec::new(),
-                                    features: Vec::new(),
-                                    extra_metadata: None,
-                                });
                             }
                         }
                     }
@@ -328,8 +423,32 @@ impl MetadataProvider for GogMetadataProvider {
         let background_url = first.cover_horizontal_url();
         let genres = first.genres_list();
 
+        // Optional: fetch description lead if available from GOG product details
+        let prod_id = first.id_string();
+        let description = if !prod_id.is_empty() {
+            let details_url = format!("https://api.gog.com/products/{}?expand=description", prod_id);
+            if let Ok(details_resp) = self.client.get(&details_url).send().await {
+                if details_resp.status().is_success() {
+                    details_resp
+                        .json::<GogProductDetailsDto>()
+                        .await
+                        .ok()
+                        .and_then(|d| d.description)
+                        .and_then(|d| d.lead)
+                        .as_deref()
+                        .map(html_to_plain_text)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
         Ok(GameMetadataPatch {
-            description: None,
+            description,
             release_date: first.release_date,
             cover_url,
             background_url,
@@ -403,5 +522,90 @@ mod tests {
         );
         assert_eq!(prod.genres_list(), vec!["Role-playing"]);
         assert_eq!(prod.developers, vec!["CD PROJEKT RED"]);
+    }
+
+    #[test]
+    fn test_gog_v2_deserialization_and_patch() {
+        let json = r#"{
+            "description": "<p>A detailed RPG description.</p>",
+            "_links": {
+                "boxArtImage": {
+                    "href": "https://images.gog-statics.com/hd_vertical_box.jpg"
+                },
+                "galaxyBackgroundImage": {
+                    "href": "https://images.gog-statics.com/hd_galaxy_bg.jpg"
+                },
+                "icon": {
+                    "href": "https://images.gog-statics.com/icon.png"
+                }
+            },
+            "_embedded": {
+                "product": {
+                    "globalReleaseDate": "2015-05-18T00:00:00+02:00"
+                },
+                "developers": [
+                    { "name": "CD PROJEKT RED" }
+                ],
+                "publishers": [
+                    { "name": "CD PROJEKT RED" }
+                ],
+                "tags": [
+                    { "name": "RPG" },
+                    { "name": "Open World" }
+                ],
+                "features": [
+                    { "name": "Single-player" }
+                ]
+            }
+        }"#;
+
+        let parsed: GogV2GameDto =
+            serde_json::from_str(json).expect("Failed to parse GOG v2 game json");
+        let links = parsed.links.expect("Links must be present");
+        let cover_url = links
+            .box_art_image
+            .as_ref()
+            .and_then(|h| h.href.as_deref())
+            .map(normalize_gog_url);
+        assert_eq!(
+            cover_url.as_deref(),
+            Some("https://images.gog-statics.com/hd_vertical_box.jpg")
+        );
+
+        let bg_url = links
+            .galaxy_background_image
+            .as_ref()
+            .and_then(|h| h.href.as_deref())
+            .map(normalize_gog_url);
+        assert_eq!(
+            bg_url.as_deref(),
+            Some("https://images.gog-statics.com/hd_galaxy_bg.jpg")
+        );
+
+        let icon_url = links
+            .icon
+            .as_ref()
+            .and_then(|h| h.href.as_deref())
+            .map(normalize_gog_url);
+        assert_eq!(
+            icon_url.as_deref(),
+            Some("https://images.gog-statics.com/icon.png")
+        );
+
+        let embedded = parsed.embedded.expect("Embedded must be present");
+        let release_date = embedded
+            .product
+            .as_ref()
+            .and_then(|p| p.global_release_date.clone())
+            .map(|rd| rd[..10].to_string());
+        assert_eq!(release_date.as_deref(), Some("2015-05-18"));
+
+        let genres: Vec<String> = embedded
+            .tags
+            .unwrap_or_default()
+            .into_iter()
+            .filter_map(|t| t.name)
+            .collect();
+        assert_eq!(genres, vec!["RPG", "Open World"]);
     }
 }

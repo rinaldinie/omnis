@@ -112,6 +112,8 @@ pub struct GogProductImages {
     pub box_art: Option<String>,
     #[serde(default, rename = "boxArt")]
     pub box_art_camel: Option<String>,
+    #[serde(default, rename = "coverVertical")]
+    pub cover_vertical: Option<String>,
     #[serde(default)]
     pub background: Option<String>,
     #[serde(default)]
@@ -122,6 +124,48 @@ pub struct GogProductImages {
     pub icon: Option<String>,
     #[serde(default, rename = "sidebarIcon")]
     pub sidebar_icon: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct GogV2GameEnvelope {
+    #[serde(rename = "_links")]
+    pub links: Option<GogV2GameLinks>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct GogV2GameLinks {
+    #[serde(rename = "boxArtImage")]
+    pub box_art_image: Option<GogV2Href>,
+    #[serde(rename = "galaxyBackgroundImage")]
+    pub galaxy_background_image: Option<GogV2Href>,
+    #[serde(rename = "backgroundImage")]
+    pub background_image: Option<GogV2Href>,
+    pub icon: Option<GogV2Href>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct GogV2Href {
+    pub href: Option<String>,
+}
+
+/// Fetch high-definition artwork (vertical box art & background) from GOG v2 games endpoint
+pub async fn fetch_gog_v2_artwork(
+    client: &reqwest::Client,
+    game_id: u64,
+) -> Option<(Option<String>, Option<String>)> {
+    let url = format!("https://api.gog.com/v2/games/{}", game_id);
+    let resp = client.get(&url).send().await.ok()?;
+    if !resp.status().is_success() {
+        return None;
+    }
+    let data: GogV2GameEnvelope = resp.json().await.ok()?;
+    let links = data.links?;
+    let cover = links.box_art_image.and_then(|h| h.href);
+    let bg = links
+        .galaxy_background_image
+        .and_then(|h| h.href)
+        .or_else(|| links.background_image.and_then(|h| h.href));
+    Some((cover, bg))
 }
 
 impl GogProductItem {
@@ -138,14 +182,20 @@ impl GogProductItem {
             .images
             .as_ref()
             .and_then(|imgs| {
-                imgs.box_art_camel
+                imgs.cover_vertical
                     .clone()
+                    .or_else(|| imgs.box_art_camel.clone())
                     .or_else(|| imgs.box_art.clone())
-                    .or_else(|| imgs.logo2x.clone())
-                    .or_else(|| imgs.logo.clone())
-                    .or_else(|| imgs.icon.clone())
             })
-            .or_else(|| self.image.clone());
+            .or_else(|| {
+                self.image.as_ref().and_then(|img| {
+                    if !img.contains("_glx_logo") && !img.contains("icon.png") {
+                        Some(img.clone())
+                    } else {
+                        None
+                    }
+                })
+            });
 
         let background = self
             .images
@@ -447,8 +497,35 @@ pub async fn fetch_user_games(
             }
         };
 
-        for game in batch_details {
-            discovered_games.push(normalize_gog_game(&game));
+        // Concurrently enrich any games missing vertical cover with official high-definition artwork
+        let mut join_set = tokio::task::JoinSet::new();
+        for (idx, game) in batch_details.into_iter().enumerate() {
+            let client = client.clone();
+            join_set.spawn(async move {
+                let mut game = game;
+                if game.image.is_none() {
+                    if let Some((cover, bg)) = fetch_gog_v2_artwork(&client, game.id).await {
+                        if cover.is_some() {
+                            game.image = cover;
+                        }
+                        if game.background.is_none() && bg.is_some() {
+                            game.background = bg;
+                        }
+                    }
+                }
+                (idx, normalize_gog_game(&game))
+            });
+        }
+
+        let mut indexed_games = Vec::new();
+        while let Some(res) = join_set.join_next().await {
+            if let Ok(item) = res {
+                indexed_games.push(item);
+            }
+        }
+        indexed_games.sort_by_key(|(idx, _)| *idx);
+        for (_, g) in indexed_games {
+            discovered_games.push(g);
         }
     }
 

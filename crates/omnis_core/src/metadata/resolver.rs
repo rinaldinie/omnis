@@ -155,18 +155,21 @@ impl MetadataPipelineResolver {
         let has_existing_local_cover = Self::has_local_artwork(game.cover_image_path.as_deref());
         let has_existing_local_bg = Self::has_local_artwork(game.background_image_path.as_deref());
 
+        let has_low_res_cover = game
+            .cover_image_path
+            .as_ref()
+            .map(|p| {
+                let p_low = p.to_lowercase();
+                p_low.contains("_glx_logo")
+                    || p_low.contains("icon.png")
+                    || p_low.ends_with("/header.jpg")
+                    || p_low.ends_with("\\header.jpg")
+            })
+            .unwrap_or(false);
+
         let remote_cover_to_cache = game.cover_image_path.as_ref().and_then(|p| {
             let p_trim = p.trim();
-            if p_trim.starts_with("http://") || p_trim.starts_with("https://") {
-                Some(p_trim.to_string())
-            } else {
-                None
-            }
-        });
-
-        let remote_bg_to_cache = game.background_image_path.as_ref().and_then(|p| {
-            let p_trim = p.trim();
-            if p_trim.starts_with("http://") || p_trim.starts_with("https://") {
+            if (p_trim.starts_with("http://") || p_trim.starts_with("https://")) && !has_low_res_cover {
                 Some(p_trim.to_string())
             } else {
                 None
@@ -179,8 +182,17 @@ impl MetadataPipelineResolver {
             .map(|p| p.ends_with("/header.jpg") || p.ends_with("\\header.jpg"))
             .unwrap_or(false);
 
+        let remote_bg_to_cache = game.background_image_path.as_ref().and_then(|p| {
+            let p_trim = p.trim();
+            if (p_trim.starts_with("http://") || p_trim.starts_with("https://")) && !has_low_res_steam_banner_bg {
+                Some(p_trim.to_string())
+            } else {
+                None
+            }
+        });
+
         let should_fetch_cover = if pipeline.preserve_existing_artwork {
-            !has_existing_local_cover && remote_cover_to_cache.is_none()
+            (!has_existing_local_cover && remote_cover_to_cache.is_none()) || has_low_res_cover
         } else {
             true
         };

@@ -84,14 +84,14 @@ impl CatalogMaintenanceRepository for Database {
                         ELSE COALESCE(excluded.last_activity, games.last_activity)
                     END,
                     cover_image_path = CASE
-                        WHEN (games.cover_image_path LIKE '%/header.jpg' OR games.cover_image_path LIKE '%/header.jpg') AND excluded.cover_image_path IS NOT NULL AND excluded.cover_image_path NOT LIKE '%/header.jpg' AND excluded.cover_image_path NOT LIKE '%/header.jpg'
+                        WHEN (games.cover_image_path LIKE '%/header.jpg' OR games.cover_image_path LIKE '%\\header.jpg') AND excluded.cover_image_path IS NOT NULL AND excluded.cover_image_path NOT LIKE '%/header.jpg' AND excluded.cover_image_path NOT LIKE '%\\header.jpg'
                         THEN excluded.cover_image_path
                         WHEN (games.cover_image_path LIKE '%_glx_logo%' OR games.cover_image_path LIKE '%icon.png') AND excluded.cover_image_path IS NOT NULL AND excluded.cover_image_path NOT LIKE '%_glx_logo%' AND excluded.cover_image_path NOT LIKE '%icon.png'
                         THEN excluded.cover_image_path
                         ELSE COALESCE(games.cover_image_path, excluded.cover_image_path)
                     END,
                     background_image_path = CASE
-                        WHEN (games.background_image_path LIKE '%/header.jpg' OR games.background_image_path LIKE '%/header.jpg') AND excluded.background_image_path IS NOT NULL AND excluded.background_image_path NOT LIKE '%/header.jpg' AND excluded.background_image_path NOT LIKE '%/header.jpg'
+                        WHEN (games.background_image_path LIKE '%/header.jpg' OR games.background_image_path LIKE '%\\header.jpg') AND excluded.background_image_path IS NOT NULL AND excluded.background_image_path NOT LIKE '%/header.jpg' AND excluded.background_image_path NOT LIKE '%\\header.jpg'
                         THEN excluded.background_image_path
                         ELSE COALESCE(games.background_image_path, excluded.background_image_path)
                     END,
