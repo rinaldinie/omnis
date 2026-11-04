@@ -54,7 +54,7 @@ impl WasmPluginPermissions {
         for perm in permissions {
             let perm_clean = perm.trim();
             if let Some(domain) = perm_clean.strip_prefix("net:") {
-                let d = domain.trim().to_lowercase();
+                let d = domain.trim().trim_end_matches('.').to_lowercase();
                 if !d.is_empty() {
                     allowed_domains.insert(d);
                 }
@@ -78,7 +78,7 @@ impl WasmPluginPermissions {
 
     /// Checks if a domain is allowed by the security policy
     pub fn is_domain_allowed(&self, domain_or_url: &str) -> bool {
-        let host = if let Ok(parsed) = url::Url::parse(domain_or_url) {
+        let host_raw = if let Ok(parsed) = url::Url::parse(domain_or_url) {
             parsed.host_str().unwrap_or("").to_lowercase()
         } else {
             domain_or_url
@@ -93,6 +93,7 @@ impl WasmPluginPermissions {
                 .unwrap_or("")
                 .to_lowercase()
         };
+        let host = host_raw.trim_end_matches('.');
 
         if host.is_empty() {
             return false;
@@ -316,11 +317,32 @@ impl WasmPluginEngine {
                     // Perform HTTP request using current Tokio runtime if available, avoiding thread thrashing
                     let client = caller.data().http_client.clone();
                     let bytes_opt = if let Ok(handle) = tokio::runtime::Handle::try_current() {
-                        tokio::task::block_in_place(|| {
-                            handle.block_on(async {
-                                client.get(&url_str).send().await.ok()?.bytes().await.ok()
+                        if handle.runtime_flavor() == tokio::runtime::RuntimeFlavor::MultiThread {
+                            tokio::task::block_in_place(|| {
+                                handle.block_on(async {
+                                    client.get(&url_str).send().await.ok()?.bytes().await.ok()
+                                })
                             })
-                        })
+                        } else {
+                            // Single-threaded runtime: spawn a dedicated OS thread to block safely without panicking
+                            let client_clone = client.clone();
+                            let url_clone = url_str.clone();
+                            std::thread::spawn(move || {
+                                handle.block_on(async {
+                                    client_clone
+                                        .get(&url_clone)
+                                        .send()
+                                        .await
+                                        .ok()?
+                                        .bytes()
+                                        .await
+                                        .ok()
+                                })
+                            })
+                            .join()
+                            .ok()
+                            .flatten()
+                        }
                     } else {
                         tokio::runtime::Builder::new_current_thread()
                             .enable_all()
@@ -413,20 +435,18 @@ impl WasmPluginInstance {
         self.store.set_epoch_deadline(1);
 
         // Spawn timer to trigger epoch interruption if execution exceeds timeout_duration
+        let (cancel_tx, cancel_rx) = std::sync::mpsc::channel();
         let engine = self.engine.clone();
-        let cancel_flag = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
-        let cancel_flag_clone = cancel_flag.clone();
 
         let timer_thread = std::thread::spawn(move || {
-            let start = std::time::Instant::now();
-            while start.elapsed() < timeout_duration {
-                if cancel_flag_clone.load(std::sync::atomic::Ordering::Relaxed) {
-                    return;
+            match cancel_rx.recv_timeout(timeout_duration) {
+                Ok(_) | Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                    // Function returned before timeout; exit immediately with 0ms join latency
                 }
-                std::thread::sleep(std::time::Duration::from_millis(5));
-            }
-            if !cancel_flag_clone.load(std::sync::atomic::Ordering::Relaxed) {
-                engine.increment_epoch();
+                Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                    // Timeout elapsed while function was still executing: trigger epoch interruption
+                    engine.increment_epoch();
+                }
             }
         });
 
@@ -434,7 +454,7 @@ impl WasmPluginInstance {
         let res = func.call(&mut self.store, args, &mut results);
 
         // Cancel timer thread immediately upon function return
-        cancel_flag.store(true, std::sync::atomic::Ordering::Relaxed);
+        let _ = cancel_tx.send(());
         let _ = timer_thread.join();
 
         match res {

@@ -304,13 +304,14 @@ impl GameLaunchCoordinator {
         let killed = state.active_game_manager.kill_running().await?;
         if killed || current_session.is_some() {
             if let Some(session) = current_session {
+                let ended_at = chrono::Utc::now();
+                let duration = (ended_at - session.started_at).num_seconds().max(0) as u64;
+
                 // Finalize session in SQLite database with exact duration so it does not remain unclosed
                 if let (Ok(sid), Ok(gid)) = (
                     Uuid::parse_str(&session.session_id),
                     Uuid::parse_str(&session.game_id),
                 ) {
-                    let ended_at = chrono::Utc::now();
-                    let duration = (ended_at - session.started_at).num_seconds().max(0) as u64;
                     let _ = state.db.finish_play_session(
                         sid,
                         gid,
@@ -325,7 +326,7 @@ impl GameLaunchCoordinator {
                     serde_json::json!({
                         "session_id": session.session_id,
                         "game_id": session.game_id,
-                        "duration_seconds": session.elapsed_seconds,
+                        "duration_seconds": duration,
                     }),
                 );
             }

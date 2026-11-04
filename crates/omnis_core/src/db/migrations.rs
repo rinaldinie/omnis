@@ -127,6 +127,7 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
             );
             INSERT OR IGNORE INTO backup_schedule (id, frequency, destination_dir, max_rotations, last_backup_utc, include_artwork, updated_at)
             VALUES (1, 'disabled', NULL, 10, NULL, 0, datetime('now'));
+            PRAGMA user_version = 1;
             ",
         )?;
     }
@@ -173,6 +174,7 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
             "ALTER TABLE games ADD COLUMN name TEXT GENERATED ALWAYS AS (title) VIRTUAL;",
             [],
         );
+        conn.execute_batch("PRAGMA user_version = 2;")?;
     }
 
     // Version 3: FTS5 Virtual Table with trigram tokenizer + sync triggers
@@ -202,6 +204,7 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
             "INSERT OR IGNORE INTO games_fts(rowid, name, title, description) SELECT rowid, name, title, description FROM games;",
             [],
         );
+        conn.execute_batch("PRAGMA user_version = 3;")?;
     }
 
     // Version 4: One-time path migration for legacy image and app bundle paths
@@ -231,6 +234,7 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
                 OR icon_image_path LIKE '%Omnis Game Library%';",
             [],
         );
+        conn.execute_batch("PRAGMA user_version = 4;")?;
     }
 
     conn.execute_batch(&format!(
