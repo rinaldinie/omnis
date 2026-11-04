@@ -38,6 +38,7 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             get_games,
+            get_games_paginated,
             get_counts,
             get_global_statistics,
             get_game_statistics,

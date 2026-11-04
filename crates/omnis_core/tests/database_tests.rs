@@ -197,6 +197,12 @@ fn test_migration_idempotency_and_defaults() {
     db.migrate().expect("Second migration failed");
     db.migrate().expect("Third migration failed");
 
+    let user_ver: i32 = db
+        .conn()
+        .query_row("PRAGMA user_version;", [], |r| r.get(0))
+        .expect("Query user_version failed");
+    assert_eq!(user_ver, omnis_core::db::migrations::CURRENT_SCHEMA_VERSION);
+
     let single = DiscoveredGame {
         library_id: "steam".to_string(),
         external_id: "999999".to_string(),
@@ -649,4 +655,31 @@ fn test_concurrent_reader_during_writer() {
     assert_eq!(games_after_commit.len(), initial_count + 1);
 
     let _ = std::fs::remove_dir_all(&temp_dir);
+}
+
+#[test]
+fn test_get_games_paginated() {
+    let db = Database::open_in_memory().expect("Failed to open db");
+
+    for i in 0..10 {
+        let title = format!("Game {:02}", i);
+        let id = Uuid::new_v4();
+        db.insert_custom_game(id, &title, &title, None, vec![], None)
+            .expect("Failed to insert game");
+    }
+
+    let page1 = db.get_games_paginated(4, 0).expect("Page 1 failed");
+    assert_eq!(page1.len(), 4);
+    assert_eq!(page1[0].title, "Game 00");
+    assert_eq!(page1[3].title, "Game 03");
+
+    let page2 = db.get_games_paginated(4, 4).expect("Page 2 failed");
+    assert_eq!(page2.len(), 4);
+    assert_eq!(page2[0].title, "Game 04");
+    assert_eq!(page2[3].title, "Game 07");
+
+    let page3 = db.get_games_paginated(4, 8).expect("Page 3 failed");
+    assert_eq!(page3.len(), 2);
+    assert_eq!(page3[0].title, "Game 08");
+    assert_eq!(page3[1].title, "Game 09");
 }

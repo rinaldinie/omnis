@@ -54,6 +54,15 @@ impl MediaScope {
         if path_str.is_empty() || path_str.contains("://") || path_str.starts_with("data:") {
             return;
         }
+
+        // Fast path: avoid disk syscalls if path is already authorized in memory
+        {
+            let allowed = self.allowed.lock().unwrap_or_else(|e| e.into_inner());
+            if allowed.contains(path_str) {
+                return;
+            }
+        }
+
         let path = Path::new(path_str);
         if !path.is_absolute() || !is_media_file(path) {
             return;

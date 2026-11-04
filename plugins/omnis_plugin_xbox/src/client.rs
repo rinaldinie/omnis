@@ -14,6 +14,9 @@ pub const MS_REDIRECT_URI: &str = "https://login.live.com/oauth20_desktop.srf";
 /// Microsoft OAuth authorization scope for Xbox Live service
 pub const MS_AUTH_SCOPE: &str = "service::user.auth.xboxlive.com::MBI_SSL";
 
+/// Scope that requests offline_access for issuing durable refresh tokens in Authorization Code flow
+pub const MS_AUTH_SCOPE_OFFLINE: &str = "service::user.auth.xboxlive.com::MBI_SSL offline_access";
+
 /// Standard desktop User-Agent string used for Xbox Live and TitleHub requests to prevent WAF / 403 blocks
 pub const XBOX_USER_AGENT: &str =
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 XboxApp/2311.1001.7.0";
@@ -55,12 +58,16 @@ struct XstsErrorPayload {
 pub fn format_xsts_error(status: reqwest::StatusCode, body: &str) -> String {
     if let Ok(err) = serde_json::from_str::<XstsErrorPayload>(body) {
         let parsed_code = match &err.xerr {
-            Some(serde_json::Value::Number(n)) => n.as_u64(),
-            Some(serde_json::Value::String(s)) => s
-                .strip_prefix("0x")
-                .or_else(|| s.strip_prefix("0X"))
-                .and_then(|h| u64::from_str_radix(h, 16).ok())
-                .or_else(|| s.parse::<u64>().ok()),
+            Some(serde_json::Value::Number(n)) => {
+                n.as_u64().or_else(|| n.as_i64().map(|v| v as u32 as u64))
+            }
+            Some(serde_json::Value::String(s)) => {
+                let s = s.trim();
+                s.strip_prefix("0x")
+                    .or_else(|| s.strip_prefix("0X"))
+                    .and_then(|h| u64::from_str_radix(h, 16).ok())
+                    .or_else(|| s.parse::<i64>().ok().map(|v| v as u32 as u64))
+            }
             _ => None,
         };
 
@@ -193,47 +200,100 @@ pub fn map_title_to_discovered_game(title: &XboxTitleItem) -> DiscoveredGame {
     }
 }
 
-/// Extracts access_token from the OAuth redirect URL (fragment hash or query param)
-pub fn extract_token_from_redirect(redirect_url: &str) -> Result<String, PluginError> {
-    // 1. Check URL fragment (#access_token=...&...)
-    if let Some((_, fragment)) = redirect_url.split_once('#') {
-        for pair in fragment.split('&') {
-            if let Some((k, v)) = pair.split_once('=') {
-                if k == "access_token" {
-                    let decoded = urlencoding::decode(v).map_err(|e| {
-                        PluginError::Parse(format!("Failed to decode access_token: {e}"))
-                    })?;
-                    return Ok(decoded.into_owned());
-                }
-            }
-        }
-    }
+/// Result of parsing an OAuth redirect URI (either PKCE authorization code or implicit access token)
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MsAuthRedirect {
+    Code(String),
+    AccessToken(String),
+}
 
-    // 2. Check query string (?access_token=...&...)
-    if let Some((_, query_part)) = redirect_url.split_once('?') {
-        let query = query_part.split('#').next().unwrap_or(query_part);
-        for pair in query.split('&') {
-            if let Some((k, v)) = pair.split_once('=') {
-                if k == "access_token" {
-                    let decoded = urlencoding::decode(v).map_err(|e| {
-                        PluginError::Parse(format!("Failed to decode access_token: {e}"))
-                    })?;
-                    return Ok(decoded.into_owned());
-                }
-            }
-        }
-    }
-
-    // Check for error parameters in redirect
+/// Extracts an authorization code or access token from the OAuth redirect URL
+pub fn extract_auth_from_redirect(redirect_url: &str) -> Result<MsAuthRedirect, PluginError> {
     if redirect_url.contains("error=") {
         return Err(PluginError::Other(format!(
             "OAuth authentication error in redirect: {redirect_url}"
         )));
     }
 
+    let parts = [
+        redirect_url
+            .split_once('?')
+            .map(|(_, q)| q.split('#').next().unwrap_or(q)),
+        redirect_url.split_once('#').map(|(_, f)| f),
+    ];
+
+    for part_opt in parts.into_iter().flatten() {
+        for pair in part_opt.split('&') {
+            if let Some((k, v)) = pair.split_once('=') {
+                if k == "code" {
+                    let decoded = urlencoding::decode(v).map_err(|e| {
+                        PluginError::Parse(format!("Failed to decode authorization code: {e}"))
+                    })?;
+                    return Ok(MsAuthRedirect::Code(decoded.into_owned()));
+                } else if k == "access_token" {
+                    let decoded = urlencoding::decode(v).map_err(|e| {
+                        PluginError::Parse(format!("Failed to decode access_token: {e}"))
+                    })?;
+                    return Ok(MsAuthRedirect::AccessToken(decoded.into_owned()));
+                }
+            }
+        }
+    }
+
     Err(PluginError::Parse(format!(
-        "No access_token found in redirect URL: {redirect_url}"
+        "No authorization code or access_token found in redirect URL: {redirect_url}"
     )))
+}
+
+/// Extracts access_token or authorization code from the OAuth redirect URL (backwards compatible)
+pub fn extract_token_from_redirect(redirect_url: &str) -> Result<String, PluginError> {
+    match extract_auth_from_redirect(redirect_url)? {
+        MsAuthRedirect::AccessToken(tok) => Ok(tok),
+        MsAuthRedirect::Code(code) => Ok(code),
+    }
+}
+
+/// Token payload returned by Microsoft OAuth token endpoint
+#[derive(Debug, Clone, Deserialize)]
+pub struct MsTokenResponse {
+    pub access_token: String,
+    pub refresh_token: Option<String>,
+    #[serde(default)]
+    pub expires_in: Option<i64>,
+}
+
+/// Exchanges an OAuth2 authorization code for an access token and durable refresh token
+pub async fn exchange_authorization_code(
+    client: &reqwest::Client,
+    code: &str,
+) -> Result<MsTokenResponse, PluginError> {
+    let params = [
+        ("client_id", MS_CLIENT_ID),
+        ("grant_type", "authorization_code"),
+        ("code", code),
+        ("scope", MS_AUTH_SCOPE_OFFLINE),
+        ("redirect_uri", MS_REDIRECT_URI),
+    ];
+
+    let resp = client
+        .post("https://login.live.com/oauth20_token.srf")
+        .header("User-Agent", XBOX_USER_AGENT)
+        .form(&params)
+        .send()
+        .await
+        .map_err(|e| PluginError::Other(format!("Failed to exchange authorization code: {e}")))?;
+
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        return Err(PluginError::Other(format!(
+            "Microsoft authorization code exchange failed ({status}): {body}"
+        )));
+    }
+
+    resp.json::<MsTokenResponse>()
+        .await
+        .map_err(|e| PluginError::Parse(format!("Failed to parse Microsoft token response: {e}")))
 }
 
 /// Authenticates with Xbox Live using a Microsoft access token:
@@ -377,7 +437,7 @@ pub async fn refresh_session_token(
         ("client_id", MS_CLIENT_ID),
         ("grant_type", "refresh_token"),
         ("refresh_token", refresh_token),
-        ("scope", MS_AUTH_SCOPE),
+        ("scope", MS_AUTH_SCOPE_OFFLINE),
         ("redirect_uri", MS_REDIRECT_URI),
     ];
 
@@ -389,15 +449,12 @@ pub async fn refresh_session_token(
         .await
     {
         if resp.status().is_success() {
-            #[derive(Deserialize)]
-            struct MsTokenResponse {
-                access_token: String,
-                refresh_token: Option<String>,
-            }
             if let Ok(body) = resp.json::<MsTokenResponse>().await {
                 let mut session = authenticate_xbox_live(client, &body.access_token).await?;
                 if body.refresh_token.is_some() {
                     session.refresh_token = body.refresh_token;
+                } else {
+                    session.refresh_token = Some(refresh_token.to_string());
                 }
                 return Ok(session);
             }

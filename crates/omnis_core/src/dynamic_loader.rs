@@ -11,7 +11,7 @@ use omnis_sdk::{
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 pub type FnAbiVersion = unsafe extern "C" fn() -> u32;
 pub type FnGetManifest = unsafe extern "C" fn() -> *mut c_char;
@@ -54,6 +54,7 @@ pub struct DynamicPluginHandle {
     pub library_path: PathBuf,
     #[allow(dead_code)]
     lib: Arc<libloading::Library>,
+    execution_lock: Arc<Mutex<()>>,
     fn_get_manifest: FnGetManifest,
     fn_metadata_fetch: FnMetadataFetch,
     fn_metadata_test: Option<FnMetadataTest>,
@@ -75,6 +76,10 @@ impl DynamicPluginHandle {
     where
         F: FnOnce() -> *mut c_char,
     {
+        let _guard = self
+            .execution_lock
+            .lock()
+            .unwrap_or_else(|p| p.into_inner());
         let c_ptr = func();
 
         if c_ptr.is_null() {
@@ -364,6 +369,7 @@ impl DynamicPluginLoader {
         let handle = DynamicPluginHandle {
             library_path: library_path.to_path_buf(),
             lib,
+            execution_lock: Arc::new(Mutex::new(())),
             fn_get_manifest,
             fn_metadata_fetch,
             fn_metadata_test,

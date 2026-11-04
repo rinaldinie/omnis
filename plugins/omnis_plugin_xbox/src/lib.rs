@@ -10,12 +10,13 @@ use omnis_sdk::{
 };
 
 pub use client::{
-    authenticate_xbox_live, extract_token_from_redirect, fetch_user_titles, format_xsts_error,
-    map_title_to_discovered_game, refresh_session_token, XboxDisplayClaims, XboxLiveAuthResponse,
-    XboxTitleHistoryResponse, XboxTitleItem, XboxXuiClaim, ERR_XSTS_AGE_VERIFICATION_REQUIRED,
-    ERR_XSTS_CHILD_ACCOUNT, ERR_XSTS_FORBIDDEN_GENERIC, ERR_XSTS_NO_XBOX_ACCOUNT,
-    ERR_XSTS_REGION_UNSUPPORTED, ERR_XSTS_USER_ACTION_REQUIRED, MS_AUTH_SCOPE, MS_CLIENT_ID,
-    MS_REDIRECT_URI, XBOX_USER_AGENT,
+    authenticate_xbox_live, exchange_authorization_code, extract_auth_from_redirect,
+    extract_token_from_redirect, fetch_user_titles, format_xsts_error,
+    map_title_to_discovered_game, refresh_session_token, MsAuthRedirect, MsTokenResponse,
+    XboxDisplayClaims, XboxLiveAuthResponse, XboxTitleHistoryResponse, XboxTitleItem, XboxXuiClaim,
+    ERR_XSTS_AGE_VERIFICATION_REQUIRED, ERR_XSTS_CHILD_ACCOUNT, ERR_XSTS_FORBIDDEN_GENERIC,
+    ERR_XSTS_NO_XBOX_ACCOUNT, ERR_XSTS_REGION_UNSUPPORTED, ERR_XSTS_USER_ACTION_REQUIRED,
+    MS_AUTH_SCOPE, MS_AUTH_SCOPE_OFFLINE, MS_CLIENT_ID, MS_REDIRECT_URI, XBOX_USER_AGENT,
 };
 
 /// Plugin instance for Xbox Live / PC Game Pass
@@ -63,12 +64,62 @@ impl LibraryPlugin for XboxCloudPlugin {
 }
 
 #[async_trait]
+impl omnis_sdk::ReactivePlugin for XboxCloudPlugin {
+    fn id(&self) -> &'static str {
+        "xbox"
+    }
+
+    fn name(&self) -> &'static str {
+        "Xbox / PC Game Pass"
+    }
+
+    fn settings_schema(&self) -> Option<omnis_sdk::PluginSettingsSchema> {
+        None
+    }
+
+    async fn initialize(&mut self, _config_json: &str) -> Result<(), String> {
+        Ok(())
+    }
+
+    async fn handle_event(
+        &mut self,
+        event: omnis_sdk::PluginEvent,
+    ) -> Result<Vec<omnis_sdk::PluginEvent>, String> {
+        let mut responses = Vec::new();
+        match event {
+            omnis_sdk::PluginEvent::SyncRequested { library_id, .. }
+                if library_id == "xbox" || library_id == "all" =>
+            {
+                tracing::info!("Xbox: Handling SyncRequested event for '{}'", library_id);
+                match self.scan().await {
+                    Ok(games) if !games.is_empty() => {
+                        responses.push(omnis_sdk::PluginEvent::BatchGamesDiscovered {
+                            library_id: "xbox".to_string(),
+                            games,
+                        });
+                    }
+                    Ok(_) => {}
+                    Err(e) => {
+                        responses.push(omnis_sdk::PluginEvent::NotificationEmitted {
+                            level: omnis_sdk::LogLevel::Warn,
+                            message: format!("Xbox scan warning: {}", e),
+                        });
+                    }
+                }
+            }
+            _ => {}
+        }
+        Ok(responses)
+    }
+}
+
+#[async_trait]
 impl CloudStorePlugin for XboxCloudPlugin {
     fn login_url(&self) -> String {
         format!(
-            "https://login.live.com/oauth20_authorize.srf?client_id={}&scope={}&response_type=token&redirect_uri={}",
+            "https://login.live.com/oauth20_authorize.srf?client_id={}&scope={}&response_type=code&redirect_uri={}",
             MS_CLIENT_ID,
-            urlencoding::encode(MS_AUTH_SCOPE),
+            urlencoding::encode(MS_AUTH_SCOPE_OFFLINE),
             urlencoding::encode(MS_REDIRECT_URI)
         )
     }
@@ -78,8 +129,20 @@ impl CloudStorePlugin for XboxCloudPlugin {
     }
 
     async fn exchange_code(&self, redirect_url: &str) -> Result<StoreAccountSession, PluginError> {
-        let token = extract_token_from_redirect(redirect_url)?;
-        authenticate_xbox_live(&self.client, &token).await
+        match extract_auth_from_redirect(redirect_url)? {
+            MsAuthRedirect::Code(code) => {
+                let token_resp = exchange_authorization_code(&self.client, &code).await?;
+                let mut session =
+                    authenticate_xbox_live(&self.client, &token_resp.access_token).await?;
+                if token_resp.refresh_token.is_some() {
+                    session.refresh_token = token_resp.refresh_token;
+                }
+                Ok(session)
+            }
+            MsAuthRedirect::AccessToken(token) => {
+                authenticate_xbox_live(&self.client, &token).await
+            }
+        }
     }
 
     async fn refresh_session(
@@ -226,7 +289,7 @@ mod tests {
         let login_url = plugin.login_url();
         assert!(login_url.starts_with("https://login.live.com/oauth20_authorize.srf"));
         assert!(login_url.contains(&format!("client_id={}", MS_CLIENT_ID)));
-        assert!(login_url.contains("response_type=token"));
+        assert!(login_url.contains("response_type=code"));
         assert!(login_url.contains(&urlencoding::encode(MS_REDIRECT_URI).into_owned()));
 
         assert!(
@@ -296,5 +359,10 @@ mod tests {
         let body_hex_child = r#"{"Identity":"0","XErr":"0x8015dc0e"}"#;
         let msg_hex_child = format_xsts_error(StatusCode::FORBIDDEN, body_hex_child);
         assert_eq!(msg_hex_child, ERR_XSTS_CHILD_ACCOUNT);
+
+        // 9. Signed 32-bit COM HRESULT (negative number)
+        let body_signed = r#"{"Identity":"0","XErr":-2146051063}"#;
+        let msg_signed = format_xsts_error(StatusCode::UNAUTHORIZED, body_signed);
+        assert_eq!(msg_signed, ERR_XSTS_NO_XBOX_ACCOUNT);
     }
 }

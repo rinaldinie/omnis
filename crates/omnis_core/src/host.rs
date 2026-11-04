@@ -8,6 +8,7 @@ use tracing::{error, info, warn};
 
 pub struct PluginHost {
     plugins: HashMap<String, Arc<Mutex<Box<dyn ReactivePlugin>>>>,
+    plugin_names: HashMap<String, String>,
     event_bus: EventBus,
     db: Arc<Database>,
 }
@@ -16,6 +17,7 @@ impl PluginHost {
     pub fn new(event_bus: EventBus, db: Arc<Database>) -> Self {
         Self {
             plugins: HashMap::new(),
+            plugin_names: HashMap::new(),
             event_bus,
             db,
         }
@@ -24,16 +26,25 @@ impl PluginHost {
     /// Register a reactive plugin instance
     pub fn register_plugin(&mut self, plugin: Box<dyn ReactivePlugin>) {
         let id = plugin.id().to_string();
-        info!("Registering plugin: {} ({})", plugin.name(), id);
+        let name = plugin.name().to_string();
+        info!("Registering plugin: {} ({})", name, id);
+        self.plugin_names.insert(id.clone(), name);
         self.plugins.insert(id, Arc::new(Mutex::new(plugin)));
     }
 
     /// Return list of currently loaded plugin IDs and names
     pub fn loaded_plugins(&self) -> Vec<(String, String)> {
-        // Safe synchronous inspection: plugins map contains keys
+        // Safe synchronous inspection: return pairs of (id, display_name)
         self.plugins
             .keys()
-            .map(|id| (id.clone(), id.clone()))
+            .map(|id| {
+                let name = self
+                    .plugin_names
+                    .get(id)
+                    .cloned()
+                    .unwrap_or_else(|| id.clone());
+                (id.clone(), name)
+            })
             .collect()
     }
 

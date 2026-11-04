@@ -90,6 +90,7 @@ impl AppBootstrap {
         host.register_plugin(Box::new(SteamPlugin::new()));
         host.register_plugin(Box::new(EpicLibraryPlugin::new()));
         host.register_plugin(Box::new(GogCloudPlugin::new()));
+        host.register_plugin(Box::new(XboxCloudPlugin::new()));
 
         let downloader = Arc::new(MetadataDownloader::new());
         let marketplace = Arc::new(MarketplaceManager::new());
@@ -139,6 +140,8 @@ impl AppBootstrap {
         let cache_dir = paths.app_dir.join(storage::CACHE_DIR);
         media_scope.allow_directory(&cache_dir);
         media_scope.allow_directory(&paths.app_dir.join(storage::TRAILERS_DIR));
+        media_scope.allow_directory(&paths.covers_dir);
+        media_scope.allow_directory(&paths.backgrounds_dir);
         media_scope.allow_directory(&paths.themes_dir);
         match db.get_all_games() {
             Ok(games) => games.iter().for_each(|g| media_scope.allow_game_media(g)),

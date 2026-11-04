@@ -22,6 +22,9 @@ pub trait GameRepository: Send + Sync {
     /// Retrieve all games in library sorted alphabetically
     fn get_all_games(&self) -> Result<Vec<Game>>;
 
+    /// Retrieve paginated games in library sorted alphabetically
+    fn get_games_paginated(&self, limit: usize, offset: usize) -> Result<Vec<Game>>;
+
     /// Retrieve a single game by its unique UUID
     fn get_game_by_id(&self, game_id: Uuid) -> Result<Option<Game>>;
 
@@ -268,6 +271,31 @@ impl GameRepository for Database {
         let mut stmt = conn.prepare(&query)?;
 
         let rows = stmt.query_map([], map_row_to_game)?;
+
+        let mut games = Vec::new();
+        for r in rows {
+            games.push(r?);
+        }
+        Ok(games)
+    }
+
+    /// Retrieve paginated games in library sorted alphabetically
+    fn get_games_paginated(&self, limit: usize, offset: usize) -> Result<Vec<Game>> {
+        let conn = self.reader();
+        let query = format!(
+            "
+            SELECT {}
+            FROM games
+            ORDER BY sorting_title ASC
+            LIMIT ?1 OFFSET ?2
+            ",
+            GAME_COLUMNS
+        );
+        let mut stmt = conn.prepare(&query)?;
+        let rows = stmt.query_map(
+            rusqlite::params![limit as i64, offset as i64],
+            map_row_to_game,
+        )?;
 
         let mut games = Vec::new();
         for r in rows {
@@ -663,6 +691,11 @@ impl Database {
     #[inline]
     pub fn get_all_games(&self) -> Result<Vec<Game>> {
         GameRepository::get_all_games(self)
+    }
+
+    #[inline]
+    pub fn get_games_paginated(&self, limit: usize, offset: usize) -> Result<Vec<Game>> {
+        GameRepository::get_games_paginated(self, limit, offset)
     }
 
     #[inline]

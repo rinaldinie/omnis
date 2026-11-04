@@ -26,7 +26,8 @@ pub type DatabaseError = rusqlite::Error;
 
 pub struct Database {
     pub(crate) writer: Mutex<Connection>,
-    pub(crate) reader: Option<Mutex<Connection>>,
+    pub(crate) readers: Vec<Mutex<Connection>>,
+    pub(crate) reader_cursor: std::sync::atomic::AtomicUsize,
     pub(crate) search_index: RwLock<FuzzyGameSearchIndex>,
 }
 
@@ -40,17 +41,21 @@ impl Database {
         })
     }
 
-    /// Acquire a lock on the dedicated reader connection (or fallback to writer for in-memory databases),
-    /// safely recovering if previously poisoned.
+    /// Acquire a lock on a dedicated read connection from the reader pool using round-robin distribution
+    /// (or fallback to writer for in-memory databases), safely recovering if previously poisoned.
     #[inline]
     pub fn reader(&self) -> MutexGuard<'_, Connection> {
-        match &self.reader {
-            Some(r) => r.lock().unwrap_or_else(|poisoned| {
-                tracing::warn!("Database reader mutex was poisoned, recovering connection guard");
-                poisoned.into_inner()
-            }),
-            None => self.writer(),
+        if self.readers.is_empty() {
+            return self.writer();
         }
+        let idx = self
+            .reader_cursor
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+            % self.readers.len();
+        self.readers[idx].lock().unwrap_or_else(|poisoned| {
+            tracing::warn!("Database reader mutex was poisoned, recovering connection guard");
+            poisoned.into_inner()
+        })
     }
 
     /// Compatibility accessor returning a guard to the primary connection.
@@ -76,25 +81,31 @@ impl Database {
             ",
         )?;
 
-        // Dedicated read connection with query_only enabled for non-blocking concurrent reads
-        let reader = Connection::open_with_flags(
-            path_ref,
-            OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_URI,
-        )?;
-        reader.execute_batch(
-            "
-            PRAGMA synchronous = NORMAL;
-            PRAGMA temp_store = MEMORY;
-            PRAGMA cache_size = -64000;
-            PRAGMA foreign_keys = ON;
-            PRAGMA busy_timeout = 5000;
-            PRAGMA query_only = ON;
-            ",
-        )?;
+        // Initialize dedicated reader connection pool for non-blocking concurrent reads in WAL mode
+        const READER_POOL_SIZE: usize = 4;
+        let mut readers = Vec::with_capacity(READER_POOL_SIZE);
+        for _ in 0..READER_POOL_SIZE {
+            let reader = Connection::open_with_flags(
+                path_ref,
+                OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_URI,
+            )?;
+            reader.execute_batch(
+                "
+                PRAGMA synchronous = NORMAL;
+                PRAGMA temp_store = MEMORY;
+                PRAGMA cache_size = -32000;
+                PRAGMA foreign_keys = ON;
+                PRAGMA busy_timeout = 5000;
+                PRAGMA query_only = ON;
+                ",
+            )?;
+            readers.push(Mutex::new(reader));
+        }
 
         let db = Self {
             writer: Mutex::new(writer),
-            reader: Some(Mutex::new(reader)),
+            readers,
+            reader_cursor: std::sync::atomic::AtomicUsize::new(0),
             search_index: RwLock::new(FuzzyGameSearchIndex::new()),
         };
         db.migrate()?;
@@ -114,7 +125,8 @@ impl Database {
         )?;
         let db = Self {
             writer: Mutex::new(conn),
-            reader: None,
+            readers: Vec::new(),
+            reader_cursor: std::sync::atomic::AtomicUsize::new(0),
             search_index: RwLock::new(FuzzyGameSearchIndex::new()),
         };
         db.migrate()?;
@@ -159,16 +171,17 @@ impl Database {
         let source_path = source_db.as_ref();
         let target_path = target_db.as_ref();
 
-        // 1. Acquire locks on both writer and reader to block concurrent operations
+        // 1. Acquire locks on both writer and readers to block concurrent operations
         let mut writer_guard = self.writer.lock().unwrap_or_else(|p| p.into_inner());
-        let mut reader_guard = self
-            .reader
-            .as_ref()
-            .map(|r| r.lock().unwrap_or_else(|p| p.into_inner()));
+        let mut reader_guards: Vec<_> = self
+            .readers
+            .iter()
+            .map(|r| r.lock().unwrap_or_else(|p| p.into_inner()))
+            .collect();
 
         // 2. Temporarily swap connections to in-memory to release file locks on Windows
         *writer_guard = Connection::open_in_memory()?;
-        if let Some(ref mut r_guard) = reader_guard {
+        for r_guard in reader_guards.iter_mut() {
             **r_guard = Connection::open_in_memory()?;
         }
 
@@ -184,12 +197,52 @@ impl Database {
         let _ = std::fs::remove_file(&wal_path);
         let _ = std::fs::remove_file(&shm_path);
 
+        // Helper closure to reopen connections on target_path
+        let reopen_connections = |w_guard: &mut Connection,
+                                  r_guards: &mut [std::sync::MutexGuard<'_, Connection>]|
+         -> Result<()> {
+            let new_writer = Connection::open(target_path)?;
+            new_writer.execute_batch(
+                "
+                PRAGMA journal_mode = WAL;
+                PRAGMA synchronous = NORMAL;
+                PRAGMA temp_store = MEMORY;
+                PRAGMA cache_size = -64000;
+                PRAGMA foreign_keys = ON;
+                PRAGMA busy_timeout = 5000;
+                ",
+            )?;
+
+            for r_guard in r_guards.iter_mut() {
+                let new_reader = Connection::open_with_flags(
+                    target_path,
+                    OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_URI,
+                )?;
+                new_reader.execute_batch(
+                    "
+                    PRAGMA synchronous = NORMAL;
+                    PRAGMA temp_store = MEMORY;
+                    PRAGMA cache_size = -32000;
+                    PRAGMA foreign_keys = ON;
+                    PRAGMA busy_timeout = 5000;
+                    PRAGMA query_only = ON;
+                    ",
+                )?;
+                **r_guard = new_reader;
+            }
+
+            *w_guard = new_writer;
+            Ok(())
+        };
+
         // 5. Replace target DB with source DB
         if let Err(err) = std::fs::copy(source_path, target_path) {
             // Attempt rollback if backup exists
             if bak_path.exists() {
                 let _ = std::fs::copy(&bak_path, target_path);
             }
+            // Restore connections to target DB so they are not stranded in-memory
+            let _ = reopen_connections(&mut writer_guard, &mut reader_guards);
             return Err(rusqlite::Error::FromSqlConversionFailure(
                 0,
                 rusqlite::types::Type::Text,
@@ -200,46 +253,21 @@ impl Database {
             ));
         }
 
-        // 6. Reopen writer on restored target DB
-        let new_writer = Connection::open(target_path)?;
-        new_writer.execute_batch(
-            "
-            PRAGMA journal_mode = WAL;
-            PRAGMA synchronous = NORMAL;
-            PRAGMA temp_store = MEMORY;
-            PRAGMA cache_size = -64000;
-            PRAGMA foreign_keys = ON;
-            PRAGMA busy_timeout = 5000;
-            ",
-        )?;
-
-        // 7. Reopen reader if previously configured
-        if let Some(ref mut r_guard) = reader_guard {
-            let new_reader = Connection::open_with_flags(
-                target_path,
-                OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_URI,
-            )?;
-            new_reader.execute_batch(
-                "
-                PRAGMA synchronous = NORMAL;
-                PRAGMA temp_store = MEMORY;
-                PRAGMA cache_size = -64000;
-                PRAGMA foreign_keys = ON;
-                PRAGMA busy_timeout = 5000;
-                PRAGMA query_only = ON;
-                ",
-            )?;
-            **r_guard = new_reader;
+        // 6 & 7. Reopen writer and reader pool on target DB
+        if let Err(err) = reopen_connections(&mut writer_guard, &mut reader_guards) {
+            if bak_path.exists() {
+                let _ = std::fs::copy(&bak_path, target_path);
+                let _ = reopen_connections(&mut writer_guard, &mut reader_guards);
+            }
+            return Err(err);
         }
-
-        *writer_guard = new_writer;
 
         // 8. Run migrations on restored database
         migrations::run_migrations(&writer_guard)?;
 
         // Drop locks before search index reload
         drop(writer_guard);
-        drop(reader_guard);
+        drop(reader_guards);
 
         // 9. Reload search index
         let _ = self.reload_search_index();

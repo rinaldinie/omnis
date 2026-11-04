@@ -32,6 +32,26 @@ pub async fn get_games(state: State<'_, AppState>) -> Result<Vec<GameDto>, Strin
 }
 
 #[tauri::command]
+pub async fn get_games_paginated(
+    limit: usize,
+    offset: usize,
+    state: State<'_, AppState>,
+) -> Result<Vec<GameDto>, String> {
+    let games = state
+        .db
+        .get_games_paginated(limit, offset)
+        .map_err(|e| e.to_string())?;
+    let cache = &state.image_cache;
+    Ok(games
+        .into_iter()
+        .map(|g| {
+            state.media_scope.allow_game_media(&g);
+            game_to_dto(g, cache)
+        })
+        .collect())
+}
+
+#[tauri::command]
 pub async fn get_game(game_id: String, state: State<'_, AppState>) -> Result<Game, String> {
     let id = Uuid::parse_str(&game_id).map_err(|e| e.to_string())?;
     state
