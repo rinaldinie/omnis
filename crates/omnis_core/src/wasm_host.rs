@@ -163,6 +163,7 @@ pub struct WasmPluginEngine {
 
 impl WasmPluginEngine {
     pub fn new(config: WasmSandboxConfig) -> Result<Self, WasmExecutionError> {
+        #[allow(unused_mut)]
         let mut wasm_config = Config::new();
         // Consume fuel and epoch interruption are enabled on non-Windows targets.
         // On Windows MSVC, Wasmtime 25 Cranelift JIT traps (both fuel exhaustion and epoch interruption)
@@ -575,9 +576,9 @@ impl WasmPluginInstance {
                 Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
                     Err(WasmExecutionError::Timeout(timeout_duration))
                 }
-                Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => Err(WasmExecutionError::Trap(
-                    "Plugin execution thread disconnected".to_string(),
-                )),
+                Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => Err(
+                    WasmExecutionError::Trap("Plugin execution thread disconnected".to_string()),
+                ),
             }
         }
     }
