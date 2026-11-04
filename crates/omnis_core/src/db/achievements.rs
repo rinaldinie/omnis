@@ -26,6 +26,12 @@ pub trait AchievementRepository: Send + Sync {
         id: &str,
         local_icon_path: &str,
     ) -> Result<(), DatabaseError>;
+
+    /// Update local icon paths for a batch of achievements in a single write transaction
+    fn update_achievements_local_icons_batch(
+        &self,
+        updates: &[(&str, &str)],
+    ) -> Result<(), DatabaseError>;
 }
 
 impl AchievementRepository for Database {
@@ -195,6 +201,27 @@ impl AchievementRepository for Database {
         )?;
         Ok(())
     }
+
+    /// Update local icon paths for a batch of achievements in a single write transaction
+    fn update_achievements_local_icons_batch(
+        &self,
+        updates: &[(&str, &str)],
+    ) -> Result<(), DatabaseError> {
+        if updates.is_empty() {
+            return Ok(());
+        }
+        let mut conn = self.writer();
+        let tx = conn.transaction()?;
+        {
+            let mut stmt =
+                tx.prepare("UPDATE game_achievements SET local_icon_path = ?1 WHERE id = ?2")?;
+            for (id, path) in updates {
+                stmt.execute(params![*path, *id])?;
+            }
+        }
+        tx.commit()?;
+        Ok(())
+    }
 }
 
 // Inherent methods forwarding to AchievementRepository for backward compatibility
@@ -223,5 +250,13 @@ impl Database {
         local_icon_path: &str,
     ) -> Result<(), DatabaseError> {
         AchievementRepository::update_achievement_local_icon(self, id, local_icon_path)
+    }
+
+    #[inline]
+    pub fn update_achievements_local_icons_batch(
+        &self,
+        updates: &[(&str, &str)],
+    ) -> Result<(), DatabaseError> {
+        AchievementRepository::update_achievements_local_icons_batch(self, updates)
     }
 }

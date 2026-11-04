@@ -162,7 +162,9 @@ pub struct WasmPluginEngine {
 
 impl WasmPluginEngine {
     pub fn new(config: WasmSandboxConfig) -> Result<Self, WasmExecutionError> {
-        let wasm_config = Config::new();
+        let mut wasm_config = Config::new();
+        wasm_config.consume_fuel(true);
+        wasm_config.epoch_interruption(true);
 
         let engine = Engine::new(&wasm_config).map_err(|e| {
             WasmExecutionError::Instantiation(format!(
@@ -197,6 +199,13 @@ impl WasmPluginEngine {
         let perms = WasmPluginPermissions::from_manifest_permissions(permissions);
         let state = WasmHostState::new(perms);
         let mut store = Store::new(&self.engine, state);
+        let fuel = if self.config.fuel_limit == 0 {
+            u64::MAX
+        } else {
+            self.config.fuel_limit
+        };
+        let _ = store.set_fuel(fuel);
+        store.set_epoch_deadline(1);
 
         let mut linker = Linker::new(&self.engine);
 
@@ -304,22 +313,29 @@ impl WasmPluginEngine {
                         return -1; // Permission denied
                     }
 
-                    // Perform synchronous HTTP request using runtime-available blocking executor
+                    // Perform HTTP request using current Tokio runtime if available, avoiding thread thrashing
                     let client = caller.data().http_client.clone();
-                    let response_res = std::thread::spawn(move || {
-                        let rt = tokio::runtime::Builder::new_current_thread()
+                    let bytes_opt = if let Ok(handle) = tokio::runtime::Handle::try_current() {
+                        tokio::task::block_in_place(|| {
+                            handle.block_on(async {
+                                client.get(&url_str).send().await.ok()?.bytes().await.ok()
+                            })
+                        })
+                    } else {
+                        tokio::runtime::Builder::new_current_thread()
                             .enable_all()
                             .build()
-                            .ok()?;
-                        rt.block_on(async move {
-                            client.get(&url_str).send().await.ok()?.bytes().await.ok()
-                        })
-                    })
-                    .join();
+                            .ok()
+                            .and_then(|rt| {
+                                rt.block_on(async {
+                                    client.get(&url_str).send().await.ok()?.bytes().await.ok()
+                                })
+                            })
+                    };
 
-                    let bytes = match response_res {
-                        Ok(Some(b)) => b,
-                        _ => return -2,
+                    let bytes = match bytes_opt {
+                        Some(b) => b,
+                        None => return -2,
                     };
 
                     if bytes.len() > out_max_len as usize {
@@ -375,68 +391,82 @@ impl WasmPluginInstance {
         args: &[Val],
     ) -> Result<Box<[Val]>, WasmExecutionError> {
         let timeout_duration = self.config.timeout;
-        let mut store = std::mem::replace(
-            &mut self.store,
-            Store::new(
-                &self.engine,
-                WasmHostState::new(WasmPluginPermissions::default()),
-            ),
-        );
-        let instance = self.instance;
-        let func_name_owned = func_name.to_string();
-        let args_vec = args.to_vec();
+        let func = match self.instance.get_func(&mut self.store, func_name) {
+            Some(f) => f,
+            None => {
+                return Err(WasmExecutionError::Instantiation(format!(
+                    "Function '{}' not found in Wasm module",
+                    func_name
+                )));
+            }
+        };
 
-        let (tx, rx) = std::sync::mpsc::channel();
-        let _ = std::thread::spawn(move || {
-            let func = match instance.get_func(&mut store, &func_name_owned) {
-                Some(f) => f,
-                None => {
-                    let _ = tx.send((
-                        Err(WasmExecutionError::Instantiation(format!(
-                            "Function '{}' not found in Wasm module",
-                            func_name_owned
-                        ))),
-                        store,
-                    ));
+        // Reset instruction fuel
+        let fuel = if self.config.fuel_limit == 0 {
+            u64::MAX
+        } else {
+            self.config.fuel_limit
+        };
+        let _ = self.store.set_fuel(fuel);
+
+        // Configure epoch deadline (1 tick ahead of engine epoch)
+        self.store.set_epoch_deadline(1);
+
+        // Spawn timer to trigger epoch interruption if execution exceeds timeout_duration
+        let engine = self.engine.clone();
+        let cancel_flag = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let cancel_flag_clone = cancel_flag.clone();
+
+        let timer_thread = std::thread::spawn(move || {
+            let start = std::time::Instant::now();
+            while start.elapsed() < timeout_duration {
+                if cancel_flag_clone.load(std::sync::atomic::Ordering::Relaxed) {
                     return;
                 }
-            };
-
-            let mut results = vec![Val::I32(0); func.ty(&store).results().len()];
-            let res = func.call(&mut store, &args_vec, &mut results);
-
-            let final_res = match res {
-                Ok(_) => {
-                    if let Some(err) = store.data_mut().last_permission_error.take() {
-                        Err(WasmExecutionError::PermissionDenied(err))
-                    } else {
-                        Ok(results.into_boxed_slice())
-                    }
-                }
-                Err(trap) => {
-                    let err_str = trap.to_string();
-                    if let Some(err) = store.data_mut().last_permission_error.take() {
-                        Err(WasmExecutionError::PermissionDenied(err))
-                    } else {
-                        Err(WasmExecutionError::Trap(err_str))
-                    }
-                }
-            };
-
-            let _ = tx.send((final_res, store));
+                std::thread::sleep(std::time::Duration::from_millis(5));
+            }
+            if !cancel_flag_clone.load(std::sync::atomic::Ordering::Relaxed) {
+                engine.increment_epoch();
+            }
         });
 
-        match rx.recv_timeout(timeout_duration) {
-            Ok((res, restored_store)) => {
-                self.store = restored_store;
-                res
+        let mut results = vec![Val::I32(0); func.ty(&self.store).results().len()];
+        let res = func.call(&mut self.store, args, &mut results);
+
+        // Cancel timer thread immediately upon function return
+        cancel_flag.store(true, std::sync::atomic::Ordering::Relaxed);
+        let _ = timer_thread.join();
+
+        match res {
+            Ok(_) => {
+                if let Some(err) = self.store.data_mut().last_permission_error.take() {
+                    Err(WasmExecutionError::PermissionDenied(err))
+                } else {
+                    Ok(results.into_boxed_slice())
+                }
             }
-            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
-                Err(WasmExecutionError::Timeout(timeout_duration))
+            Err(err) => {
+                if let Some(perm_err) = self.store.data_mut().last_permission_error.take() {
+                    return Err(WasmExecutionError::PermissionDenied(perm_err));
+                }
+                if let Some(trap) = err.downcast_ref::<Trap>() {
+                    match trap {
+                        Trap::Interrupt => {
+                            return Err(WasmExecutionError::Timeout(timeout_duration))
+                        }
+                        Trap::OutOfFuel => return Err(WasmExecutionError::OutOfFuel),
+                        _ => return Err(WasmExecutionError::Trap(format!("{:?}", trap))),
+                    }
+                }
+                let err_str = err.to_string();
+                if err_str.contains("interrupt") || err_str.contains("epoch") {
+                    Err(WasmExecutionError::Timeout(timeout_duration))
+                } else if err_str.contains("fuel") {
+                    Err(WasmExecutionError::OutOfFuel)
+                } else {
+                    Err(WasmExecutionError::Trap(err_str))
+                }
             }
-            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => Err(WasmExecutionError::Trap(
-                "Plugin execution thread disconnected".to_string(),
-            )),
         }
     }
 }

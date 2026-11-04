@@ -93,9 +93,9 @@ fn test_tier2_wasm_infinite_loop_terminated_by_epoch_interruption() {
         )
     "#;
 
-    // Configure sandbox with very short timeout (150ms)
+    // Configure sandbox with very short timeout (150ms) and unlimited fuel to specifically verify epoch interruption
     let config = WasmSandboxConfig {
-        fuel_limit: 100_000_000,
+        fuel_limit: 0,
         timeout: Duration::from_millis(150),
         epoch_tick_interval: Duration::from_millis(15),
     };
@@ -124,6 +124,38 @@ fn test_tier2_wasm_infinite_loop_terminated_by_epoch_interruption() {
         "Execution took too long: {:?}",
         elapsed
     );
+}
+
+#[test]
+fn test_tier2_wasm_fuel_exhaustion() {
+    let wat = r#"
+        (module
+            (func (export "burn_fuel")
+                (loop $loop
+                    br $loop
+                )
+            )
+        )
+    "#;
+
+    // Configure sandbox with tiny fuel limit (1000 instructions) and large timeout (5s)
+    let config = WasmSandboxConfig {
+        fuel_limit: 1000,
+        timeout: Duration::from_secs(5),
+        epoch_tick_interval: Duration::from_millis(50),
+    };
+
+    let engine = WasmPluginEngine::new(config).expect("Engine initialization");
+    let mut instance = engine
+        .create_instance(wat.as_bytes(), &[])
+        .expect("Instance creation");
+
+    let result = instance.call_func("burn_fuel", &[]);
+    assert!(result.is_err(), "Must fail with fuel exhaustion");
+    match result.err().unwrap() {
+        WasmExecutionError::OutOfFuel => (),
+        other => panic!("Expected OutOfFuel error, got: {:?}", other),
+    }
 }
 
 #[test]

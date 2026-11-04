@@ -332,21 +332,26 @@ impl GameRepository for Database {
         }
 
         let conn = self.reader();
-        let placeholders = ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
-        let sql = format!(
-            "SELECT {} FROM games WHERE id IN ({});",
-            GAME_COLUMNS, placeholders
-        );
-
-        let mut stmt = conn.prepare(&sql)?;
-        let id_strings: Vec<String> = ids.iter().map(|id| id.to_string()).collect();
-        let rusqlite_params = rusqlite::params_from_iter(id_strings.iter());
-
-        let rows = stmt.query_map(rusqlite_params, map_row_to_game)?;
         let mut map = std::collections::HashMap::new();
-        for r in rows {
-            let game = r?;
-            map.insert(game.id, game);
+
+        // Chunk queries to stay well under SQLite's maximum variable limit (SQLITE_MAX_VARIABLE_NUMBER)
+        const CHUNK_SIZE: usize = 500;
+        for chunk in ids.chunks(CHUNK_SIZE) {
+            let placeholders = chunk.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+            let sql = format!(
+                "SELECT {} FROM games WHERE id IN ({});",
+                GAME_COLUMNS, placeholders
+            );
+
+            let mut stmt = conn.prepare(&sql)?;
+            let id_strings: Vec<String> = chunk.iter().map(|id| id.to_string()).collect();
+            let rusqlite_params = rusqlite::params_from_iter(id_strings.iter());
+
+            let rows = stmt.query_map(rusqlite_params, map_row_to_game)?;
+            for r in rows {
+                let game = r?;
+                map.insert(game.id, game);
+            }
         }
 
         let mut ordered = Vec::with_capacity(ids.len());

@@ -212,8 +212,17 @@ pub fn detect_page_size(data: &[u8]) -> usize {
 }
 
 /// Parse a single BSON document from a slice.
+const MAX_BSON_DEPTH: usize = 64;
+
 /// Returns the parsed document and total consumed bytes on success.
 pub fn parse_bson_document(slice: &[u8]) -> Option<(BsonDocument, usize)> {
+    parse_bson_document_internal(slice, 0)
+}
+
+fn parse_bson_document_internal(slice: &[u8], depth: usize) -> Option<(BsonDocument, usize)> {
+    if depth > MAX_BSON_DEPTH {
+        return None;
+    }
     if slice.len() < 5 {
         return None;
     }
@@ -272,13 +281,15 @@ pub fn parse_bson_document(slice: &[u8]) -> Option<(BsonDocument, usize)> {
             }
             0x03 => {
                 // Embedded document
-                let (sub_doc, sub_len) = parse_bson_document(&slice[pos..doc_len])?;
+                let (sub_doc, sub_len) =
+                    parse_bson_document_internal(&slice[pos..doc_len], depth + 1)?;
                 pos += sub_len;
                 BsonValue::Document(sub_doc)
             }
             0x04 => {
                 // Array (stored as document with sequential keys "0", "1", ...)
-                let (sub_doc, sub_len) = parse_bson_document(&slice[pos..doc_len])?;
+                let (sub_doc, sub_len) =
+                    parse_bson_document_internal(&slice[pos..doc_len], depth + 1)?;
                 pos += sub_len;
                 let mut items = Vec::new();
                 let mut idx = 0;

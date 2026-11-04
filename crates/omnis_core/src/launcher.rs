@@ -362,31 +362,35 @@ pub fn get_process_tree_memory_bytes(root_pid: u32) -> u64 {
     get_process_tree_memory_from_system(&sys, root_pid)
 }
 
-/// Calculates the total resident memory given an existing sysinfo::System snapshot.
+/// Calculates the total resident memory given an existing sysinfo::System snapshot in O(N) single-pass traversal.
 pub fn get_process_tree_memory_from_system(sys: &System, root_pid: u32) -> u64 {
     let target_pid = Pid::from(root_pid as usize);
-    let mut pids_in_tree = std::collections::HashSet::new();
-    pids_in_tree.insert(target_pid);
+    let mut children_map: std::collections::HashMap<Pid, Vec<Pid>> =
+        std::collections::HashMap::new();
 
-    let mut added = true;
-    while added {
-        added = false;
-        for (pid, proc) in sys.processes() {
-            if !pids_in_tree.contains(pid) {
-                if let Some(parent_pid) = proc.parent() {
-                    if pids_in_tree.contains(&parent_pid) {
-                        pids_in_tree.insert(*pid);
-                        added = true;
-                    }
-                }
-            }
+    for (pid, proc) in sys.processes() {
+        if let Some(parent) = proc.parent() {
+            children_map.entry(parent).or_default().push(*pid);
         }
     }
 
     let mut total_bytes = 0u64;
-    for pid in &pids_in_tree {
-        if let Some(proc) = sys.process(*pid) {
+    let mut queue = std::collections::VecDeque::new();
+    let mut visited = std::collections::HashSet::new();
+
+    queue.push_back(target_pid);
+    visited.insert(target_pid);
+
+    while let Some(current) = queue.pop_front() {
+        if let Some(proc) = sys.process(current) {
             total_bytes = total_bytes.saturating_add(proc.memory());
+        }
+        if let Some(children) = children_map.get(&current) {
+            for child in children {
+                if visited.insert(*child) {
+                    queue.push_back(*child);
+                }
+            }
         }
     }
 

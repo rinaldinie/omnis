@@ -172,6 +172,7 @@ impl AchievementCacheManager {
         }
 
         let mut tasks = Vec::new();
+        let mut existing_updates = Vec::new();
 
         for ach in achievements {
             let primary_url = if !ach.icon_unlocked_url.trim().is_empty() {
@@ -215,9 +216,9 @@ impl AchievementCacheManager {
 
             // Check if file is already cached on disk
             if file_path.exists() {
-                // If local_icon_path is not already matching, update DB
+                // If local_icon_path is not already matching, queue for batch DB update
                 if ach.local_icon_path.as_deref() != Some(&file_path_str) {
-                    let _ = db.update_achievement_local_icon(&ach.id, &file_path_str);
+                    existing_updates.push((ach.id.clone(), file_path_str));
                 }
                 continue;
             }
@@ -291,14 +292,30 @@ impl AchievementCacheManager {
             }));
         }
 
-        let mut newly_cached = 0;
+        // Apply any pending updates for existing files in a single batch
+        if !existing_updates.is_empty() {
+            let update_refs: Vec<(&str, &str)> = existing_updates
+                .iter()
+                .map(|(id, path)| (id.as_str(), path.as_str()))
+                .collect();
+            let _ = db.update_achievements_local_icons_batch(&update_refs);
+        }
+
+        let mut newly_downloaded = Vec::new();
         for task in tasks {
             if let Ok(Some((ach_id, path))) = task.await {
-                if let Err(e) = db.update_achievement_local_icon(&ach_id, &path) {
-                    warn!("Failed to update local icon path in DB for {ach_id}: {e}");
-                } else {
-                    newly_cached += 1;
-                }
+                newly_downloaded.push((ach_id, path));
+            }
+        }
+
+        let newly_cached = newly_downloaded.len();
+        if !newly_downloaded.is_empty() {
+            let update_refs: Vec<(&str, &str)> = newly_downloaded
+                .iter()
+                .map(|(id, path)| (id.as_str(), path.as_str()))
+                .collect();
+            if let Err(e) = db.update_achievements_local_icons_batch(&update_refs) {
+                warn!("Failed to batch update local icon paths in DB: {e}");
             }
         }
 

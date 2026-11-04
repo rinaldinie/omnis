@@ -183,7 +183,7 @@ impl GameLaunchCoordinator {
         let sid_cp = session_id_str.clone();
 
         // 60-second periodic checkpoint loop
-        tokio::spawn(async move {
+        let checkpoint_task = tokio::spawn(async move {
             while is_running_cp.load(Ordering::SeqCst) {
                 tokio::time::sleep(std::time::Duration::from_secs(60)).await;
                 if !is_running_cp.load(Ordering::SeqCst) {
@@ -196,6 +196,22 @@ impl GameLaunchCoordinator {
                 active_mgr_cp.add_elapsed(&sid_cp, 60).await;
             }
         });
+
+        // RAII Guard ensuring background checkpoint loop is terminated on process exit or task abort
+        struct LifecycleGuard {
+            is_running: Arc<AtomicBool>,
+            checkpoint_task: tokio::task::JoinHandle<()>,
+        }
+        impl Drop for LifecycleGuard {
+            fn drop(&mut self) {
+                self.is_running.store(false, Ordering::SeqCst);
+                self.checkpoint_task.abort();
+            }
+        }
+        let _lifecycle_guard = LifecycleGuard {
+            is_running: is_running.clone(),
+            checkpoint_task,
+        };
 
         let active_mgr_for_pid = active_mgr.clone();
         let app_for_pid = app_handle.clone();
@@ -228,7 +244,7 @@ impl GameLaunchCoordinator {
         })
         .await;
 
-        is_running.store(false, Ordering::SeqCst);
+        let was_running = is_running.swap(false, Ordering::SeqCst);
         let ended_at = chrono::Utc::now();
         active_mgr.set_stopping(&session_id_str).await;
 
@@ -265,15 +281,18 @@ impl GameLaunchCoordinator {
             let _ = window.set_focus();
         }
 
-        let _ = app_handle.emit(
-            events::GAME_STOPPED,
-            serde_json::json!({
-                "session_id": session_id_str,
-                "game_id": game_id_str,
-                "duration_seconds": duration,
-            }),
-        );
-        let _ = app_handle.emit(events::LIBRARY_UPDATED, ());
+        // Only emit GAME_STOPPED if not already aborted and emitted by kill_running_game
+        if was_running {
+            let _ = app_handle.emit(
+                events::GAME_STOPPED,
+                serde_json::json!({
+                    "session_id": session_id_str,
+                    "game_id": game_id_str,
+                    "duration_seconds": duration,
+                }),
+            );
+            let _ = app_handle.emit(events::LIBRARY_UPDATED, ());
+        }
     }
 
     /// Kill the currently active game session and restore main window.
@@ -285,6 +304,22 @@ impl GameLaunchCoordinator {
         let killed = state.active_game_manager.kill_running().await?;
         if killed || current_session.is_some() {
             if let Some(session) = current_session {
+                // Finalize session in SQLite database with exact duration so it does not remain unclosed
+                if let (Ok(sid), Ok(gid)) = (
+                    Uuid::parse_str(&session.session_id),
+                    Uuid::parse_str(&session.game_id),
+                ) {
+                    let ended_at = chrono::Utc::now();
+                    let duration = (ended_at - session.started_at).num_seconds().max(0) as u64;
+                    let _ = state.db.finish_play_session(
+                        sid,
+                        gid,
+                        duration,
+                        session.started_at,
+                        ended_at,
+                    );
+                }
+
                 let _ = app_handle.emit(
                     events::GAME_STOPPED,
                     serde_json::json!({
@@ -299,6 +334,7 @@ impl GameLaunchCoordinator {
                 let _ = window.show();
                 let _ = window.set_focus();
             }
+            let _ = app_handle.emit(events::LIBRARY_UPDATED, ());
             return Ok(true);
         }
         Ok(false)
