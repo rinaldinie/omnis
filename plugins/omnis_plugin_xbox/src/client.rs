@@ -43,16 +43,12 @@ pub const ERR_XSTS_FORBIDDEN_GENERIC: &str =
     "Access forbidden (403 Forbidden) during Xbox XSTS authorization. Verify that your Microsoft account has access to Xbox Live or try again later.";
 
 /// Response payload returned by Xbox Live / XSTS when authorization fails (HTTP 400, 401, 403)
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct XstsErrorPayload {
-    #[serde(rename = "Identity", default)]
-    pub identity: Option<String>,
-    #[serde(rename = "XErr", default)]
-    pub xerr: Option<serde_json::Value>,
-    #[serde(rename = "Message", default)]
-    pub message: Option<String>,
-    #[serde(rename = "Redirect", default)]
-    pub redirect: Option<String>,
+#[derive(Deserialize)]
+struct XstsErrorPayload {
+    #[serde(rename = "XErr")]
+    xerr: Option<serde_json::Value>,
+    #[serde(rename = "Message")]
+    message: Option<String>,
 }
 
 /// Formats Xbox XSTS authorization errors into actionable diagnostic messages
@@ -60,13 +56,11 @@ pub fn format_xsts_error(status: reqwest::StatusCode, body: &str) -> String {
     if let Ok(err) = serde_json::from_str::<XstsErrorPayload>(body) {
         let parsed_code = match &err.xerr {
             Some(serde_json::Value::Number(n)) => n.as_u64(),
-            Some(serde_json::Value::String(s)) => {
-                if s.starts_with("0x") || s.starts_with("0X") {
-                    u64::from_str_radix(&s[2..], 16).ok()
-                } else {
-                    s.parse::<u64>().ok()
-                }
-            }
+            Some(serde_json::Value::String(s)) => s
+                .strip_prefix("0x")
+                .or_else(|| s.strip_prefix("0X"))
+                .and_then(|h| u64::from_str_radix(h, 16).ok())
+                .or_else(|| s.parse::<u64>().ok()),
             _ => None,
         };
 
@@ -82,14 +76,21 @@ pub fn format_xsts_error(status: reqwest::StatusCode, body: &str) -> String {
                         .message
                         .as_deref()
                         .unwrap_or("Access denied by Xbox Live service");
-                    format!("Xbox XSTS authorization failed ({status}) [XErr {custom_code}]: {msg}")
+                    format!("Xbox XSTS authorization failed ({status}) [XErr {custom_code} / 0x{custom_code:08X}]: {msg}")
                 }
             };
         }
     }
 
     if status.as_u16() == 403 {
-        format!("{ERR_XSTS_FORBIDDEN_GENERIC}: {body}")
+        let trimmed = body.trim();
+        if trimmed.starts_with("<!DOCTYPE") || trimmed.starts_with("<html") || trimmed.len() > 512 {
+            format!("{ERR_XSTS_FORBIDDEN_GENERIC} (WAF / Access Denied)")
+        } else if trimmed.is_empty() {
+            ERR_XSTS_FORBIDDEN_GENERIC.to_string()
+        } else {
+            format!("{ERR_XSTS_FORBIDDEN_GENERIC}: {trimmed}")
+        }
     } else {
         format!("Xbox XSTS authorization failed ({status}): {body}")
     }
@@ -317,7 +318,11 @@ pub async fn authenticate_xbox_live(
     if !xsts_resp.status().is_success() {
         let status = xsts_resp.status();
         let body = xsts_resp.text().await.unwrap_or_default();
-        return Err(PluginError::Other(format_xsts_error(status, &body)));
+        let err_msg = format_xsts_error(status, &body);
+        if status == reqwest::StatusCode::UNAUTHORIZED {
+            return Err(PluginError::SessionExpired(err_msg));
+        }
+        return Err(PluginError::Other(err_msg));
     }
 
     let xsts_auth: XboxLiveAuthResponse = xsts_resp.json().await.map_err(|e| {
@@ -327,25 +332,20 @@ pub async fn authenticate_xbox_live(
     })?;
 
     // 3. Extract user claims
-    let claim = xsts_auth
-        .display_claims
-        .xui
-        .first()
-        .or_else(|| user_auth.display_claims.xui.first())
-        .ok_or_else(|| {
-            PluginError::Other("No Xbox user claims returned from authorization".to_string())
-        })?;
+    let user_claim = user_auth.display_claims.xui.first();
+    let xsts_claim = xsts_auth.display_claims.xui.first();
+    let claim = xsts_claim.or(user_claim).ok_or_else(|| {
+        PluginError::Other("No Xbox user claims returned from authorization".to_string())
+    })?;
 
     let uhs = claim.uhs.clone();
-    let gtg = claim
-        .gtg
-        .clone()
-        .or_else(|| user_auth.display_claims.xui.first().and_then(|u| u.gtg.clone()))
+    let gtg = xsts_claim
+        .and_then(|c| c.gtg.clone())
+        .or_else(|| user_claim.and_then(|c| c.gtg.clone()))
         .unwrap_or_else(|| "Xbox User".to_string());
-    let account_id = claim
-        .xid
-        .clone()
-        .or_else(|| user_auth.display_claims.xui.first().and_then(|u| u.xid.clone()))
+    let account_id = xsts_claim
+        .and_then(|c| c.xid.clone())
+        .or_else(|| user_claim.and_then(|c| c.xid.clone()))
         .unwrap_or_else(|| uhs.clone());
 
     // Parse token expiration if present or default to 24h
@@ -423,21 +423,14 @@ pub async fn fetch_user_titles(
         format!("XBL3.0 x={};{}", session.user_id, session.access_token)
     };
 
-    let candidate_endpoints = if !session.user_id.is_empty()
-        && session.user_id.chars().all(|c| c.is_ascii_digit())
-    {
-        vec![
-            format!(
-                "https://titlehub.xboxlive.com/users/xuid({})/titles/titlehistory/decoration/scid,image,detail",
-                session.user_id
-            ),
-            "https://titlehub.xboxlive.com/users/me/titles/titlehistory/decoration/scid,image,detail".to_string(),
-        ]
-    } else {
-        vec![
-            "https://titlehub.xboxlive.com/users/me/titles/titlehistory/decoration/scid,image,detail".to_string(),
-        ]
-    };
+    let mut candidate_endpoints = Vec::with_capacity(2);
+    if !session.user_id.is_empty() && session.user_id.chars().all(|c| c.is_ascii_digit()) {
+        candidate_endpoints.push(format!(
+            "https://titlehub.xboxlive.com/users/xuid({})/titles/titlehistory/decoration/scid,image,detail",
+            session.user_id
+        ));
+    }
+    candidate_endpoints.push("https://titlehub.xboxlive.com/users/me/titles/titlehistory/decoration/scid,image,detail".to_string());
 
     let mut last_error = None;
     let mut session_expired = false;
@@ -469,11 +462,12 @@ pub async fn fetch_user_titles(
             }
             Ok(r) => {
                 let status = r.status();
-                if status == reqwest::StatusCode::UNAUTHORIZED {
-                    session_expired = true;
-                }
                 let body = r.text().await.unwrap_or_default();
                 last_error = Some(format!("TitleHub request failed ({status}): {body}"));
+                if status == reqwest::StatusCode::UNAUTHORIZED {
+                    session_expired = true;
+                    break;
+                }
             }
             Err(e) => {
                 last_error = Some(format!("Failed to connect to TitleHub: {e}"));

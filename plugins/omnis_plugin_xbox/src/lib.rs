@@ -12,10 +12,10 @@ use omnis_sdk::{
 pub use client::{
     authenticate_xbox_live, extract_token_from_redirect, fetch_user_titles, format_xsts_error,
     map_title_to_discovered_game, refresh_session_token, XboxDisplayClaims, XboxLiveAuthResponse,
-    XboxTitleHistoryResponse, XboxTitleItem, XboxXuiClaim, XstsErrorPayload,
-    ERR_XSTS_AGE_VERIFICATION_REQUIRED, ERR_XSTS_CHILD_ACCOUNT, ERR_XSTS_FORBIDDEN_GENERIC,
-    ERR_XSTS_NO_XBOX_ACCOUNT, ERR_XSTS_REGION_UNSUPPORTED, ERR_XSTS_USER_ACTION_REQUIRED,
-    MS_AUTH_SCOPE, MS_CLIENT_ID, MS_REDIRECT_URI, XBOX_USER_AGENT,
+    XboxTitleHistoryResponse, XboxTitleItem, XboxXuiClaim, ERR_XSTS_AGE_VERIFICATION_REQUIRED,
+    ERR_XSTS_CHILD_ACCOUNT, ERR_XSTS_FORBIDDEN_GENERIC, ERR_XSTS_NO_XBOX_ACCOUNT,
+    ERR_XSTS_REGION_UNSUPPORTED, ERR_XSTS_USER_ACTION_REQUIRED, MS_AUTH_SCOPE, MS_CLIENT_ID,
+    MS_REDIRECT_URI, XBOX_USER_AGENT,
 };
 
 /// Plugin instance for Xbox Live / PC Game Pass
@@ -31,7 +31,7 @@ impl XboxCloudPlugin {
         let client = reqwest::Client::builder()
             .user_agent(XBOX_USER_AGENT)
             .build()
-            .unwrap_or_else(|_| reqwest::Client::new());
+            .unwrap_or_default();
         Self { client }
     }
 
@@ -265,15 +265,23 @@ mod tests {
         let msg = format_xsts_error(StatusCode::FORBIDDEN, body_action);
         assert_eq!(msg, ERR_XSTS_USER_ACTION_REQUIRED);
 
-        // 6. Generic 403 Forbidden with unparseable body
+        // 6. Generic 403 Forbidden with unparseable body & WAF HTML sanitization
         let msg_403 = format_xsts_error(StatusCode::FORBIDDEN, "Access Denied by WAF");
         assert!(msg_403.contains(ERR_XSTS_FORBIDDEN_GENERIC));
         assert!(msg_403.contains("Access Denied by WAF"));
 
+        let msg_html = format_xsts_error(
+            StatusCode::FORBIDDEN,
+            "<!DOCTYPE html><html><head><title>403 Forbidden</title></head><body>WAF Blocked</body></html>",
+        );
+        assert!(msg_html.contains(ERR_XSTS_FORBIDDEN_GENERIC));
+        assert!(msg_html.contains("WAF / Access Denied"));
+        assert!(!msg_html.contains("<!DOCTYPE html>"));
+
         // 7. Custom XErr code
         let body_custom = r#"{"Identity":"0","XErr":999999,"Message":"Specific security error"}"#;
         let msg_custom = format_xsts_error(StatusCode::BAD_REQUEST, body_custom);
-        assert!(msg_custom.contains("[XErr 999999]"));
+        assert!(msg_custom.contains("[XErr 999999 / 0x000F423F]"));
         assert!(msg_custom.contains("Specific security error"));
 
         // 8. String and Hex representation of XErr
