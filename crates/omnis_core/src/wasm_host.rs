@@ -101,7 +101,7 @@ impl WasmPluginPermissions {
 
         // Exact match or subdomain match (e.g. api.igdb.com matches igdb.com if declared)
         for allowed in &self.allowed_domains {
-            if &host == allowed || host.ends_with(&format!(".{}", allowed)) {
+            if host == allowed || host.ends_with(&format!(".{}", allowed)) {
                 return true;
             }
         }
