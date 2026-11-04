@@ -27,6 +27,9 @@ export const windowApi = {
   /** Close application window */
   close: (): Promise<void> => invokeIpc<void>("window_close"),
 
+  /** Terminate application process unconditionally */
+  exitApp: (): Promise<void> => invokeIpc<void>("exit_app"),
+
   /** Open system folder (cache, logs, covers, etc.) */
   openFolder: (folderType: string): Promise<void> =>
     invokeIpc<void>("open_folder", { folderType }),

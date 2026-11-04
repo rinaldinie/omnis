@@ -1,5 +1,5 @@
 use crate::types::{open_folder_in_os, AppState};
-use tauri::{State, Window};
+use tauri::{Manager, State, Window};
 
 #[tauri::command]
 pub fn open_folder(folder_type: String, state: State<'_, AppState>) -> Result<(), String> {
@@ -111,8 +111,14 @@ pub fn window_close(window: Window, state: State<'_, AppState>) -> Result<(), St
     {
         window.hide().map_err(|e| e.to_string())
     } else {
-        window.close().map_err(|e| e.to_string())
+        window.app_handle().exit(0);
+        Ok(())
     }
+}
+
+#[tauri::command]
+pub fn exit_app(app_handle: tauri::AppHandle) {
+    app_handle.exit(0);
 }
 
 #[tauri::command]

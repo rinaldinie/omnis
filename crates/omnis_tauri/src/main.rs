@@ -83,6 +83,7 @@ fn main() {
             window_set_fullscreen,
             is_fullscreen_launch,
             window_close,
+            exit_app,
             get_themes,
             save_custom_theme,
             add_custom_game,

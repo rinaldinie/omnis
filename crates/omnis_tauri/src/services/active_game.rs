@@ -168,7 +168,9 @@ impl ActiveGameManager {
                 game.play_actions
                     .first()
                     .and_then(|action| match &action.tracking_mode {
-                        omnis_sdk::ProcessTrackingMode::ProcessName(name) => Some(name.clone()),
+                        omnis_sdk::ProcessTrackingMode::ProcessName(name) => {
+                            Some(omnis_core::launcher::process_file_name(name).to_string())
+                        }
                         _ => None,
                     });
 

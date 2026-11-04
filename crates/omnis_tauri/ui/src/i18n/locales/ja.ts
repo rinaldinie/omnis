@@ -342,6 +342,7 @@ export const ja: TranslationSchema = {
     stats_breakdown: 'プレイ時間の内訳',
     session_time: '今回のセッション',
     total_playtime: '合計',
+    running: '実行中',
   },
   app_status: {
     theme_activated: 'テーマ「{name}」を適用しました',

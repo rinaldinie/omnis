@@ -342,6 +342,7 @@ export const en: TranslationSchema = {
     stats_breakdown: 'Playtime breakdown',
     session_time: 'This session',
     total_playtime: 'Total',
+    running: 'Running',
   },
   app_status: {
     theme_activated: 'Theme “{name}” activated!',

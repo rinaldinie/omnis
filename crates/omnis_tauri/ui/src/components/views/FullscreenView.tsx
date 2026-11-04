@@ -41,6 +41,7 @@ import { FullscreenDetailsOverlay } from "../fullscreen/FullscreenDetailsOverlay
 import { FullscreenTopBar } from "../fullscreen/FullscreenTopBar";
 import { FullscreenHomeContent } from "../fullscreen/FullscreenHomeContent";
 import { FullscreenOverlays } from "../fullscreen/FullscreenOverlays";
+import { FullscreenLaunchOverlay } from "../fullscreen/FullscreenLaunchOverlay";
 import { FullscreenAchievementsPage } from "../fullscreen/FullscreenAchievementsPage";
 import { FullscreenStatsPage } from "../fullscreen/FullscreenStatsPage";
 import { useGameAchievements } from "../achievements";
@@ -349,6 +350,10 @@ export default function FullscreenView({
   // Confirmation dialog state
   const [confirm, setConfirm] = React.useState<{ kind: ConfirmKind; game?: GameDto } | null>(null);
   const [confirmFocus, setConfirmFocus] = React.useState<"cancel" | "confirm">("cancel");
+  const confirmRef = React.useRef(confirm);
+  confirmRef.current = confirm;
+  const confirmFocusRef = React.useRef(confirmFocus);
+  confirmFocusRef.current = confirmFocus;
   const openConfirm = (kind: ConfirmKind, game?: GameDto) => {
     setConfirm({ kind, game });
     setConfirmFocus("cancel");
@@ -690,23 +695,32 @@ export default function FullscreenView({
   React.useEffect(() => {
     if (!confirm) return;
 
-    const handleNav = () => {
+    const handleNav = (e: Event) => {
+      const dir = (e as CustomEvent<{ direction?: "up" | "down" | "left" | "right" }>).detail?.direction;
       soundEffects.playNav();
-      setConfirmFocus((f) => (f === "cancel" ? "confirm" : "cancel"));
+      if (dir === "up") {
+        setConfirmFocus("confirm");
+      } else if (dir === "down") {
+        setConfirmFocus("cancel");
+      } else {
+        setConfirmFocus((f) => (f === "cancel" ? "confirm" : "cancel"));
+      }
     };
 
     const handleAction = () => {
       soundEffects.playSelect();
+      const currentFocus = confirmFocusRef.current;
+      const currentConfirm = confirmRef.current;
       setConfirm(null);
-      if (confirmFocus !== "confirm") return;
-      if (confirm.kind === "exit") {
+      if (currentFocus !== "confirm" || !currentConfirm) return;
+      if (currentConfirm.kind === "exit") {
         setIsMenuOpen?.(false);
         handleClose();
-      } else if (confirm.kind === "desktop") {
+      } else if (currentConfirm.kind === "desktop") {
         setIsMenuOpen?.(false);
         toggleFullscreen();
-      } else if (confirm.game && onGameAction) {
-        onGameAction("uninstall", confirm.game.id);
+      } else if (currentConfirm.game && onGameAction) {
+        onGameAction("uninstall", currentConfirm.game.id);
         setNotice(t("console_ui.notice_uninstall"));
       }
     };
@@ -715,6 +729,29 @@ export default function FullscreenView({
       e.preventDefault();
       soundEffects.playSelect();
       setConfirm(null);
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        e.stopPropagation();
+        soundEffects.playNav();
+        setConfirmFocus("confirm");
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault();
+        e.stopPropagation();
+        soundEffects.playNav();
+        setConfirmFocus("cancel");
+      } else if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        e.stopPropagation();
+        handleAction();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        soundEffects.playSelect();
+        setConfirm(null);
+      }
     };
 
     const events: Array<[string, EventListener]> = [
@@ -726,8 +763,13 @@ export default function FullscreenView({
       ["omnis:details-back", handleBack],
     ];
     events.forEach(([name, fn]) => window.addEventListener(name, fn));
-    return () => events.forEach(([name, fn]) => window.removeEventListener(name, fn));
-  }, [confirm, confirmFocus, setIsMenuOpen, handleClose, toggleFullscreen, onGameAction, t]);
+    window.addEventListener("keydown", handleKeyDown, true);
+
+    return () => {
+      events.forEach(([name, fn]) => window.removeEventListener(name, fn));
+      window.removeEventListener("keydown", handleKeyDown, true);
+    };
+  }, [confirm, setIsMenuOpen, handleClose, toggleFullscreen, onGameAction, t]);
 
   // Controller legend
   const legendLeft = [{ kind: "menu" as const, label: t("console_ui.menu") }];
@@ -980,6 +1022,14 @@ export default function FullscreenView({
           }
         }}
         soundEffects={soundEffects}
+        t={t}
+      />
+
+      {/* LAUNCH TRANSITION OVERLAY */}
+      <FullscreenLaunchOverlay
+        activeGame={activeGame}
+        allGames={allGames}
+        filteredGames={filteredGames}
         t={t}
       />
 
