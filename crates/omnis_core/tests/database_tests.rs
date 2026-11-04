@@ -443,6 +443,66 @@ fn test_game_sessions_persistence_and_query() {
 }
 
 #[test]
+fn test_start_and_cancel_play_session_lifecycle() {
+    let db = Database::open_in_memory().expect("Failed to open DB");
+    db.migrate().expect("Failed to run migrations");
+
+    let game_id = Uuid::new_v4();
+    let game = db
+        .insert_custom_game(
+            game_id,
+            "Cancel Session Game",
+            "cancel session game",
+            None,
+            vec![],
+            None,
+        )
+        .expect("Failed to insert game");
+    assert_eq!(game.playtime_seconds, 0);
+    assert_eq!(game.play_count, 0);
+    assert_eq!(game.completion_status.as_deref(), Some("NotPlayed"));
+
+    let session_id = Uuid::new_v4();
+    let start_time = Utc::now();
+
+    // 1. Simulate starting a session (prior to process detection)
+    db.start_play_session(session_id, game_id, start_time)
+        .expect("Failed to start session");
+
+    let mid_game = db
+        .get_game_by_id(game_id)
+        .expect("Query failed")
+        .expect("Not found");
+    assert_eq!(mid_game.play_count, 1);
+    assert_eq!(mid_game.completion_status.as_deref(), Some("Playing"));
+
+    let active_sessions = db
+        .get_game_sessions(game_id)
+        .expect("Query sessions failed");
+    assert_eq!(active_sessions.len(), 1);
+
+    // 2. Simulate process launch failure: cancel the session
+    db.cancel_play_session(session_id, game_id)
+        .expect("Failed to cancel session");
+
+    let after_cancel_game = db
+        .get_game_by_id(game_id)
+        .expect("Query failed")
+        .expect("Not found");
+    assert_eq!(after_cancel_game.play_count, 0);
+    assert_eq!(after_cancel_game.playtime_seconds, 0);
+    assert_eq!(
+        after_cancel_game.completion_status.as_deref(),
+        Some("NotPlayed")
+    );
+
+    let final_sessions = db
+        .get_game_sessions(game_id)
+        .expect("Query sessions failed");
+    assert_eq!(final_sessions.len(), 0);
+}
+
+#[test]
 fn test_achievements_upsert_and_summary() {
     let db = Database::open_in_memory().expect("Failed to open DB");
 

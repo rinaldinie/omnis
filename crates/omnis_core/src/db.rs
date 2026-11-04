@@ -31,18 +31,25 @@ pub struct Database {
 }
 
 impl Database {
-    /// Acquire a lock on the dedicated writer connection.
+    /// Acquire a lock on the dedicated writer connection, safely recovering if previously poisoned.
     #[inline]
     pub fn writer(&self) -> MutexGuard<'_, Connection> {
-        self.writer.lock().unwrap()
+        self.writer.lock().unwrap_or_else(|poisoned| {
+            tracing::warn!("Database writer mutex was poisoned, recovering connection guard");
+            poisoned.into_inner()
+        })
     }
 
-    /// Acquire a lock on the dedicated reader connection (or fallback to writer for in-memory databases).
+    /// Acquire a lock on the dedicated reader connection (or fallback to writer for in-memory databases),
+    /// safely recovering if previously poisoned.
     #[inline]
     pub fn reader(&self) -> MutexGuard<'_, Connection> {
         match &self.reader {
-            Some(r) => r.lock().unwrap(),
-            None => self.writer.lock().unwrap(),
+            Some(r) => r.lock().unwrap_or_else(|poisoned| {
+                tracing::warn!("Database reader mutex was poisoned, recovering connection guard");
+                poisoned.into_inner()
+            }),
+            None => self.writer(),
         }
     }
 
@@ -153,8 +160,11 @@ impl Database {
         let target_path = target_db.as_ref();
 
         // 1. Acquire locks on both writer and reader to block concurrent operations
-        let mut writer_guard = self.writer.lock().unwrap();
-        let mut reader_guard = self.reader.as_ref().map(|r| r.lock().unwrap());
+        let mut writer_guard = self.writer.lock().unwrap_or_else(|p| p.into_inner());
+        let mut reader_guard = self
+            .reader
+            .as_ref()
+            .map(|r| r.lock().unwrap_or_else(|p| p.into_inner()));
 
         // 2. Temporarily swap connections to in-memory to release file locks on Windows
         *writer_guard = Connection::open_in_memory()?;

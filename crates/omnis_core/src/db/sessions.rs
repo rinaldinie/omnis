@@ -53,6 +53,10 @@ pub trait SessionRepository: Send + Sync {
         library_id: &str,
         sessions: &[ExternalSessionDto],
     ) -> Result<usize, DatabaseError>;
+
+    /// Cancel an active or pending play session on launch failure or early abort,
+    /// removing the unrecorded session and reverting premature metric increments.
+    fn cancel_play_session(&self, session_id: Uuid, game_id: Uuid) -> Result<(), DatabaseError>;
 }
 
 impl SessionRepository for Database {
@@ -392,6 +396,43 @@ impl SessionRepository for Database {
         tx.commit()?;
         Ok(total_inserted)
     }
+
+    fn cancel_play_session(&self, session_id: Uuid, game_id: Uuid) -> Result<(), DatabaseError> {
+        let mut conn = self.writer();
+        let tx = conn.transaction()?;
+
+        // Delete uncompleted / failed session
+        tx.execute(
+            "DELETE FROM game_sessions WHERE id = ?1",
+            params![session_id.to_string()],
+        )?;
+
+        // Revert play_count that was incremented at start_play_session
+        let now_str = chrono::Utc::now().to_rfc3339();
+        tx.execute(
+            "
+            UPDATE games SET
+                play_count = MAX(0, play_count - 1),
+                modified_timestamp = ?1
+            WHERE id = ?2
+            ",
+            params![now_str, game_id.to_string()],
+        )?;
+
+        // If game has 0 play_count and 0 playtime_seconds, revert completion_status if it was marked 'Playing'
+        tx.execute(
+            "
+            UPDATE games SET
+                completion_status = 'NotPlayed',
+                modified_timestamp = ?1
+            WHERE id = ?2 AND play_count = 0 AND playtime_seconds = 0 AND completion_status = 'Playing'
+            ",
+            params![now_str, game_id.to_string()],
+        )?;
+
+        tx.commit()?;
+        Ok(())
+    }
 }
 
 // Inherent methods forwarding to SessionRepository for backward compatibility
@@ -473,5 +514,14 @@ impl Database {
         game_id: Uuid,
     ) -> Result<Vec<GameSessionRecord>, DatabaseError> {
         SessionRepository::get_game_sessions(self, game_id)
+    }
+
+    #[inline]
+    pub fn cancel_play_session(
+        &self,
+        session_id: Uuid,
+        game_id: Uuid,
+    ) -> Result<(), DatabaseError> {
+        SessionRepository::cancel_play_session(self, session_id, game_id)
     }
 }

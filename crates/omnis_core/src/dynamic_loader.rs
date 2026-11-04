@@ -62,55 +62,45 @@ pub struct DynamicPluginHandle {
 
 impl DynamicPluginHandle {
     /// Calls an FFI function that returns a dynamically allocated C string,
-    /// catches any unwind panics, converts the C string to a Rust String,
-    /// and immediately calls the plugin's `omnis_free_string` to release the pointer safely.
+    /// converts the C string to a Rust String, and immediately calls the plugin's
+    /// `omnis_free_string` to release the pointer safely.
     ///
     /// # Safety
     ///
     /// `func` must call an FFI export of this plugin that returns either a null pointer or a
     /// valid, NUL-terminated C string allocated by the plugin and releasable via
-    /// `omnis_free_string`.
+    /// `omnis_free_string`. The plugin is responsible for guarding its own internal panics
+    /// via `omnis_sdk::ffi::guard` before crossing the C-ABI boundary.
     pub unsafe fn call_c_string_returning<F>(&self, func: F) -> Result<String, String>
     where
-        F: FnOnce() -> *mut c_char + std::panic::UnwindSafe,
+        F: FnOnce() -> *mut c_char,
     {
-        let c_ptr_res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(func));
-        let c_ptr = match c_ptr_res {
-            Ok(ptr) => ptr,
-            Err(e) => {
-                let msg = if let Some(s) = e.downcast_ref::<&str>() {
-                    s.to_string()
-                } else if let Some(s) = e.downcast_ref::<String>() {
-                    s.clone()
-                } else {
-                    "Unknown panic occurred in dynamic plugin".to_string()
-                };
-                return Err(format!("Plugin crashed during FFI invocation: {}", msg));
-            }
-        };
+        let c_ptr = func();
 
         if c_ptr.is_null() {
             return Err("Plugin returned null pointer".to_string());
         }
 
-        let rust_str_res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            CStr::from_ptr(c_ptr).to_str().map(|s| s.to_string())
-        }));
+        let rust_str_res = CStr::from_ptr(c_ptr)
+            .to_str()
+            .map(|s| s.to_string())
+            .map_err(|utf8_err| format!("Plugin returned invalid UTF-8 string: {}", utf8_err));
 
         // Immediately deallocate the C string using the plugin's own allocator
         let free_fn = self.fn_free_string;
-        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            free_fn(c_ptr);
-        }));
+        free_fn(c_ptr);
 
-        match rust_str_res {
-            Ok(Ok(s)) => Ok(s),
-            Ok(Err(utf8_err)) => Err(format!(
-                "Plugin returned invalid UTF-8 string: {}",
-                utf8_err
-            )),
-            Err(_) => Err("Panic while converting C string to Rust string".to_string()),
+        let s = rust_str_res?;
+
+        // If the dynamic plugin used omnis_sdk::ffi::guard, an internal panic produces
+        // a structured JSON error object: {"error":"Panic caught by FFI guard: ..."}
+        if let Ok(val) = serde_json::from_str::<serde_json::Value>(&s) {
+            if let Some(err_msg) = val.get("error").and_then(|e| e.as_str()) {
+                return Err(format!("Plugin FFI runtime error: {}", err_msg));
+            }
         }
+
+        Ok(s)
     }
 
     /// Retrieves and parses the declarative manifest from the dynamic plugin

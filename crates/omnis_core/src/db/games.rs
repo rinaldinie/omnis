@@ -248,7 +248,7 @@ impl GameRepository for Database {
         drop(conn);
         self.search_index
             .write()
-            .unwrap()
+            .unwrap_or_else(|p| p.into_inner())
             .insert_or_update(id, title);
         self.get_game_by_id(id)?
             .ok_or(rusqlite::Error::QueryReturnedNoRows)
@@ -433,7 +433,7 @@ impl GameRepository for Database {
 
         self.search_index
             .write()
-            .unwrap()
+            .unwrap_or_else(|p| p.into_inner())
             .insert_or_update(update.id, &update.title);
 
         self.get_game_by_id(update.id)?

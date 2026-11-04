@@ -235,24 +235,35 @@ impl GameLaunchCoordinator {
         let duration = match track_res {
             Ok(d) if d > 0 => d,
             Ok(_) => (ended_at - started_at).num_seconds().max(0) as u64,
-            Err(err) => {
+            Err(ref err) => {
                 tracing::warn!(
                     "Errore durante il tracking del processo {}: {}",
                     game_id_str,
                     err
                 );
-                (ended_at - started_at).num_seconds().max(0) as u64
+                0
             }
         };
 
         if is_installed {
-            let _ = db.finish_play_session(session_id, id, duration, started_at, ended_at);
+            if track_res.is_err() {
+                // Tracking failed or process not found: cancel session and revert premature metrics
+                let _ = db.cancel_play_session(session_id, id);
+            } else {
+                let _ = db.finish_play_session(session_id, id, duration, started_at, ended_at);
+            }
         }
 
         active_mgr.clear_running().await;
 
         // Restore window geometry & focus
-        window_snapshot.restore(&app_handle, duration).await;
+        if track_res.is_ok() {
+            window_snapshot.restore(&app_handle, duration).await;
+        } else if let Some(window) = app_handle.get_webview_window("main") {
+            let _ = window.unminimize();
+            let _ = window.show();
+            let _ = window.set_focus();
+        }
 
         let _ = app_handle.emit(
             events::GAME_STOPPED,

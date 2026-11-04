@@ -430,7 +430,10 @@ pub async fn fetch_user_titles(
             session.user_id
         ));
     }
-    candidate_endpoints.push("https://titlehub.xboxlive.com/users/me/titles/titlehistory/decoration/scid,image,detail".to_string());
+    candidate_endpoints.push(
+        "https://titlehub.xboxlive.com/users/me/titles/titlehistory/decoration/scid,image,detail"
+            .to_string(),
+    );
 
     let mut last_error = None;
     let mut session_expired = false;
@@ -476,14 +479,12 @@ pub async fn fetch_user_titles(
     }
 
     if session_expired {
-        return Err(PluginError::SessionExpired(
-            last_error.unwrap_or_else(|| {
-                "Xbox Live XSTS session expired (401 Unauthorized)".to_string()
-            }),
-        ));
+        return Err(PluginError::SessionExpired(last_error.unwrap_or_else(
+            || "Xbox Live XSTS session expired (401 Unauthorized)".to_string(),
+        )));
     }
 
-    Err(PluginError::Other(
-        last_error.unwrap_or_else(|| "Failed to fetch Xbox title history from TitleHub".to_string()),
-    ))
+    Err(PluginError::Other(last_error.unwrap_or_else(|| {
+        "Failed to fetch Xbox title history from TitleHub".to_string()
+    })))
 }

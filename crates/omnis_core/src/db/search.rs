@@ -49,7 +49,7 @@ impl GameSearchRepository for Database {
             items
         };
 
-        let mut index = self.search_index.write().unwrap();
+        let mut index = self.search_index.write().unwrap_or_else(|p| p.into_inner());
         index.build_from_items(items);
         Ok(())
     }
@@ -99,7 +99,7 @@ impl GameSearchRepository for Database {
 
         // 1. In-memory fuzzy search on titles (nucleo-matcher)
         let fuzzy_matches = {
-            let index = self.search_index.read().unwrap();
+            let index = self.search_index.read().unwrap_or_else(|p| p.into_inner());
             index.search(term)
         };
 
