@@ -10,10 +10,12 @@ use omnis_sdk::{
 };
 
 pub use client::{
-    authenticate_xbox_live, extract_token_from_redirect, fetch_user_titles,
+    authenticate_xbox_live, extract_token_from_redirect, fetch_user_titles, format_xsts_error,
     map_title_to_discovered_game, refresh_session_token, XboxDisplayClaims, XboxLiveAuthResponse,
-    XboxTitleHistoryResponse, XboxTitleItem, XboxXuiClaim, MS_AUTH_SCOPE, MS_CLIENT_ID,
-    MS_REDIRECT_URI,
+    XboxTitleHistoryResponse, XboxTitleItem, XboxXuiClaim, XstsErrorPayload,
+    ERR_XSTS_AGE_VERIFICATION_REQUIRED, ERR_XSTS_CHILD_ACCOUNT, ERR_XSTS_FORBIDDEN_GENERIC,
+    ERR_XSTS_NO_XBOX_ACCOUNT, ERR_XSTS_REGION_UNSUPPORTED, ERR_XSTS_USER_ACTION_REQUIRED,
+    MS_AUTH_SCOPE, MS_CLIENT_ID, MS_REDIRECT_URI, XBOX_USER_AGENT,
 };
 
 /// Plugin instance for Xbox Live / PC Game Pass
@@ -26,9 +28,11 @@ pub type XboxPlugin = XboxCloudPlugin;
 
 impl XboxCloudPlugin {
     pub fn new() -> Self {
-        Self {
-            client: reqwest::Client::new(),
-        }
+        let client = reqwest::Client::builder()
+            .user_agent(XBOX_USER_AGENT)
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
+        Self { client }
     }
 
     pub fn with_client(client: reqwest::Client) -> Self {
@@ -230,5 +234,59 @@ mod tests {
         );
         assert!(plugin.is_redirect_url("https://login.live.com/oauth20_desktop.srf?code=123"));
         assert!(!plugin.is_redirect_url("https://account.xbox.com/auth"));
+    }
+
+    #[test]
+    fn test_format_xsts_error_all_cases() {
+        use reqwest::StatusCode;
+
+        // 1. No Xbox account
+        let body_no_acc = r#"{"Identity":"0","XErr":2148916233,"Message":"","Redirect":"https://start.ui.xboxlive.com/AddUser"}"#;
+        let msg = format_xsts_error(StatusCode::UNAUTHORIZED, body_no_acc);
+        assert_eq!(msg, ERR_XSTS_NO_XBOX_ACCOUNT);
+
+        // 2. Child account
+        let body_child = r#"{"Identity":"0","XErr":2148916238,"Message":"","Redirect":""}"#;
+        let msg = format_xsts_error(StatusCode::FORBIDDEN, body_child);
+        assert_eq!(msg, ERR_XSTS_CHILD_ACCOUNT);
+
+        // 3. Region unsupported
+        let body_region = r#"{"Identity":"0","XErr":2148916235,"Message":""}"#;
+        let msg = format_xsts_error(StatusCode::FORBIDDEN, body_region);
+        assert_eq!(msg, ERR_XSTS_REGION_UNSUPPORTED);
+
+        // 4. Age verification required
+        let body_age = r#"{"Identity":"0","XErr":2148916236,"Message":""}"#;
+        let msg = format_xsts_error(StatusCode::FORBIDDEN, body_age);
+        assert_eq!(msg, ERR_XSTS_AGE_VERIFICATION_REQUIRED);
+
+        // 5. User action required (terms)
+        let body_action = r#"{"Identity":"0","XErr":2148916222,"Message":""}"#;
+        let msg = format_xsts_error(StatusCode::FORBIDDEN, body_action);
+        assert_eq!(msg, ERR_XSTS_USER_ACTION_REQUIRED);
+
+        // 6. Generic 403 Forbidden with unparseable body
+        let msg_403 = format_xsts_error(StatusCode::FORBIDDEN, "Access Denied by WAF");
+        assert!(msg_403.contains(ERR_XSTS_FORBIDDEN_GENERIC));
+        assert!(msg_403.contains("Access Denied by WAF"));
+
+        // 7. Custom XErr code
+        let body_custom = r#"{"Identity":"0","XErr":999999,"Message":"Specific security error"}"#;
+        let msg_custom = format_xsts_error(StatusCode::BAD_REQUEST, body_custom);
+        assert!(msg_custom.contains("[XErr 999999]"));
+        assert!(msg_custom.contains("Specific security error"));
+
+        // 8. String and Hex representation of XErr
+        let body_str = r#"{"Identity":"0","XErr":"2148916233"}"#;
+        let msg_str = format_xsts_error(StatusCode::UNAUTHORIZED, body_str);
+        assert_eq!(msg_str, ERR_XSTS_NO_XBOX_ACCOUNT);
+
+        let body_hex = r#"{"Identity":"0","XErr":"0x8015DC09"}"#;
+        let msg_hex = format_xsts_error(StatusCode::UNAUTHORIZED, body_hex);
+        assert_eq!(msg_hex, ERR_XSTS_NO_XBOX_ACCOUNT);
+
+        let body_hex_child = r#"{"Identity":"0","XErr":"0x8015dc0e"}"#;
+        let msg_hex_child = format_xsts_error(StatusCode::FORBIDDEN, body_hex_child);
+        assert_eq!(msg_hex_child, ERR_XSTS_CHILD_ACCOUNT);
     }
 }

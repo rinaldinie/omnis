@@ -14,6 +14,87 @@ pub const MS_REDIRECT_URI: &str = "https://login.live.com/oauth20_desktop.srf";
 /// Microsoft OAuth authorization scope for Xbox Live service
 pub const MS_AUTH_SCOPE: &str = "service::user.auth.xboxlive.com::MBI_SSL";
 
+/// Standard desktop User-Agent string used for Xbox Live and TitleHub requests to prevent WAF / 403 blocks
+pub const XBOX_USER_AGENT: &str =
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 XboxApp/2311.1001.7.0";
+
+/// Error message when Microsoft account has no active Xbox Live profile/gamertag (XErr 2148916233)
+pub const ERR_XSTS_NO_XBOX_ACCOUNT: &str =
+    "Microsoft account does not have an active Xbox Live profile. Please sign in to https://www.xbox.com or the Xbox app on Windows to create a Gamertag before linking your account.";
+
+/// Error message when account belongs to a minor without family organizer permission (XErr 2148916238)
+pub const ERR_XSTS_CHILD_ACCOUNT: &str =
+    "The account belongs to a minor (child/family account). It must be added to a Microsoft Family group and authorized by an adult organizer.";
+
+/// Error message when account is in an unsupported Xbox Live region (XErr 2148916235)
+pub const ERR_XSTS_REGION_UNSUPPORTED: &str =
+    "Xbox Live is not available in the country or region associated with your Microsoft account profile.";
+
+/// Error message when adult/age verification is required (XErr 2148916236, 2148916237)
+pub const ERR_XSTS_AGE_VERIFICATION_REQUIRED: &str =
+    "Adult/age verification is required. Please visit https://www.xbox.com to complete age verification.";
+
+/// Error message when user interaction or TOS acceptance is required (XErr 2148916222)
+pub const ERR_XSTS_USER_ACTION_REQUIRED: &str =
+    "Account requires user action (such as accepting updated terms of service). Please sign in to https://www.xbox.com to confirm.";
+
+/// Generic error message for HTTP 403 Forbidden on Xbox XSTS
+pub const ERR_XSTS_FORBIDDEN_GENERIC: &str =
+    "Access forbidden (403 Forbidden) during Xbox XSTS authorization. Verify that your Microsoft account has access to Xbox Live or try again later.";
+
+/// Response payload returned by Xbox Live / XSTS when authorization fails (HTTP 400, 401, 403)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct XstsErrorPayload {
+    #[serde(rename = "Identity", default)]
+    pub identity: Option<String>,
+    #[serde(rename = "XErr", default)]
+    pub xerr: Option<serde_json::Value>,
+    #[serde(rename = "Message", default)]
+    pub message: Option<String>,
+    #[serde(rename = "Redirect", default)]
+    pub redirect: Option<String>,
+}
+
+/// Formats Xbox XSTS authorization errors into actionable diagnostic messages
+pub fn format_xsts_error(status: reqwest::StatusCode, body: &str) -> String {
+    if let Ok(err) = serde_json::from_str::<XstsErrorPayload>(body) {
+        let parsed_code = match &err.xerr {
+            Some(serde_json::Value::Number(n)) => n.as_u64(),
+            Some(serde_json::Value::String(s)) => {
+                if s.starts_with("0x") || s.starts_with("0X") {
+                    u64::from_str_radix(&s[2..], 16).ok()
+                } else {
+                    s.parse::<u64>().ok()
+                }
+            }
+            _ => None,
+        };
+
+        if let Some(code) = parsed_code {
+            return match code {
+                2148916233 => ERR_XSTS_NO_XBOX_ACCOUNT.to_string(),
+                2148916238 => ERR_XSTS_CHILD_ACCOUNT.to_string(),
+                2148916235 => ERR_XSTS_REGION_UNSUPPORTED.to_string(),
+                2148916236 | 2148916237 => ERR_XSTS_AGE_VERIFICATION_REQUIRED.to_string(),
+                2148916222 => ERR_XSTS_USER_ACTION_REQUIRED.to_string(),
+                custom_code => {
+                    let msg = err
+                        .message
+                        .as_deref()
+                        .unwrap_or("Access denied by Xbox Live service");
+                    format!("Xbox XSTS authorization failed ({status}) [XErr {custom_code}]: {msg}")
+                }
+            };
+        }
+    }
+
+    if status.as_u16() == 403 {
+        format!("{ERR_XSTS_FORBIDDEN_GENERIC}: {body}")
+    } else {
+        format!("Xbox XSTS authorization failed ({status}): {body}")
+    }
+}
+
 /// Response from Xbox Live user authenticate or XSTS authorize endpoint
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct XboxLiveAuthResponse {
@@ -183,6 +264,8 @@ pub async fn authenticate_xbox_live(
     tracing::debug!("Requesting Xbox Live user token from user.auth.xboxlive.com");
     let user_resp = client
         .post("https://user.auth.xboxlive.com/user/authenticate")
+        .header("User-Agent", XBOX_USER_AGENT)
+        .header("x-xbl-contract-version", "1")
         .header("Content-Type", "application/json")
         .header("Accept", "application/json")
         .json(&user_auth_payload)
@@ -193,6 +276,11 @@ pub async fn authenticate_xbox_live(
     if !user_resp.status().is_success() {
         let status = user_resp.status();
         let body = user_resp.text().await.unwrap_or_default();
+        if status.as_u16() == 400 || status.as_u16() == 401 {
+            return Err(PluginError::SessionExpired(format!(
+                "Xbox user authentication token expired ({status}): {body}"
+            )));
+        }
         return Err(PluginError::Other(format!(
             "Xbox user authentication failed ({status}): {body}"
         )));
@@ -217,6 +305,8 @@ pub async fn authenticate_xbox_live(
     tracing::debug!("Authorizing XSTS token with xsts.auth.xboxlive.com");
     let xsts_resp = client
         .post("https://xsts.auth.xboxlive.com/xsts/authorize")
+        .header("User-Agent", XBOX_USER_AGENT)
+        .header("x-xbl-contract-version", "1")
         .header("Content-Type", "application/json")
         .header("Accept", "application/json")
         .json(&xsts_payload)
@@ -227,9 +317,7 @@ pub async fn authenticate_xbox_live(
     if !xsts_resp.status().is_success() {
         let status = xsts_resp.status();
         let body = xsts_resp.text().await.unwrap_or_default();
-        return Err(PluginError::Other(format!(
-            "Xbox XSTS authorization failed ({status}): {body}"
-        )));
+        return Err(PluginError::Other(format_xsts_error(status, &body)));
     }
 
     let xsts_auth: XboxLiveAuthResponse = xsts_resp.json().await.map_err(|e| {
@@ -249,8 +337,16 @@ pub async fn authenticate_xbox_live(
         })?;
 
     let uhs = claim.uhs.clone();
-    let gtg = claim.gtg.clone().unwrap_or_else(|| "Xbox User".to_string());
-    let account_id = claim.xid.clone().unwrap_or_else(|| uhs.clone());
+    let gtg = claim
+        .gtg
+        .clone()
+        .or_else(|| user_auth.display_claims.xui.first().and_then(|u| u.gtg.clone()))
+        .unwrap_or_else(|| "Xbox User".to_string());
+    let account_id = claim
+        .xid
+        .clone()
+        .or_else(|| user_auth.display_claims.xui.first().and_then(|u| u.xid.clone()))
+        .unwrap_or_else(|| uhs.clone());
 
     // Parse token expiration if present or default to 24h
     let expires_at = xsts_auth
@@ -287,6 +383,7 @@ pub async fn refresh_session_token(
 
     if let Ok(resp) = client
         .post("https://login.live.com/oauth20_token.srf")
+        .header("User-Agent", XBOX_USER_AGENT)
         .form(&params)
         .send()
         .await
@@ -326,38 +423,73 @@ pub async fn fetch_user_titles(
         format!("XBL3.0 x={};{}", session.user_id, session.access_token)
     };
 
-    let endpoint =
-        "https://titlehub.xboxlive.com/users/me/titles/titlehistory/decoration/scid,image,detail";
-    tracing::debug!("Fetching Xbox title history from TitleHub endpoint: {endpoint}");
+    let candidate_endpoints = if !session.user_id.is_empty()
+        && session.user_id.chars().all(|c| c.is_ascii_digit())
+    {
+        vec![
+            format!(
+                "https://titlehub.xboxlive.com/users/xuid({})/titles/titlehistory/decoration/scid,image,detail",
+                session.user_id
+            ),
+            "https://titlehub.xboxlive.com/users/me/titles/titlehistory/decoration/scid,image,detail".to_string(),
+        ]
+    } else {
+        vec![
+            "https://titlehub.xboxlive.com/users/me/titles/titlehistory/decoration/scid,image,detail".to_string(),
+        ]
+    };
 
-    let resp = client
-        .get(endpoint)
-        .header("x-xbl-contract-version", "2")
-        .header("X-Authorization", &auth_header_value)
-        .header("Authorization", &auth_header_value)
-        .header("Accept", "application/json")
-        .send()
-        .await
-        .map_err(|e| PluginError::Other(format!("Failed to connect to TitleHub: {e}")))?;
+    let mut last_error = None;
+    let mut session_expired = false;
+    for endpoint in candidate_endpoints {
+        tracing::debug!("Fetching Xbox title history from TitleHub endpoint: {endpoint}");
 
-    if !resp.status().is_success() {
-        let status = resp.status();
-        let body = resp.text().await.unwrap_or_default();
-        return Err(PluginError::Other(format!(
-            "TitleHub request failed ({status}): {body}"
-        )));
+        let resp = client
+            .get(&endpoint)
+            .header("User-Agent", XBOX_USER_AGENT)
+            .header("x-xbl-contract-version", "2")
+            .header("Authorization", &auth_header_value)
+            .header("Accept", "application/json")
+            .send()
+            .await;
+
+        match resp {
+            Ok(r) if r.status().is_success() => {
+                let history: XboxTitleHistoryResponse = r.json().await.map_err(|e| {
+                    PluginError::Parse(format!("Failed to parse TitleHub title history: {e}"))
+                })?;
+
+                let games = history
+                    .titles
+                    .into_iter()
+                    .map(|item| map_title_to_discovered_game(&item))
+                    .collect();
+
+                return Ok(games);
+            }
+            Ok(r) => {
+                let status = r.status();
+                if status == reqwest::StatusCode::UNAUTHORIZED {
+                    session_expired = true;
+                }
+                let body = r.text().await.unwrap_or_default();
+                last_error = Some(format!("TitleHub request failed ({status}): {body}"));
+            }
+            Err(e) => {
+                last_error = Some(format!("Failed to connect to TitleHub: {e}"));
+            }
+        }
     }
 
-    let history: XboxTitleHistoryResponse = resp
-        .json()
-        .await
-        .map_err(|e| PluginError::Parse(format!("Failed to parse TitleHub title history: {e}")))?;
+    if session_expired {
+        return Err(PluginError::SessionExpired(
+            last_error.unwrap_or_else(|| {
+                "Xbox Live XSTS session expired (401 Unauthorized)".to_string()
+            }),
+        ));
+    }
 
-    let games = history
-        .titles
-        .into_iter()
-        .map(|item| map_title_to_discovered_game(&item))
-        .collect();
-
-    Ok(games)
+    Err(PluginError::Other(
+        last_error.unwrap_or_else(|| "Failed to fetch Xbox title history from TitleHub".to_string()),
+    ))
 }
