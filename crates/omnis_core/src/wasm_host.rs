@@ -164,6 +164,11 @@ pub struct WasmPluginEngine {
 impl WasmPluginEngine {
     pub fn new(config: WasmSandboxConfig) -> Result<Self, WasmExecutionError> {
         let mut wasm_config = Config::new();
+        // Consume fuel is enabled on non-Windows targets.
+        // On Windows MSVC, Wasmtime 25 Cranelift fuel traps collide with SEH unwinding
+        // across non-unwinding trampolines (leading to STATUS_STACK_BUFFER_OVERRUN).
+        // Epoch interruption handles execution timeout and loop breaking portably on all platforms.
+        #[cfg(not(windows))]
         wasm_config.consume_fuel(true);
         wasm_config.epoch_interruption(true);
 
@@ -200,12 +205,15 @@ impl WasmPluginEngine {
         let perms = WasmPluginPermissions::from_manifest_permissions(permissions);
         let state = WasmHostState::new(perms);
         let mut store = Store::new(&self.engine, state);
-        let fuel = if self.config.fuel_limit == 0 {
-            u64::MAX
-        } else {
-            self.config.fuel_limit
-        };
-        let _ = store.set_fuel(fuel);
+        #[cfg(not(windows))]
+        {
+            let fuel = if self.config.fuel_limit == 0 {
+                u64::MAX
+            } else {
+                self.config.fuel_limit
+            };
+            let _ = store.set_fuel(fuel);
+        }
         store.set_epoch_deadline(1);
 
         let mut linker = Linker::new(&self.engine);
@@ -219,19 +227,22 @@ impl WasmPluginEngine {
                     if ptr < 0 || len < 0 {
                         return -1;
                     }
-                    let memory = match caller.get_export("memory") {
-                        Some(Extern::Memory(m)) => m,
-                        _ => return -1,
-                    };
-                    let data = memory.data(&caller);
-                    let start = ptr as usize;
-                    let end = start.saturating_add(len as usize);
-                    if end > data.len() {
-                        return -1;
-                    }
-                    let msg = String::from_utf8_lossy(&data[start..end]).to_string();
-                    caller.data_mut().logs.push(msg);
-                    0
+                    let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        let memory = match caller.get_export("memory") {
+                            Some(Extern::Memory(m)) => m,
+                            _ => return -1,
+                        };
+                        let data = memory.data(&caller);
+                        let start = ptr as usize;
+                        let end = start.saturating_add(len as usize);
+                        if end > data.len() {
+                            return -1;
+                        }
+                        let msg = String::from_utf8_lossy(&data[start..end]).to_string();
+                        caller.data_mut().logs.push(msg);
+                        0
+                    }));
+                    res.unwrap_or(-1)
                 },
             )
             .map_err(|e| {
@@ -248,22 +259,25 @@ impl WasmPluginEngine {
                     if ptr < 0 || len < 0 {
                         return 0;
                     }
-                    let memory = match caller.get_export("memory") {
-                        Some(Extern::Memory(m)) => m,
-                        _ => return 0,
-                    };
-                    let data = memory.data(&caller);
-                    let start = ptr as usize;
-                    let end = start.saturating_add(len as usize);
-                    if end > data.len() {
-                        return 0;
-                    }
-                    let target = String::from_utf8_lossy(&data[start..end]);
-                    if caller.data().permissions.is_domain_allowed(&target) {
-                        1
-                    } else {
-                        0
-                    }
+                    let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        let memory = match caller.get_export("memory") {
+                            Some(Extern::Memory(m)) => m,
+                            _ => return 0,
+                        };
+                        let data = memory.data(&caller);
+                        let start = ptr as usize;
+                        let end = start.saturating_add(len as usize);
+                        if end > data.len() {
+                            return 0;
+                        }
+                        let target = String::from_utf8_lossy(&data[start..end]);
+                        if caller.data().permissions.is_domain_allowed(&target) {
+                            1
+                        } else {
+                            0
+                        }
+                    }));
+                    res.unwrap_or(0)
                 },
             )
             .map_err(|e| {
@@ -423,13 +437,16 @@ impl WasmPluginInstance {
             }
         };
 
-        // Reset instruction fuel
-        let fuel = if self.config.fuel_limit == 0 {
-            u64::MAX
-        } else {
-            self.config.fuel_limit
-        };
-        let _ = self.store.set_fuel(fuel);
+        // Reset instruction fuel on supported platforms (non-Windows)
+        #[cfg(not(windows))]
+        {
+            let fuel = if self.config.fuel_limit == 0 {
+                u64::MAX
+            } else {
+                self.config.fuel_limit
+            };
+            let _ = self.store.set_fuel(fuel);
+        }
 
         // Configure epoch deadline (1 tick ahead of engine epoch)
         self.store.set_epoch_deadline(1);

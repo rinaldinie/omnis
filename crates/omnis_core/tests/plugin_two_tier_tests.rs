@@ -127,6 +127,7 @@ fn test_tier2_wasm_infinite_loop_terminated_by_epoch_interruption() {
 }
 
 #[test]
+#[cfg(not(windows))]
 fn test_tier2_wasm_fuel_exhaustion() {
     let wat = r#"
         (module
