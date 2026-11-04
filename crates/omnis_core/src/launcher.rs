@@ -742,13 +742,17 @@ impl GameLauncher {
 
         while get_steam_running_appid() == Some(appid) {
             if tracked_pid > 0 {
-                ProcessTracker::track_until_exit(tracked_pid, target_name, target_dir, on_phase).await;
+                ProcessTracker::track_until_exit(tracked_pid, target_name, target_dir, on_phase)
+                    .await;
                 tracked_pid = 0;
             }
             if get_steam_running_appid() != Some(appid) {
                 break;
             }
-            if let Some(next_pid) = ProcessTracker::detect_process(target_name, target_dir, Duration::from_millis(500)).await {
+            if let Some(next_pid) =
+                ProcessTracker::detect_process(target_name, target_dir, Duration::from_millis(500))
+                    .await
+            {
                 tracked_pid = next_pid;
                 on_phase(TrackingPhase::Running(tracked_pid));
                 continue;
