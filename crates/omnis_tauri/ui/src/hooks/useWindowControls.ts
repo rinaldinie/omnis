@@ -31,11 +31,18 @@ export function useWindowControls() {
     });
   };
 
+  const handleExit = () => {
+    api.window.exitApp().catch((err) => {
+      console.warn("Window exit failed:", err);
+    });
+  };
+
   return {
     handleMinimize,
     handleUnminimize,
     handleSetFocus,
     handleToggleMaximize,
     handleClose,
+    handleExit,
   };
 }

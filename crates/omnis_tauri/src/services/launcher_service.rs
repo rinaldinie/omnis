@@ -23,8 +23,8 @@ pub struct WindowStateSnapshot {
 }
 
 impl WindowStateSnapshot {
-    /// Captures the current window state and minimizes it in preparation for game launch.
-    pub fn capture_and_minimize(app_handle: &tauri::AppHandle) -> Self {
+    /// Captures the current window state without minimizing immediately.
+    pub fn capture(app_handle: &tauri::AppHandle) -> Self {
         let mut snapshot = Self::default();
         if let Some(window) = app_handle.get_webview_window("main") {
             snapshot.was_fullscreen = window.is_fullscreen().unwrap_or(false);
@@ -33,7 +33,6 @@ impl WindowStateSnapshot {
 
             // Grant foreground permission in advance to bypass OS restrictions
             omnis_core::launcher::allow_set_foreground_window();
-            let _ = window.minimize();
         }
         snapshot
     }
@@ -44,19 +43,19 @@ impl WindowStateSnapshot {
             return;
         }
 
-        tokio::time::sleep(std::time::Duration::from_millis(350)).await;
-
         if let Some(window) = app_handle.get_webview_window("main") {
             omnis_core::launcher::allow_set_foreground_window();
 
-            let _ = window.unminimize();
-            let _ = window.show();
-            let _ = window.set_focus();
-
             if self.was_fullscreen {
-                tokio::time::sleep(std::time::Duration::from_millis(150)).await;
+                // In fullscreen / console mode, Omnis was kept fullscreen behind the game:
+                // simply restore focus and ensure fullscreen state smoothly with zero desktop flicker
+                let _ = window.set_focus();
                 let _ = window.set_fullscreen(true);
             } else {
+                tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+                let _ = window.unminimize();
+                let _ = window.show();
+                let _ = window.set_focus();
                 if let Some(pos) = self.prev_pos {
                     let _ = window.set_position(tauri::Position::Physical(pos));
                 }
@@ -113,8 +112,8 @@ impl GameLaunchCoordinator {
         // Record start session in database
         let _ = state.db.start_play_session(session_id, id, started_at);
 
-        // Capture window state & minimize
-        let window_snapshot = WindowStateSnapshot::capture_and_minimize(app_handle);
+        // Capture window state without immediate minimization (main window shows launch transition overlay until process starts)
+        let window_snapshot = WindowStateSnapshot::capture(app_handle);
 
         // Emit game-started event
         let _ = app_handle.emit(
@@ -218,6 +217,7 @@ impl GameLaunchCoordinator {
         let sid_for_pid = session_id_str.clone();
         let gid_for_pid = id.to_string();
 
+        let was_fs = window_snapshot.was_fullscreen;
         let track_res = GameLauncher::launch_and_track(id, config, install_dir, move |pid| {
             let mgr = active_mgr_for_pid.clone();
             let app = app_for_pid.clone();
@@ -233,8 +233,11 @@ impl GameLaunchCoordinator {
                     }),
                 );
 
-                if let Some(window) = app.get_webview_window("main") {
-                    let _ = window.minimize();
+                // In fullscreen / console mode, keep Omnis fullscreen behind the game so the OS desktop is never exposed
+                if !was_fs {
+                    if let Some(window) = app.get_webview_window("main") {
+                        let _ = window.minimize();
+                    }
                 }
 
                 if pid > 0 {

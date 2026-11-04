@@ -10,8 +10,11 @@ fn test_is_blacklisted_process() {
     assert!(is_blacklisted_process("vcredist_x64.exe"));
     assert!(is_blacklisted_process("dxsetup.exe"));
     assert!(is_blacklisted_process("CrashReportClient.exe"));
+    assert!(is_blacklisted_process("UbisoftConnectInstaller.exe"));
+    assert!(is_blacklisted_process("unins000.exe"));
     assert!(!is_blacklisted_process("Doom.exe"));
     assert!(!is_blacklisted_process("Cyberpunk2077.exe"));
+    assert!(!is_blacklisted_process("TheLostCrown.exe"));
 }
 
 #[test]
@@ -43,6 +46,108 @@ fn test_is_uri_command() {
         tracking_mode: ProcessTrackingMode::KernelJobObject,
     };
     assert!(!is_uri_command(&direct_cfg));
+
+    // Epic and Xbox plugins put the launch URI straight into the executable field: treating these
+    // as binaries makes the spawn fail with "program not found" and the game never starts
+    let epic_cfg = LaunchConfiguration {
+        executable: "com.epicgames.launcher://apps/Fortnite?action=launch&silent=true".to_string(),
+        arguments: vec![],
+        working_dir: None,
+        tracking_mode: ProcessTrackingMode::ProcessName("FortniteClient.exe".to_string()),
+    };
+    assert!(is_uri_command(&epic_cfg));
+
+    let xbox_cfg = LaunchConfiguration {
+        executable: "ms-windows-store://pdp/?ProductId=9NBLGGGZ5155".to_string(),
+        arguments: vec![],
+        working_dir: None,
+        tracking_mode: ProcessTrackingMode::KernelJobObject,
+    };
+    assert!(is_uri_command(&xbox_cfg));
+
+    let gog_cfg = LaunchConfiguration {
+        executable: "goggalaxy://openGameView/1207658924".to_string(),
+        arguments: vec![],
+        working_dir: None,
+        tracking_mode: ProcessTrackingMode::KernelJobObject,
+    };
+    assert!(is_uri_command(&gog_cfg));
+
+    // Synthesized Windows protocol dispatch
+    let rundll_cfg = LaunchConfiguration {
+        executable: "rundll32.exe".to_string(),
+        arguments: vec![
+            "url.dll,FileProtocolHandler".to_string(),
+            "steam://rungameid/400".to_string(),
+        ],
+        working_dir: None,
+        tracking_mode: ProcessTrackingMode::KernelJobObject,
+    };
+    assert!(is_uri_command(&rundll_cfg));
+}
+
+#[test]
+fn test_process_file_name() {
+    // Epic stores the launch target relative to the install location
+    assert_eq!(
+        process_file_name("FortniteGame/Binaries/Win64/FortniteClient-Win64-Shipping.exe"),
+        "FortniteClient-Win64-Shipping.exe"
+    );
+    assert_eq!(
+        process_file_name("Binaries\\\\Win64\\\\Game.exe"),
+        "Game.exe"
+    );
+    assert_eq!(process_file_name("Doom.exe"), "Doom.exe");
+    assert_eq!(process_file_name(""), "");
+}
+
+#[test]
+fn test_is_launch_uri() {
+    assert!(is_launch_uri("steam://rungameid/400"));
+    assert!(is_launch_uri("goggalaxy://openGameView/1207658924"));
+    assert!(is_launch_uri(
+        "com.epicgames.launcher://apps/Sugar?action=launch"
+    ));
+    assert!(is_launch_uri(
+        "ms-windows-store://pdp/?ProductId=9NBLGGGZ51"
+    ));
+
+    assert!(!is_launch_uri("C:\\Games\\Doom\\Doom.exe"));
+    assert!(!is_launch_uri("/usr/bin/doom"));
+    assert!(!is_launch_uri("Doom.exe"));
+    assert!(!is_launch_uri(""));
+    // A drive letter is a one-character "scheme" and must never be mistaken for a protocol
+    assert!(!is_launch_uri("C://Games/Doom/Doom.exe"));
+    // A UNC path with a doubled separator has no alphanumeric-only scheme
+    assert!(!is_launch_uri("\\\\server\\share://games"));
+}
+
+#[test]
+fn test_launch_phase_callback_reports_pid_once() {
+    use std::sync::Mutex;
+
+    let seen: Arc<Mutex<Vec<TrackingPhase>>> = Arc::new(Mutex::new(Vec::new()));
+    let sink = seen.clone();
+    let on_phase: PhaseCallback = Arc::new(move |phase| {
+        sink.lock().unwrap().push(phase);
+    });
+
+    // A trampoline handover produces several transitions on one session
+    on_phase(TrackingPhase::Running(100));
+    on_phase(TrackingPhase::Exiting);
+    on_phase(TrackingPhase::Running(200));
+    on_phase(TrackingPhase::Exiting);
+
+    let recorded = seen.lock().unwrap().clone();
+    assert_eq!(
+        recorded,
+        vec![
+            TrackingPhase::Running(100),
+            TrackingPhase::Exiting,
+            TrackingPhase::Running(200),
+            TrackingPhase::Exiting,
+        ]
+    );
 }
 
 #[test]

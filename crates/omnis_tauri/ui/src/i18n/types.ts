@@ -358,6 +358,7 @@ export interface TranslationSchema {
     stats_breakdown: string;
     session_time: string;
     total_playtime: string;
+    running: string;
   };
   app_status: {
     theme_activated: string;

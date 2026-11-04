@@ -455,7 +455,7 @@ export default function App() {
   );
 
   // WINDOW CONTROLS HOOK
-  const { handleMinimize, handleToggleMaximize, handleClose } = useWindowControls();
+  const { handleMinimize, handleToggleMaximize, handleClose, handleExit } = useWindowControls();
 
   const currentGroupLabel = useMemo(() => {
     switch (groupBy) {
@@ -671,7 +671,7 @@ export default function App() {
             setShowPluginModal={setShowPluginModal}
             toggleFullscreen={toggleFullscreen}
             handleMinimize={handleMinimize}
-            handleClose={handleClose}
+            handleClose={handleExit}
             handleToggleMaximize={handleToggleMaximize}
             handleStartDragging={handleStartDragging}
             handleLaunch={handleLaunch}

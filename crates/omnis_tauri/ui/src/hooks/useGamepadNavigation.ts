@@ -676,8 +676,8 @@ export function useGamepadNavigation({
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Delegate key events if Virtual Keyboard modal is open or during active game suspension
-      if (showVirtualKeyboard || isSuspended) return;
+      // Delegate key events if Virtual Keyboard modal is open
+      if (showVirtualKeyboard) return;
 
       const target = e.target as HTMLElement | null;
       if (target?.tagName === "INPUT" || target?.tagName === "TEXTAREA" || target?.isContentEditable) return;
@@ -725,7 +725,8 @@ export function useGamepadNavigation({
               soundEffects.playSelect();
               setShowFullscreenDetails(false);
             }
-          } else if (e.key === "Enter") {
+          } else if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
             window.dispatchEvent(new CustomEvent("omnis:details-action-a"));
           } else if (e.key === "ArrowLeft") {
             window.dispatchEvent(
@@ -755,7 +756,8 @@ export function useGamepadNavigation({
               soundEffects.playSelect();
               setIsMenuOpen(false);
             }
-          } else if (e.key === "Enter") {
+          } else if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
             window.dispatchEvent(new CustomEvent("omnis:menu-action-a"));
           } else if (e.key === "ArrowUp") {
             window.dispatchEvent(
@@ -800,7 +802,7 @@ export function useGamepadNavigation({
           if (e.key === "ArrowDown") {
             soundEffects.playNav();
             setHomeFocusZone(hasRecentRow ? "recent" : "carousel");
-          } else if (e.key === "Enter") {
+          } else if (e.key === "Enter" || e.key === " ") {
             soundEffects.playSelect();
             setIsMenuOpen(true);
           } else if (e.key === "Escape") {

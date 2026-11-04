@@ -6,6 +6,7 @@ mod tests;
 
 use omnis_sdk::{LaunchConfiguration, ProcessTrackingMode};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use sysinfo::{Pid, System};
 use thiserror::Error;
@@ -22,6 +23,36 @@ pub enum LaunchError {
     ProcessNotFound,
     #[error("Process monitoring error: {0}")]
     MonitoringFailed(String),
+}
+
+/// How long a launcher trampoline is given to hand the session over to the real game process.
+///
+/// Store clients frequently spawn the game and exit within a second or two; without a handoff
+/// window the session would be recorded as a few seconds long and the host would bring its own
+/// window back over a game that is still starting up.
+const TRAMPOLINE_HANDOFF_SECS: u64 = 10;
+
+/// Lifecycle phase of a tracked game process, reported to the host while the session runs.
+///
+/// A plain session reports `Running` once and `Exiting` once. Launcher trampolines produce more
+/// transitions: every `Exiting` may be followed by another `Running` when a replacement process
+/// takes over within the exit grace window, so the host must treat these as a state machine
+/// rather than as one-shot notifications.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TrackingPhase {
+    /// A game process is live. `pid` is 0 when the title could not be tied to any local process.
+    Running(u32),
+    /// The tracked process terminated. The exit grace window is now open, so a further `Running`
+    /// phase may still follow.
+    Exiting,
+}
+
+/// Host callback invoked on every tracking phase transition. Must be cheap and must not block.
+pub type PhaseCallback = Arc<dyn Fn(TrackingPhase) + Send + Sync>;
+
+/// Builds a phase callback that discards every transition.
+pub fn noop_phase_callback() -> PhaseCallback {
+    Arc::new(|_| {})
 }
 
 /// Blacklist of common helper processes, redistributable installers, and crash reporters
@@ -62,6 +93,20 @@ pub const BLACKLISTED_PROCESS_NAMES: &[&str] = &[
 pub fn is_blacklisted_process(name: &str) -> bool {
     let lower = name.to_lowercase();
     let clean = lower.strip_suffix(".exe").unwrap_or(&lower);
+
+    // Filter out common installers, updaters, and redistributable setup binaries
+    if clean.contains("installer")
+        || clean.contains("setup")
+        || clean.contains("unins")
+        || clean.contains("vcredist")
+        || clean.contains("dxsetup")
+        || clean.contains("crashreporter")
+        || clean.contains("crashreport")
+        || clean.contains("crashhandler")
+    {
+        return true;
+    }
+
     BLACKLISTED_PROCESS_NAMES.iter().any(|b| {
         let b_clean = b.strip_suffix(".exe").unwrap_or(b);
         lower == *b || clean == b_clean || lower.ends_with(b)
@@ -200,15 +245,99 @@ pub fn find_gog_game_executable(install_dir: &Path) -> Option<PathBuf> {
     None
 }
 
+/// Heuristic: Locate primary game executable from an install directory by scanning for valid, non-blacklisted binaries
+pub fn find_primary_game_executable(install_dir: &Path) -> Option<PathBuf> {
+    if !install_dir.is_dir() {
+        return None;
+    }
+
+    let mut candidates = Vec::new();
+    let mut search_dirs = vec![install_dir.to_path_buf()];
+
+    if let Ok(entries) = std::fs::read_dir(install_dir) {
+        for entry in entries.flatten() {
+            let p = entry.path();
+            if p.is_dir() {
+                let name = p
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_lowercase();
+                if ["bin", "binaries", "x64", "win64", "win32", "game"].contains(&name.as_str()) {
+                    search_dirs.push(p);
+                }
+            }
+        }
+    }
+
+    for dir in search_dirs {
+        if let Ok(entries) = std::fs::read_dir(&dir) {
+            for entry in entries.flatten() {
+                let p = entry.path();
+                if p.is_file() {
+                    if let Some(ext) = p.extension() {
+                        if ext.eq_ignore_ascii_case("exe") {
+                            if let Some(fname) = p.file_name().and_then(|n| n.to_str()) {
+                                if !is_blacklisted_process(fname) {
+                                    candidates.push(p);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Prefer candidate in shallower directory depth (root of install folder)
+    candidates.sort_by_key(|p| p.components().count());
+    candidates.into_iter().next()
+}
+
 /// Helper function to detect if a launch configuration is a shell/URI invocation
 pub fn is_uri_command(config: &LaunchConfiguration) -> bool {
+    if is_launch_uri(&config.executable) {
+        return true;
+    }
+
     let exe = config.executable.to_lowercase();
     let is_cmd = exe.ends_with("cmd.exe") || exe == "cmd";
     let is_start = config
         .arguments
         .iter()
         .any(|a| a.eq_ignore_ascii_case("start"));
-    (is_cmd && is_start) || exe == "xdg-open" || exe == "open"
+    if is_cmd && is_start {
+        return true;
+    }
+    if exe == "xdg-open" || exe == "open" {
+        return true;
+    }
+
+    // Synthesized Windows protocol dispatch: rundll32.exe url.dll,FileProtocolHandler <uri>
+    exe.ends_with("rundll32.exe")
+        && config
+            .arguments
+            .iter()
+            .any(|a| a.to_lowercase().contains("fileprotocolhandler"))
+}
+
+/// Returns true when a launch target is a protocol URI (`steam://`, `com.epicgames.launcher://`,
+/// `ms-windows-store://`, ...) rather than a filesystem path.
+///
+/// Store plugins may place the URI directly in `LaunchConfiguration::executable`. Spawning that
+/// string as a program can never succeed, so it has to be handed to the OS protocol handler.
+pub fn is_launch_uri(value: &str) -> bool {
+    let Some(idx) = value.find("://") else {
+        return false;
+    };
+    let scheme = &value[..idx];
+    // A single-character scheme is a Windows drive letter ("C://Games"), never a protocol
+    if scheme.len() < 2 {
+        return false;
+    }
+    scheme
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '+' | '-'))
 }
 
 /// Helper function to check if child path is located within parent directory,
@@ -251,6 +380,15 @@ pub fn path_contains(parent: &Path, child: &Path) -> bool {
         }
     }
     false
+}
+
+/// Reduces a tracking target to a bare process file name.
+///
+/// Plugins may hand over a path-qualified executable: Epic manifests store the launch target as
+/// `Game/Binaries/Win64/Game.exe` relative to the install location. Such a string can never equal
+/// a running process name, so the directory part has to be dropped before matching.
+pub fn process_file_name(value: &str) -> &str {
+    value.rsplit(['/', '\\']).next().unwrap_or(value)
 }
 
 /// Helper function to determine if a running process matches target criteria,
@@ -415,13 +553,15 @@ impl GameLauncher {
         install_dir: Option<&Path>,
     ) -> Option<String> {
         match &config.tracking_mode {
-            ProcessTrackingMode::ProcessName(name) => Some(name.clone()),
+            ProcessTrackingMode::ProcessName(name) => Some(process_file_name(name).to_string()),
             _ => install_dir.and_then(|dir| {
-                find_gog_game_executable(dir).and_then(|p| {
-                    p.file_name()
-                        .and_then(|f| f.to_str())
-                        .map(|s| s.to_string())
-                })
+                find_gog_game_executable(dir)
+                    .or_else(|| find_primary_game_executable(dir))
+                    .and_then(|p| {
+                        p.file_name()
+                            .and_then(|f| f.to_str())
+                            .map(|s| s.to_string())
+                    })
             }),
         }
     }
@@ -438,6 +578,9 @@ impl GameLauncher {
 
     /// Launches a game executable with real-time process monitoring, hybrid scan+kernel wait,
     /// and exit grace period handoff (Requirements A1, A5, A6).
+    ///
+    /// Only process startup is reported. Hosts that need to know when the game exits *before* the
+    /// exit grace window elapses should use [`Self::launch_and_track_with_phases`] instead.
     pub async fn launch_and_track<F>(
         game_id: Uuid,
         config: LaunchConfiguration,
@@ -445,78 +588,87 @@ impl GameLauncher {
         on_started: F,
     ) -> Result<u64, LaunchError>
     where
-        F: FnOnce(u32) + Send,
+        F: FnOnce(u32) + Send + 'static,
     {
+        let on_started = std::sync::Mutex::new(Some(on_started));
+        let on_phase: PhaseCallback = Arc::new(move |phase| {
+            if let TrackingPhase::Running(pid) = phase {
+                if let Ok(mut slot) = on_started.lock() {
+                    if let Some(callback) = slot.take() {
+                        callback(pid);
+                    }
+                }
+            }
+        });
+        Self::launch_and_track_with_phases(game_id, config, install_dir, on_phase).await
+    }
+
+    /// Launches a game and reports every tracking phase transition to `on_phase`.
+    ///
+    /// The exit phase is reported the instant the kernel signals the process death, before the
+    /// grace window that waits for a possible replacement process. A host can therefore cover the
+    /// screen for exactly as long as no game window is up, instead of guessing at fixed delays.
+    pub async fn launch_and_track_with_phases(
+        game_id: Uuid,
+        config: LaunchConfiguration,
+        install_dir: Option<PathBuf>,
+        on_phase: PhaseCallback,
+    ) -> Result<u64, LaunchError> {
         let target_name = Self::resolve_target_name(&config, install_dir.as_deref());
         let target_dir = Self::resolve_target_dir(&config, install_dir);
 
         if is_uri_command(&config) {
-            Self::launch_and_track_uri(game_id, config, target_name, target_dir, on_started).await
+            Self::launch_and_track_uri(game_id, config, target_name, target_dir, on_phase).await
         } else {
-            Self::launch_and_track_binary(config, target_name, target_dir, on_started).await
+            Self::launch_and_track_binary(config, target_name, target_dir, on_phase).await
         }
     }
 
     /// Launches a URI/shell game command and tracks its lifecycle using process polling or Steam AppID detection.
-    pub async fn launch_and_track_uri<F>(
+    pub async fn launch_and_track_uri(
         game_id: Uuid,
         config: LaunchConfiguration,
         target_name: Option<String>,
         target_dir: Option<PathBuf>,
-        on_started: F,
-    ) -> Result<u64, LaunchError>
-    where
-        F: FnOnce(u32) + Send,
-    {
+        on_phase: PhaseCallback,
+    ) -> Result<u64, LaunchError> {
         ProcessTracker::spawn_uri_command(&config).await?;
 
+        // The AppID may sit in the executable (plugin-provided URI) or in the arguments
+        // (synthesized `cmd /c start "" steam://...` dispatch), so both are scanned.
         #[cfg(windows)]
-        let steam_appid: Option<u64> = config.arguments.iter().find_map(|arg| {
-            if let Some(pos) = arg.find("steam://rungameid/") {
+        let steam_appid: Option<u64> = std::iter::once(&config.executable)
+            .chain(config.arguments.iter())
+            .find_map(|arg| {
+                let pos = arg.find("steam://rungameid/")?;
                 let id_part = &arg[pos + "steam://rungameid/".len()..];
                 let clean_id: String = id_part.chars().take_while(|c| c.is_ascii_digit()).collect();
                 clean_id.parse::<u64>().ok()
-            } else {
-                None
-            }
-        });
+            });
 
         #[cfg(windows)]
         if let Some(appid) = steam_appid {
-            let wait_start = Instant::now();
-            let mut steam_detected = false;
-            while wait_start.elapsed() < Duration::from_secs(45) {
-                if get_steam_running_appid() == Some(appid) {
-                    steam_detected = true;
-                    break;
-                }
-                tokio::time::sleep(Duration::from_millis(500)).await;
-            }
-
-            if steam_detected {
-                let mut sys = System::new();
-                sys.refresh_processes();
-                let mut found_pid = 0u32;
-                for (pid, proc) in sys.processes() {
-                    if matches_target(proc, target_name.as_deref(), target_dir.as_deref()) {
-                        found_pid = pid.as_u32();
-                        break;
-                    }
-                }
-                let detection_time = Instant::now();
-                on_started(found_pid);
-
-                while get_steam_running_appid() == Some(appid) {
-                    tokio::time::sleep(Duration::from_secs(1)).await;
-                }
-
-                let duration = detection_time.elapsed().as_secs();
+            if let Some(duration) = Self::track_steam_session(
+                appid,
+                target_name.as_deref(),
+                target_dir.as_deref(),
+                &on_phase,
+            )
+            .await
+            {
                 return Ok(duration);
             }
         }
 
         if target_name.is_none() && target_dir.is_none() {
-            on_started(0);
+            // Nothing identifies the game process (e.g. a UWP/Xbox title with no install directory):
+            // the store client owns the session from here and there is nothing left to wait for.
+            tracing::warn!(
+                "Game {} has no trackable process name or directory: session will not be timed",
+                game_id
+            );
+            on_phase(TrackingPhase::Running(0));
+            on_phase(TrackingPhase::Exiting);
             return Ok(0);
         }
 
@@ -533,30 +685,88 @@ impl GameLauncher {
                     "Grace period timeout: no process found for game {}",
                     game_id
                 );
+                on_phase(TrackingPhase::Exiting);
                 return Err(LaunchError::ProcessNotFound);
             }
         };
 
         let detection_time = Instant::now();
-        on_started(real_pid);
+        on_phase(TrackingPhase::Running(real_pid));
 
-        ProcessTracker::track_until_exit(real_pid, target_name.as_deref(), target_dir.as_deref())
-            .await;
+        ProcessTracker::track_until_exit(
+            real_pid,
+            target_name.as_deref(),
+            target_dir.as_deref(),
+            &on_phase,
+        )
+        .await;
 
-        let duration = detection_time.elapsed().as_secs();
-        Ok(duration)
+        Ok(detection_time.elapsed().as_secs())
+    }
+
+    /// Tracks a title launched through the Steam client.
+    ///
+    /// Returns `Some(duration)` once Steam has reported the AppID as running, or `None` when Steam
+    /// never picked the launch up, in which case the caller falls back to plain process scanning.
+    ///
+    /// A real PID is preferred over Steam's `RunningAppID`: the kernel signals the exit instantly,
+    /// whereas the registry value lingers for seconds after the game window is already gone.
+    #[cfg(windows)]
+    async fn track_steam_session(
+        appid: u64,
+        target_name: Option<&str>,
+        target_dir: Option<&Path>,
+        on_phase: &PhaseCallback,
+    ) -> Option<u64> {
+        let wait_start = Instant::now();
+        let mut steam_detected = false;
+        while wait_start.elapsed() < Duration::from_secs(45) {
+            if get_steam_running_appid() == Some(appid) {
+                steam_detected = true;
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(250)).await;
+        }
+
+        if !steam_detected {
+            return None;
+        }
+
+        let detection_time = Instant::now();
+        let mut tracked_pid =
+            ProcessTracker::detect_process(target_name, target_dir, Duration::from_secs(30))
+                .await
+                .unwrap_or(0);
+
+        on_phase(TrackingPhase::Running(tracked_pid));
+
+        while get_steam_running_appid() == Some(appid) {
+            if tracked_pid > 0 {
+                ProcessTracker::track_until_exit(tracked_pid, target_name, target_dir, on_phase).await;
+                tracked_pid = 0;
+            }
+            if get_steam_running_appid() != Some(appid) {
+                break;
+            }
+            if let Some(next_pid) = ProcessTracker::detect_process(target_name, target_dir, Duration::from_millis(500)).await {
+                tracked_pid = next_pid;
+                on_phase(TrackingPhase::Running(tracked_pid));
+                continue;
+            }
+            tokio::time::sleep(Duration::from_millis(250)).await;
+        }
+
+        on_phase(TrackingPhase::Exiting);
+        Some(detection_time.elapsed().as_secs())
     }
 
     /// Launches a native binary game process and tracks it using kernel wait and grace period handoff.
-    pub async fn launch_and_track_binary<F>(
+    pub async fn launch_and_track_binary(
         config: LaunchConfiguration,
         target_name: Option<String>,
         target_dir: Option<PathBuf>,
-        on_started: F,
-    ) -> Result<u64, LaunchError>
-    where
-        F: FnOnce(u32) + Send,
-    {
+        on_phase: PhaseCallback,
+    ) -> Result<u64, LaunchError> {
         let mut cmd = Command::new(&config.executable);
         cmd.args(&config.arguments);
         if let Some(ref dir) = config.working_dir {
@@ -566,24 +776,36 @@ impl GameLauncher {
         let mut child = cmd.spawn()?;
         let child_pid = child.id().unwrap_or(0);
         let detection_time = Instant::now();
-        on_started(child_pid);
+        on_phase(TrackingPhase::Running(child_pid));
 
         let _status = child.wait().await?;
-        let mut duration = detection_time.elapsed().as_secs();
+        let duration = detection_time.elapsed().as_secs();
 
-        if duration < 3 && (target_name.is_some() || target_dir.is_some()) {
+        // A launcher trampoline spawns the real game and exits at once: hand tracking over to the
+        // process that took its place rather than ending the session after a couple of seconds.
+        if duration < TRAMPOLINE_HANDOFF_SECS && (target_name.is_some() || target_dir.is_some()) {
             if let Some(real_pid) = ProcessTracker::detect_process(
                 target_name.as_deref(),
                 target_dir.as_deref(),
-                Duration::from_secs(1),
+                Duration::from_secs(TRAMPOLINE_HANDOFF_SECS),
             )
             .await
             {
-                let _ = wait_for_process_exit_kernel(real_pid).await;
-                duration = detection_time.elapsed().as_secs();
+                if real_pid != child_pid {
+                    on_phase(TrackingPhase::Running(real_pid));
+                }
+                ProcessTracker::track_until_exit(
+                    real_pid,
+                    target_name.as_deref(),
+                    target_dir.as_deref(),
+                    &on_phase,
+                )
+                .await;
+                return Ok(detection_time.elapsed().as_secs());
             }
         }
 
+        on_phase(TrackingPhase::Exiting);
         Ok(duration)
     }
 
@@ -593,7 +815,7 @@ impl GameLauncher {
         on_started: F,
     ) -> Result<u64, LaunchError>
     where
-        F: FnOnce(u32) + Send,
+        F: FnOnce(u32) + Send + 'static,
     {
         Self::launch_and_track(game_id, config, None, on_started).await
     }
