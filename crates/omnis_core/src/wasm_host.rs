@@ -164,13 +164,16 @@ pub struct WasmPluginEngine {
 impl WasmPluginEngine {
     pub fn new(config: WasmSandboxConfig) -> Result<Self, WasmExecutionError> {
         let mut wasm_config = Config::new();
-        // Consume fuel is enabled on non-Windows targets.
-        // On Windows MSVC, Wasmtime 25 Cranelift fuel traps collide with SEH unwinding
-        // across non-unwinding trampolines (leading to STATUS_STACK_BUFFER_OVERRUN).
-        // Epoch interruption handles execution timeout and loop breaking portably on all platforms.
+        // Consume fuel and epoch interruption are enabled on non-Windows targets.
+        // On Windows MSVC, Wasmtime 25 Cranelift JIT traps (both fuel exhaustion and epoch interruption)
+        // collide with Windows SEH unwinding across non-unwinding extern "C" trampolines,
+        // triggering a non-unwinding panic that aborts the process (STATUS_STACK_BUFFER_OVERRUN).
+        // On Windows, timeout protection is safely provided via thread-isolated execution with channel deadlines.
         #[cfg(not(windows))]
-        wasm_config.consume_fuel(true);
-        wasm_config.epoch_interruption(true);
+        {
+            wasm_config.consume_fuel(true);
+            wasm_config.epoch_interruption(true);
+        }
 
         let engine = Engine::new(&wasm_config).map_err(|e| {
             WasmExecutionError::Instantiation(format!(
@@ -213,8 +216,8 @@ impl WasmPluginEngine {
                 self.config.fuel_limit
             };
             let _ = store.set_fuel(fuel);
+            store.set_epoch_deadline(1);
         }
-        store.set_epoch_deadline(1);
 
         let mut linker = Linker::new(&self.engine);
 
@@ -427,82 +430,154 @@ impl WasmPluginInstance {
         args: &[Val],
     ) -> Result<Box<[Val]>, WasmExecutionError> {
         let timeout_duration = self.config.timeout;
-        let func = match self.instance.get_func(&mut self.store, func_name) {
-            Some(f) => f,
-            None => {
-                return Err(WasmExecutionError::Instantiation(format!(
-                    "Function '{}' not found in Wasm module",
-                    func_name
-                )));
-            }
-        };
 
-        // Reset instruction fuel on supported platforms (non-Windows)
         #[cfg(not(windows))]
         {
+            let func = match self.instance.get_func(&mut self.store, func_name) {
+                Some(f) => f,
+                None => {
+                    return Err(WasmExecutionError::Instantiation(format!(
+                        "Function '{}' not found in Wasm module",
+                        func_name
+                    )));
+                }
+            };
+
+            // Reset instruction fuel
             let fuel = if self.config.fuel_limit == 0 {
                 u64::MAX
             } else {
                 self.config.fuel_limit
             };
             let _ = self.store.set_fuel(fuel);
-        }
 
-        // Configure epoch deadline (1 tick ahead of engine epoch)
-        self.store.set_epoch_deadline(1);
+            // Configure epoch deadline (1 tick ahead of engine epoch)
+            self.store.set_epoch_deadline(1);
 
-        // Spawn timer to trigger epoch interruption if execution exceeds timeout_duration
-        let (cancel_tx, cancel_rx) = std::sync::mpsc::channel();
-        let engine = self.engine.clone();
+            // Spawn timer to trigger epoch interruption if execution exceeds timeout_duration
+            let (cancel_tx, cancel_rx) = std::sync::mpsc::channel();
+            let engine = self.engine.clone();
 
-        let timer_thread = std::thread::spawn(move || {
-            match cancel_rx.recv_timeout(timeout_duration) {
-                Ok(_) | Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
-                    // Function returned before timeout; exit immediately with 0ms join latency
-                }
-                Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
-                    // Timeout elapsed while function was still executing: trigger epoch interruption
-                    engine.increment_epoch();
-                }
-            }
-        });
-
-        let mut results = vec![Val::I32(0); func.ty(&self.store).results().len()];
-        let res = func.call(&mut self.store, args, &mut results);
-
-        // Cancel timer thread immediately upon function return
-        let _ = cancel_tx.send(());
-        let _ = timer_thread.join();
-
-        match res {
-            Ok(_) => {
-                if let Some(err) = self.store.data_mut().last_permission_error.take() {
-                    Err(WasmExecutionError::PermissionDenied(err))
-                } else {
-                    Ok(results.into_boxed_slice())
-                }
-            }
-            Err(err) => {
-                if let Some(perm_err) = self.store.data_mut().last_permission_error.take() {
-                    return Err(WasmExecutionError::PermissionDenied(perm_err));
-                }
-                if let Some(trap) = err.downcast_ref::<Trap>() {
-                    match trap {
-                        Trap::Interrupt => {
-                            return Err(WasmExecutionError::Timeout(timeout_duration))
-                        }
-                        Trap::OutOfFuel => return Err(WasmExecutionError::OutOfFuel),
-                        _ => return Err(WasmExecutionError::Trap(format!("{:?}", trap))),
+            let timer_thread = std::thread::spawn(move || {
+                match cancel_rx.recv_timeout(timeout_duration) {
+                    Ok(_) | Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                        // Function returned before timeout; exit immediately with 0ms join latency
+                    }
+                    Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                        // Timeout elapsed while function was still executing: trigger epoch interruption
+                        engine.increment_epoch();
                     }
                 }
-                let err_str = err.to_string();
-                if err_str.contains("interrupt") || err_str.contains("epoch") {
-                    Err(WasmExecutionError::Timeout(timeout_duration))
-                } else if err_str.contains("fuel") {
-                    Err(WasmExecutionError::OutOfFuel)
-                } else {
-                    Err(WasmExecutionError::Trap(err_str))
+            });
+
+            let mut results = vec![Val::I32(0); func.ty(&self.store).results().len()];
+            let res = func.call(&mut self.store, args, &mut results);
+
+            // Cancel timer thread immediately upon function return
+            let _ = cancel_tx.send(());
+            let _ = timer_thread.join();
+
+            match res {
+                Ok(_) => {
+                    if let Some(err) = self.store.data_mut().last_permission_error.take() {
+                        Err(WasmExecutionError::PermissionDenied(err))
+                    } else {
+                        Ok(results.into_boxed_slice())
+                    }
                 }
+                Err(err) => {
+                    if let Some(perm_err) = self.store.data_mut().last_permission_error.take() {
+                        return Err(WasmExecutionError::PermissionDenied(perm_err));
+                    }
+                    if let Some(trap) = err.downcast_ref::<Trap>() {
+                        match trap {
+                            Trap::Interrupt => {
+                                return Err(WasmExecutionError::Timeout(timeout_duration))
+                            }
+                            Trap::OutOfFuel => return Err(WasmExecutionError::OutOfFuel),
+                            _ => return Err(WasmExecutionError::Trap(format!("{:?}", trap))),
+                        }
+                    }
+                    let err_str = err.to_string();
+                    if err_str.contains("interrupt") || err_str.contains("epoch") {
+                        Err(WasmExecutionError::Timeout(timeout_duration))
+                    } else if err_str.contains("fuel") {
+                        Err(WasmExecutionError::OutOfFuel)
+                    } else {
+                        Err(WasmExecutionError::Trap(err_str))
+                    }
+                }
+            }
+        }
+
+        #[cfg(windows)]
+        {
+            // On Windows MSVC, Wasmtime 25 Cranelift JIT traps trigger SEH unwinding across
+            // non-unwinding extern "C" trampolines, causing STATUS_STACK_BUFFER_OVERRUN aborts.
+            // We isolate execution inside a worker thread paired with mpsc recv_timeout to provide
+            // clean, crash-free timeout protection on Windows.
+            let mut store = std::mem::replace(
+                &mut self.store,
+                Store::new(
+                    &self.engine,
+                    WasmHostState::new(WasmPluginPermissions::default()),
+                ),
+            );
+            let instance = self.instance;
+            let func_name_owned = func_name.to_string();
+            let args_vec = args.to_vec();
+
+            let (tx, rx) = std::sync::mpsc::channel();
+            let _ = std::thread::spawn(move || {
+                let func = match instance.get_func(&mut store, &func_name_owned) {
+                    Some(f) => f,
+                    None => {
+                        let _ = tx.send((
+                            Err(WasmExecutionError::Instantiation(format!(
+                                "Function '{}' not found in Wasm module",
+                                func_name_owned
+                            ))),
+                            store,
+                        ));
+                        return;
+                    }
+                };
+
+                let mut results = vec![Val::I32(0); func.ty(&store).results().len()];
+                let res = func.call(&mut store, &args_vec, &mut results);
+
+                let final_res = match res {
+                    Ok(_) => {
+                        if let Some(err) = store.data_mut().last_permission_error.take() {
+                            Err(WasmExecutionError::PermissionDenied(err))
+                        } else {
+                            Ok(results.into_boxed_slice())
+                        }
+                    }
+                    Err(trap) => {
+                        let err_str = trap.to_string();
+                        if let Some(err) = store.data_mut().last_permission_error.take() {
+                            Err(WasmExecutionError::PermissionDenied(err))
+                        } else {
+                            Err(WasmExecutionError::Trap(err_str))
+                        }
+                    }
+                };
+
+                let _ = tx.send((final_res, store));
+            });
+
+            match rx.recv_timeout(timeout_duration) {
+                Ok((res, restored_store)) => {
+                    self.store = restored_store;
+                    res
+                }
+                Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                    Err(WasmExecutionError::Timeout(timeout_duration))
+                }
+                Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => Err(WasmExecutionError::Trap(
+                    "Plugin execution thread disconnected".to_string(),
+                )),
             }
         }
     }
