@@ -137,6 +137,8 @@ export default function DetailsSplitView({
           activeFilter={activeFilter}
           setActiveFilter={setActiveFilter}
           isFilterActive={isFilterActive}
+          handleLaunch={handleLaunch}
+          handlePromoteCopy={handlePromoteCopy}
         />
       </div>
     </div>

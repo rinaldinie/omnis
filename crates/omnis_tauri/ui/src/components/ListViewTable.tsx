@@ -478,7 +478,7 @@ export default function ListViewTable({
                   {/* 3. Store / Platform */}
                   <td className="py-1.5 px-3 whitespace-nowrap">
                     <div className="flex items-center gap-1.5">
-                      <StoreBadge library={game.library} showName={true} />
+                      <StoreBadge library={game.library} />
                       {game.other_copies && game.other_copies.length > 0 && (
                         <span
                           className="flex items-center gap-1 pl-1 border-l border-white/10"
@@ -487,16 +487,16 @@ export default function ListViewTable({
                           {game.other_copies.map((copy) => (
                             <span
                               key={copy.id}
-                              className={`inline-flex items-center justify-center w-5 h-5 rounded-full bg-white/5 border border-white/10 ${
+                              className={`inline-flex items-center justify-center p-1 rounded-full bg-slate-900/80 border border-white/20 ${
                                 copy.is_installed
-                                  ? "border-emerald-400/50 text-emerald-300"
-                                  : "text-white/70"
+                                  ? "border-emerald-400/70 text-emerald-300 ring-1 ring-emerald-400/30"
+                                  : "text-white/80"
                               }`}
                               title={`${copy.library.toUpperCase()} ${
                                 copy.is_installed ? `(${t("groups.installed")})` : ""
                               }`}
                             >
-                              <StoreIcon library={copy.library} className="w-3 h-3" />
+                              <StoreIcon library={copy.library} className="w-3.5 h-3.5" />
                             </span>
                           ))}
                         </span>

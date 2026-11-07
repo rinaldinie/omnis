@@ -478,7 +478,7 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
         <div className="w-full h-2 rounded-full bg-white/[0.05] overflow-hidden p-0.5">
           <div
             className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-amber-400 transition-all duration-500 shadow-xs"
-            style={{ width: `${Math.max(stats.percentage, 2)}%` }}
+            style={{ width: `${stats.percentage}%` }}
           />
         </div>
       )}

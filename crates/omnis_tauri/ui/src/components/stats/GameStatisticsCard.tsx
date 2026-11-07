@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { api } from "../../api";
 import { GameDto, GameStatsDto } from "../../types";
 import WeeklyBarChart from "./WeeklyBarChart";
-import { Clock, Trophy, Activity } from "lucide-react";
+import { Clock, Trophy, Activity, Hourglass } from "lucide-react";
 import { useTranslation } from "../../i18n";
 
 interface GameStatisticsCardProps {
@@ -48,31 +48,14 @@ export default function GameStatisticsCard({ game }: GameStatisticsCardProps) {
 
   if (loading) {
     return (
-      <div
-        className="p-6 rounded-xl border animate-pulse space-y-4"
-        style={{
-          backgroundColor: "var(--bg-card)",
-          borderColor: "var(--border-color)",
-        }}
-      >
-        <div
-          className="h-4 w-32 rounded mb-4"
-          style={{ backgroundColor: "var(--bg-surface)" }}
-        />
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          <div
-            className="h-14 rounded-lg"
-            style={{ backgroundColor: "var(--bg-surface)" }}
-          />
-          <div
-            className="h-14 rounded-lg"
-            style={{ backgroundColor: "var(--bg-surface)" }}
-          />
+      <div className="p-6 rounded-xl bg-white/[0.02] border border-white/[0.06] animate-pulse space-y-4">
+        <div className="h-4 w-32 rounded bg-white/[0.04] mb-4" />
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+          <div className="h-16 rounded-xl bg-white/[0.04]" />
+          <div className="h-16 rounded-xl bg-white/[0.04]" />
+          <div className="h-16 rounded-xl bg-white/[0.04]" />
         </div>
-        <div
-          className="h-28 rounded-lg"
-          style={{ backgroundColor: "var(--bg-surface)" }}
-        />
+        <div className="h-28 rounded-xl bg-white/[0.04]" />
       </div>
     );
   }
@@ -83,44 +66,45 @@ export default function GameStatisticsCard({ game }: GameStatisticsCardProps) {
       stats.longest_session_seconds > 0 ||
       stats.last_4_weeks_bars.some((w) => w.duration_seconds > 0));
 
+  // Compute total playtime: sum of primary and all other copies if present, or game's playtime
+  const totalPlaytimeSeconds =
+    game.other_copies && game.other_copies.length > 0
+      ? game.playtime_seconds +
+        game.other_copies.reduce((acc, c) => acc + (c.playtime_seconds || 0), 0)
+      : game.playtime_seconds;
+
+  const totalFormatted =
+    totalPlaytimeSeconds > 0 ? formatDuration(totalPlaytimeSeconds) : game.playtime_formatted || `0${t("statistics.min")}`;
+
   return (
-    <div
-      className="p-6 rounded-xl border space-y-4 transition-colors duration-300"
-      style={{
-        backgroundColor: "var(--bg-card)",
-        borderColor: "var(--border-color)",
-      }}
-    >
+    <div className="p-6 rounded-xl bg-white/[0.02] border border-white/[0.06] space-y-4 transition-colors duration-300">
       {/* Header */}
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold tracking-wider uppercase flex items-center gap-2 text-[var(--text-muted)]">
-          <Activity className="w-3.5 h-3.5" style={{ color: "var(--accent-primary, #6366f1)" }} />
+          <Activity className="w-3.5 h-3.5 text-indigo-400" />
           <span>{t("statistics.title")}</span>
         </span>
-        {hasData && (
-          <span
-            className="text-[10px] px-2 py-0.5 rounded-full border font-medium"
-            style={{
-              backgroundColor: "color-mix(in srgb, var(--accent-primary, #6366f1) 15%, transparent)",
-              borderColor: "color-mix(in srgb, var(--accent-primary, #6366f1) 30%, transparent)",
-              color: "var(--accent-primary, #6366f1)",
-            }}
-          >
-            {t("statistics.tracked_sessions")}
-          </span>
-        )}
       </div>
 
-      {/* Primary KPI Metrics */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* Primary KPI Metrics: Total Time, Avg Session, Longest Session */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {/* Total Playtime (Complessivo) */}
+        <div className="p-3.5 rounded-xl border border-white/[0.06] bg-white/[0.02] flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center shrink-0">
+            <Hourglass className="w-4 h-4 text-emerald-400" />
+          </div>
+          <div className="min-w-0">
+            <span className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider block truncate">
+              {t("statistics.total")}
+            </span>
+            <p className="text-sm font-bold text-white truncate">
+              {totalFormatted}
+            </p>
+          </div>
+        </div>
+
         {/* Average Session Duration */}
-        <div
-          className="p-3.5 rounded-xl border flex items-center gap-3"
-          style={{
-            backgroundColor: "color-mix(in srgb, var(--bg-surface) 60%, transparent)",
-            borderColor: "var(--border-color)",
-          }}
-        >
+        <div className="p-3.5 rounded-xl border border-white/[0.06] bg-white/[0.02] flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-sky-500/15 border border-sky-500/30 flex items-center justify-center shrink-0">
             <Clock className="w-4 h-4 text-sky-400" />
           </div>
@@ -128,20 +112,14 @@ export default function GameStatisticsCard({ game }: GameStatisticsCardProps) {
             <span className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider block truncate">
               {t("statistics.avg_session_duration")}
             </span>
-            <p className="text-sm font-bold text-[var(--text-primary)] truncate">
+            <p className="text-sm font-bold text-white truncate">
               {stats ? formatDuration(stats.average_session_seconds) : `0${t("statistics.min")}`}
             </p>
           </div>
         </div>
 
         {/* Longest Session Ever Recorded */}
-        <div
-          className="p-3.5 rounded-xl border flex items-center gap-3"
-          style={{
-            backgroundColor: "color-mix(in srgb, var(--bg-surface) 60%, transparent)",
-            borderColor: "var(--border-color)",
-          }}
-        >
+        <div className="p-3.5 rounded-xl border border-white/[0.06] bg-white/[0.02] flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center shrink-0">
             <Trophy className="w-4 h-4 text-amber-400" />
           </div>
@@ -149,29 +127,12 @@ export default function GameStatisticsCard({ game }: GameStatisticsCardProps) {
             <span className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider block truncate">
               {t("statistics.longest_session")}
             </span>
-            <p className="text-sm font-bold text-[var(--text-primary)] truncate">
+            <p className="text-sm font-bold text-white truncate">
               {stats ? formatDuration(stats.longest_session_seconds) : `0${t("statistics.min")}`}
             </p>
           </div>
         </div>
       </div>
-
-      {game.playtime_seconds > 0 && stats?.longest_session_seconds === 0 && (
-        <div
-          className="p-2.5 rounded-lg border text-[11px] text-[var(--text-muted)] flex items-center justify-between"
-          style={{
-            backgroundColor: "color-mix(in srgb, var(--bg-surface) 60%, transparent)",
-            borderColor: "var(--border-color)",
-          }}
-        >
-          <span>
-            {t("statistics.total_imported_time")}: <strong className="text-[var(--text-primary)]">{game.playtime_formatted}</strong>
-          </span>
-          <span className="text-[var(--text-muted)] opacity-80">
-            {t("statistics.detailed_sessions_hint")}
-          </span>
-        </div>
-      )}
 
       {/* 4-Week Bar Chart */}
       {stats && stats.last_4_weeks_bars && stats.last_4_weeks_bars.length > 0 ? (

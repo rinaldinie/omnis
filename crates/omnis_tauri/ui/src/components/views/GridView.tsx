@@ -107,8 +107,8 @@ const GameCardItem = React.memo(
             title={game.title}
           />
 
-          {/* Top Left: Store Badge & Status */}
-          <div data-omnis="game-card.badge" className="absolute top-2 left-2 flex items-center gap-1.5 z-10 pointer-events-none">
+          {/* Top Left: Store Badge & Status (visible on hover or focus, elevated above overlay) */}
+          <div data-omnis="game-card.badge" className="absolute top-2 left-2 flex items-center gap-1.5 z-30 pointer-events-none opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200">
             <MultiStoreBadgeGroup primaryLibrary={game.library} otherCopies={game.other_copies} />
             {game.is_hidden && (
               <span
@@ -146,7 +146,7 @@ const GameCardItem = React.memo(
 
           {/* Top Right: Score Badge */}
           {game.critic_score && (
-            <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded-md bg-black/60 backdrop-blur-sm text-[9px] font-bold text-amber-300 border border-white/10 z-10 shadow-sm pointer-events-none">
+            <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded-md bg-black/60 backdrop-blur-sm text-[9px] font-bold text-amber-300 border border-white/10 z-30 shadow-sm pointer-events-none">
               ★ {game.critic_score}
             </div>
           )}
@@ -325,8 +325,8 @@ const DesktopRecentCard = React.memo(function DesktopRecentCard({
         </span>
       )}
 
-      {/* Store Badge Top-Right */}
-      <div className="absolute top-2 right-2 z-10">
+      {/* Store Badge Top-Right (visible on hover, elevated above overlay) */}
+      <div className="absolute top-2 right-2 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
         <MultiStoreBadgeGroup primaryLibrary={game.library} otherCopies={game.other_copies} />
       </div>
 

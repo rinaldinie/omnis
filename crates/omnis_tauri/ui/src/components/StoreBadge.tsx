@@ -177,15 +177,14 @@ export function StoreBadge({
   const badgeStyle =
     variant === "brand"
       ? brandStyles
-      : "bg-white/5 border-white/10 hover:bg-white/10 text-white/90";
+      : "bg-slate-900/80 border-white/20 backdrop-blur-md hover:bg-slate-800 text-white shadow-md";
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold border transition-colors ${badgeStyle} ${className}`}
+      className={`inline-flex items-center justify-center p-1 rounded-full border transition-colors ${badgeStyle} ${className}`}
       title={title}
     >
       {icon}
-      {showName && <span>{storeName}</span>}
     </span>
   );
 }
@@ -226,12 +225,12 @@ export function MultiStoreBadgeGroup({
   return (
     <div className={`inline-flex items-center gap-1 ${className}`}>
       <StoreBadge library={primaryLibrary} variant="subtle" />
-      <div className="flex items-center gap-0.5">
+      <div className="flex items-center gap-1">
         {secondaryCopies.map((copy) => (
           <span
             key={copy.library}
-            className={`inline-flex items-center justify-center w-5 h-5 rounded-full border bg-white/5 border-white/10 backdrop-blur-sm text-white/80 transition-colors ${
-              copy.is_installed ? "border-emerald-400/50 text-emerald-300" : ""
+            className={`inline-flex items-center justify-center p-1 rounded-full border bg-slate-900/80 border-white/20 backdrop-blur-md text-white shadow-md transition-colors ${
+              copy.is_installed ? "border-emerald-400/70 text-emerald-300 ring-1 ring-emerald-400/30" : "hover:bg-slate-800"
             }`}
             title={
               showTooltips
@@ -239,7 +238,7 @@ export function MultiStoreBadgeGroup({
                 : undefined
             }
           >
-            <StoreIcon library={copy.library} className="w-3 h-3 shrink-0" />
+            <StoreIcon library={copy.library} className="w-3.5 h-3.5 shrink-0" />
           </span>
         ))}
       </div>
