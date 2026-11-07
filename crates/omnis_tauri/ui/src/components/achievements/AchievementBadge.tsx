@@ -104,7 +104,7 @@ export const AchievementBadge: React.FC<AchievementBadgeProps> = ({
 
   // Resolve image source
   const imageSource = React.useMemo(() => {
-    let raw = "";
+    let raw: string;
     if (achievement.local_icon_path) {
       try {
         return convertFileSrc(achievement.local_icon_path);

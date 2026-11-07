@@ -305,7 +305,7 @@ export const ja: TranslationSchema = {
     language: '言語',
     check_updates: 'アップデートを確認',
     update_checking: '確認中…',
-    update_latest: '最新',
+    update_latest: '利用可能なアップデートはありません',
     update_error: 'エラー',
     minimize: '最小化',
     confirm_exit: 'Omnis を終了しますか？',

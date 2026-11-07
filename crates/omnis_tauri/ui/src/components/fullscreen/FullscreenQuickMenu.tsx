@@ -113,7 +113,7 @@ export const FullscreenQuickMenu: React.FC<FullscreenQuickMenuProps> = ({
                           <ChevronLeft className="w-4 h-4" />
                         </button>
                       )}
-                      <span className="max-w-[9rem] truncate">{item.value}</span>
+                      <span className="max-w-[13rem] truncate">{item.value}</span>
                       {isFocused && item.onAdjust && (
                         <button
                           type="button"

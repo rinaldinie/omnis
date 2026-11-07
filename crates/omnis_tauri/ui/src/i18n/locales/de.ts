@@ -305,7 +305,7 @@ export const de: TranslationSchema = {
     language: 'Sprache',
     check_updates: 'Nach Updates suchen',
     update_checking: 'Prüfe…',
-    update_latest: 'Aktuell',
+    update_latest: 'Keine Updates verfügbar',
     update_error: 'Fehler',
     minimize: 'Minimieren',
     confirm_exit: 'Omnis schließen?',

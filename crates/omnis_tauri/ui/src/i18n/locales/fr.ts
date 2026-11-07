@@ -305,7 +305,7 @@ export const fr: TranslationSchema = {
     language: 'Langue',
     check_updates: 'Rechercher des mises à jour',
     update_checking: 'Vérification…',
-    update_latest: 'À jour',
+    update_latest: 'Aucune mise à jour disponible',
     update_error: 'Erreur',
     minimize: 'Réduire',
     confirm_exit: 'Fermer Omnis ?',
