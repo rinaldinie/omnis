@@ -10,13 +10,15 @@ use omnis_sdk::{
 };
 
 pub use client::{
-    authenticate_xbox_live, exchange_authorization_code, extract_auth_from_redirect,
-    extract_token_from_redirect, fetch_user_titles, format_xsts_error,
-    map_title_to_discovered_game, refresh_session_token, MsAuthRedirect, MsTokenResponse,
-    XboxDisplayClaims, XboxLiveAuthResponse, XboxTitleHistoryResponse, XboxTitleItem, XboxXuiClaim,
-    ERR_XSTS_AGE_VERIFICATION_REQUIRED, ERR_XSTS_CHILD_ACCOUNT, ERR_XSTS_FORBIDDEN_GENERIC,
-    ERR_XSTS_NO_XBOX_ACCOUNT, ERR_XSTS_REGION_UNSUPPORTED, ERR_XSTS_USER_ACTION_REQUIRED,
-    MS_AUTH_SCOPE, MS_AUTH_SCOPE_OFFLINE, MS_CLIENT_ID, MS_REDIRECT_URI, XBOX_USER_AGENT,
+    authenticate_xbox_live, clean_title_name, exchange_authorization_code,
+    extract_auth_from_redirect, extract_token_from_redirect, fetch_user_titles, format_xsts_error,
+    is_pc_device_name, map_title_to_discovered_game, refresh_session_token, MsAuthRedirect,
+    MsTokenResponse, XboxDisplayClaims, XboxGamePassInfo, XboxLiveAuthResponse,
+    XboxTitleHistoryDetail, XboxTitleHistoryItemInfo, XboxTitleHistoryResponse, XboxTitleItem,
+    XboxXuiClaim, ERR_XSTS_AGE_VERIFICATION_REQUIRED, ERR_XSTS_CHILD_ACCOUNT,
+    ERR_XSTS_FORBIDDEN_GENERIC, ERR_XSTS_NO_XBOX_ACCOUNT, ERR_XSTS_REGION_UNSUPPORTED,
+    ERR_XSTS_USER_ACTION_REQUIRED, MS_AUTH_SCOPE, MS_AUTH_SCOPE_OFFLINE, MS_CLIENT_ID,
+    MS_REDIRECT_URI, XBOX_USER_AGENT,
 };
 
 /// Plugin instance for Xbox Live / PC Game Pass
@@ -223,13 +225,62 @@ mod tests {
     }
 
     #[test]
+    fn test_deserialize_xbox_live_auth_response_with_numeric_xid_and_xuid_alias() {
+        // Numeric xid
+        let json_numeric = r#"{
+            "IssueInstant": "2026-10-19T07:28:11Z",
+            "Token": "mock_token",
+            "DisplayClaims": {
+                "xui": [
+                    {
+                        "uhs": "28472910398472",
+                        "xid": 2533274991234567
+                    }
+                ]
+            }
+        }"#;
+        let resp_num: XboxLiveAuthResponse =
+            serde_json::from_str(json_numeric).expect("Should deserialize numeric xid");
+        assert_eq!(
+            resp_num.display_claims.xui[0].xid.as_deref(),
+            Some("2533274991234567")
+        );
+
+        // xuid alias
+        let json_xuid = r#"{
+            "IssueInstant": "2026-10-19T07:28:11Z",
+            "Token": "mock_token",
+            "DisplayClaims": {
+                "xui": [
+                    {
+                        "uhs": "28472910398472",
+                        "xuid": "2533274991234567"
+                    }
+                ]
+            }
+        }"#;
+        let resp_xuid: XboxLiveAuthResponse =
+            serde_json::from_str(json_xuid).expect("Should deserialize xuid alias");
+        assert_eq!(
+            resp_xuid.display_claims.xui[0].xid.as_deref(),
+            Some("2533274991234567")
+        );
+    }
+
+    #[test]
     fn test_map_xbox_title_item_to_discovered_game_with_modern_title_id() {
         let title = XboxTitleItem {
             title_id: "192837465".to_string(),
             name: "Forza Horizon 5".to_string(),
             r#type: Some("Game".to_string()),
+            pfn: Some("Microsoft.624F8B84B80_8wekyb3d8bbwe".to_string()),
             display_image: Some("https://images-eds.xboxlive.com/image?url=fh5.jpg".to_string()),
             modern_title_id: Some("9NXQXX31PRSF".to_string()),
+            media_item_type: Some("Game".to_string()),
+            devices: Some(vec!["PC".to_string()]),
+            title_history: None,
+            detail: None,
+            game_pass: None,
         };
 
         let game = map_title_to_discovered_game(&title);
@@ -364,5 +415,181 @@ mod tests {
         let body_signed = r#"{"Identity":"0","XErr":-2146051063}"#;
         let msg_signed = format_xsts_error(StatusCode::UNAUTHORIZED, body_signed);
         assert_eq!(msg_signed, ERR_XSTS_NO_XBOX_ACCOUNT);
+    }
+
+    #[test]
+    fn test_is_pc_game_filtering_conditions() {
+        // 1. Valid PC Game Pass / Windows Store title with PFN (Sea of Thieves)
+        let mut pc_game = XboxTitleItem::new("123", "Sea of Thieves");
+        pc_game.pfn = Some("Microsoft.SeaofThieves_8wekyb3d8bbwe".to_string());
+        pc_game.devices = Some(vec!["PC".to_string(), "XboxOne".to_string()]);
+        pc_game.r#type = Some("Game".to_string());
+        assert!(pc_game.is_pc_game(), "PC game with PFN must be accepted");
+
+        // 2. Valid Windows Store game with PFN and console play history (Minecraft Dungeons)
+        let mut mc_dungeons = XboxTitleItem::new("1739375565", "Minecraft Dungeons");
+        mc_dungeons.pfn = Some("Microsoft.LovikaX1_8wekyb3d8bbwe".to_string());
+        mc_dungeons.devices = Some(vec!["XboxOne".to_string(), "XboxSeries".to_string()]);
+        mc_dungeons.r#type = Some("Game".to_string());
+        assert!(
+            mc_dungeons.is_pc_game(),
+            "Store game with PFN must be accepted even if played on console"
+        );
+
+        // 3. Steam / Epic cross-play game linked to Xbox Live (missing PFN)
+        let mut steam_crossplay = XboxTitleItem::new("456", "Halo Infinite");
+        steam_crossplay.pfn = None;
+        steam_crossplay.modern_title_id = None;
+        steam_crossplay.devices = Some(vec!["PC".to_string()]);
+        steam_crossplay.r#type = Some("Game".to_string());
+        assert!(
+            !steam_crossplay.is_pc_game(),
+            "Cross-play title from Steam without PFN must be filtered out"
+        );
+
+        // 4. External Win32 game recorded by Game Bar telemetry
+        let mut win32_game = XboxTitleItem::new("1648978890", "Dark Souls III");
+        win32_game.pfn = None;
+        win32_game.devices = Some(vec!["Win32".to_string()]);
+        win32_game.r#type = Some("Game".to_string());
+        assert!(
+            !win32_game.is_pc_game(),
+            "External Win32 game without PFN must be filtered out"
+        );
+
+        // 5. Xbox 360 legacy console game (no PFN)
+        let mut x360_game = XboxTitleItem::new("789", "Hexic HD");
+        x360_game.pfn = None;
+        x360_game.modern_title_id = None;
+        x360_game.devices = Some(vec!["Xbox360".to_string()]);
+        x360_game.r#type = Some("Game".to_string());
+        assert!(
+            !x360_game.is_pc_game(),
+            "Xbox 360 console-only title must be filtered out"
+        );
+
+        // 6. System application (Netflix, Edge, etc.)
+        let mut app = XboxTitleItem::new("102", "Netflix");
+        app.pfn = Some("4DF9E0F8.Netflix_mcm4njqhnhss8".to_string());
+        app.devices = Some(vec!["PC".to_string()]);
+        app.r#type = Some("Application".to_string());
+        assert!(!app.is_pc_game(), "Applications must be filtered out");
+
+        // 7. Demos and Betas
+        let mut demo = XboxTitleItem::new("103", "Forza Horizon 4 Demo");
+        demo.pfn = Some("Microsoft.ForzaHorizon4Demo_8wekyb3d8bbwe".to_string());
+        demo.devices = Some(vec!["PC".to_string()]);
+        demo.r#type = Some("Game".to_string());
+        assert!(!demo.is_pc_game(), "Demos must be filtered out");
+
+        let mut beta = XboxTitleItem::new("104", "Halo Wars 2 Beta");
+        beta.pfn = Some("Microsoft.HaloWars2Beta_8wekyb3d8bbwe".to_string());
+        beta.devices = Some(vec!["PC".to_string()]);
+        beta.r#type = Some("Game".to_string());
+        assert!(!beta.is_pc_game(), "Betas must be filtered out");
+
+        // 8. Hidden title in privacy settings
+        let mut hidden = XboxTitleItem::new("105", "Old Free Game");
+        hidden.pfn = Some("Microsoft.OldFree_8wekyb3d8bbwe".to_string());
+        hidden.devices = Some(vec!["PC".to_string()]);
+        hidden.r#type = Some("Game".to_string());
+        hidden.title_history = Some(XboxTitleHistoryItemInfo {
+            last_time_played: None,
+            visible: false,
+            can_hide: Some(true),
+        });
+        assert!(!hidden.is_pc_game(), "Hidden titles must be filtered out");
+    }
+
+    #[test]
+    fn test_clean_title_name() {
+        assert_eq!(clean_title_name("Sea of Thieves (PC)"), "Sea of Thieves");
+        assert_eq!(clean_title_name("Halo Wars 2 (Windows)"), "Halo Wars 2");
+        assert_eq!(
+            clean_title_name("Forza Horizon 4 for Windows 10"),
+            "Forza Horizon 4"
+        );
+        assert_eq!(clean_title_name("Gears 5 - Windows 10"), "Gears 5");
+        assert_eq!(clean_title_name("Age of Empires IV®"), "Age of Empires IV");
+        assert_eq!(clean_title_name("Minecraft™"), "Minecraft");
+    }
+
+    #[test]
+    fn test_map_xbox_title_item_with_last_time_played() {
+        let json = r#"{
+            "titleId": "12345",
+            "name": "State of Decay 2 (PC)",
+            "pfn": "Microsoft.StateofDecay2_8wekyb3d8bbwe",
+            "modernTitleId": "9NXQXX31PRSF",
+            "titleHistory": {
+                "lastTimePlayed": "2026-04-12T10:15:30Z",
+                "visible": true
+            }
+        }"#;
+
+        let item: XboxTitleItem = serde_json::from_str(json).expect("Should deserialize item");
+        assert_eq!(clean_title_name(&item.name), "State of Decay 2");
+
+        let game = map_title_to_discovered_game(&item);
+        assert_eq!(game.title, "State of Decay 2");
+        assert!(game.last_activity.is_some());
+        let dt = game.last_activity.unwrap();
+        assert_eq!(dt.to_rfc3339(), "2026-04-12T10:15:30+00:00");
+    }
+
+    #[test]
+    fn test_deserialize_and_filter_title_history_response() {
+        let json_response = r#"{
+            "xuid": "2533274991234567",
+            "titles": [
+                {
+                    "titleId": "1001",
+                    "name": "Forza Horizon 5",
+                    "type": "Game",
+                    "pfn": "Microsoft.624F8B84B80_8wekyb3d8bbwe",
+                    "devices": ["PC", "XboxOne"],
+                    "modernTitleId": "9NXQXX31PRSF"
+                },
+                {
+                    "titleId": "1002",
+                    "name": "Halo Infinite (Steam Crossplay)",
+                    "type": "Game",
+                    "pfn": null,
+                    "devices": ["PC"]
+                },
+                {
+                    "titleId": "1003",
+                    "name": "Doritos Crash Course (Xbox 360 Free Game)",
+                    "type": "Game",
+                    "devices": ["Xbox360"]
+                },
+                {
+                    "titleId": "1004",
+                    "name": "Xbox Insider Hub",
+                    "type": "Application",
+                    "pfn": "Microsoft.XboxInsider_8wekyb3d8bbwe",
+                    "devices": ["PC"]
+                }
+            ]
+        }"#;
+
+        let history: XboxTitleHistoryResponse =
+            serde_json::from_str(json_response).expect("Should parse history");
+        assert_eq!(history.titles.len(), 4);
+
+        let pc_games: Vec<DiscoveredGame> = history
+            .titles
+            .into_iter()
+            .filter(|t| t.is_pc_game())
+            .map(|t| map_title_to_discovered_game(&t))
+            .collect();
+
+        assert_eq!(
+            pc_games.len(),
+            1,
+            "Only Forza Horizon 5 should pass the PC Xbox filter"
+        );
+        assert_eq!(pc_games[0].title, "Forza Horizon 5");
+        assert_eq!(pc_games[0].external_id, "1001");
     }
 }

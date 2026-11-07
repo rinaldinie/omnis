@@ -18,7 +18,9 @@
 use chrono::Utc;
 use omnis_core::Database;
 use omnis_plugin_gog::{normalize_gog_game, GogCloudPlugin, GogGameDetails};
-use omnis_plugin_xbox::{map_title_to_discovered_game, XboxCloudPlugin, XboxTitleItem};
+use omnis_plugin_xbox::{
+    map_title_to_discovered_game, XboxCloudPlugin, XboxTitleItem, MS_CLIENT_ID,
+};
 use omnis_sdk::{
     CloudStorePlugin, DiscoveredGame, LaunchConfiguration, LibraryPlugin, ProcessTrackingMode,
     StoreAccountSession,
@@ -106,8 +108,9 @@ fn test_xbox_cloud_plugin_contract_and_normalization() {
     // Verify login URL contains required Microsoft OAuth client ID
     let login_url = plugin.login_url();
     assert!(
-        login_url.contains("client_id=0000000048093EE3"),
-        "login_url must contain Microsoft Xbox client ID 0000000048093EE3: {}",
+        login_url.contains(&format!("client_id={}", MS_CLIENT_ID)),
+        "login_url must contain Microsoft Xbox client ID {}: {}",
+        MS_CLIENT_ID,
         login_url
     );
 
@@ -128,8 +131,14 @@ fn test_xbox_cloud_plugin_contract_and_normalization() {
         title_id: "192837465".to_string(),
         name: "Forza Horizon 5".to_string(),
         r#type: Some("Game".to_string()),
+        pfn: Some("Microsoft.624F8B84B80_8wekyb3d8bbwe".to_string()),
         display_image: Some("https://images-eds.xboxlive.com/image?url=fh5.jpg".to_string()),
         modern_title_id: Some("9NXQXX31PRSF".to_string()),
+        media_item_type: Some("Game".to_string()),
+        devices: Some(vec!["PC".to_string()]),
+        title_history: None,
+        detail: None,
+        game_pass: None,
     };
 
     let discovered = map_title_to_discovered_game(&xbox_title);
