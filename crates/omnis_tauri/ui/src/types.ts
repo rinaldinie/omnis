@@ -62,6 +62,7 @@ export interface GameDto {
   publishers?: string[];
   last_activity?: string | null;
   is_hidden?: boolean;
+  is_favorite?: boolean;
   hidden_by_duplicate_hider?: boolean;
   duplicate_group_id?: string | null;
   other_copies?: DuplicateCopyDto[];
@@ -179,6 +180,10 @@ export function formatImageUrl(src: string | null | undefined): string | null {
   // If Steam CDN wide banner header.jpg was stored as cover, upgrade to official 2:3 vertical library capsule
   if (src.includes("cdn.cloudflare.steamstatic.com/steam/apps/") && src.endsWith("/header.jpg")) {
     src = src.replace("/header.jpg", "/library_600x900_2x.jpg");
+  }
+  // Upgrade Xbox EDS Akamai non-matching SSL hostname to official wildcard cert domain
+  if (src.includes("images-eds.xboxlive.com/")) {
+    src = src.replace("images-eds.xboxlive.com/", "images-eds-ssl.xboxlive.com/");
   }
   if (
     src.startsWith("http://") ||

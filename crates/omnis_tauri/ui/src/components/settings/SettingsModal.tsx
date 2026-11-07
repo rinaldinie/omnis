@@ -46,6 +46,7 @@ export type SettingsTab =
   | 'general-audio'
   | 'general-window'
   | 'general-appearance'
+  | 'general-recent'
   | 'general-updates'
   | 'store-steam'
   | 'store-epic'
@@ -224,6 +225,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             label: t('general_settings.tab_appearance', { defaultValue: 'Aspetto & Temi' }),
             icon: (c = 'w-4 h-4') => <Palette className={c} />,
             keywords: ['aspetto', 'temi', 'tema', 'colori', 'interfaccia', 'animazioni', 'dark', 'light'],
+          },
+          {
+            id: 'general-recent',
+            label: t('sidebar.recent', { defaultValue: 'Giochi Recenti' }),
+            icon: (c = 'w-4 h-4') => <Clock className={c} />,
+            keywords: ['recenti', 'recent', 'giochi recenti', 'tempo', 'slider', 'filtro', 'last played'],
           },
           {
             id: 'general-updates',
@@ -634,6 +641,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       ? 'window'
                       : activeTab === 'general-appearance'
                       ? 'appearance'
+                      : activeTab === 'general-recent'
+                      ? 'recent'
                       : activeTab === 'general-updates'
                       ? 'updates'
                       : 'language'

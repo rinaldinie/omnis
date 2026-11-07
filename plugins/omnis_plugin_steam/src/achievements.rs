@@ -406,6 +406,7 @@ mod tests {
             is_hidden: false,
             duplicate_group_id: None,
             hidden_by_duplicate_hider: false,
+            is_favorite: false,
         };
 
         let schema_json = r#"{

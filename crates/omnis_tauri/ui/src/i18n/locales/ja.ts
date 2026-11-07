@@ -32,6 +32,8 @@ export const ja: TranslationSchema = {
     installed: 'インストール済み',
     recent: '最近プレイしたゲーム',
     favorites: 'お気に入り',
+    add_favorite: 'お気に入りに追加',
+    remove_favorite: 'お気に入りから削除',
     hidden: '非表示',
     stores: 'ストア',
     connect_account: '連携',

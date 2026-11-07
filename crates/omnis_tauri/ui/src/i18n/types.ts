@@ -48,6 +48,8 @@ export interface TranslationSchema {
     installed: string;
     recent: string;
     favorites: string;
+    add_favorite?: string;
+    remove_favorite?: string;
     hidden?: string;
     stores: string;
     connect_account: string;

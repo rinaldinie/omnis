@@ -125,6 +125,7 @@ fn main() {
             save_duplicate_hider_config,
             apply_duplicate_hider,
             set_game_hidden,
+            set_game_favorite,
             promote_duplicate_copy,
         ])
         .run(tauri::generate_context!())

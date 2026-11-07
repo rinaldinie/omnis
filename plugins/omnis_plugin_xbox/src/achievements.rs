@@ -130,7 +130,7 @@ pub fn parse_xbox_achievements_payload(
             });
 
         // Find primary icon asset (type == "Icon" or fallback to first)
-        let icon_unlocked_url = item
+        let raw_icon_url = item
             .media_assets
             .iter()
             .find(|a| {
@@ -142,6 +142,20 @@ pub fn parse_xbox_achievements_payload(
             .map(|a| a.url.clone())
             .or_else(|| item.media_assets.first().map(|a| a.url.clone()))
             .unwrap_or_default();
+
+        // Upgrade Akamai non-matching SSL hostname (images-eds.xboxlive.com) to valid wildcard cert (images-eds-ssl.xboxlive.com)
+        // and append thumbnail parameters (&format=png&w=128&h=128) to prevent decoding huge 1080p full-res PNG assets (~3MB per icon).
+        let mut icon_unlocked_url = if raw_icon_url.contains("images-eds.xboxlive.com/") {
+            raw_icon_url.replace("images-eds.xboxlive.com/", "images-eds-ssl.xboxlive.com/")
+        } else {
+            raw_icon_url
+        };
+        if icon_unlocked_url.contains("images-eds-ssl.xboxlive.com/image?url=")
+            && !icon_unlocked_url.contains("&w=")
+            && !icon_unlocked_url.contains("&h=")
+        {
+            icon_unlocked_url.push_str("&format=png&w=128&h=128");
+        }
 
         let description = if is_unlocked {
             item.description.clone()
@@ -287,6 +301,7 @@ mod tests {
             is_hidden: false,
             duplicate_group_id: None,
             hidden_by_duplicate_hider: false,
+            is_favorite: false,
         };
 
         let json_payload = r#"{
@@ -369,7 +384,7 @@ mod tests {
         assert_eq!(ach1.description.as_deref(), Some("Complete the tutorial"));
         assert_eq!(
             ach1.icon_unlocked_url,
-            "https://images-eds.xboxlive.com/image?url=first_flight.png"
+            "https://images-eds-ssl.xboxlive.com/image?url=first_flight.png&format=png&w=128&h=128"
         );
         assert!(ach1.is_unlocked);
         assert_eq!(

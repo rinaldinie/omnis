@@ -32,6 +32,8 @@ export const en: TranslationSchema = {
     installed: 'Installed',
     recent: 'Recent',
     favorites: 'Favorites',
+    add_favorite: 'Add to favorites',
+    remove_favorite: 'Remove from favorites',
     hidden: 'Hidden',
     stores: 'Stores',
     connect_account: 'Connect',

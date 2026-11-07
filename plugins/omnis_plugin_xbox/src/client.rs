@@ -380,6 +380,14 @@ pub fn map_title_to_discovered_game(title: &XboxTitleItem) -> DiscoveredGame {
         .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
         .map(|dt| dt.with_timezone(&chrono::Utc));
 
+    let cover_image_path = title.display_image.as_ref().map(|url| {
+        if url.contains("images-eds.xboxlive.com/") {
+            url.replace("images-eds.xboxlive.com/", "images-eds-ssl.xboxlive.com/")
+        } else {
+            url.clone()
+        }
+    });
+
     DiscoveredGame {
         library_id: "xbox".to_string(),
         external_id: title.title_id.clone(),
@@ -395,7 +403,7 @@ pub fn map_title_to_discovered_game(title: &XboxTitleItem) -> DiscoveredGame {
         playtime_seconds: 0,
         play_count: 0,
         last_activity,
-        cover_image_path: title.display_image.clone(),
+        cover_image_path,
         background_image_path: None,
     }
 }

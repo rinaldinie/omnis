@@ -1,8 +1,9 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useTranslation } from "../i18n";
 import { GameDto, GroupBy, FILTER_ORDER } from "../types";
 import { sortGames, GameSortMode } from "../utils/sortGames";
 import { toCategoryId } from "../utils/consoleCategories";
+import { getRecentSettings, RecentSettings } from "../utils/recentSettings";
 
 export interface FilterChip {
   id: string;
@@ -51,6 +52,18 @@ export function useLibraryFilters(games: GameDto[]) {
 
   // Dimension 6: Sort Mode
   const [sortMode, setSortMode] = useState<GameSortMode>("default");
+
+  const [recentSettings, setRecentSettings] = useState<RecentSettings>(getRecentSettings);
+
+  useEffect(() => {
+    const handleSettingsChange = () => {
+      setRecentSettings(getRecentSettings());
+    };
+    window.addEventListener("omnis_recent_settings_changed", handleSettingsChange);
+    return () => {
+      window.removeEventListener("omnis_recent_settings_changed", handleSettingsChange);
+    };
+  }, []);
 
   const [groupBy, setGroupBy] = useState<GroupBy>("none");
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -316,8 +329,16 @@ export function useLibraryFilters(games: GameDto[]) {
 
       // 1. Quick Flags (AND)
       if (selectedFlags.includes("installed") && !g.is_installed) return false;
-      if (selectedFlags.includes("recent") && !g.last_activity && g.playtime_seconds === 0) return false;
-      if (selectedFlags.includes("favorites") && (g.critic_score || 0) < 90) return false;
+      if (selectedFlags.includes("recent")) {
+        if (!g.last_activity) return false;
+        if (recentSettings.timeWindowDays > 0) {
+          const playedTime = Date.parse(g.last_activity);
+          if (!playedTime) return false;
+          const cutoff = Date.now() - recentSettings.timeWindowDays * 24 * 60 * 60 * 1000;
+          if (playedTime < cutoff) return false;
+        }
+      }
+      if (selectedFlags.includes("favorites") && !g.is_favorite) return false;
 
       // 2. Stores Filter (OR within selected stores, AND with rest)
       if (selectedStores.length > 0) {
@@ -361,16 +382,24 @@ export function useLibraryFilters(games: GameDto[]) {
 
     // When a sort mode is chosen, apply it
     if (sortMode !== "default") {
-      return sortGames(list, sortMode);
+      const sorted = sortGames(list, sortMode);
+      if (selectedFlags.includes("recent") && recentSettings.maxCount > 0) {
+        return sorted.slice(0, recentSettings.maxCount);
+      }
+      return sorted;
     }
 
     // Default: When filtering by "recent", sort by last_activity descending (Steam / Playnite behavior)
     if (selectedFlags.includes("recent")) {
-      return sortGames(list, "recent");
+      const sorted = sortGames(list, "recent");
+      if (recentSettings.maxCount > 0) {
+        return sorted.slice(0, recentSettings.maxCount);
+      }
+      return sorted;
     }
 
     return list;
-  }, [games, selectedFlags, selectedStores, selectedStatuses, selectedGenres, selectedFeatures, searchQuery, sortMode]);
+  }, [games, selectedFlags, selectedStores, selectedStatuses, selectedGenres, selectedFeatures, searchQuery, sortMode, recentSettings]);
 
   const groupedGames = useMemo<Record<string, GameDto[]>>(() => {
     if (groupBy === "none") {
@@ -465,8 +494,18 @@ export function useLibraryFilters(games: GameDto[]) {
         return;
       }
       if (g.is_installed) installedCount++;
-      if ((g.critic_score || 0) >= 90) favoritesCount++;
-      if (g.last_activity || g.playtime_seconds > 0) recentCount++;
+      if (g.is_favorite) favoritesCount++;
+      if (g.last_activity) {
+        if (recentSettings.timeWindowDays > 0) {
+          const playedTime = Date.parse(g.last_activity);
+          const cutoff = Date.now() - recentSettings.timeWindowDays * 24 * 60 * 60 * 1000;
+          if (playedTime && playedTime >= cutoff) {
+            recentCount++;
+          }
+        } else {
+          recentCount++;
+        }
+      }
 
       const lib = (g.library || "other").toLowerCase();
       storeCounts[lib] = (storeCounts[lib] || 0) + 1;
@@ -502,7 +541,7 @@ export function useLibraryFilters(games: GameDto[]) {
       genres: genreCounts,
       features: featureCounts,
     };
-  }, [games]);
+  }, [games, recentSettings]);
 
   return {
     selectedStores,

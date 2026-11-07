@@ -33,6 +33,8 @@ impl XboxCloudPlugin {
     pub fn new() -> Self {
         let client = reqwest::Client::builder()
             .user_agent(XBOX_USER_AGENT)
+            .timeout(std::time::Duration::from_secs(8))
+            .connect_timeout(std::time::Duration::from_secs(5))
             .build()
             .unwrap_or_default();
         Self { client }
@@ -291,7 +293,7 @@ mod tests {
         assert!(!game.is_installed);
         assert_eq!(
             game.cover_image_path.as_deref(),
-            Some("https://images-eds.xboxlive.com/image?url=fh5.jpg")
+            Some("https://images-eds-ssl.xboxlive.com/image?url=fh5.jpg")
         );
 
         let play_action = game.play_action.expect("play_action should be Some");

@@ -37,6 +37,8 @@ pub struct GameDto {
     #[serde(default)]
     pub is_hidden: bool,
     #[serde(default)]
+    pub is_favorite: bool,
+    #[serde(default)]
     pub hidden_by_duplicate_hider: bool,
     #[serde(default)]
     pub duplicate_group_id: Option<String>,
@@ -190,6 +192,7 @@ pub fn game_to_dto(g: Game, _cache: &ImageCache) -> GameDto {
         extra_metadata: g.extra_metadata,
         last_activity: g.last_activity.map(|t| t.to_rfc3339()),
         is_hidden: g.is_hidden,
+        is_favorite: g.is_favorite,
         hidden_by_duplicate_hider: g.hidden_by_duplicate_hider,
         duplicate_group_id: g.duplicate_group_id,
         other_copies: Vec::new(),

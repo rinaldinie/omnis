@@ -388,7 +388,7 @@ fn test_library_counts_aggregation() {
     assert_eq!(counts.gog, 1);
     assert_eq!(counts.epic, 1);
     assert_eq!(counts.xbox, 1);
-    assert_eq!(counts.recent, 2); // 2 games with playtime_seconds > 0
+    assert_eq!(counts.recent, 1); // 1 game with last_activity IS NOT NULL
 }
 
 #[test]

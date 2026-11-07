@@ -46,6 +46,9 @@ pub trait GameRepository: Send + Sync {
     /// Update only the completion status of a game
     fn set_game_completion_status(&self, game_id: Uuid, status: &str) -> Result<Game>;
 
+    /// Update the favorite status of a game
+    fn set_game_favorite(&self, game_id: Uuid, is_favorite: bool) -> Result<Game>;
+
     /// Delete a game from the database
     fn delete_game(&self, game_id: Uuid) -> Result<bool>;
 
@@ -66,7 +69,7 @@ pub(crate) const GAME_COLUMNS: &str = "
     series, age_rating, completion_status, user_notes,
     custom_links, play_actions, extra_metadata,
     added_timestamp, modified_timestamp,
-    is_hidden, hidden_by_duplicate_hider, duplicate_group_id
+    is_hidden, hidden_by_duplicate_hider, duplicate_group_id, is_favorite
 ";
 
 pub(crate) fn map_row_to_game(row: &rusqlite::Row) -> rusqlite::Result<Game> {
@@ -180,6 +183,7 @@ pub(crate) fn map_row_to_game(row: &rusqlite::Row) -> rusqlite::Result<Game> {
     let is_hidden = row.get::<_, Option<i32>>(32)?.unwrap_or(0) != 0;
     let hidden_by_duplicate_hider = row.get::<_, Option<i32>>(33)?.unwrap_or(0) != 0;
     let duplicate_group_id: Option<String> = row.get(34)?;
+    let is_favorite = row.get::<_, Option<i32>>(35)?.unwrap_or(0) != 0;
 
     Ok(Game {
         id,
@@ -214,6 +218,7 @@ pub(crate) fn map_row_to_game(row: &rusqlite::Row) -> rusqlite::Result<Game> {
         play_actions,
         custom_links,
         is_hidden,
+        is_favorite,
         hidden_by_duplicate_hider,
         duplicate_group_id,
         added_timestamp,
@@ -617,6 +622,19 @@ impl GameRepository for Database {
             .ok_or(rusqlite::Error::QueryReturnedNoRows)
     }
 
+    /// Update the favorite status of a game
+    fn set_game_favorite(&self, game_id: Uuid, is_favorite: bool) -> Result<Game> {
+        let conn = self.writer();
+        let now = Utc::now().to_rfc3339();
+        conn.execute(
+            "UPDATE games SET is_favorite = ?2, modified_timestamp = ?3 WHERE id = ?1",
+            params![game_id.to_string(), if is_favorite { 1 } else { 0 }, now],
+        )?;
+        drop(conn);
+        self.get_game_by_id(game_id)?
+            .ok_or(rusqlite::Error::QueryReturnedNoRows)
+    }
+
     /// Delete a game from the database
     fn delete_game(&self, game_id: Uuid) -> Result<bool> {
         let conn = self.writer();
@@ -744,6 +762,11 @@ impl Database {
     #[inline]
     pub fn set_game_completion_status(&self, game_id: Uuid, status: &str) -> Result<Game> {
         GameRepository::set_game_completion_status(self, game_id, status)
+    }
+
+    #[inline]
+    pub fn set_game_favorite(&self, game_id: Uuid, is_favorite: bool) -> Result<Game> {
+        GameRepository::set_game_favorite(self, game_id, is_favorite)
     }
 
     #[inline]

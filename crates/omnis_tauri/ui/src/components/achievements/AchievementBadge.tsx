@@ -104,17 +104,31 @@ export const AchievementBadge: React.FC<AchievementBadgeProps> = ({
 
   // Resolve image source
   const imageSource = React.useMemo(() => {
+    let raw = "";
     if (achievement.local_icon_path) {
       try {
         return convertFileSrc(achievement.local_icon_path);
       } catch {
-        return achievement.icon_unlocked_url;
+        raw = achievement.icon_unlocked_url;
       }
+    } else if (achievement.is_unlocked || !achievement.icon_locked_url) {
+      raw = achievement.icon_unlocked_url;
+    } else {
+      raw = achievement.icon_locked_url;
     }
-    if (achievement.is_unlocked || !achievement.icon_locked_url) {
-      return achievement.icon_unlocked_url;
+
+    if (raw && raw.includes("images-eds.xboxlive.com/")) {
+      raw = raw.replace("images-eds.xboxlive.com/", "images-eds-ssl.xboxlive.com/");
     }
-    return achievement.icon_locked_url;
+    if (
+      raw &&
+      raw.includes("images-eds-ssl.xboxlive.com/image?url=") &&
+      !raw.includes("&w=") &&
+      !raw.includes("&h=")
+    ) {
+      raw = `${raw}&format=png&w=128&h=128`;
+    }
+    return raw;
   }, [
     achievement.local_icon_path,
     achievement.icon_unlocked_url,
@@ -161,12 +175,13 @@ export const AchievementBadge: React.FC<AchievementBadgeProps> = ({
             ? "scale-110 ring-4 ring-indigo-500 shadow-2xl z-20"
             : "hover:scale-105"
         } ${
-          achievement.is_unlocked &&
           achievement.rarity_percentage !== null &&
           achievement.rarity_percentage !== undefined
-            ? tier === "ultra_rare" && !config.goldenGlowUltraRare
-              ? "border-2 border-amber-400/80"
-              : rarityClasses.glow
+            ? achievement.is_unlocked
+              ? tier === "ultra_rare" && !config.goldenGlowUltraRare
+                ? "border-2 border-amber-400/80"
+                : rarityClasses.glow
+              : `border ${rarityClasses.border}`
             : "border border-white/10"
         } ${
           achievement.is_unlocked
@@ -204,11 +219,14 @@ export const AchievementBadge: React.FC<AchievementBadgeProps> = ({
 
         {/* Rarity marker */}
         {config.showRarityBadges &&
-          achievement.is_unlocked &&
           achievement.rarity_percentage !== null &&
           achievement.rarity_percentage !== undefined && (
             <div
-              className={`absolute top-1 right-1 p-0.5 rounded-full ${rarityClasses.markerBadge}`}
+              className={`absolute top-1 right-1 p-0.5 rounded-full ${
+                achievement.is_unlocked
+                  ? rarityClasses.markerBadge
+                  : `${rarityClasses.bg} ${rarityClasses.text} border ${rarityClasses.border}`
+              }`}
               title={t("achievements.tier_" + tier)}
             >
               <RarityIcon tier={tier} className="w-2.5 h-2.5" />

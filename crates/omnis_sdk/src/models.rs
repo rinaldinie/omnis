@@ -151,6 +151,8 @@ pub struct Game {
     #[serde(default)]
     pub is_hidden: bool,
     #[serde(default)]
+    pub is_favorite: bool,
+    #[serde(default)]
     pub hidden_by_duplicate_hider: bool,
     #[serde(default)]
     pub duplicate_group_id: Option<String>,
@@ -195,6 +197,7 @@ impl Game {
             play_actions: Vec::new(),
             custom_links: Vec::new(),
             is_hidden: false,
+            is_favorite: false,
             hidden_by_duplicate_hider: false,
             duplicate_group_id: None,
             added_timestamp: now,

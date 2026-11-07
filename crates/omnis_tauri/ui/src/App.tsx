@@ -285,6 +285,7 @@ export default function App() {
     handleRefreshHltb,
     handleUpdateCompletionStatus,
     handleToggleHidden,
+    handleToggleFavorite,
     handlePromoteCopy,
   } = gameOps;
 
@@ -726,6 +727,7 @@ export default function App() {
             themes={themes}
             onSelectTheme={selectTheme}
             handleToggleHidden={handleToggleHidden}
+            handleToggleFavorite={handleToggleFavorite}
             handlePromoteCopy={handlePromoteCopy}
           />
         ) : (
@@ -811,6 +813,7 @@ export default function App() {
             handleOpenUninstallModal={handleOpenUninstallModal}
             handleRemoveFromLibrary={handleRemoveFromLibrary}
             handleToggleHidden={handleToggleHidden}
+            handleToggleFavorite={handleToggleFavorite}
             handlePromoteCopy={handlePromoteCopy}
             statusMessage={statusMessage}
             achievementSync={achievementSync}
@@ -850,6 +853,7 @@ export default function App() {
           handleOpenUninstallModal={handleOpenUninstallModal}
           handleRemoveFromLibrary={handleRemoveFromLibrary}
           onToggleHidden={handleToggleHidden}
+          onToggleFavorite={handleToggleFavorite}
           onPromoteCopy={handlePromoteCopy}
 
           showEditorModal={showEditorModal}

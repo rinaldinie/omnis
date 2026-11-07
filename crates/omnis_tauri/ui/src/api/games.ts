@@ -127,6 +127,10 @@ export const gamesApi = {
   setGameHidden: (gameId: string, isHidden: boolean): Promise<GameDto> =>
     invokeIpc<GameDto>("set_game_hidden", { gameId, isHidden }),
 
+  /** Toggle favorite status of a game */
+  setGameFavorite: (gameId: string, isFavorite: boolean): Promise<GameDto> =>
+    invokeIpc<GameDto>("set_game_favorite", { gameId, isFavorite }),
+
   /** Promote a duplicate copy to be the visible primary copy in its group */
   promoteDuplicateCopy: (gameId: string): Promise<GameDto[]> =>
     invokeIpc<GameDto[]>("promote_duplicate_copy", { gameId }),

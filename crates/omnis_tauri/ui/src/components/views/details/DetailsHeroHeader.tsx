@@ -16,6 +16,7 @@ import {
   Trash2,
   XCircle,
   Layers,
+  Star,
 } from "lucide-react";
 import { ActiveGameSession, GameDto, ThemeConfig, ViewMode, formatImageUrl } from "../../../types";
 import { useActiveGameTimer } from "../../../context/ActiveGameTimerContext";
@@ -51,6 +52,7 @@ export interface DetailsHeroHeaderProps {
   handleOpenUninstallModal?: (game: GameDto) => void;
   handleRemoveFromLibrary?: (gameId: string) => void;
   handlePromoteCopy?: (copyId: string) => void;
+  handleToggleFavorite?: (game: GameDto) => void;
 }
 
 export const DetailsHeroHeader: React.FC<DetailsHeroHeaderProps> = ({
@@ -79,6 +81,7 @@ export const DetailsHeroHeader: React.FC<DetailsHeroHeaderProps> = ({
   handleOpenUninstallModal,
   handleRemoveFromLibrary,
   handlePromoteCopy,
+  handleToggleFavorite,
 }) => {
   const isSelectedGameRunning = activeGame?.game_id === selectedGame.id;
   const timerContextSeconds = useActiveGameTimer();
@@ -385,6 +388,36 @@ export const DetailsHeroHeader: React.FC<DetailsHeroHeaderProps> = ({
                     {selectedGame.is_installed
                       ? t("game_details.play_now")
                       : t("game_details.install_now")}
+                  </span>
+                </button>
+              )}
+
+              {handleToggleFavorite && (
+                <button
+                  type="button"
+                  onClick={() => handleToggleFavorite(selectedGame)}
+                  className={`flex items-center gap-2 px-4 py-3 rounded-xl border text-xs font-semibold transition-all backdrop-blur-md active:scale-95 cursor-pointer ${
+                    selectedGame.is_favorite
+                      ? "bg-amber-500/15 border-amber-500/40 text-amber-300 hover:bg-amber-500/25"
+                      : "bg-white/[0.04] border-white/[0.08] text-slate-200 hover:bg-white/[0.08] hover:border-white/20 hover:text-white"
+                  }`}
+                  title={
+                    selectedGame.is_favorite
+                      ? (t("sidebar.remove_favorite") || "Rimuovi dai preferiti")
+                      : (t("sidebar.add_favorite") || "Aggiungi ai preferiti")
+                  }
+                >
+                  <Star
+                    className={`w-4 h-4 ${
+                      selectedGame.is_favorite
+                        ? "text-amber-400 fill-amber-400"
+                        : "text-slate-300"
+                    }`}
+                  />
+                  <span>
+                    {selectedGame.is_favorite
+                      ? t("sidebar.favorites")
+                      : (t("sidebar.add_favorite") || "Preferito")}
                   </span>
                 </button>
               )}

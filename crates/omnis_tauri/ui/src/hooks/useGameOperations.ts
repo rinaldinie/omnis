@@ -243,6 +243,23 @@ export function useGameOperations({
     [refreshLibrary, setStatusMessage, statusText]
   );
 
+  const handleToggleFavorite = useCallback(
+    async (game: GameDto) => {
+      try {
+        const updated = await api.games.setGameFavorite(game.id, !game.is_favorite);
+        setGames((prev) => prev.map((g) => (g.id === game.id ? { ...g, is_favorite: updated.is_favorite } : g)));
+        if (selectedGame && selectedGame.id === game.id) {
+          setSelectedGame((prev) => (prev ? { ...prev, is_favorite: updated.is_favorite } : null));
+        }
+        await refreshLibrary();
+        setStatusMessage(statusText("game_updated"));
+      } catch (err: any) {
+        console.error("Toggle favorite error:", err);
+      }
+    },
+    [refreshLibrary, selectedGame, setGames, setSelectedGame, setStatusMessage, statusText]
+  );
+
   const handlePromoteCopy = useCallback(
     async (copyId: string) => {
       try {
@@ -281,6 +298,7 @@ export function useGameOperations({
     handleRefreshHltb,
     handleUpdateCompletionStatus,
     handleToggleHidden,
+    handleToggleFavorite,
     handlePromoteCopy,
   };
 }

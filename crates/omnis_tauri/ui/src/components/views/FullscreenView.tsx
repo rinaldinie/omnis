@@ -115,6 +115,7 @@ interface FullscreenViewProps {
   themes?: ThemeConfig[];
   onSelectTheme?: (theme: ThemeConfig) => void;
   handleToggleHidden?: (game: GameDto) => void;
+  handleToggleFavorite?: (game: GameDto) => void;
   handlePromoteCopy?: (copyId: string) => void;
 }
 
@@ -189,6 +190,7 @@ export default function FullscreenView({
   themes = [],
   onSelectTheme,
   handleToggleHidden: _handleToggleHidden,
+  handleToggleFavorite: _handleToggleFavorite,
   handlePromoteCopy: _handlePromoteCopy,
 }: FullscreenViewProps) {
   const { locale, setLocale } = useTranslation();

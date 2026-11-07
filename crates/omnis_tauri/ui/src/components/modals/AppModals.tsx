@@ -60,6 +60,7 @@ export interface AppModalsProps {
   handleOpenUninstallModal: (game: GameDto) => void;
   handleRemoveFromLibrary: (gameId: string) => void;
   onToggleHidden?: (game: GameDto) => void;
+  onToggleFavorite?: (game: GameDto) => void;
   onPromoteCopy?: (copyId: string) => void;
 
   // Editor Modal
@@ -150,6 +151,7 @@ export const AppModals: React.FC<AppModalsProps> = ({
   handleOpenUninstallModal,
   handleRemoveFromLibrary,
   onToggleHidden,
+  onToggleFavorite,
   onPromoteCopy,
 
   showEditorModal,
@@ -264,6 +266,7 @@ export const AppModals: React.FC<AppModalsProps> = ({
         onUninstall={handleOpenUninstallModal}
         onRemoveFromLibrary={(game: GameDto) => handleRemoveFromLibrary(game.id)}
         onToggleHidden={onToggleHidden}
+        onToggleFavorite={onToggleFavorite}
         onPromoteCopy={onPromoteCopy}
       />
 

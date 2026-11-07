@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Play, Download, Pencil, Search, Info, FolderOpen, Monitor, ShieldCheck, Trash2, XCircle, CheckCircle2, ChevronRight, Check, Eye, EyeOff, Layers } from "lucide-react";
+import { Play, Download, Pencil, Search, Info, FolderOpen, Monitor, ShieldCheck, Trash2, XCircle, CheckCircle2, ChevronRight, Check, Eye, EyeOff, Layers, Star } from "lucide-react";
 import { GameDto } from "../types";
 import { StoreIcon } from "./StoreBadge";
 import { useTranslation } from "../i18n";
@@ -32,6 +32,7 @@ interface GlobalContextMenuProps {
   onUninstall?: (game: GameDto) => void;
   onRemoveFromLibrary?: (game: GameDto) => void;
   onToggleHidden?: (game: GameDto) => void;
+  onToggleFavorite?: (game: GameDto) => void;
   onPromoteCopy?: (copyId: string) => void;
 }
 
@@ -49,6 +50,7 @@ export default function GlobalContextMenu({
   onUninstall,
   onRemoveFromLibrary,
   onToggleHidden,
+  onToggleFavorite,
   onPromoteCopy,
 }: GlobalContextMenuProps) {
   const { t } = useTranslation();
@@ -363,6 +365,29 @@ export default function GlobalContextMenu({
           >
             <Trash2 className="w-3.5 h-3.5 text-rose-400" />
             <span>{t("context_menu.uninstall")}</span>
+          </button>
+        )}
+
+        {onToggleFavorite && (
+          <button
+            onClick={() => {
+              onToggleFavorite(contextMenu.game);
+              onClose();
+            }}
+            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-left font-medium text-slate-300 hover:text-white hover:bg-white/5 transition-colors"
+          >
+            <Star
+              className={`w-3.5 h-3.5 ${
+                contextMenu.game.is_favorite
+                  ? "text-amber-400 fill-amber-400"
+                  : "text-slate-400"
+              }`}
+            />
+            <span>
+              {contextMenu.game.is_favorite
+                ? (t("sidebar.remove_favorite") || "Rimuovi dai preferiti")
+                : (t("sidebar.add_favorite") || "Aggiungi ai preferiti")}
+            </span>
           </button>
         )}
 

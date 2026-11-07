@@ -152,7 +152,7 @@ fn test_xbox_cloud_plugin_contract_and_normalization() {
     assert_eq!(discovered.install_dir, None);
     assert_eq!(
         discovered.cover_image_path,
-        Some("https://images-eds.xboxlive.com/image?url=fh5.jpg".to_string())
+        Some("https://images-eds-ssl.xboxlive.com/image?url=fh5.jpg".to_string())
     );
 
     let play_action = discovered

@@ -7,6 +7,7 @@ import { GameCardCover } from "../common/GameCardCover";
 import EmptyGamesView from "../common/EmptyGamesView";
 import { useTranslation } from "../../i18n";
 import { useActiveGameTimer } from "../../context/ActiveGameTimerContext";
+import { getRecentSettings } from "../../utils/recentSettings";
 
 const COMPLETION_STATUS_CONFIG: Record<string, { dot: string; labelKey: string }> = {
   Playing: { dot: "bg-sky-400", labelKey: "playing" },
@@ -394,11 +395,18 @@ export default function GridView({
 
   const recentGames = React.useMemo(() => {
     if (activeFilter !== "all" || searchQuery.trim() !== "") return [];
+    const settings = getRecentSettings();
+    const cutoff = settings.timeWindowDays > 0 ? Date.now() - settings.timeWindowDays * 24 * 60 * 60 * 1000 : 0;
     const lastPlayed = (g: GameDto) => (g.last_activity ? Date.parse(g.last_activity) || 0 : 0);
     return filteredGames
-      .filter((g) => lastPlayed(g) > 0)
+      .filter((g) => {
+        const lp = lastPlayed(g);
+        if (lp <= 0) return false;
+        if (cutoff > 0 && lp < cutoff) return false;
+        return true;
+      })
       .sort((a, b) => lastPlayed(b) - lastPlayed(a))
-      .slice(0, 6);
+      .slice(0, Math.min(settings.maxCount || 6, 12));
   }, [filteredGames, activeFilter, searchQuery]);
 
   if (filteredGames.length === 0) {

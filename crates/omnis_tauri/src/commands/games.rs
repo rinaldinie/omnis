@@ -422,6 +422,21 @@ pub async fn set_game_hidden(
 }
 
 #[tauri::command]
+pub async fn set_game_favorite(
+    game_id: String,
+    is_favorite: bool,
+    state: State<'_, AppState>,
+) -> Result<GameDto, String> {
+    let id = Uuid::parse_str(&game_id).map_err(|e| format!("Invalid UUID: {}", e))?;
+    let updated = state
+        .db
+        .set_game_favorite(id, is_favorite)
+        .map_err(|e| e.to_string())?;
+    state.media_scope.allow_game_media(&updated);
+    Ok(game_to_dto(updated, &state.image_cache))
+}
+
+#[tauri::command]
 pub async fn promote_duplicate_copy(
     game_id: String,
     state: State<'_, AppState>,

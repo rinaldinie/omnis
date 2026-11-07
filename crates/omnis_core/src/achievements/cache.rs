@@ -45,8 +45,34 @@ pub fn steam_legacy_cdn_url(url: &str) -> Option<String> {
     None
 }
 
-/// Generate prioritized list of candidate URLs (modern Steam CDN first, legacy Akamai fallback)
-pub fn get_steam_icon_candidates(url: &str) -> Vec<String> {
+/// Normalizes Xbox Live image URLs to ensure valid TLS SNI endpoint (`images-eds-ssl.xboxlive.com`)
+/// and lightweight thumbnail parameters (128x128 thumbnail instead of ~3MB uncompressed 1080p full-res asset).
+pub fn normalize_xbox_icon_url(url: &str) -> Option<String> {
+    if !url.contains("xboxlive.com/") {
+        return None;
+    }
+    let mut normalized = if url.contains("images-eds.xboxlive.com/") {
+        url.replace("images-eds.xboxlive.com/", "images-eds-ssl.xboxlive.com/")
+    } else {
+        url.to_string()
+    };
+
+    if normalized.contains("images-eds-ssl.xboxlive.com/image?url=")
+        && !normalized.contains("&w=")
+        && !normalized.contains("&h=")
+    {
+        normalized.push_str("&format=png&w=128&h=128");
+    }
+
+    if normalized != url {
+        Some(normalized)
+    } else {
+        None
+    }
+}
+
+/// Generate prioritized list of candidate URLs (modern Steam CDN first, legacy Akamai fallback, Xbox SSL upgrade)
+pub fn get_icon_candidates(url: &str) -> Vec<String> {
     let mut candidates = Vec::new();
     if let Some(modern) = steam_modern_cdn_url(url) {
         // Legacy URL provided: prioritize modern first, then legacy original
@@ -56,10 +82,19 @@ pub fn get_steam_icon_candidates(url: &str) -> Vec<String> {
         // Modern URL provided: prioritize modern original first, then legacy fallback
         candidates.push(url.to_string());
         candidates.push(legacy);
+    } else if let Some(ssl_url) = normalize_xbox_icon_url(url) {
+        // Xbox EDS URL: prioritize valid SSL endpoint, then fallback to original
+        candidates.push(ssl_url);
+        candidates.push(url.to_string());
     } else {
         candidates.push(url.to_string());
     }
     candidates
+}
+
+/// Backwards compatibility alias for Steam-specific candidates
+pub fn get_steam_icon_candidates(url: &str) -> Vec<String> {
+    get_icon_candidates(url)
 }
 
 /// Resolves the default cache directory for achievements
@@ -189,14 +224,14 @@ impl AchievementCacheManager {
 
             let mut candidates = Vec::new();
             if let Some(ref p) = primary_url {
-                for c in get_steam_icon_candidates(p) {
+                for c in get_icon_candidates(p) {
                     if !candidates.contains(&c) {
                         candidates.push(c);
                     }
                 }
             }
             if let Some(ref f) = fallback_url {
-                for c in get_steam_icon_candidates(f) {
+                for c in get_icon_candidates(f) {
                     if !candidates.contains(&c) {
                         candidates.push(c);
                     }

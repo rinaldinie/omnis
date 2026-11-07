@@ -18,6 +18,7 @@ import {
   ArrowDownCircle,
   AlertCircle,
   FolderArchive,
+  Clock,
 } from 'lucide-react';
 import { useTranslation, SUPPORTED_LOCALES, LocaleCode } from '../../i18n';
 import soundEffects from '../../utils/soundEffects';
@@ -25,8 +26,9 @@ import { api } from '../../api';
 import { useUpdater } from '../../hooks/useAppUpdater';
 import { BackupSettingsTab } from './BackupSettingsTab';
 import { SettingGroup, SettingRow, SettingRadioOption, ToggleSwitch } from './SettingsControls';
+import { getRecentSettings, saveRecentSettings, RecentSettings } from '../../utils/recentSettings';
 
-export type GeneralSubTab = 'language' | 'audio' | 'window' | 'appearance' | 'data' | 'updates';
+export type GeneralSubTab = 'language' | 'audio' | 'window' | 'appearance' | 'recent' | 'data' | 'updates';
 
 export interface GeneralSettingsTabProps {
   onClose?: () => void;
@@ -98,6 +100,22 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
     localStorage.setItem('omnis_ui_animations', JSON.stringify(next));
   };
 
+  const [recentSettings, setRecentSettings] = useState<RecentSettings>(getRecentSettings);
+
+  const handleMaxRecentChange = (count: number) => {
+    soundEffects.playSelect();
+    const updated = { ...recentSettings, maxCount: count };
+    setRecentSettings(updated);
+    saveRecentSettings(updated);
+  };
+
+  const handleTimeWindowChange = (days: number) => {
+    soundEffects.playSelect();
+    const updated = { ...recentSettings, timeWindowDays: days };
+    setRecentSettings(updated);
+    saveRecentSettings(updated);
+  };
+
   const handleSelectLanguage = (code: LocaleCode) => {
     soundEffects.playSelect();
     setLocale(code);
@@ -133,6 +151,7 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
     { id: 'audio', label: t('general_settings.tab_audio'), icon: <Volume2 className="w-3.5 h-3.5" /> },
     { id: 'window', label: t('general_settings.tab_window'), icon: <Minimize2 className="w-3.5 h-3.5" /> },
     { id: 'appearance', label: t('general_settings.tab_appearance'), icon: <Palette className="w-3.5 h-3.5" /> },
+    { id: 'recent', label: t('sidebar.recent'), icon: <Clock className="w-3.5 h-3.5" /> },
     { id: 'data', label: t('general_settings.tab_data') || 'Dati & Backup', icon: <FolderArchive className="w-3.5 h-3.5" /> },
     {
       id: 'updates',
@@ -451,6 +470,57 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
                 {t('general_settings.themes_note')}
               </div>
             </div>
+          </div>
+        )}
+
+        {/* SUBTAB: GIOCHI RECENTI */}
+        {activeSubTab === 'recent' && (
+          <div className="space-y-6">
+            <SettingGroup
+              title={t('sidebar.recent')}
+              description="Configura il comportamento del filtro e della sezione giochi recenti"
+              icon={<Clock className="w-4 h-4" />}
+            >
+              <SettingRow
+                icon={<Clock className="w-4 h-4" />}
+                title="Numero massimo giochi recenti"
+                description="Limita quanti titoli recenti visualizzare nella libreria e nello scaffale"
+              >
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min="5"
+                    max="50"
+                    step="5"
+                    value={recentSettings.maxCount}
+                    onChange={(e) => handleMaxRecentChange(Number(e.target.value))}
+                    className="w-28 sm:w-36 accent-[var(--accent-primary)] cursor-pointer"
+                  />
+                  <span className="w-8 text-right font-mono font-bold text-xs text-slate-200">
+                    {recentSettings.maxCount}
+                  </span>
+                </div>
+              </SettingRow>
+
+              <SettingRow
+                icon={<Clock className="w-4 h-4" />}
+                title="Finestra temporale attività"
+                description="Considera recenti solo i giochi avviati in questo intervallo temporale"
+              >
+                <select
+                  value={recentSettings.timeWindowDays}
+                  onChange={(e) => handleTimeWindowChange(Number(e.target.value))}
+                  className="bg-white/5 border border-white/10 rounded-lg px-2.5 py-1 text-xs text-slate-200 focus:outline-none focus:border-[var(--accent-primary)] cursor-pointer"
+                >
+                  <option value={0} className="bg-slate-900 text-white">Sempre (tutti i giocati)</option>
+                  <option value={7} className="bg-slate-900 text-white">Ultimi 7 giorni</option>
+                  <option value={14} className="bg-slate-900 text-white">Ultime 2 settimane</option>
+                  <option value={30} className="bg-slate-900 text-white">Ultimi 30 giorni</option>
+                  <option value={60} className="bg-slate-900 text-white">Ultimi 60 giorni</option>
+                  <option value={90} className="bg-slate-900 text-white">Ultimi 90 giorni</option>
+                </select>
+              </SettingRow>
+            </SettingGroup>
           </div>
         )}
 
