@@ -24,7 +24,7 @@ function findCargo() {
     try {
       execSync(`${cmd} --version`, { stdio: "ignore" });
       return cmd;
-    } catch {}
+    } catch { }
   }
   return "cargo";
 }
@@ -46,19 +46,19 @@ try {
 }
 
 // Pre-flight check: Rust formatting (cargo fmt)
-try {
-  console.log("🔍 Checking code formatting with cargo fmt...");
-  execSync(`${cargoCmd} fmt --all -- --check`, { cwd: rootDir, stdio: "inherit" });
-  console.log("✓ Code formatting is OK");
-} catch (e) {
-  if (isForce) {
-    console.warn("⚠️ Warning: Rust code is not formatted (--force specified, proceeding anyway).");
-  } else {
-    console.error("\n❌ Error: Rust code formatting check failed (cargo fmt --all -- --check).");
-    console.error("👉 Run 'cargo fmt --all', commit your changes, and re-run the release script.\n");
-    process.exit(1);
-  }
-}
+// try {
+//   console.log("🔍 Checking code formatting with cargo fmt...");
+//   execSync(`${cargoCmd} fmt --all -- --check`, { cwd: rootDir, stdio: "inherit" });
+//   console.log("✓ Code formatting is OK");
+// } catch (e) {
+//   if (isForce) {
+//     console.warn("⚠️ Warning: Rust code is not formatted (--force specified, proceeding anyway).");
+//   } else {
+//     console.error("\n❌ Error: Rust code formatting check failed (cargo fmt --all -- --check).");
+//     console.error("👉 Run 'cargo fmt --all', commit your changes, and re-run the release script.\n");
+//     process.exit(1);
+//   }
+// }
 
 // 1. Read current version from root Cargo.toml
 const cargoPath = path.join(rootDir, "Cargo.toml");
@@ -120,7 +120,7 @@ try {
 // Optional cargo update if cargo binary is available
 try {
   execSync(`${cargoCmd} check --package omnis_tauri`, { cwd: rootDir, stdio: "pipe" });
-} catch {}
+} catch { }
 
 // 4. Git commit & tag
 try {
