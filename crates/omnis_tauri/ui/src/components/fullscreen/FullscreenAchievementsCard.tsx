@@ -62,7 +62,7 @@ export const FullscreenAchievementsCard = React.forwardRef<HTMLButtonElement, Fu
               <div className="mt-3 h-1.5 max-w-xl rounded-full bg-white/10 overflow-hidden">
                 <div
                   className="h-full rounded-full"
-                  style={{ width: `${Math.max(percent, 1)}%`, backgroundColor: "var(--accent-primary)" }}
+                  style={{ width: `${percent}%`, backgroundColor: "var(--accent-primary)" }}
                 />
               </div>
               <div className="mt-4 flex items-center gap-3">

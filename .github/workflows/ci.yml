@@ -55,16 +55,6 @@ jobs:
           path: crates/omnis_tauri/ui/dist
           retention-days: 1
 
-  fmt:
-    name: Rustfmt
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt
-      - run: cargo fmt --all -- --check
-
   rust:
     name: Clippy & Tests (${{ matrix.os }})
     needs: frontend

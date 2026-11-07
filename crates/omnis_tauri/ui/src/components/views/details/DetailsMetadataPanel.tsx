@@ -5,11 +5,14 @@ import {
   Sparkles,
   BookOpen,
   ExternalLink,
+  Layers,
+  Play,
 } from "lucide-react";
 import { GameDto } from "../../../types";
 import { Slot } from "../../common/Slot";
 import { GameAchievementsGallery } from "../../achievements";
 import GameStatisticsCard from "../../stats/GameStatisticsCard";
+import { StoreBadge, StoreIcon } from "../../StoreBadge";
 import { getCompletionStatusInfo } from "./helpers";
 
 export interface DetailsMetadataPanelProps {
@@ -23,6 +26,8 @@ export interface DetailsMetadataPanelProps {
   activeFilter?: string;
   setActiveFilter?: (filter: string) => void;
   isFilterActive?: (filterId: string) => boolean;
+  handleLaunch?: (gameId: string) => void;
+  handlePromoteCopy?: (copyId: string) => void;
 }
 
 export const DetailsMetadataPanel: React.FC<DetailsMetadataPanelProps> = ({
@@ -36,6 +41,8 @@ export const DetailsMetadataPanel: React.FC<DetailsMetadataPanelProps> = ({
   activeFilter,
   setActiveFilter,
   isFilterActive,
+  handleLaunch,
+  handlePromoteCopy,
 }) => {
   const handleFilterByGenre = (genre: string) => {
     if (!setActiveFilter) return;
@@ -82,12 +89,9 @@ export const DetailsMetadataPanel: React.FC<DetailsMetadataPanelProps> = ({
         <div className="flex items-center justify-between p-3.5 px-4 rounded-xl border border-white/[0.06] bg-white/[0.02] text-xs transition-colors">
           <div className="flex items-center gap-2.5">
             <Clock className="w-4 h-4 text-amber-400 shrink-0" />
-            <div>
-              <span className="font-semibold text-white">{t("game_details.hltb_title")}</span>
-              <p className="text-[11px] text-slate-400">
-                {t("game_details.hltb_not_downloaded")}
-              </p>
-            </div>
+            <p className="text-[11px] text-slate-400">
+              {t("game_details.hltb_not_downloaded")}
+            </p>
           </div>
           <button
             onClick={() => (handleRefreshHltb ? handleRefreshHltb(selectedGame.id) : handleEnrichSingleGame(selectedGame.id))}
@@ -100,23 +104,74 @@ export const DetailsMetadataPanel: React.FC<DetailsMetadataPanelProps> = ({
           </button>
         </div>
       ) : (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between px-1 text-xs">
-            <div className="flex items-center gap-2">
-              <Clock className="w-3.5 h-3.5 text-amber-400" />
-              <span className="font-semibold text-slate-300 text-xs">{t("game_details.hltb_title")}</span>
-            </div>
-            <button
-              onClick={() => (handleRefreshHltb ? handleRefreshHltb(selectedGame.id) : handleEnrichSingleGame(selectedGame.id))}
-              disabled={isEnrichingSingle}
-              title={t("game_details.refresh_hltb_title")}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium text-slate-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] transition-colors disabled:opacity-50"
-            >
-              <RefreshCw className={`w-3 h-3 ${isEnrichingSingle ? "animate-spin text-amber-400" : ""}`} />
-              <span>{isEnrichingSingle ? t("game_details.refreshing") : t("game_details.refresh_source")}</span>
-            </button>
-          </div>
+        <div className="flex items-center gap-2.5 flex-wrap">
           <Slot name="details.info" gameId={selectedGame.id} />
+          <button
+            onClick={() => (handleRefreshHltb ? handleRefreshHltb(selectedGame.id) : handleEnrichSingleGame(selectedGame.id))}
+            disabled={isEnrichingSingle}
+            title={t("game_details.refresh_hltb_title")}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-300 hover:text-white bg-white/[0.02] hover:bg-white/[0.06] border border-white/[0.06] transition-colors disabled:opacity-50 shrink-0"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isEnrichingSingle ? "animate-spin text-amber-400" : "text-amber-400"}`} />
+            <span>{isEnrichingSingle ? t("game_details.refreshing") : t("game_details.refresh_source")}</span>
+          </button>
+        </div>
+      )}
+
+      {/* Available copies / Copie disponibili banner (positioned under HowLongToBeat) */}
+      {selectedGame.other_copies && selectedGame.other_copies.length > 0 && (
+        <div className="p-4 rounded-xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-sm space-y-2.5">
+          <div className="flex flex-wrap items-center gap-2 pt-0.5">
+            {/* Active primary copy pill */}
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-indigo-600/20 border border-indigo-500/40 text-xs font-semibold text-white shadow-xs">
+              <StoreIcon library={selectedGame.library} className="w-4 h-4" />
+              <span>{selectedGame.library.toUpperCase()}</span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/30 text-indigo-200">
+                {t("duplicate_hider.active_copy")}
+              </span>
+              {selectedGame.is_installed && (
+                <span className="w-2 h-2 rounded-full bg-emerald-400" title={t("status.installed")} />
+              )}
+            </div>
+
+            {/* Alternate copies pills */}
+            {selectedGame.other_copies.map((copy) => (
+              <div
+                key={copy.id}
+                className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-slate-900/60 hover:bg-slate-800/80 border border-white/10 text-xs transition-colors"
+              >
+                <StoreIcon library={copy.library} className="w-4 h-4 text-slate-300" />
+                <span className="font-medium text-slate-200">{copy.library.toUpperCase()}</span>
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    copy.is_installed ? "bg-emerald-400" : "bg-slate-500"
+                  }`}
+                  title={copy.is_installed ? t("status.installed") : t("status.available")}
+                />
+                {handlePromoteCopy && (
+                  <button
+                    type="button"
+                    onClick={() => handlePromoteCopy(copy.id)}
+                    className="ml-1 px-2 py-0.5 rounded text-[10px] font-semibold text-indigo-300 hover:text-white bg-indigo-500/20 hover:bg-indigo-500/40 border border-indigo-500/30 transition-all cursor-pointer"
+                    title={t("duplicate_hider.promote_copy", { store: copy.library.toUpperCase() })}
+                  >
+                    {t("duplicate_hider.promote_copy", { store: copy.library.toUpperCase() })}
+                  </button>
+                )}
+                {handleLaunch && (
+                  <button
+                    type="button"
+                    onClick={() => handleLaunch(copy.id)}
+                    className="px-2 py-0.5 rounded text-[10px] font-semibold text-emerald-300 hover:text-white bg-emerald-500/20 hover:bg-emerald-500/40 border border-emerald-500/30 transition-all cursor-pointer flex items-center gap-1"
+                    title={t("duplicate_hider.launch_copy", { store: copy.library.toUpperCase() })}
+                  >
+                    <Play className="w-2.5 h-2.5 fill-current" />
+                    <span>{copy.is_installed ? t("common.play") : t("common.install")}</span>
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
