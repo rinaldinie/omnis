@@ -8,6 +8,7 @@ import {
   Palette,
   Cloud,
   BarChart2,
+  EyeOff,
 } from "lucide-react";
 import { LibraryCounts, ViewMode } from "../../types";
 import { SteamIcon, EpicIcon, GogIcon, XboxIcon } from "../StoreBadge";
@@ -48,6 +49,9 @@ export default function Sidebar({
     { id: "installed", label: t("sidebar.installed"), count: counts.installed, icon: CheckCircle2 },
     { id: "recent", label: t("sidebar.recent"), count: counts.recent, icon: Clock },
     { id: "favorites", label: t("sidebar.favorites"), count: counts.favorites, icon: Star },
+    ...(counts.hidden !== undefined && counts.hidden > 0
+      ? [{ id: "hidden", label: t("sidebar.hidden"), count: counts.hidden, icon: EyeOff }]
+      : []),
   ];
 
   const storeItems = [

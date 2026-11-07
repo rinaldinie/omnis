@@ -7,8 +7,9 @@ import {
   ArrowDown,
   ArrowUpDown,
   Download,
+  EyeOff,
 } from "lucide-react";
-import { StoreBadge } from "./StoreBadge";
+import { StoreBadge, StoreIcon } from "./StoreBadge";
 import { useTranslation } from "../i18n";
 
 export interface GameItem {
@@ -33,6 +34,16 @@ export interface GameItem {
   genres: string[];
   developers: string[];
   publishers?: string[];
+  is_hidden?: boolean;
+  other_copies?: Array<{
+    id: string;
+    title: string;
+    library: string;
+    is_installed: boolean;
+    playtime_seconds: number;
+    playtime_formatted: string;
+    is_hidden: boolean;
+  }>;
 }
 
 export type SortField =
@@ -448,17 +459,49 @@ export default function ListViewTable({
 
                   {/* 2. Title */}
                   <td className="py-1.5 px-3 font-semibold text-white max-w-xs md:max-w-sm">
-                    <span
-                      className="truncate block text-xs md:text-sm font-bold tracking-tight text-white group-hover:text-indigo-300 transition-colors"
-                      title={game.title}
-                    >
-                      {game.title}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className="truncate block text-xs md:text-sm font-bold tracking-tight text-white group-hover:text-indigo-300 transition-colors"
+                        title={game.title}
+                      >
+                        {game.title}
+                      </span>
+                      {game.is_hidden && (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[9px] font-semibold bg-rose-500/15 text-rose-300 border border-rose-500/30 shrink-0">
+                          <EyeOff className="w-2.5 h-2.5" />
+                          <span>{t("sidebar.hidden")}</span>
+                        </span>
+                      )}
+                    </div>
                   </td>
 
                   {/* 3. Store / Platform */}
                   <td className="py-1.5 px-3 whitespace-nowrap">
-                    <StoreBadge library={game.library} showName={true} />
+                    <div className="flex items-center gap-1.5">
+                      <StoreBadge library={game.library} showName={true} />
+                      {game.other_copies && game.other_copies.length > 0 && (
+                        <span
+                          className="flex items-center gap-1 pl-1 border-l border-white/10"
+                          title={t("duplicate_hider.other_copies")}
+                        >
+                          {game.other_copies.map((copy) => (
+                            <span
+                              key={copy.id}
+                              className={`inline-flex items-center justify-center w-5 h-5 rounded-full bg-white/5 border border-white/10 ${
+                                copy.is_installed
+                                  ? "border-emerald-400/50 text-emerald-300"
+                                  : "text-white/70"
+                              }`}
+                              title={`${copy.library.toUpperCase()} ${
+                                copy.is_installed ? `(${t("groups.installed")})` : ""
+                              }`}
+                            >
+                              <StoreIcon library={copy.library} className="w-3 h-3" />
+                            </span>
+                          ))}
+                        </span>
+                      )}
+                    </div>
                   </td>
 
                   {/* 4. Status (Installed / Available) */}

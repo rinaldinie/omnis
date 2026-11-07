@@ -22,6 +22,8 @@ import {
   X,
   Clock,
   RotateCcw,
+  Layers,
+  EyeOff,
 } from 'lucide-react';
 import { soundEffects } from '../../utils/soundEffects';
 import { api, TAURI_EVENTS, listenTauri } from '../../api';
@@ -30,12 +32,14 @@ import { GeneralSettingsTab } from './GeneralSettingsTab';
 import { StoreAccountsTab, STORE_LIST } from './StoreAccountsTab';
 import { AchievementsSettingsTab } from '../achievements';
 import { BackupSettingsTab } from './BackupSettingsTab';
+import { DuplicateHiderSettingsTab } from './DuplicateHiderSettingsTab';
 import type { StoreAccount } from '../store_accounts/types';
 
 export type SettingsTab =
   | 'general'
   | 'accounts'
   | 'achievements'
+  | 'duplicates'
   | 'backup'
   // Specific sub-paths for direct deep-linking
   | 'general-language'
@@ -53,6 +57,9 @@ export type SettingsTab =
   | 'achievements-appearance'
   | 'achievements-misc'
   | 'achievements-ignored'
+  | 'duplicates-priorities'
+  | 'duplicates-rules'
+  | 'duplicates-ignored'
   | 'backup-manager'
   | 'backup-manual'
   | 'backup-schedule'
@@ -105,6 +112,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     if (!tab || tab === 'general') return 'general-language';
     if (tab === 'accounts') return 'store-steam';
     if (tab === 'achievements') return 'achievements-sources';
+    if (tab === 'duplicates') return 'duplicates-priorities';
     if (tab === 'backup' || tab === 'backup-manager') return 'backup-manual';
     return tab;
   };
@@ -119,6 +127,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     general: true,
     accounts: true,
     achievements: true,
+    duplicates: true,
     backup: true,
   });
 
@@ -296,6 +305,31 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             label: t('achievements_settings.tab_ignored', { defaultValue: 'Titoli Ignorati' }),
             icon: (c = 'w-4 h-4') => <Trash2 className={c} />,
             keywords: ['ignorati', 'nascondi', 'whitelist', 'blacklist'],
+          },
+        ],
+      },
+      {
+        id: 'duplicates',
+        label: t('duplicate_hider.group_title', { defaultValue: 'Gestione Duplicati' }),
+        icon: (c = 'w-4 h-4') => <Layers className={c} />,
+        items: [
+          {
+            id: 'duplicates-priorities',
+            label: t('duplicate_hider.tab_priorities', { defaultValue: 'Priorità Store & Stato' }),
+            icon: (c = 'w-4 h-4') => <SlidersHorizontal className={c} />,
+            keywords: ['duplicati', 'duplicate', 'hider', 'priorità', 'store', 'copie', 'installati'],
+          },
+          {
+            id: 'duplicates-rules',
+            label: t('duplicate_hider.tab_rules', { defaultValue: 'Regole & Visualizzazione' }),
+            icon: (c = 'w-4 h-4') => <Eye className={c} />,
+            keywords: ['duplicati', 'regole', 'goty', 'edizioni', 'badge', 'menu', 'altre copie'],
+          },
+          {
+            id: 'duplicates-ignored',
+            label: t('duplicate_hider.tab_ignored', { defaultValue: 'Giochi Esclusi' }),
+            icon: (c = 'w-4 h-4') => <EyeOff className={c} />,
+            keywords: ['duplicati', 'esclusi', 'ignorati', 'whitelist'],
           },
         ],
       },
@@ -636,6 +670,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       : 'sources'
                   }
                   hideTabBar={true}
+                />
+              )}
+
+              {/* SECTION: GESTIONE DUPLICATI (DUPLICATE HIDER) */}
+              {activeTab.startsWith('duplicates-') && (
+                <DuplicateHiderSettingsTab
+                  onClose={handleClose}
+                  onSyncComplete={onSyncComplete}
+                  activeSubTab={
+                    activeTab === 'duplicates-priorities'
+                      ? 'priorities'
+                      : activeTab === 'duplicates-rules'
+                      ? 'rules'
+                      : activeTab === 'duplicates-ignored'
+                      ? 'ignored'
+                      : 'priorities'
+                  }
+                  hideSubTabBar={true}
                 />
               )}
 

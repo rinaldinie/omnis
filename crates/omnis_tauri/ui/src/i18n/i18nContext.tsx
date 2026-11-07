@@ -86,7 +86,11 @@ export function I18nProvider({ children }: { children: ReactNode }) {
       text = resolveNestedKey(translations.en, keyPath);
     }
     if (!text) {
-      return keyPath;
+      if (params && typeof params.defaultValue === 'string') {
+        text = params.defaultValue;
+      } else {
+        return keyPath;
+      }
     }
     // Interpolate params (e.g. {count} -> 12)
     if (params) {

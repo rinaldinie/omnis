@@ -189,3 +189,61 @@ export function StoreBadge({
     </span>
   );
 }
+
+export interface MultiStoreBadgeGroupProps {
+  primaryLibrary: string;
+  otherCopies?: Array<{ library: string; is_installed?: boolean }>;
+  className?: string;
+  showTooltips?: boolean;
+}
+
+export function MultiStoreBadgeGroup({
+  primaryLibrary,
+  otherCopies,
+  className = "",
+  showTooltips = true,
+}: MultiStoreBadgeGroupProps) {
+  const { t } = useTranslation();
+  const showBadgesOnCard =
+    typeof localStorage === "undefined" ||
+    localStorage.getItem("omnis_dh_badges_on_card") !== "false";
+
+  if (!showBadgesOnCard || !otherCopies || otherCopies.length === 0) {
+    return <StoreBadge library={primaryLibrary} variant="subtle" className={className} />;
+  }
+
+  // Filter distinct secondary copies by library
+  const secondaryCopies = otherCopies.filter(
+    (copy, idx, self) =>
+      copy.library.toLowerCase() !== primaryLibrary.toLowerCase() &&
+      self.findIndex((c) => c.library.toLowerCase() === copy.library.toLowerCase()) === idx
+  );
+
+  if (secondaryCopies.length === 0) {
+    return <StoreBadge library={primaryLibrary} variant="subtle" className={className} />;
+  }
+
+  return (
+    <div className={`inline-flex items-center gap-1 ${className}`}>
+      <StoreBadge library={primaryLibrary} variant="subtle" />
+      <div className="flex items-center gap-0.5">
+        {secondaryCopies.map((copy) => (
+          <span
+            key={copy.library}
+            className={`inline-flex items-center justify-center w-5 h-5 rounded-full border bg-white/5 border-white/10 backdrop-blur-sm text-white/80 transition-colors ${
+              copy.is_installed ? "border-emerald-400/50 text-emerald-300" : ""
+            }`}
+            title={
+              showTooltips
+                ? t("store_badge.available_on", { store: copy.library.toUpperCase() })
+                : undefined
+            }
+          >
+            <StoreIcon library={copy.library} className="w-3 h-3 shrink-0" />
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+

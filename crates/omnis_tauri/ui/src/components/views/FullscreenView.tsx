@@ -114,6 +114,8 @@ interface FullscreenViewProps {
   setConsolePage?: (page: ConsolePage | null) => void;
   themes?: ThemeConfig[];
   onSelectTheme?: (theme: ThemeConfig) => void;
+  handleToggleHidden?: (game: GameDto) => void;
+  handlePromoteCopy?: (copyId: string) => void;
 }
 
 export type GameAction = "folder" | "verify" | "shortcut" | "uninstall";
@@ -186,6 +188,8 @@ export default function FullscreenView({
   setConsolePage,
   themes = [],
   onSelectTheme,
+  handleToggleHidden: _handleToggleHidden,
+  handlePromoteCopy: _handlePromoteCopy,
 }: FullscreenViewProps) {
   const { locale, setLocale } = useTranslation();
   const timerContextSeconds = useActiveGameTimer();

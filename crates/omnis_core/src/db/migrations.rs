@@ -1,6 +1,6 @@
 use rusqlite::{Connection, Result};
 
-pub const CURRENT_SCHEMA_VERSION: i32 = 4;
+pub const CURRENT_SCHEMA_VERSION: i32 = 5;
 
 pub fn run_migrations(conn: &Connection) -> Result<()> {
     let current_version: i32 = conn.query_row("PRAGMA user_version;", [], |r| r.get(0))?;
@@ -235,6 +235,50 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
             [],
         );
         conn.execute_batch("PRAGMA user_version = 4;")?;
+    }
+
+    // Version 5: Duplicate Hider columns, indexes, and singleton configuration table
+    if current_version < 5 {
+        let _ = conn.execute(
+            "ALTER TABLE games ADD COLUMN is_hidden INTEGER NOT NULL DEFAULT 0;",
+            [],
+        );
+        let _ = conn.execute(
+            "ALTER TABLE games ADD COLUMN hidden_by_duplicate_hider INTEGER NOT NULL DEFAULT 0;",
+            [],
+        );
+        let _ = conn.execute(
+            "ALTER TABLE games ADD COLUMN duplicate_group_id TEXT;",
+            [],
+        );
+        let _ = conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_games_is_hidden ON games(is_hidden);",
+            [],
+        );
+        let _ = conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_games_duplicate_group ON games(duplicate_group_id);",
+            [],
+        );
+        conn.execute_batch(
+            "
+            CREATE TABLE IF NOT EXISTS duplicate_hider_config (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                enabled INTEGER NOT NULL DEFAULT 1,
+                store_priority TEXT NOT NULL DEFAULT '[\"steam\",\"gog\",\"epic\",\"xbox\",\"custom\"]',
+                prefer_installed INTEGER NOT NULL DEFAULT 1,
+                ignore_edition_suffixes INTEGER NOT NULL DEFAULT 1,
+                show_other_copies_in_menu INTEGER NOT NULL DEFAULT 1,
+                show_store_badges_on_card INTEGER NOT NULL DEFAULT 1,
+                ignored_game_ids TEXT NOT NULL DEFAULT '[]',
+                updated_at TEXT NOT NULL
+            );
+            INSERT OR IGNORE INTO duplicate_hider_config (
+                id, enabled, store_priority, prefer_installed, ignore_edition_suffixes,
+                show_other_copies_in_menu, show_store_badges_on_card, ignored_game_ids, updated_at
+            ) VALUES (1, 1, '[\"steam\",\"gog\",\"epic\",\"xbox\",\"custom\"]', 1, 1, 1, 1, '[]', datetime('now'));
+            PRAGMA user_version = 5;
+            ",
+        )?;
     }
 
     conn.execute_batch(&format!(

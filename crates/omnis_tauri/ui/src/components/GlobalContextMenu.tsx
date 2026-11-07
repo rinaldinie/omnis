@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { Play, Download, Pencil, Search, Info, FolderOpen, Monitor, ShieldCheck, Trash2, XCircle, CheckCircle2, ChevronRight, Check } from "lucide-react";
+import { Play, Download, Pencil, Search, Info, FolderOpen, Monitor, ShieldCheck, Trash2, XCircle, CheckCircle2, ChevronRight, Check, Eye, EyeOff, Layers } from "lucide-react";
 import { GameDto } from "../types";
+import { StoreIcon } from "./StoreBadge";
 import { useTranslation } from "../i18n";
 
 const COMPLETION_STATUS_OPTIONS = [
@@ -30,6 +31,8 @@ interface GlobalContextMenuProps {
   onVerifyFiles?: (game: GameDto) => void;
   onUninstall?: (game: GameDto) => void;
   onRemoveFromLibrary?: (game: GameDto) => void;
+  onToggleHidden?: (game: GameDto) => void;
+  onPromoteCopy?: (copyId: string) => void;
 }
 
 export default function GlobalContextMenu({
@@ -45,9 +48,12 @@ export default function GlobalContextMenu({
   onVerifyFiles,
   onUninstall,
   onRemoveFromLibrary,
+  onToggleHidden,
+  onPromoteCopy,
 }: GlobalContextMenuProps) {
   const { t } = useTranslation();
   const [showStatusSubmenu, setShowStatusSubmenu] = useState(false);
+  const [showCopiesSubmenu, setShowCopiesSubmenu] = useState(false);
   if (!contextMenu) return null;
 
   const currentStatus = contextMenu.game.completion_status || "NotPlayed";
@@ -200,6 +206,111 @@ export default function GlobalContextMenu({
           </div>
         )}
 
+        {/* Other Copies Submenu Trigger */}
+        {contextMenu.game.other_copies &&
+          contextMenu.game.other_copies.length > 0 &&
+          (typeof localStorage === "undefined" ||
+            localStorage.getItem("omnis_dh_copies_in_menu") !== "false") && (
+            <div
+              className="relative"
+              onMouseEnter={() => setShowCopiesSubmenu(true)}
+              onMouseLeave={() => setShowCopiesSubmenu(false)}
+            >
+              <button
+                type="button"
+                onClick={() => setShowCopiesSubmenu((v) => !v)}
+                className="w-full flex items-center justify-between px-3.5 py-2 text-left font-medium text-slate-200 hover:bg-white/5 transition-colors"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Layers className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>{t("duplicate_hider.other_copies")}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded text-slate-400 bg-white/5">
+                    {contextMenu.game.other_copies.length}
+                  </span>
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                </div>
+              </button>
+
+              {showCopiesSubmenu && (
+                <div
+                  className={`absolute top-0 ${
+                    contextMenu.x + 440 > window.innerWidth ? "right-full mr-1" : "left-full ml-1"
+                  } w-64 py-1.5 rounded-xl border shadow-2xl backdrop-blur-xl z-[10000]`}
+                  style={{
+                    backgroundColor: "var(--bg-surface)",
+                    borderColor: "var(--border-color)",
+                    boxShadow: "0 12px 36px rgba(0,0,0,0.8)",
+                  }}
+                >
+                  <div
+                    className="px-3 py-1.5 border-b text-[10px] font-bold text-slate-400 uppercase tracking-wider"
+                    style={{ borderColor: "var(--border-color)" }}
+                  >
+                    {t("duplicate_hider.available_copies")}
+                  </div>
+                  {contextMenu.game.other_copies.map((copy) => (
+                    <div
+                      key={copy.id}
+                      className="p-2 border-b last:border-b-0 space-y-1.5"
+                      style={{ borderColor: "var(--border-color)" }}
+                    >
+                      <div className="flex items-center justify-between gap-1.5">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <StoreIcon library={copy.library} className="w-3.5 h-3.5 shrink-0" />
+                          <span className="font-semibold text-white truncate text-xs">
+                            {copy.library.toUpperCase()}
+                          </span>
+                        </div>
+                        <span className="flex items-center gap-1 text-[10px] text-slate-400 shrink-0">
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              copy.is_installed ? "bg-emerald-400" : "bg-slate-500"
+                            }`}
+                          />
+                          <span>{copy.is_installed ? t("groups.installed") : t("groups.available")}</span>
+                        </span>
+                      </div>
+                      {copy.playtime_formatted && (
+                        <div className="text-[10px] text-slate-400 font-mono">
+                          {copy.playtime_formatted}
+                        </div>
+                      )}
+                      <div className="flex items-center gap-1.5 pt-0.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onLaunch(copy.id);
+                            onClose();
+                          }}
+                          className="flex-1 flex items-center justify-center gap-1 py-1 px-2 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 border border-indigo-500/30 text-[10px] font-semibold transition-colors cursor-pointer"
+                          title={t("duplicate_hider.launch_copy", { store: copy.library.toUpperCase() })}
+                        >
+                          <Play className="w-2.5 h-2.5 fill-current" />
+                          <span>{copy.is_installed ? t("common.play") : t("common.install")}</span>
+                        </button>
+                        {onPromoteCopy && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onPromoteCopy(copy.id);
+                              onClose();
+                            }}
+                            className="flex-1 flex items-center justify-center gap-1 py-1 px-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10 text-[10px] font-medium transition-colors cursor-pointer"
+                            title={t("duplicate_hider.promote_copy", { store: copy.library.toUpperCase() })}
+                          >
+                            <span>{t("duplicate_hider.active_copy")}</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
         <div className="my-1 border-t" style={{ borderColor: "var(--border-color)" }} />
 
         {/* Management Actions */}
@@ -252,6 +363,28 @@ export default function GlobalContextMenu({
           >
             <Trash2 className="w-3.5 h-3.5 text-rose-400" />
             <span>{t("context_menu.uninstall")}</span>
+          </button>
+        )}
+
+        {onToggleHidden && (
+          <button
+            onClick={() => {
+              onToggleHidden(contextMenu.game);
+              onClose();
+            }}
+            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-left font-medium text-slate-300 hover:text-white hover:bg-white/5 transition-colors"
+          >
+            {contextMenu.game.is_hidden ? (
+              <>
+                <Eye className="w-3.5 h-3.5 text-indigo-400" />
+                <span>{t("duplicate_hider.unhide_game")}</span>
+              </>
+            ) : (
+              <>
+                <EyeOff className="w-3.5 h-3.5 text-slate-400" />
+                <span>{t("duplicate_hider.hide_game")}</span>
+              </>
+            )}
           </button>
         )}
 

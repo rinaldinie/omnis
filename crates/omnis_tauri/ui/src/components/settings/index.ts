@@ -4,6 +4,8 @@ export { GeneralSettingsTab } from './GeneralSettingsTab';
 export { StoreAccountsTab } from './StoreAccountsTab';
 export { BackupSettingsTab } from './BackupSettingsTab';
 export type { BackupSubSection } from './BackupSettingsTab';
+export { DuplicateHiderSettingsTab } from './DuplicateHiderSettingsTab';
+export type { DuplicateHiderSubTab, DuplicateHiderSettingsTabProps } from './DuplicateHiderSettingsTab';
 export { MarketplaceTab } from './MarketplaceTab';
 export type { MarketplaceCatalog, MarketplacePluginItem } from './MarketplaceTab';
 export * from './backup/ManualBackupSection';

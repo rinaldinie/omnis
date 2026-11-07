@@ -99,6 +99,8 @@ export interface DesktopViewProps {
   handleVerifyFiles: (gameId: string) => void;
   handleOpenUninstallModal: (game: GameDto) => void;
   handleRemoveFromLibrary: (gameId: string) => void;
+  handleToggleHidden?: (game: GameDto) => void;
+  handlePromoteCopy?: (copyId: string) => void;
   statusMessage: string;
   achievementSync: any;
   totalGamesCount: number;
@@ -185,6 +187,8 @@ export const DesktopView: React.FC<DesktopViewProps> = ({
   handleVerifyFiles,
   handleOpenUninstallModal,
   handleRemoveFromLibrary,
+  handleToggleHidden,
+  handlePromoteCopy,
   statusMessage,
   achievementSync,
   totalGamesCount,
@@ -397,6 +401,8 @@ export const DesktopView: React.FC<DesktopViewProps> = ({
                 handleVerifyFiles={handleVerifyFiles}
                 handleOpenUninstallModal={handleOpenUninstallModal}
                 handleRemoveFromLibrary={handleRemoveFromLibrary}
+                handlePromoteCopy={handlePromoteCopy}
+                handleToggleHidden={handleToggleHidden}
               />
             ) : (
               <EmptyGamesView

@@ -34,6 +34,14 @@ pub struct GameDto {
     pub extra_metadata: Option<String>,
     #[serde(default)]
     pub last_activity: Option<String>,
+    #[serde(default)]
+    pub is_hidden: bool,
+    #[serde(default)]
+    pub hidden_by_duplicate_hider: bool,
+    #[serde(default)]
+    pub duplicate_group_id: Option<String>,
+    #[serde(default)]
+    pub other_copies: Vec<omnis_sdk::DuplicateCopyDto>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -181,6 +189,55 @@ pub fn game_to_dto(g: Game, _cache: &ImageCache) -> GameDto {
         custom_links: g.custom_links,
         extra_metadata: g.extra_metadata,
         last_activity: g.last_activity.map(|t| t.to_rfc3339()),
+        is_hidden: g.is_hidden,
+        hidden_by_duplicate_hider: g.hidden_by_duplicate_hider,
+        duplicate_group_id: g.duplicate_group_id,
+        other_copies: Vec::new(),
+    }
+}
+
+pub fn populate_other_copies(dtos: &mut [GameDto]) {
+    let mut groups: HashMap<String, Vec<omnis_sdk::DuplicateCopyDto>> = HashMap::new();
+
+    for dto in dtos.iter() {
+        if let Some(ref gid) = dto.duplicate_group_id {
+            groups
+                .entry(gid.clone())
+                .or_default()
+                .push(omnis_sdk::DuplicateCopyDto {
+                    id: dto.id.clone(),
+                    title: dto.title.clone(),
+                    library: dto.library.clone(),
+                    is_installed: dto.is_installed,
+                    playtime_seconds: dto.playtime_seconds,
+                    playtime_formatted: dto.playtime_formatted.clone(),
+                    is_hidden: dto.is_hidden,
+                });
+        }
+    }
+
+    for copies in groups.values_mut() {
+        copies.sort_by(|a, b| {
+            b.is_installed
+                .cmp(&a.is_installed)
+                .then_with(|| a.library.cmp(&b.library))
+        });
+    }
+
+    for dto in dtos.iter_mut() {
+        if let Some(ref gid) = dto.duplicate_group_id {
+            if let Some(copies) = groups.get(gid) {
+                dto.other_copies = copies
+                    .iter()
+                    .filter(|c| c.id != dto.id)
+                    .cloned()
+                    .collect();
+            } else {
+                dto.other_copies.clear();
+            }
+        } else {
+            dto.other_copies.clear();
+        }
     }
 }
 

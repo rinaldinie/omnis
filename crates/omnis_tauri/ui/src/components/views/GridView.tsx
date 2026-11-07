@@ -1,7 +1,7 @@
 import React from "react";
-import { Gamepad2, ChevronRight, ChevronDown, Play, Download, Square, MoreHorizontal, Clock } from "lucide-react";
+import { Gamepad2, ChevronRight, ChevronDown, Play, Download, Square, MoreHorizontal, Clock, EyeOff } from "lucide-react";
 import { ActiveGameSession, GameDto, GroupBy, ViewMode } from "../../types";
-import { StoreBadge } from "../StoreBadge";
+import { StoreBadge, MultiStoreBadgeGroup } from "../StoreBadge";
 import { Slot } from "../common/Slot";
 import { GameCardCover } from "../common/GameCardCover";
 import EmptyGamesView from "../common/EmptyGamesView";
@@ -109,7 +109,16 @@ const GameCardItem = React.memo(
 
           {/* Top Left: Store Badge & Status */}
           <div data-omnis="game-card.badge" className="absolute top-2 left-2 flex items-center gap-1.5 z-10 pointer-events-none">
-            <StoreBadge library={game.library} variant="subtle" />
+            <MultiStoreBadgeGroup primaryLibrary={game.library} otherCopies={game.other_copies} />
+            {game.is_hidden && (
+              <span
+                className="flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[9px] font-semibold bg-rose-500/20 border-rose-500/40 text-rose-300 backdrop-blur-sm shadow-xs"
+                title={t("sidebar.hidden")}
+              >
+                <EyeOff className="w-3 h-3 text-rose-300" />
+                <span>{t("sidebar.hidden")}</span>
+              </span>
+            )}
             {isRunning ? (
               <div
                 className={`flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-bold shadow-sm backdrop-blur-sm ${
@@ -318,7 +327,7 @@ const DesktopRecentCard = React.memo(function DesktopRecentCard({
 
       {/* Store Badge Top-Right */}
       <div className="absolute top-2 right-2 z-10">
-        <StoreBadge library={game.library} />
+        <MultiStoreBadgeGroup primaryLibrary={game.library} otherCopies={game.other_copies} />
       </div>
 
       {/* Play Button on Hover */}

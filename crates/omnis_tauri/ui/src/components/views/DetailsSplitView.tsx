@@ -37,6 +37,8 @@ interface DetailsSplitViewProps {
   handleVerifyFiles?: (gameId: string) => void;
   handleOpenUninstallModal?: (game: GameDto) => void;
   handleRemoveFromLibrary?: (gameId: string) => void;
+  handlePromoteCopy?: (copyId: string) => void;
+  handleToggleHidden?: (game: GameDto) => void;
 }
 
 export default function DetailsSplitView({
@@ -72,6 +74,8 @@ export default function DetailsSplitView({
   handleVerifyFiles,
   handleOpenUninstallModal,
   handleRemoveFromLibrary,
+  handlePromoteCopy,
+  handleToggleHidden,
 }: DetailsSplitViewProps) {
   return (
     <div className="flex-1 flex overflow-hidden">
@@ -119,6 +123,7 @@ export default function DetailsSplitView({
           handleVerifyFiles={handleVerifyFiles}
           handleOpenUninstallModal={handleOpenUninstallModal}
           handleRemoveFromLibrary={handleRemoveFromLibrary}
+          handlePromoteCopy={handlePromoteCopy}
         />
 
         <DetailsMetadataPanel
