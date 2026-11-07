@@ -84,6 +84,63 @@ impl ExternalMetadataProvider {
         fallback
     }
 
+    /// Sanitizes a game title into clean search terms for HowLongToBeat API.
+    ///
+    /// Removes punctuation attached to words (like ':', '-', '™', '®') that cause 0-results on HLTB.
+    pub fn sanitize_hltb_terms(title: &str) -> Vec<String> {
+        title
+            .split_whitespace()
+            .map(|word| {
+                word.chars()
+                    .filter(|c| c.is_alphanumeric())
+                    .collect::<String>()
+            })
+            .filter(|w| !w.is_empty())
+            .collect()
+    }
+
+    /// Generates candidate search titles, starting with the cleaned full title and
+    /// falling back to the base title before colons/hyphens or common edition suffixes.
+    pub fn get_hltb_search_candidates(title: &str) -> Vec<Vec<String>> {
+        let mut candidates = Vec::new();
+        let full_terms = Self::sanitize_hltb_terms(title);
+        if !full_terms.is_empty() {
+            candidates.push(full_terms);
+        }
+
+        // Subtitle split: e.g. "Another World: 20th Anniversary Edition" -> "Another World"
+        if let Some((base, _)) = title.split_once(':').or_else(|| title.split_once(" - ")) {
+            let base_terms = Self::sanitize_hltb_terms(base);
+            if !base_terms.is_empty() && !candidates.contains(&base_terms) {
+                candidates.push(base_terms);
+            }
+        }
+
+        // Common edition suffix stripping
+        let lower = title.to_lowercase();
+        for suffix in [
+            "20th anniversary edition",
+            "anniversary edition",
+            "game of the year edition",
+            "definitive edition",
+            "enhanced edition",
+            "director's cut",
+            "special edition",
+            "deluxe edition",
+            "remastered",
+        ] {
+            if let Some(pos) = lower.find(suffix) {
+                let prefix = &title[..pos];
+                let prefix_terms = Self::sanitize_hltb_terms(prefix);
+                if !prefix_terms.is_empty() && !candidates.contains(&prefix_terms) {
+                    candidates.push(prefix_terms);
+                }
+            }
+        }
+
+        candidates
+    }
+
     async fn query_hltb_api(&self, title: &str) -> Option<(String, String, String)> {
         let clean_title = title.trim();
         if clean_title.is_empty() {
@@ -118,116 +175,139 @@ impl ExternalMetadataProvider {
         let init_json: Value = init_res.json().await.ok()?;
         let token = init_json.get("token")?.as_str()?.to_string();
 
-        let mut search_req = self
-            .client
-            .post("https://howlongtobeat.com/api/search/site")
-            .header("User-Agent", user_agent)
-            .header("Referer", referer)
-            .header("Origin", referer)
-            .header("Accept", "*/*")
-            .header("Content-Type", "application/json")
-            .header("x-auth-token", token)
-            .timeout(std::time::Duration::from_secs(8));
+        let mut headers = reqwest::header::HeaderMap::new();
+        headers.insert("User-Agent", reqwest::header::HeaderValue::from_static(user_agent));
+        headers.insert("Referer", reqwest::header::HeaderValue::from_static(referer));
+        headers.insert("Origin", reqwest::header::HeaderValue::from_static(referer));
+        headers.insert("Accept", reqwest::header::HeaderValue::from_static("*/*"));
+        headers.insert("Content-Type", reqwest::header::HeaderValue::from_static("application/json"));
+        if let Ok(val) = reqwest::header::HeaderValue::from_str(&token) {
+            headers.insert("x-auth-token", val);
+        }
 
         if let Some(obj) = init_json.as_object() {
             for (k, v) in obj {
                 let k_lower = k.to_lowercase();
                 if k_lower.contains("key") {
                     if let Some(s) = v.as_str() {
-                        search_req = search_req.header("x-hp-key", s);
+                        if let Ok(val) = reqwest::header::HeaderValue::from_str(s) {
+                            headers.insert("x-hp-key", val);
+                        }
                     }
                 } else if k_lower.contains("val") {
                     if let Some(s) = v.as_str() {
-                        search_req = search_req.header("x-hp-val", s);
+                        if let Ok(val) = reqwest::header::HeaderValue::from_str(s) {
+                            headers.insert("x-hp-val", val);
+                        }
                     }
                 }
             }
         }
 
-        let search_terms: Vec<&str> = clean_title.split_whitespace().collect();
-        let payload = serde_json::json!({
-            "searchType": "games",
-            "searchTerms": search_terms,
-            "searchPage": 1,
-            "size": 5,
-            "searchOptions": {
-                "games": {
-                    "userId": 0,
-                    "platform": "",
-                    "sortCategory": "popular",
-                    "rangeCategory": "main",
-                    "rangeTime": { "min": null, "max": null },
-                    "gameplay": { "perspective": "", "flow": "", "genre": "", "difficulty": "" },
-                    "rangeYear": { "min": "", "max": "" },
-                    "modifier": ""
-                },
-                "users": { "sortCategory": "postcount" },
-                "lists": { "sortCategory": "follows" },
-                "filter": "",
-                "sort": 0,
-                "randomizer": 0
-            }
-        });
+        let search_candidates = Self::get_hltb_search_candidates(clean_title);
 
-        let search_res = search_req.json(&payload).send().await.ok()?;
-        if !search_res.status().is_success() {
-            debug!(
-                "HowLongToBeat search status failed: {}",
-                search_res.status()
-            );
-            return None;
-        }
+        for search_terms in search_candidates {
+            let payload = serde_json::json!({
+                "searchType": "games",
+                "searchTerms": search_terms,
+                "searchPage": 1,
+                "size": 5,
+                "searchOptions": {
+                    "games": {
+                        "userId": 0,
+                        "platform": "",
+                        "sortCategory": "popular",
+                        "rangeCategory": "main",
+                        "rangeTime": { "min": null, "max": null },
+                        "gameplay": { "perspective": "", "flow": "", "genre": "", "difficulty": "" },
+                        "rangeYear": { "min": "", "max": "" },
+                        "modifier": ""
+                    },
+                    "users": { "sortCategory": "postcount" },
+                    "lists": { "sortCategory": "follows" },
+                    "filter": "",
+                    "sort": 0,
+                    "randomizer": 0
+                }
+            });
 
-        let search_data: Value = search_res.json().await.ok()?;
-        let games = search_data.get("data")?.as_array()?;
-        if games.is_empty() {
-            return None;
-        }
+            let search_res = match self
+                .client
+                .post("https://howlongtobeat.com/api/search/site")
+                .headers(headers.clone())
+                .timeout(std::time::Duration::from_secs(8))
+                .json(&payload)
+                .send()
+                .await
+            {
+                Ok(r) if r.status().is_success() => r,
+                Ok(r) => {
+                    debug!("HowLongToBeat search status failed: {}", r.status());
+                    continue;
+                }
+                Err(e) => {
+                    debug!("HowLongToBeat search error: {}", e);
+                    continue;
+                }
+            };
 
-        let clean_lower = clean_title.to_lowercase();
-        let best_game = games
-            .iter()
-            .find(|g| {
-                g.get("game_name")
-                    .and_then(|n| n.as_str())
-                    .map(|n| n.to_lowercase() == clean_lower)
-                    .unwrap_or(false)
-            })
-            .or_else(|| {
-                games.iter().find(|g| {
+            let search_data: Value = match search_res.json().await {
+                Ok(d) => d,
+                Err(_) => continue,
+            };
+
+            let games = match search_data.get("data").and_then(|d| d.as_array()) {
+                Some(g) if !g.is_empty() => g,
+                _ => continue,
+            };
+
+            let clean_lower = clean_title.to_lowercase();
+            let best_game = games
+                .iter()
+                .find(|g| {
                     g.get("game_name")
                         .and_then(|n| n.as_str())
-                        .map(|n| {
-                            let n_low = n.to_lowercase();
-                            n_low.contains(&clean_lower) || clean_lower.contains(&n_low)
-                        })
+                        .map(|n| n.to_lowercase() == clean_lower)
                         .unwrap_or(false)
                 })
-            })
-            .unwrap_or(&games[0]);
+                .or_else(|| {
+                    games.iter().find(|g| {
+                        g.get("game_name")
+                            .and_then(|n| n.as_str())
+                            .map(|n| {
+                                let n_low = n.to_lowercase();
+                                n_low.contains(&clean_lower) || clean_lower.contains(&n_low)
+                            })
+                            .unwrap_or(false)
+                    })
+                })
+                .unwrap_or(&games[0]);
 
-        let comp_main = best_game
-            .get("comp_main")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(0);
-        let comp_plus = best_game
-            .get("comp_plus")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(0);
-        let comp_100 = best_game
-            .get("comp_100")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(0);
+            let comp_main = best_game
+                .get("comp_main")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0);
+            let comp_plus = best_game
+                .get("comp_plus")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0);
+            let comp_100 = best_game
+                .get("comp_100")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0);
 
-        if comp_main == 0 && comp_plus == 0 && comp_100 == 0 {
-            return None;
+            if comp_main == 0 && comp_plus == 0 && comp_100 == 0 {
+                continue;
+            }
+
+            return Some((
+                Self::format_hltb_duration(comp_main),
+                Self::format_hltb_duration(comp_plus),
+                Self::format_hltb_duration(comp_100),
+            ));
         }
 
-        Some((
-            Self::format_hltb_duration(comp_main),
-            Self::format_hltb_duration(comp_plus),
-            Self::format_hltb_duration(comp_100),
-        ))
+        None
     }
 
     /// Formats HowLongToBeat durations (in seconds) into human-readable strings.
