@@ -202,6 +202,7 @@ pub async fn fetch_xbox_achievements_api(
         .header("User-Agent", crate::client::XBOX_USER_AGENT)
         .header("x-xbl-contract-version", "2")
         .header("Authorization", &auth_header_value)
+        .header("Accept-Language", "en-US,en;q=0.9")
         .header("Accept", "application/json")
         .send()
         .await

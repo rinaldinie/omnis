@@ -5,17 +5,17 @@ use omnis_sdk::{
 };
 use serde::{Deserialize, Serialize};
 
-/// Microsoft OAuth client ID used for Xbox Live authentication (Xbox app client ID)
-pub const MS_CLIENT_ID: &str = "0000000048093EE3";
+/// Microsoft OAuth client ID used for Xbox Live authentication (official desktop public client ID)
+pub const MS_CLIENT_ID: &str = "38cd2fa8-66fd-4760-afb2-405eb65d5b0c";
 
 /// Microsoft OAuth desktop redirect URI
 pub const MS_REDIRECT_URI: &str = "https://login.live.com/oauth20_desktop.srf";
 
 /// Microsoft OAuth authorization scope for Xbox Live service
-pub const MS_AUTH_SCOPE: &str = "service::user.auth.xboxlive.com::MBI_SSL";
+pub const MS_AUTH_SCOPE: &str = "Xboxlive.signin";
 
 /// Scope that requests offline_access for issuing durable refresh tokens in Authorization Code flow
-pub const MS_AUTH_SCOPE_OFFLINE: &str = "service::user.auth.xboxlive.com::MBI_SSL offline_access";
+pub const MS_AUTH_SCOPE_OFFLINE: &str = "Xboxlive.signin Xboxlive.offline_access";
 
 /// Standard desktop User-Agent string used for Xbox Live and TitleHub requests to prevent WAF / 403 blocks
 pub const XBOX_USER_AGENT: &str =
@@ -127,16 +127,79 @@ pub struct XboxDisplayClaims {
     pub xui: Vec<XboxXuiClaim>,
 }
 
+/// Helper to deserialize an optional field that may be either a JSON string or a JSON number
+fn deserialize_optional_string_or_number<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum StringOrNumber {
+        String(String),
+        Number(serde_json::Number),
+    }
+
+    match Option::<StringOrNumber>::deserialize(deserializer)? {
+        Some(StringOrNumber::String(s)) => Ok(Some(s)),
+        Some(StringOrNumber::Number(n)) => Ok(Some(n.to_string())),
+        None => Ok(None),
+    }
+}
+
 /// Individual user claim in Xbox Live authentication response
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct XboxXuiClaim {
     pub uhs: String,
     #[serde(default)]
     pub gtg: Option<String>,
-    #[serde(default)]
+    #[serde(
+        alias = "xuid",
+        alias = "Xid",
+        alias = "Xuid",
+        default,
+        deserialize_with = "deserialize_optional_string_or_number"
+    )]
     pub xid: Option<String>,
     #[serde(default)]
     pub agg: Option<String>,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+/// Extended details about a title returned by TitleHub (decoration: detail)
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct XboxTitleHistoryDetail {
+    #[serde(default)]
+    pub description: Option<String>,
+    #[serde(alias = "publisherName", default)]
+    pub publisher_name: Option<String>,
+    #[serde(alias = "developerName", default)]
+    pub developer_name: Option<String>,
+    #[serde(alias = "releaseDate", default)]
+    pub release_date: Option<String>,
+}
+
+/// Chronological and visibility metadata about a played title (decoration: TitleHistory)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct XboxTitleHistoryItemInfo {
+    #[serde(alias = "lastTimePlayed", default)]
+    pub last_time_played: Option<String>,
+    #[serde(default = "default_true")]
+    pub visible: bool,
+    #[serde(alias = "canHide", default)]
+    pub can_hide: Option<bool>,
+}
+
+impl Default for XboxTitleHistoryItemInfo {
+    fn default() -> Self {
+        Self {
+            last_time_played: None,
+            visible: true,
+            can_hide: None,
+        }
+    }
 }
 
 /// Response returned from TitleHub title history API
@@ -144,6 +207,25 @@ pub struct XboxXuiClaim {
 pub struct XboxTitleHistoryResponse {
     #[serde(default)]
     pub titles: Vec<XboxTitleItem>,
+}
+
+/// Information regarding Game Pass association
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct XboxGamePassInfo {
+    #[serde(alias = "isGamePass", alias = "is_game_pass", default)]
+    pub is_game_pass: bool,
+}
+
+/// Helper to detect if a device string refers to a Windows PC platform
+pub fn is_pc_device_name(name: &str) -> bool {
+    let d = name.to_ascii_lowercase();
+    d == "pc"
+        || d == "windows"
+        || d == "windowsonecore"
+        || d == "win32"
+        || d == "computer"
+        || d.contains("windows")
+        || d.contains("pc")
 }
 
 /// Single title entry in the Xbox user library / title history
@@ -154,15 +236,109 @@ pub struct XboxTitleItem {
     pub name: String,
     #[serde(alias = "type", default)]
     pub r#type: Option<String>,
+    #[serde(default)]
+    pub pfn: Option<String>,
     #[serde(alias = "displayImage", alias = "display_image", default)]
     pub display_image: Option<String>,
     #[serde(alias = "modernTitleId", alias = "modern_title_id", default)]
     pub modern_title_id: Option<String>,
+    #[serde(alias = "mediaItemType", alias = "media_item_type", default)]
+    pub media_item_type: Option<String>,
+    #[serde(default)]
+    pub devices: Option<Vec<String>>,
+    #[serde(alias = "titleHistory", alias = "title_history", default)]
+    pub title_history: Option<XboxTitleHistoryItemInfo>,
+    #[serde(default)]
+    pub detail: Option<XboxTitleHistoryDetail>,
+    #[serde(alias = "gamePass", alias = "game_pass", default)]
+    pub game_pass: Option<XboxGamePassInfo>,
 }
 
 impl XboxTitleItem {
+    pub fn new(title_id: impl Into<String>, name: impl Into<String>) -> Self {
+        Self {
+            title_id: title_id.into(),
+            name: name.into(),
+            r#type: Some("Game".to_string()),
+            pfn: None,
+            display_image: None,
+            modern_title_id: None,
+            media_item_type: Some("Game".to_string()),
+            devices: None,
+            title_history: None,
+            detail: None,
+            game_pass: None,
+        }
+    }
+
     pub fn to_discovered_game(&self) -> DiscoveredGame {
         map_title_to_discovered_game(self)
+    }
+
+    /// Determines whether this title is a valid PC game from Microsoft Store / PC Game Pass
+    pub fn is_pc_game(&self) -> bool {
+        self.check_pc_game().0
+    }
+
+    /// Evaluates if title is a valid PC game, returning (is_valid, reason)
+    pub fn check_pc_game(&self) -> (bool, &'static str) {
+        // 1. Exclude titles hidden by user
+        if let Some(ref th) = self.title_history {
+            if !th.visible {
+                return (false, "hidden_by_user");
+            }
+        }
+
+        // 2. Type checks: must be a game
+        if let Some(ref t) = self.r#type {
+            if !t.eq_ignore_ascii_case("Game") {
+                return (false, "type_not_game");
+            }
+        }
+        if let Some(ref m) = self.media_item_type {
+            let m_lower = m.to_ascii_lowercase();
+            // Note: TitleHub assigns mediaItemType "Application" to all Windows Store / UWP packages.
+            // Exclude only explicit non-game media items (DLC, consumable, demo, trial, beta).
+            if m_lower == "dlc"
+                || m_lower == "consumable"
+                || m_lower == "demo"
+                || m_lower == "trial"
+                || m_lower == "beta"
+            {
+                return (false, "media_type_excluded");
+            }
+        }
+
+        // 3. Exclude betas, demos, trials, previews by title name heuristics
+        let name_lower = self.name.to_lowercase();
+        if name_lower.ends_with(" demo")
+            || name_lower.ends_with(" beta")
+            || name_lower.ends_with(" trial")
+            || name_lower.ends_with(" preview")
+            || name_lower.ends_with(" playtest")
+            || name_lower.contains(" closed beta")
+            || name_lower.contains(" open beta")
+            || name_lower.contains("-closed beta-")
+            || name_lower.contains(" server performance test")
+        {
+            return (false, "demo_or_beta_heuristic");
+        }
+
+        // 4. Must be a genuine Microsoft Store / Windows package.
+        // True Windows Store PC titles have a valid Package Family Name (PFN),
+        // whereas external games recorded by Windows Game Bar telemetry (Steam, Epic, Win32 standalone)
+        // and legacy console-only titles (Xbox 360) have pfn: null.
+        let has_pfn = self
+            .pfn
+            .as_deref()
+            .map(|s| !s.trim().is_empty())
+            .unwrap_or(false);
+
+        if !has_pfn {
+            return (false, "missing_pfn");
+        }
+
+        (true, "ok_pc_game")
     }
 }
 
@@ -170,6 +346,24 @@ impl From<XboxTitleItem> for DiscoveredGame {
     fn from(title: XboxTitleItem) -> Self {
         map_title_to_discovered_game(&title)
     }
+}
+
+/// Cleans redundant platform tags and trademark symbols from Xbox title names
+pub fn clean_title_name(raw_name: &str) -> String {
+    let mut cleaned = raw_name
+        .replace("(PC)", "")
+        .replace("(Windows)", "")
+        .replace("for Windows 10", "")
+        .replace("- Windows 10", "")
+        .replace('®', "")
+        .replace('™', "")
+        .trim()
+        .to_string();
+
+    if cleaned.is_empty() {
+        cleaned = raw_name.trim().to_string();
+    }
+    cleaned
 }
 
 /// Convert an `XboxTitleItem` into a standardized `DiscoveredGame`
@@ -180,10 +374,17 @@ pub fn map_title_to_discovered_game(title: &XboxTitleItem) -> DiscoveredGame {
         .filter(|s| !s.is_empty())
         .unwrap_or(&title.title_id);
 
+    let last_activity = title
+        .title_history
+        .as_ref()
+        .and_then(|th| th.last_time_played.as_deref())
+        .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
+        .map(|dt| dt.with_timezone(&chrono::Utc));
+
     DiscoveredGame {
         library_id: "xbox".to_string(),
         external_id: title.title_id.clone(),
-        title: title.name.clone(),
+        title: clean_title_name(&title.name),
         install_dir: None,
         is_installed: false,
         play_action: Some(LaunchConfiguration {
@@ -194,7 +395,7 @@ pub fn map_title_to_discovered_game(title: &XboxTitleItem) -> DiscoveredGame {
         }),
         playtime_seconds: 0,
         play_count: 0,
-        last_activity: None,
+        last_activity,
         cover_image_path: title.display_image.clone(),
         background_image_path: None,
     }
@@ -342,8 +543,13 @@ pub async fn authenticate_xbox_live(
                 "Xbox user authentication token expired ({status}): {body}"
             )));
         }
+        let err_body = if body.trim().is_empty() {
+            "Access denied by Xbox Live service. Verify that the Microsoft account has an active profile and is permitted to access Xbox Live.".to_string()
+        } else {
+            body
+        };
         return Err(PluginError::Other(format!(
-            "Xbox user authentication failed ({status}): {body}"
+            "Xbox user authentication failed ({status}): {err_body}"
         )));
     }
 
@@ -392,21 +598,52 @@ pub async fn authenticate_xbox_live(
     })?;
 
     // 3. Extract user claims
-    let user_claim = user_auth.display_claims.xui.first();
-    let xsts_claim = xsts_auth.display_claims.xui.first();
-    let claim = xsts_claim.or(user_claim).ok_or_else(|| {
-        PluginError::Other("No Xbox user claims returned from authorization".to_string())
-    })?;
+    let claim = xsts_auth
+        .display_claims
+        .xui
+        .first()
+        .or_else(|| user_auth.display_claims.xui.first())
+        .ok_or_else(|| {
+            PluginError::Other("No Xbox user claims returned from authorization".to_string())
+        })?;
 
     let uhs = claim.uhs.clone();
-    let gtg = xsts_claim
-        .and_then(|c| c.gtg.clone())
-        .or_else(|| user_claim.and_then(|c| c.gtg.clone()))
-        .unwrap_or_else(|| "Xbox User".to_string());
-    let account_id = xsts_claim
-        .and_then(|c| c.xid.clone())
-        .or_else(|| user_claim.and_then(|c| c.xid.clone()))
-        .unwrap_or_else(|| uhs.clone());
+
+    // Find xid across all claims in xsts_auth first, then user_auth
+    let xid = xsts_auth
+        .display_claims
+        .xui
+        .iter()
+        .find_map(|c| c.xid.as_deref().filter(|s| !s.is_empty()))
+        .or_else(|| {
+            user_auth
+                .display_claims
+                .xui
+                .iter()
+                .find_map(|c| c.xid.as_deref().filter(|s| !s.is_empty()))
+        });
+
+    let gtg = xsts_auth
+        .display_claims
+        .xui
+        .iter()
+        .find_map(|c| c.gtg.as_deref().filter(|s| !s.is_empty()))
+        .or_else(|| {
+            user_auth
+                .display_claims
+                .xui
+                .iter()
+                .find_map(|c| c.gtg.as_deref().filter(|s| !s.is_empty()))
+        })
+        .unwrap_or("Xbox User");
+
+    let account_id = match xid {
+        Some(id) => id.to_string(),
+        None => {
+            tracing::warn!("No numeric xid/xuid found in Xbox claims, falling back to uhs: {uhs}");
+            uhs.clone()
+        }
+    };
 
     // Parse token expiration if present or default to 24h
     let expires_at = xsts_auth
@@ -419,7 +656,7 @@ pub async fn authenticate_xbox_live(
     Ok(StoreAccountSession {
         store_id: "xbox".to_string(),
         user_id: account_id,
-        username: gtg,
+        username: gtg.to_string(),
         avatar_url: None,
         access_token: format!("{uhs};{}", xsts_auth.token),
         refresh_token: Some(ms_access_token.to_string()),
@@ -480,28 +717,39 @@ pub async fn fetch_user_titles(
         format!("XBL3.0 x={};{}", session.user_id, session.access_token)
     };
 
-    let mut candidate_endpoints = Vec::with_capacity(2);
-    if !session.user_id.is_empty() && session.user_id.chars().all(|c| c.is_ascii_digit()) {
-        candidate_endpoints.push(format!(
+    if session.user_id.is_empty() || !session.user_id.chars().all(|c| c.is_ascii_digit()) {
+        return Err(PluginError::Other(format!(
+            "Invalid Xbox User ID (XUID) '{}' in session. TitleHub requires a valid numeric XUID.",
+            session.user_id
+        )));
+    }
+
+    let candidate_endpoints = [
+        format!(
+            "https://titlehub.xboxlive.com/users/xuid({})/titles/titlehistory/decoration/scid,image,detail,gamepass",
+            session.user_id
+        ),
+        format!(
             "https://titlehub.xboxlive.com/users/xuid({})/titles/titlehistory/decoration/scid,image,detail",
             session.user_id
-        ));
-    }
-    candidate_endpoints.push(
-        "https://titlehub.xboxlive.com/users/me/titles/titlehistory/decoration/scid,image,detail"
-            .to_string(),
-    );
+        ),
+        format!(
+            "https://titlehub.xboxlive.com/users/xuid({})/titles/titlehistory/decoration/detail",
+            session.user_id
+        ),
+    ];
 
     let mut last_error = None;
     let mut session_expired = false;
     for endpoint in candidate_endpoints {
-        tracing::debug!("Fetching Xbox title history from TitleHub endpoint: {endpoint}");
+        tracing::info!("Fetching Xbox title history from TitleHub endpoint: {endpoint}");
 
         let resp = client
             .get(&endpoint)
             .header("User-Agent", XBOX_USER_AGENT)
             .header("x-xbl-contract-version", "2")
             .header("Authorization", &auth_header_value)
+            .header("Accept-Language", "en-US,en;q=0.9")
             .header("Accept", "application/json")
             .send()
             .await;
@@ -512,11 +760,36 @@ pub async fn fetch_user_titles(
                     PluginError::Parse(format!("Failed to parse TitleHub title history: {e}"))
                 })?;
 
-                let games = history
-                    .titles
-                    .into_iter()
-                    .map(|item| map_title_to_discovered_game(&item))
-                    .collect();
+                let total_titles = history.titles.len();
+                let mut games = Vec::new();
+
+                for (idx, item) in history.titles.iter().enumerate() {
+                    let (is_pc, reason) = item.check_pc_game();
+                    tracing::info!(
+                        "Xbox TitleHub candidate [#{}/{}]: '{}' (title_id: {}, modern_id: {:?}, pfn: {:?}, devices: {:?}, type: {:?}, media: {:?}, is_game_pass: {:?}) -> accepted: {} [{}]",
+                        idx + 1,
+                        total_titles,
+                        item.name,
+                        item.title_id,
+                        item.modern_title_id,
+                        item.pfn,
+                        item.devices,
+                        item.r#type,
+                        item.media_item_type,
+                        item.game_pass.as_ref().map(|gp| gp.is_game_pass),
+                        is_pc,
+                        reason
+                    );
+                    if is_pc {
+                        games.push(map_title_to_discovered_game(item));
+                    }
+                }
+
+                tracing::info!(
+                    "Xbox TitleHub sync: filtered {} total history items down to {} PC games",
+                    total_titles,
+                    games.len()
+                );
 
                 return Ok(games);
             }
