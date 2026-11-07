@@ -403,6 +403,9 @@ mod tests {
             extra_metadata: None,
             added_timestamp: Utc::now(),
             modified_timestamp: Utc::now(),
+            is_hidden: false,
+            duplicate_group_id: None,
+            hidden_by_duplicate_hider: false,
         };
 
         let schema_json = r#"{
