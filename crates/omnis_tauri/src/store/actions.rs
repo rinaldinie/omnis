@@ -53,7 +53,7 @@ impl StorePlatformDispatcher {
                 "com.epicgames.launcher://apps/{}?action=launch",
                 game.external_id
             ),
-            "gog" => format!("goggalaxy://openGameView/{}", game.external_id),
+            "gog" => format!("goggalaxy://runGame/{}", game.external_id),
             _ => {
                 if let Some(action) = game.play_actions.first() {
                     format!("file:///{}", action.executable.replace('\\', "/"))

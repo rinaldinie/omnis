@@ -259,13 +259,13 @@ mod tests {
         let play_action = discovered.play_action.expect("Play action must be present");
         assert_eq!(
             play_action.executable,
-            "goggalaxy://openGameView/1207658691"
+            "goggalaxy://runGame/1207658691"
         );
         assert!(play_action.arguments.is_empty());
         assert_eq!(play_action.working_dir, None);
         assert_eq!(
             play_action.tracking_mode,
-            ProcessTrackingMode::ProcessName("GalaxyClient.exe".to_string())
+            ProcessTrackingMode::KernelJobObject
         );
     }
 

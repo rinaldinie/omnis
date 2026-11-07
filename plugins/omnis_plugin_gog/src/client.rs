@@ -236,10 +236,10 @@ pub fn normalize_gog_game(game: &GogGameDetails) -> DiscoveredGame {
         install_dir: None,
         is_installed: false,
         play_action: Some(LaunchConfiguration {
-            executable: format!("goggalaxy://openGameView/{}", game.id),
+            executable: format!("goggalaxy://runGame/{}", game.id),
             arguments: vec![],
             working_dir: None,
-            tracking_mode: ProcessTrackingMode::ProcessName("GalaxyClient.exe".to_string()),
+            tracking_mode: ProcessTrackingMode::KernelJobObject,
         }),
         playtime_seconds: 0,
         play_count: 0,

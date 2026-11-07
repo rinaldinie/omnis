@@ -367,7 +367,7 @@ pub fn build_play_uri(library_id: &str, external_id: &str) -> String {
             "com.epicgames.launcher://apps/{}?action=launch&silent=true",
             external_id
         ),
-        "gog" => format!("goggalaxy://openGameView/{}", external_id),
+        "gog" => format!("goggalaxy://runGame/{}", external_id),
         "xbox" => format!("ms-windows-store://pdp/?ProductId={}", external_id),
         _ => format!("steam://rungameid/{}", external_id),
     }
@@ -472,7 +472,7 @@ mod tests {
         );
         assert_eq!(
             build_play_uri("gog", "1207658924"),
-            "goggalaxy://openGameView/1207658924"
+            "goggalaxy://runGame/1207658924"
         );
         assert_eq!(
             build_play_uri("xbox", "9NBLGGGZ5155"),

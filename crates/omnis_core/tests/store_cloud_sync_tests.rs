@@ -90,8 +90,8 @@ fn test_gog_cloud_plugin_contract_and_normalization() {
         .play_action
         .expect("DiscoveredGame must provide a play_action");
     assert_eq!(
-        play_action.executable, "goggalaxy://openGameView/1207658691",
-        "GOG play_action executable must target goggalaxy protocol handler"
+        play_action.executable, "goggalaxy://runGame/1207658691",
+        "GOG play_action executable must target goggalaxy runGame protocol handler"
     );
     assert!(play_action.arguments.is_empty());
 }
@@ -291,7 +291,7 @@ fn test_database_non_destructive_cloud_merge() {
         install_dir: None,
         is_installed: false,
         play_action: Some(LaunchConfiguration {
-            executable: "goggalaxy://openGameView/12345".to_string(),
+            executable: "goggalaxy://runGame/12345".to_string(),
             arguments: vec![],
             working_dir: None,
             tracking_mode: ProcessTrackingMode::KernelJobObject,
