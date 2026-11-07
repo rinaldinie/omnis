@@ -140,7 +140,18 @@ export default function App() {
         setSelectedGame((prev) => {
           if (prev) {
             const current = normalized.find((g) => g.id === prev.id);
-            if (current) return current;
+            if (current) {
+              if (current.is_hidden && current.other_copies && current.other_copies.length > 0) {
+                const primary = normalized.find(
+                  (g) =>
+                    !g.is_hidden &&
+                    (g.duplicate_group_id === current.duplicate_group_id ||
+                      current.other_copies?.some((c) => c.id === g.id))
+                );
+                if (primary) return primary;
+              }
+              return current;
+            }
           }
           return normalized.length > 0 ? normalized[0] : null;
         });
@@ -273,6 +284,8 @@ export default function App() {
     handleEnrichSingleGame,
     handleRefreshHltb,
     handleUpdateCompletionStatus,
+    handleToggleHidden,
+    handlePromoteCopy,
   } = gameOps;
 
   handleLaunchRef.current = handleLaunch;
@@ -712,6 +725,8 @@ export default function App() {
             setConsolePage={setConsolePage}
             themes={themes}
             onSelectTheme={selectTheme}
+            handleToggleHidden={handleToggleHidden}
+            handlePromoteCopy={handlePromoteCopy}
           />
         ) : (
           <DesktopView
@@ -795,6 +810,8 @@ export default function App() {
             handleVerifyFiles={handleVerifyFiles}
             handleOpenUninstallModal={handleOpenUninstallModal}
             handleRemoveFromLibrary={handleRemoveFromLibrary}
+            handleToggleHidden={handleToggleHidden}
+            handlePromoteCopy={handlePromoteCopy}
             statusMessage={statusMessage}
             achievementSync={achievementSync}
             totalGamesCount={games.length}
@@ -832,6 +849,8 @@ export default function App() {
           handleVerifyFiles={handleVerifyFiles}
           handleOpenUninstallModal={handleOpenUninstallModal}
           handleRemoveFromLibrary={handleRemoveFromLibrary}
+          onToggleHidden={handleToggleHidden}
+          onPromoteCopy={handlePromoteCopy}
 
           showEditorModal={showEditorModal}
           gameToEdit={gameToEdit}

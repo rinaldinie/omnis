@@ -121,6 +121,11 @@ fn main() {
             pick_backup_file_to_restore,
             get_backup_schedule,
             save_backup_schedule,
+            get_duplicate_hider_config,
+            save_duplicate_hider_config,
+            apply_duplicate_hider,
+            set_game_hidden,
+            promote_duplicate_copy,
         ])
         .run(tauri::generate_context!())
         .expect("Errore durante l'esecuzione dell'applicazione Tauri");

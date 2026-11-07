@@ -230,6 +230,32 @@ export function useGameOperations({
     }
   }, [setSelectedGame, setGames, refreshLibrary, setStatusMessage, statusText]);
 
+  const handleToggleHidden = useCallback(
+    async (game: GameDto) => {
+      try {
+        await api.games.setGameHidden(game.id, !game.is_hidden);
+        await refreshLibrary();
+        setStatusMessage(statusText("game_updated"));
+      } catch (err: any) {
+        console.error("Toggle hidden error:", err);
+      }
+    },
+    [refreshLibrary, setStatusMessage, statusText]
+  );
+
+  const handlePromoteCopy = useCallback(
+    async (copyId: string) => {
+      try {
+        await api.games.promoteDuplicateCopy(copyId);
+        await refreshLibrary();
+        setStatusMessage(statusText("game_updated"));
+      } catch (err: any) {
+        console.error("Promote duplicate copy error:", err);
+      }
+    },
+    [refreshLibrary, setStatusMessage, statusText]
+  );
+
   return {
     isDownloading,
     isEnrichingSingle,
@@ -254,5 +280,7 @@ export function useGameOperations({
     handleEnrichSingleGame,
     handleRefreshHltb,
     handleUpdateCompletionStatus,
+    handleToggleHidden,
+    handlePromoteCopy,
   };
 }

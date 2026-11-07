@@ -15,10 +15,11 @@ import {
   ShieldCheck,
   Trash2,
   XCircle,
+  Layers,
 } from "lucide-react";
 import { ActiveGameSession, GameDto, ThemeConfig, ViewMode, formatImageUrl } from "../../../types";
 import { useActiveGameTimer } from "../../../context/ActiveGameTimerContext";
-import { StoreBadge } from "../../StoreBadge";
+import { StoreBadge, StoreIcon } from "../../StoreBadge";
 import { VideoBackdrop } from "../../common/VideoBackdrop";
 import { Slot } from "../../common/Slot";
 import { GameCardCover } from "../../common/GameCardCover";
@@ -49,6 +50,7 @@ export interface DetailsHeroHeaderProps {
   handleVerifyFiles?: (gameId: string) => void;
   handleOpenUninstallModal?: (game: GameDto) => void;
   handleRemoveFromLibrary?: (gameId: string) => void;
+  handlePromoteCopy?: (copyId: string) => void;
 }
 
 export const DetailsHeroHeader: React.FC<DetailsHeroHeaderProps> = ({
@@ -76,6 +78,7 @@ export const DetailsHeroHeader: React.FC<DetailsHeroHeaderProps> = ({
   handleVerifyFiles,
   handleOpenUninstallModal,
   handleRemoveFromLibrary,
+  handlePromoteCopy,
 }) => {
   const isSelectedGameRunning = activeGame?.game_id === selectedGame.id;
   const timerContextSeconds = useActiveGameTimer();
@@ -343,6 +346,62 @@ export const DetailsHeroHeader: React.FC<DetailsHeroHeaderProps> = ({
                     </button>
                   );
                 })}
+              </div>
+            )}
+
+            {/* Available copies / Copie disponibili banner */}
+            {selectedGame.other_copies && selectedGame.other_copies.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 pt-1 pb-0.5">
+                <span className="text-xs font-semibold text-slate-400 flex items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>{t("duplicate_hider.available_copies")}:</span>
+                </span>
+                {/* Active primary copy pill */}
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-600/20 border border-indigo-500/40 text-xs font-semibold text-white shadow-xs">
+                  <StoreIcon library={selectedGame.library} className="w-3.5 h-3.5" />
+                  <span>{selectedGame.library.toUpperCase()}</span>
+                  <span className="text-[10px] px-1 py-0.2 rounded bg-indigo-500/30 text-indigo-200">
+                    {t("duplicate_hider.active_copy")}
+                  </span>
+                  {selectedGame.is_installed && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" title={t("status.installed")} />
+                  )}
+                </div>
+                {/* Alternate copies pills */}
+                {selectedGame.other_copies.map((copy) => (
+                  <div
+                    key={copy.id}
+                    className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-xs transition-colors"
+                  >
+                    <StoreIcon library={copy.library} className="w-3.5 h-3.5 text-slate-300" />
+                    <span className="font-medium text-slate-200">{copy.library.toUpperCase()}</span>
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full ${
+                        copy.is_installed ? "bg-emerald-400" : "bg-slate-500"
+                      }`}
+                      title={copy.is_installed ? t("status.installed") : t("status.available")}
+                    />
+                    {handlePromoteCopy && (
+                      <button
+                        type="button"
+                        onClick={() => handlePromoteCopy(copy.id)}
+                        className="ml-1 px-1.5 py-0.5 rounded text-[10px] font-semibold text-indigo-300 hover:text-white bg-indigo-500/20 hover:bg-indigo-500/40 border border-indigo-500/30 transition-all cursor-pointer"
+                        title={t("duplicate_hider.promote_copy", { store: copy.library.toUpperCase() })}
+                      >
+                        {t("duplicate_hider.promote_copy", { store: copy.library.toUpperCase() })}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleLaunch(copy.id)}
+                      className="px-1.5 py-0.5 rounded text-[10px] font-semibold text-emerald-300 hover:text-white bg-emerald-500/20 hover:bg-emerald-500/40 border border-emerald-500/30 transition-all cursor-pointer flex items-center gap-1"
+                      title={t("duplicate_hider.launch_copy", { store: copy.library.toUpperCase() })}
+                    >
+                      <Play className="w-2 h-2 fill-current" />
+                      <span>{copy.is_installed ? t("common.play") : t("common.install")}</span>
+                    </button>
+                  </div>
+                ))}
               </div>
             )}
 

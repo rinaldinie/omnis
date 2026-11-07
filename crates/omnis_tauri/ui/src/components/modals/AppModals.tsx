@@ -59,6 +59,8 @@ export interface AppModalsProps {
   handleVerifyFiles: (gameId: string) => void;
   handleOpenUninstallModal: (game: GameDto) => void;
   handleRemoveFromLibrary: (gameId: string) => void;
+  onToggleHidden?: (game: GameDto) => void;
+  onPromoteCopy?: (copyId: string) => void;
 
   // Editor Modal
   showEditorModal: boolean;
@@ -147,6 +149,8 @@ export const AppModals: React.FC<AppModalsProps> = ({
   handleVerifyFiles,
   handleOpenUninstallModal,
   handleRemoveFromLibrary,
+  onToggleHidden,
+  onPromoteCopy,
 
   showEditorModal,
   gameToEdit,
@@ -259,6 +263,8 @@ export const AppModals: React.FC<AppModalsProps> = ({
         onVerifyFiles={(game: GameDto) => handleVerifyFiles(game.id)}
         onUninstall={handleOpenUninstallModal}
         onRemoveFromLibrary={(game: GameDto) => handleRemoveFromLibrary(game.id)}
+        onToggleHidden={onToggleHidden}
+        onPromoteCopy={onPromoteCopy}
       />
 
       {/* METADATA EDITOR MODAL */}

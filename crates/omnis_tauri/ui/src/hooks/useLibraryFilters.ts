@@ -138,7 +138,7 @@ export function useLibraryFilters(games: GameDto[]) {
       );
     }
     const idLower = id.toLowerCase().trim();
-    if (["installed", "recent", "favorites"].includes(idLower)) {
+    if (["installed", "recent", "favorites", "hidden"].includes(idLower)) {
       return selectedFlags.includes(idLower);
     }
     if (["steam", "gog", "epic", "xbox"].includes(idLower)) {
@@ -188,7 +188,7 @@ export function useLibraryFilters(games: GameDto[]) {
       return;
     }
     const fLower = filter.toLowerCase().trim();
-    if (["installed", "recent", "favorites"].includes(fLower)) {
+    if (["installed", "recent", "favorites", "hidden"].includes(fLower)) {
       toggleFlag(fLower);
     } else if (["steam", "gog", "epic", "xbox"].includes(fLower)) {
       toggleStore(fLower);
@@ -272,6 +272,7 @@ export function useLibraryFilters(games: GameDto[]) {
       installed: t("sidebar.installed"),
       favorites: t("sidebar.favorites"),
       recent: t("sidebar.recent"),
+      hidden: t("sidebar.hidden", { defaultValue: "Nascosti" }),
     };
     selectedFlags.forEach((f) => {
       chips.push({
@@ -303,7 +304,16 @@ export function useLibraryFilters(games: GameDto[]) {
   }, [selectedStores, selectedStatuses, selectedFlags, selectedGenres, selectedFeatures, t]);
 
   const filteredGames = useMemo(() => {
+    const showHiddenOnly = selectedFlags.includes("hidden");
+
     const list = games.filter((g) => {
+      // 0. Hidden filter
+      if (showHiddenOnly) {
+        if (!g.is_hidden) return false;
+      } else {
+        if (g.is_hidden) return false;
+      }
+
       // 1. Quick Flags (AND)
       if (selectedFlags.includes("installed") && !g.is_installed) return false;
       if (selectedFlags.includes("recent") && !g.last_activity && g.playtime_seconds === 0) return false;
@@ -447,8 +457,13 @@ export function useLibraryFilters(games: GameDto[]) {
     let installedCount = 0;
     let favoritesCount = 0;
     let recentCount = 0;
+    let hiddenCount = 0;
 
     games.forEach((g) => {
+      if (g.is_hidden) {
+        hiddenCount++;
+        return;
+      }
       if (g.is_installed) installedCount++;
       if ((g.critic_score || 0) >= 90) favoritesCount++;
       if (g.last_activity || g.playtime_seconds > 0) recentCount++;
@@ -477,10 +492,11 @@ export function useLibraryFilters(games: GameDto[]) {
     });
 
     return {
-      total: games.length,
+      total: games.length - hiddenCount,
       installed: installedCount,
       favorites: favoritesCount,
       recent: recentCount,
+      hidden: hiddenCount,
       stores: storeCounts,
       statuses: statusCounts,
       genres: genreCounts,

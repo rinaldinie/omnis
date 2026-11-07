@@ -11,6 +11,31 @@ export type GroupBy =
   | "release_year"
   | "completion_status";
 
+export interface DuplicateCopyDto {
+  id: string;
+  title: string;
+  library: string;
+  is_installed: boolean;
+  playtime_seconds: number;
+  playtime_formatted: string;
+  is_hidden: boolean;
+}
+
+export interface DuplicateHiderConfig {
+  enabled: boolean;
+  store_priority: string[];
+  prefer_installed: boolean;
+  ignore_edition_suffixes: boolean;
+  show_other_copies_in_menu: boolean;
+  show_store_badges_on_card: boolean;
+  ignored_game_ids: string[];
+}
+
+export interface DuplicateHiderStats {
+  total_groups: number;
+  hidden_duplicates: number;
+}
+
 export interface GameDto {
   id: string;
   external_id?: string;
@@ -36,6 +61,10 @@ export interface GameDto {
   developers: string[];
   publishers?: string[];
   last_activity?: string | null;
+  is_hidden?: boolean;
+  hidden_by_duplicate_hider?: boolean;
+  duplicate_group_id?: string | null;
+  other_copies?: DuplicateCopyDto[];
 }
 
 export interface LibraryCounts {
@@ -51,6 +80,7 @@ export interface LibraryCounts {
   rpg: number;
   strategy: number;
   indie: number;
+  hidden?: number;
 }
 
 export type SessionState = "launching" | "running" | "stopping";

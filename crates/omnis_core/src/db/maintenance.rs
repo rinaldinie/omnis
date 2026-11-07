@@ -229,18 +229,19 @@ impl CatalogMaintenanceRepository for Database {
         let conn = self.reader();
         let query = "
             SELECT
-                COUNT(*),
-                COALESCE(SUM(CASE WHEN is_installed = 1 THEN 1 ELSE 0 END), 0),
-                COALESCE(SUM(CASE WHEN LOWER(library_id) = 'steam' THEN 1 ELSE 0 END), 0),
-                COALESCE(SUM(CASE WHEN LOWER(library_id) = 'gog' THEN 1 ELSE 0 END), 0),
-                COALESCE(SUM(CASE WHEN LOWER(library_id) = 'epic' THEN 1 ELSE 0 END), 0),
-                COALESCE(SUM(CASE WHEN LOWER(library_id) = 'xbox' THEN 1 ELSE 0 END), 0),
-                COALESCE(SUM(CASE WHEN last_activity IS NOT NULL OR playtime_seconds > 0 THEN 1 ELSE 0 END), 0),
-                COALESCE(SUM(CASE WHEN critic_score >= 90 THEN 1 ELSE 0 END), 0),
-                COALESCE(SUM(CASE WHEN LOWER(genres) LIKE '%action%' OR LOWER(genres) LIKE '%azione%' THEN 1 ELSE 0 END), 0),
-                COALESCE(SUM(CASE WHEN LOWER(genres) LIKE '%rpg%' OR LOWER(genres) LIKE '%gdr%' THEN 1 ELSE 0 END), 0),
-                COALESCE(SUM(CASE WHEN LOWER(genres) LIKE '%strategy%' OR LOWER(genres) LIKE '%strategia%' OR LOWER(genres) LIKE '%puzzle%' THEN 1 ELSE 0 END), 0),
-                COALESCE(SUM(CASE WHEN LOWER(genres) LIKE '%indie%' THEN 1 ELSE 0 END), 0)
+                COALESCE(SUM(CASE WHEN is_hidden = 0 THEN 1 ELSE 0 END), 0),
+                COALESCE(SUM(CASE WHEN is_hidden = 0 AND is_installed = 1 THEN 1 ELSE 0 END), 0),
+                COALESCE(SUM(CASE WHEN is_hidden = 0 AND LOWER(library_id) = 'steam' THEN 1 ELSE 0 END), 0),
+                COALESCE(SUM(CASE WHEN is_hidden = 0 AND LOWER(library_id) = 'gog' THEN 1 ELSE 0 END), 0),
+                COALESCE(SUM(CASE WHEN is_hidden = 0 AND LOWER(library_id) = 'epic' THEN 1 ELSE 0 END), 0),
+                COALESCE(SUM(CASE WHEN is_hidden = 0 AND LOWER(library_id) = 'xbox' THEN 1 ELSE 0 END), 0),
+                COALESCE(SUM(CASE WHEN is_hidden = 0 AND (last_activity IS NOT NULL OR playtime_seconds > 0) THEN 1 ELSE 0 END), 0),
+                COALESCE(SUM(CASE WHEN is_hidden = 0 AND critic_score >= 90 THEN 1 ELSE 0 END), 0),
+                COALESCE(SUM(CASE WHEN is_hidden = 0 AND (LOWER(genres) LIKE '%action%' OR LOWER(genres) LIKE '%azione%') THEN 1 ELSE 0 END), 0),
+                COALESCE(SUM(CASE WHEN is_hidden = 0 AND (LOWER(genres) LIKE '%rpg%' OR LOWER(genres) LIKE '%gdr%') THEN 1 ELSE 0 END), 0),
+                COALESCE(SUM(CASE WHEN is_hidden = 0 AND (LOWER(genres) LIKE '%strategy%' OR LOWER(genres) LIKE '%strategia%' OR LOWER(genres) LIKE '%puzzle%') THEN 1 ELSE 0 END), 0),
+                COALESCE(SUM(CASE WHEN is_hidden = 0 AND LOWER(genres) LIKE '%indie%' THEN 1 ELSE 0 END), 0),
+                COALESCE(SUM(CASE WHEN is_hidden = 1 THEN 1 ELSE 0 END), 0)
             FROM games
         ";
         let counts = conn.query_row(query, [], |row| {
@@ -257,6 +258,7 @@ impl CatalogMaintenanceRepository for Database {
                 rpg: row.get::<_, i64>(9)? as usize,
                 strategy: row.get::<_, i64>(10)? as usize,
                 indie: row.get::<_, i64>(11)? as usize,
+                hidden: row.get::<_, i64>(12)? as usize,
             })
         })?;
         Ok(counts)

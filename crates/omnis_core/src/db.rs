@@ -6,6 +6,7 @@ use std::sync::{Mutex, MutexGuard, RwLock};
 use crate::search::FuzzyGameSearchIndex;
 
 pub mod achievements;
+pub mod duplicates;
 pub mod games;
 pub mod maintenance;
 pub mod migrations;
@@ -15,6 +16,7 @@ pub mod sessions;
 pub mod stats;
 
 pub use achievements::AchievementRepository;
+pub use duplicates::{normalize_title_for_dedup, DuplicateHiderRepository};
 pub use games::GameRepository;
 pub use maintenance::CatalogMaintenanceRepository;
 pub use search::GameSearchRepository;
@@ -304,4 +306,6 @@ pub struct LibraryCounts {
     pub rpg: usize,
     pub strategy: usize,
     pub indie: usize,
+    #[serde(default)]
+    pub hidden: usize,
 }

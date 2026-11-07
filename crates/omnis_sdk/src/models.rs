@@ -148,6 +148,12 @@ pub struct Game {
     pub play_actions: Vec<LaunchConfiguration>,
     #[serde(default)]
     pub custom_links: Vec<CustomLink>,
+    #[serde(default)]
+    pub is_hidden: bool,
+    #[serde(default)]
+    pub hidden_by_duplicate_hider: bool,
+    #[serde(default)]
+    pub duplicate_group_id: Option<String>,
     pub added_timestamp: DateTime<Utc>,
     pub modified_timestamp: DateTime<Utc>,
 }
@@ -188,6 +194,9 @@ impl Game {
             extra_metadata: None,
             play_actions: Vec::new(),
             custom_links: Vec::new(),
+            is_hidden: false,
+            hidden_by_duplicate_hider: false,
+            duplicate_group_id: None,
             added_timestamp: now,
             modified_timestamp: now,
         }
@@ -323,6 +332,55 @@ pub struct GameSessionRecord {
     pub started_at: DateTime<Utc>,
     pub ended_at: DateTime<Utc>,
     pub duration_seconds: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DuplicateHiderConfig {
+    pub enabled: bool,
+    pub store_priority: Vec<String>,
+    pub prefer_installed: bool,
+    pub ignore_edition_suffixes: bool,
+    pub show_other_copies_in_menu: bool,
+    pub show_store_badges_on_card: bool,
+    #[serde(default)]
+    pub ignored_game_ids: Vec<String>,
+}
+
+impl Default for DuplicateHiderConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            store_priority: vec![
+                "steam".to_string(),
+                "gog".to_string(),
+                "epic".to_string(),
+                "xbox".to_string(),
+                "custom".to_string(),
+            ],
+            prefer_installed: true,
+            ignore_edition_suffixes: true,
+            show_other_copies_in_menu: true,
+            show_store_badges_on_card: true,
+            ignored_game_ids: Vec::new(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DuplicateCopyDto {
+    pub id: String,
+    pub title: String,
+    pub library: String,
+    pub is_installed: bool,
+    pub playtime_seconds: u64,
+    pub playtime_formatted: String,
+    pub is_hidden: bool,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DuplicateHiderStats {
+    pub total_groups: usize,
+    pub hidden_duplicates: usize,
 }
 
 pub use crate::achievements::*;

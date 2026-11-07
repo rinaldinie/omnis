@@ -23,8 +23,9 @@ pub use backup::{
     BackupManifest, BackupOptions, BackupResult, BackupScheduleConfig, RestoreResult,
 };
 pub use db::{
-    AchievementRepository, CatalogMaintenanceRepository, Database, DatabaseError, GameRepository,
-    GameSearchRepository, LibraryCounts, SecretRepository, SessionRepository, StatsRepository,
+    normalize_title_for_dedup, AchievementRepository, CatalogMaintenanceRepository, Database,
+    DatabaseError, DuplicateHiderRepository, GameRepository, GameSearchRepository, LibraryCounts,
+    SecretRepository, SessionRepository, StatsRepository,
 };
 pub use dynamic_loader::{DynamicNativeMetadataProvider, DynamicPluginHandle, DynamicPluginLoader};
 pub use event_bus::EventBus;

@@ -1,6 +1,8 @@
 import { invokeIpc, invokeTauri } from "./client";
 import type {
   ActiveGameSession,
+  DuplicateHiderConfig,
+  DuplicateHiderStats,
   GameDto,
   LibraryCounts,
   StoreDetectionResult,
@@ -108,4 +110,24 @@ export const gamesApi = {
     externalId?: string;
   }): Promise<string | null> =>
     invokeIpc<string | null>("get_game_trailer_url", params as Record<string, unknown>),
+
+  /** Fetch Duplicate Hider configuration */
+  getDuplicateHiderConfig: (): Promise<DuplicateHiderConfig> =>
+    invokeIpc<DuplicateHiderConfig>("get_duplicate_hider_config"),
+
+  /** Save Duplicate Hider configuration and recompute duplicates */
+  saveDuplicateHiderConfig: (config: DuplicateHiderConfig): Promise<DuplicateHiderStats> =>
+    invokeIpc<DuplicateHiderStats>("save_duplicate_hider_config", { config }),
+
+  /** Trigger immediate Duplicate Hider evaluation */
+  applyDuplicateHider: (): Promise<DuplicateHiderStats> =>
+    invokeIpc<DuplicateHiderStats>("apply_duplicate_hider"),
+
+  /** Manually hide or unhide a game */
+  setGameHidden: (gameId: string, isHidden: boolean): Promise<GameDto> =>
+    invokeIpc<GameDto>("set_game_hidden", { gameId, isHidden }),
+
+  /** Promote a duplicate copy to be the visible primary copy in its group */
+  promoteDuplicateCopy: (gameId: string): Promise<GameDto[]> =>
+    invokeIpc<GameDto[]>("promote_duplicate_copy", { gameId }),
 };

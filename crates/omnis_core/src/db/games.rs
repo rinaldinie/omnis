@@ -65,7 +65,8 @@ pub(crate) const GAME_COLUMNS: &str = "
     genres, developers, publishers, tags, features,
     series, age_rating, completion_status, user_notes,
     custom_links, play_actions, extra_metadata,
-    added_timestamp, modified_timestamp
+    added_timestamp, modified_timestamp,
+    is_hidden, hidden_by_duplicate_hider, duplicate_group_id
 ";
 
 pub(crate) fn map_row_to_game(row: &rusqlite::Row) -> rusqlite::Result<Game> {
@@ -176,6 +177,10 @@ pub(crate) fn map_row_to_game(row: &rusqlite::Row) -> rusqlite::Result<Game> {
         .map(|dt| dt.with_timezone(&Utc))
         .unwrap_or_else(Utc::now);
 
+    let is_hidden = row.get::<_, Option<i32>>(32)?.unwrap_or(0) != 0;
+    let hidden_by_duplicate_hider = row.get::<_, Option<i32>>(33)?.unwrap_or(0) != 0;
+    let duplicate_group_id: Option<String> = row.get(34)?;
+
     Ok(Game {
         id,
         library_id,
@@ -208,6 +213,9 @@ pub(crate) fn map_row_to_game(row: &rusqlite::Row) -> rusqlite::Result<Game> {
         extra_metadata,
         play_actions,
         custom_links,
+        is_hidden,
+        hidden_by_duplicate_hider,
+        duplicate_group_id,
         added_timestamp,
         modified_timestamp,
     })
