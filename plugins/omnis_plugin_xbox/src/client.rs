@@ -355,8 +355,7 @@ pub fn clean_title_name(raw_name: &str) -> String {
         .replace("(Windows)", "")
         .replace("for Windows 10", "")
         .replace("- Windows 10", "")
-        .replace('®', "")
-        .replace('™', "")
+        .replace(['®', '™'], "")
         .trim()
         .to_string();
 
