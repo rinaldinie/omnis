@@ -3,7 +3,7 @@ use crate::types::{game_to_dto, AppState, GameDto};
 use omnis_core::LibraryCounts;
 use omnis_plugin_epic::EpicLibraryPlugin;
 use omnis_sdk::constants::events;
-use omnis_sdk::{Game, LaunchConfiguration, PluginEvent, ProcessTrackingMode};
+use omnis_sdk::{LaunchConfiguration, PluginEvent, ProcessTrackingMode};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tauri::State;
@@ -56,13 +56,25 @@ pub async fn get_games_paginated(
 }
 
 #[tauri::command]
-pub async fn get_game(game_id: String, state: State<'_, AppState>) -> Result<Game, String> {
+pub async fn get_game(game_id: String, state: State<'_, AppState>) -> Result<GameDto, String> {
     let id = Uuid::parse_str(&game_id).map_err(|e| e.to_string())?;
-    state
+    let game = state
         .db
         .get_game_by_id(id)
         .map_err(|e| e.to_string())?
-        .ok_or_else(|| "Gioco non trovato".to_string())
+        .ok_or_else(|| "Gioco non trovato".to_string())?;
+    let mut dto = game_to_dto(game, &state.image_cache);
+    if let Ok(all_games) = state.db.get_all_games() {
+        let mut dtos: Vec<GameDto> = all_games
+            .into_iter()
+            .map(|g| game_to_dto(g, &state.image_cache))
+            .collect();
+        crate::types::populate_other_copies(&mut dtos);
+        if let Some(populated) = dtos.into_iter().find(|d| d.id == dto.id) {
+            dto.other_copies = populated.other_copies;
+        }
+    }
+    Ok(dto)
 }
 
 #[tauri::command]
@@ -185,7 +197,7 @@ pub async fn detect_stores() -> Vec<StoreDetectionResult> {
 pub async fn add_custom_game(
     payload: AddCustomGamePayload,
     state: State<'_, AppState>,
-) -> Result<Game, String> {
+) -> Result<GameDto, String> {
     let id = Uuid::new_v4();
     let sorting_title = payload.title.to_lowercase();
     let exe_path = PathBuf::from(&payload.executable_path);
@@ -214,14 +226,14 @@ pub async fn add_custom_game(
         )
         .map_err(|e| e.to_string())?;
     state.media_scope.allow_game_media(&game);
-    Ok(game)
+    Ok(game_to_dto(game, &state.image_cache))
 }
 
 #[tauri::command]
 pub async fn update_game_metadata(
     game_update: omnis_sdk::GameUpdateDto,
     state: State<'_, AppState>,
-) -> Result<Game, String> {
+) -> Result<GameDto, String> {
     let updated = state
         .db
         .update_game(&game_update)
@@ -233,20 +245,47 @@ pub async fn update_game_metadata(
     if let Some(ref p) = updated.background_image_path {
         state.image_cache.invalidate(p);
     }
-    Ok(updated)
+    let mut dto = game_to_dto(updated, &state.image_cache);
+    if let Ok(all_games) = state.db.get_all_games() {
+        let mut dtos: Vec<GameDto> = all_games
+            .into_iter()
+            .map(|g| game_to_dto(g, &state.image_cache))
+            .collect();
+        crate::types::populate_other_copies(&mut dtos);
+        if let Some(populated) = dtos.into_iter().find(|d| d.id == dto.id) {
+            dto.other_copies = populated.other_copies;
+        }
+    }
+    Ok(dto)
 }
 
 #[tauri::command]
 pub async fn update_game_completion_status(
     game_id: String,
-    status: String,
+    status: Option<String>,
+    completion_status: Option<String>,
     state: State<'_, AppState>,
-) -> Result<Game, String> {
+) -> Result<GameDto, String> {
     let id = Uuid::parse_str(&game_id).map_err(|e| format!("Invalid UUID: {}", e))?;
-    state
+    let status_val = status
+        .or(completion_status)
+        .unwrap_or_else(|| "NotPlayed".to_string());
+    let game = state
         .db
-        .set_game_completion_status(id, &status)
-        .map_err(|e| e.to_string())
+        .set_game_completion_status(id, &status_val)
+        .map_err(|e| e.to_string())?;
+    let mut dto = game_to_dto(game, &state.image_cache);
+    if let Ok(all_games) = state.db.get_all_games() {
+        let mut dtos: Vec<GameDto> = all_games
+            .into_iter()
+            .map(|g| game_to_dto(g, &state.image_cache))
+            .collect();
+        crate::types::populate_other_copies(&mut dtos);
+        if let Some(populated) = dtos.into_iter().find(|d| d.id == dto.id) {
+            dto.other_copies = populated.other_copies;
+        }
+    }
+    Ok(dto)
 }
 
 #[tauri::command]

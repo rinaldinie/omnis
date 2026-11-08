@@ -530,7 +530,7 @@ export const DetailsHeroHeader: React.FC<DetailsHeroHeaderProps> = ({
                         </button>
                       )}
 
-                      {["steam", "epic"].includes(selectedGame.library.toLowerCase()) && handleVerifyFiles && (
+                      {["steam", "epic"].includes((selectedGame.library || "").toLowerCase()) && handleVerifyFiles && (
                         <button
                           role="menuitem"
                           onClick={() => {

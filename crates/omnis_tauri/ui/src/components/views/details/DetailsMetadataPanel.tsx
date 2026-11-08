@@ -125,7 +125,7 @@ export const DetailsMetadataPanel: React.FC<DetailsMetadataPanelProps> = ({
             {/* Active primary copy pill */}
             <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-indigo-600/20 border border-indigo-500/40 text-xs font-semibold text-white shadow-xs">
               <StoreIcon library={selectedGame.library} className="w-4 h-4" />
-              <span>{selectedGame.library.toUpperCase()}</span>
+              <span>{(selectedGame.library || "").toUpperCase()}</span>
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/30 text-indigo-200">
                 {t("duplicate_hider.active_copy")}
               </span>

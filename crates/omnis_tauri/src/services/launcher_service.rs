@@ -18,18 +18,14 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Default)]
 pub struct WindowStateSnapshot {
     pub was_fullscreen: bool,
-    pub prev_size: Option<tauri::PhysicalSize<u32>>,
-    pub prev_pos: Option<tauri::PhysicalPosition<i32>>,
 }
 
 impl WindowStateSnapshot {
-    /// Captures the current window state without minimizing immediately.
+    /// Captures the current window state without minimizing.
     pub fn capture(app_handle: &tauri::AppHandle) -> Self {
         let mut snapshot = Self::default();
         if let Some(window) = app_handle.get_webview_window("main") {
             snapshot.was_fullscreen = window.is_fullscreen().unwrap_or(false);
-            snapshot.prev_size = window.outer_size().ok();
-            snapshot.prev_pos = window.outer_position().ok();
 
             // Grant foreground permission in advance to bypass OS restrictions
             omnis_core::launcher::allow_set_foreground_window();
@@ -44,24 +40,30 @@ impl WindowStateSnapshot {
         }
 
         if let Some(window) = app_handle.get_webview_window("main") {
-            omnis_core::launcher::allow_set_foreground_window();
+            // Allow 300ms for DirectX/Vulkan game teardown and Windows desktop resolution restoration
+            tokio::time::sleep(std::time::Duration::from_millis(300)).await;
 
             if self.was_fullscreen {
-                // In fullscreen / console mode, Omnis was kept fullscreen behind the game:
-                // simply restore focus and ensure fullscreen state smoothly with zero desktop flicker
-                let _ = window.set_focus();
-                let _ = window.set_fullscreen(true);
+                // In fullscreen / console mode: re-assert fullscreen geometry and force foreground
+                // over any restored taskbar
+                crate::services::window_service::ensure_fullscreen_geometry(&window.as_ref().window());
+
+                // Secondary settling check in case Windows display resolution change took longer
+                let w_clone = window.clone();
+                tauri::async_runtime::spawn(async move {
+                    tokio::time::sleep(std::time::Duration::from_millis(350)).await;
+                    if w_clone.is_fullscreen().unwrap_or(false) {
+                        crate::services::window_service::ensure_fullscreen_geometry(&w_clone.as_ref().window());
+                    }
+                });
             } else {
-                tokio::time::sleep(std::time::Duration::from_millis(250)).await;
-                let _ = window.unminimize();
+                // In desktop mode: the window is never automatically minimized, so geometry & position remain intact.
+                // In case the user manually minimized it during the game session, unminimize and bring to front.
+                if window.is_minimized().unwrap_or(false) {
+                    let _ = window.unminimize();
+                }
                 let _ = window.show();
-                let _ = window.set_focus();
-                if let Some(pos) = self.prev_pos {
-                    let _ = window.set_position(tauri::Position::Physical(pos));
-                }
-                if let Some(sz) = self.prev_size {
-                    let _ = window.set_size(tauri::Size::Physical(sz));
-                }
+                crate::services::window_service::force_foreground(&window.as_ref().window());
             }
         }
     }
@@ -217,7 +219,6 @@ impl GameLaunchCoordinator {
         let sid_for_pid = session_id_str.clone();
         let gid_for_pid = id.to_string();
 
-        let was_fs = window_snapshot.was_fullscreen;
         let track_res = GameLauncher::launch_and_track(id, config, install_dir, move |pid| {
             let mgr = active_mgr_for_pid.clone();
             let app = app_for_pid.clone();
@@ -232,13 +233,6 @@ impl GameLaunchCoordinator {
                         "pid": pid,
                     }),
                 );
-
-                // In fullscreen / console mode, keep Omnis fullscreen behind the game so the OS desktop is never exposed
-                if !was_fs {
-                    if let Some(window) = app.get_webview_window("main") {
-                        let _ = window.minimize();
-                    }
-                }
 
                 if pid > 0 {
                     omnis_core::launcher::bring_process_to_foreground_async(pid, 8).await;
@@ -281,7 +275,7 @@ impl GameLaunchCoordinator {
         } else if let Some(window) = app_handle.get_webview_window("main") {
             let _ = window.unminimize();
             let _ = window.show();
-            let _ = window.set_focus();
+            crate::services::window_service::force_foreground(&window.as_ref().window());
         }
 
         // Only emit GAME_STOPPED if not already aborted and emitted by kill_running_game

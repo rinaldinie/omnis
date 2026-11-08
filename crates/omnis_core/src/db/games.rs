@@ -683,7 +683,7 @@ impl GameRepository for Database {
     fn get_recent_games(&self, limit: usize) -> Result<Vec<Game>> {
         let conn = self.reader();
         let sql = format!(
-            "SELECT {} FROM games WHERE last_activity IS NOT NULL OR playtime_seconds > 0 ORDER BY COALESCE(last_activity, added_timestamp) DESC LIMIT ?1",
+            "SELECT {} FROM games WHERE is_installed = 1 AND is_hidden = 0 AND (last_activity IS NOT NULL OR playtime_seconds > 0) ORDER BY COALESCE(last_activity, added_timestamp) DESC LIMIT ?1",
             GAME_COLUMNS
         );
         let mut stmt = conn.prepare(&sql)?;

@@ -203,12 +203,29 @@ export function formatImageUrl(src: string | null | undefined): string | null {
   return src;
 }
 
-export const normalizeGame = (g: GameDto): GameDto => ({
-  ...g,
-  cover_image: formatImageUrl(g.cover_image),
-  background_image: formatImageUrl(g.background_image),
-  icon_image: formatImageUrl(g.icon_image || g.cover_image),
-});
+export const normalizeGame = (g: any): GameDto => {
+  if (!g) return g;
+  const library = g.library || g.library_id || "custom";
+  const cover = g.cover_image || g.cover_image_path || null;
+  const bg = g.background_image || g.background_image_path || null;
+  const icon = g.icon_image || g.icon_image_path || cover || null;
+
+  let playtimeFormatted = g.playtime_formatted;
+  if (!playtimeFormatted && typeof g.playtime_seconds === "number") {
+    const hours = Math.floor(g.playtime_seconds / 3600);
+    const mins = Math.floor((g.playtime_seconds % 3600) / 60);
+    playtimeFormatted = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+  }
+
+  return {
+    ...g,
+    library,
+    cover_image: formatImageUrl(cover),
+    background_image: formatImageUrl(bg),
+    icon_image: formatImageUrl(icon),
+    playtime_formatted: playtimeFormatted || "0m",
+  };
+};
 
 export {
   invokeTauri,

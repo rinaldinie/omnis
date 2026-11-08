@@ -47,7 +47,11 @@ export const gamesApi = {
 
   /** Update play completion status */
   updateGameCompletionStatus: (gameId: string, completionStatus: string): Promise<GameDto> =>
-    invokeIpc<GameDto>("update_game_completion_status", { gameId, completionStatus }),
+    invokeIpc<GameDto>("update_game_completion_status", {
+      gameId,
+      status: completionStatus,
+      completionStatus,
+    }),
 
   /** Trigger metadata enrichment for a single game */
   enrichSingleGame: (gameId: string): Promise<GameDto> =>

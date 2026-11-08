@@ -333,12 +333,6 @@ export default function App() {
           setIsFullscreen(true);
           setFocusedIndex(0);
           setShowFullscreenDetails(false);
-          try {
-            const { getCurrentWindow } = await import("@tauri-apps/api/window");
-            await getCurrentWindow().setFullscreen(true);
-          } catch {
-            // Dev fallback
-          }
           await api.window.setFullscreen(true);
         }
       } catch (err) {
@@ -355,12 +349,6 @@ export default function App() {
         if (shouldBeFs) {
           setFocusedIndex(0);
           setShowFullscreenDetails(false);
-        }
-        try {
-          const { getCurrentWindow } = await import("@tauri-apps/api/window");
-          await getCurrentWindow().setFullscreen(shouldBeFs);
-        } catch {
-          // fallback
         }
       }).then((fn) => {
         unlistenEvent = fn;
@@ -494,12 +482,6 @@ export default function App() {
   const toggleFullscreen = useCallback(async () => {
     const next = !isFullscreen;
     setIsFullscreen(next);
-    try {
-      const { getCurrentWindow } = await import("@tauri-apps/api/window");
-      await getCurrentWindow().setFullscreen(next);
-    } catch {
-      // Dev fallback
-    }
     await api.window.setFullscreen(next);
     if (next) {
       setFocusedIndex(0);

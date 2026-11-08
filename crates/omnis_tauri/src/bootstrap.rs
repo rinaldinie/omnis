@@ -223,8 +223,23 @@ impl AppBootstrap {
         if is_fullscreen {
             use tauri::Emitter;
             if let Some(window) = app.get_webview_window("main") {
-                let _ = window.set_fullscreen(true);
+                crate::services::window_service::ensure_fullscreen_geometry(&window.as_ref().window());
                 let _ = window.emit(events::APP_SET_FULLSCREEN, true);
+
+                // Remote streaming (Moonlight/Sunshine) and virtual display adapters often negotiate
+                // resolution changes 100-500ms after the initial process spawn.
+                // Re-assert geometry after 350ms and 800ms to guarantee zero edge overflow.
+                let w1 = window.clone();
+                tauri::async_runtime::spawn(async move {
+                    tokio::time::sleep(std::time::Duration::from_millis(350)).await;
+                    if w1.is_fullscreen().unwrap_or(false) {
+                        crate::services::window_service::ensure_fullscreen_geometry(&w1.as_ref().window());
+                    }
+                    tokio::time::sleep(std::time::Duration::from_millis(450)).await;
+                    if w1.is_fullscreen().unwrap_or(false) {
+                        crate::services::window_service::ensure_fullscreen_geometry(&w1.as_ref().window());
+                    }
+                });
             }
         }
 
@@ -271,29 +286,37 @@ impl AppBootstrap {
         if let Some(window) = app.get_webview_window("main") {
             let _ = window.unminimize();
             let _ = window.show();
-            let _ = window.set_focus();
+            crate::services::window_service::force_foreground(&window.as_ref().window());
             if crate::commands::is_fullscreen_requested(argv) {
-                let _ = window.set_fullscreen(true);
+                crate::services::window_service::ensure_fullscreen_geometry(&window.as_ref().window());
                 let _ = app.emit(events::APP_SET_FULLSCREEN, true);
                 let _ = window.emit(events::APP_SET_FULLSCREEN, true);
             }
         }
     }
 
-    /// Handles window close request to minimize to tray if enabled (main window only)
+    /// Handles window events (tray minimization, resolution / scale factor changes in fullscreen)
     pub fn handle_window_event(window: &tauri::Window, event: &tauri::WindowEvent) {
         if window.label() != "main" {
             return;
         }
-        if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-            let state = window.state::<AppState>();
-            if state
-                .minimize_to_tray
-                .load(std::sync::atomic::Ordering::SeqCst)
-            {
-                api.prevent_close();
-                let _ = window.hide();
+        match event {
+            tauri::WindowEvent::CloseRequested { api, .. } => {
+                let state = window.state::<AppState>();
+                if state
+                    .minimize_to_tray
+                    .load(std::sync::atomic::Ordering::SeqCst)
+                {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
             }
+            tauri::WindowEvent::ScaleFactorChanged { .. } => {
+                if window.is_fullscreen().unwrap_or(false) {
+                    crate::services::window_service::ensure_fullscreen_geometry(window);
+                }
+            }
+            _ => {}
         }
     }
 }

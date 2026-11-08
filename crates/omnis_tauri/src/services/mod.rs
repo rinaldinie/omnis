@@ -12,6 +12,7 @@ pub mod launcher_service;
 pub mod slot_resolver;
 pub mod steam_sync;
 pub mod trailer_service;
+pub mod window_service;
 
 pub use achievement_service::*;
 pub use achievement_sync::*;

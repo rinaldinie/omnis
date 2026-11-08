@@ -682,11 +682,9 @@ export function useGamepadNavigation({
       const target = e.target as HTMLElement | null;
       if (target?.tagName === "INPUT" || target?.tagName === "TEXTAREA" || target?.isContentEditable) return;
 
-      if (e.key === "F11") {
+      if (e.key === "F11" || (e.key === "Enter" && e.altKey)) {
         e.preventDefault();
-        if (!isFullscreen) {
-          toggleFullscreen();
-        }
+        toggleFullscreen();
         return;
       }
 

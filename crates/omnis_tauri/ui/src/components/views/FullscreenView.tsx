@@ -326,19 +326,23 @@ export default function FullscreenView({
   // Recent row
   const recentGames = React.useMemo(() => {
     const installed = filteredGames.filter((g) => g.is_installed);
-    const pool = installed.length >= 2 ? installed : filteredGames;
-    const sorted = [...pool].sort((a, b) => {
-      const aTime = a.last_activity ? new Date(a.last_activity).getTime() : 0;
-      const bTime = b.last_activity ? new Date(b.last_activity).getTime() : 0;
-      if (bTime !== aTime) return bTime - aTime;
-      return b.playtime_seconds - a.playtime_seconds;
-    });
+    const sorted = [...installed]
+      .filter((g) => {
+        const aTime = g.last_activity ? new Date(g.last_activity).getTime() : 0;
+        return aTime > 0 || g.playtime_seconds > 0;
+      })
+      .sort((a, b) => {
+        const aTime = a.last_activity ? new Date(a.last_activity).getTime() : 0;
+        const bTime = b.last_activity ? new Date(b.last_activity).getTime() : 0;
+        if (bTime !== aTime) return bTime - aTime;
+        return b.playtime_seconds - a.playtime_seconds;
+      });
     return sorted.slice(0, RECENT_ROW_SIZE);
   }, [filteredGames]);
 
   const showRecentRow =
     layout === "shelf" &&
-    recentGames.length >= 2 &&
+    recentGames.length > 0 &&
     viewportHeightRem >= RECENT_ROW_MIN_VIEWPORT_REM;
 
   React.useEffect(() => {

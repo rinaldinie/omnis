@@ -48,13 +48,22 @@ pub fn window_toggle_maximize(window: Window) -> Result<(), String> {
 pub fn window_toggle_fullscreen(window: Window) -> Result<bool, String> {
     let current = window.is_fullscreen().map_err(|e| e.to_string())?;
     let next = !current;
-    window.set_fullscreen(next).map_err(|e| e.to_string())?;
+    if next {
+        crate::services::window_service::ensure_fullscreen_geometry(&window);
+    } else {
+        window.set_fullscreen(false).map_err(|e| e.to_string())?;
+    }
     Ok(next)
 }
 
 #[tauri::command]
 pub fn window_set_fullscreen(fullscreen: bool, window: Window) -> Result<(), String> {
-    window.set_fullscreen(fullscreen).map_err(|e| e.to_string())
+    if fullscreen {
+        crate::services::window_service::ensure_fullscreen_geometry(&window);
+    } else {
+        window.set_fullscreen(false).map_err(|e| e.to_string())?;
+    }
+    Ok(())
 }
 
 pub fn is_fullscreen_arg(raw: &str) -> bool {

@@ -400,6 +400,7 @@ export default function GridView({
     const lastPlayed = (g: GameDto) => (g.last_activity ? Date.parse(g.last_activity) || 0 : 0);
     return filteredGames
       .filter((g) => {
+        if (!g.is_installed) return false;
         const lp = lastPlayed(g);
         if (lp <= 0) return false;
         if (cutoff > 0 && lp < cutoff) return false;

@@ -87,7 +87,7 @@ export default function GlobalContextMenu({
             {contextMenu.game.title}
           </span>
           <span className="text-[10px] font-medium" style={{ color: "var(--text-muted)" }}>
-            {contextMenu.game.library.toUpperCase()} •{" "}
+            {(contextMenu.game.library || "").toUpperCase()} •{" "}
             {contextMenu.game.is_installed ? t("groups.installed") : t("groups.available")}
           </span>
         </div>
@@ -342,7 +342,7 @@ export default function GlobalContextMenu({
           </button>
         )}
 
-        {["steam", "epic"].includes(contextMenu.game.library.toLowerCase()) && onVerifyFiles && (
+        {["steam", "epic"].includes((contextMenu.game.library || "").toLowerCase()) && onVerifyFiles && (
           <button
             onClick={() => {
               onVerifyFiles(contextMenu.game);
