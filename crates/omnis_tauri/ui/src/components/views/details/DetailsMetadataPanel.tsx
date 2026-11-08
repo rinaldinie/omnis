@@ -14,6 +14,8 @@ import { GameAchievementsGallery } from "../../achievements";
 import GameStatisticsCard from "../../stats/GameStatisticsCard";
 import { StoreBadge, StoreIcon } from "../../StoreBadge";
 import { getCompletionStatusInfo } from "./helpers";
+import { useTranslation } from "../../../i18n";
+import { getLocalizedGenre } from "../../../utils/genres";
 
 export interface DetailsMetadataPanelProps {
   selectedGame: GameDto;
@@ -44,6 +46,7 @@ export const DetailsMetadataPanel: React.FC<DetailsMetadataPanelProps> = ({
   handleLaunch,
   handlePromoteCopy,
 }) => {
+  const { locale } = useTranslation();
   const handleFilterByGenre = (genre: string) => {
     if (!setActiveFilter) return;
     const gLower = genre.toLowerCase().trim();
@@ -232,7 +235,7 @@ export const DetailsMetadataPanel: React.FC<DetailsMetadataPanelProps> = ({
                           active ? "bg-[var(--accent-primary)]" : "bg-slate-400"
                         }`}
                       />
-                      <span>{genre}</span>
+                      <span>{getLocalizedGenre(genre, locale)}</span>
                     </button>
                   );
                 })

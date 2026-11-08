@@ -277,13 +277,7 @@ pub fn find_gog_galaxy_client() -> Option<PathBuf> {
     candidate_paths.push(PathBuf::from(r"C:\Program Files (x86)\GOG Galaxy\GalaxyClient.exe"));
     candidate_paths.push(PathBuf::from(r"C:\Program Files\GOG Galaxy\GalaxyClient.exe"));
 
-    for candidate in candidate_paths {
-        if candidate.is_file() {
-            return Some(candidate);
-        }
-    }
-
-    None
+    candidate_paths.into_iter().find(|candidate| candidate.is_file())
 }
 
 /// Non-Windows stub for locating GOG Galaxy client

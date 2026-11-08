@@ -25,6 +25,8 @@ import { VideoBackdrop } from "../../common/VideoBackdrop";
 import { Slot } from "../../common/Slot";
 import { GameCardCover } from "../../common/GameCardCover";
 import { getCompletionStatusInfo } from "./helpers";
+import { useTranslation } from "../../../i18n";
+import { getLocalizedGenre } from "../../../utils/genres";
 
 export interface DetailsHeroHeaderProps {
   currentTheme?: ThemeConfig;
@@ -83,6 +85,7 @@ export const DetailsHeroHeader: React.FC<DetailsHeroHeaderProps> = ({
   handlePromoteCopy,
   handleToggleFavorite,
 }) => {
+  const { locale } = useTranslation();
   const isSelectedGameRunning = activeGame?.game_id === selectedGame.id;
   const timerContextSeconds = useActiveGameTimer();
   const actualElapsed = elapsedSeconds ?? timerContextSeconds;
@@ -341,7 +344,7 @@ export const DetailsHeroHeader: React.FC<DetailsHeroHeaderProps> = ({
                       title={t("tooltips.filter_genre", { genre })}
                     >
                       <span className={`w-1.5 h-1.5 rounded-full ${active ? "bg-white" : "bg-slate-400"}`} />
-                      <span>{genre}</span>
+                      <span>{getLocalizedGenre(genre, locale)}</span>
                     </button>
                   );
                 })}

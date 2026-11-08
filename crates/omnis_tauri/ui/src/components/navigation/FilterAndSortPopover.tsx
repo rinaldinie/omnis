@@ -3,6 +3,7 @@ import { X, ChevronDown, ChevronUp, Check, Sparkles, SlidersHorizontal } from "l
 import { GameSortMode } from "../../utils/sortGames";
 import { SteamIcon, EpicIcon, GogIcon, XboxIcon } from "../StoreBadge";
 import { useTranslation } from "../../i18n";
+import { getLocalizedGenre } from "../../utils/genres";
 
 export interface FilterCounts {
   total: number;
@@ -58,7 +59,7 @@ export default function FilterAndSortPopover({
   availableGenres,
   availableFeatures,
 }: FilterAndSortPopoverProps) {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const popoverRef = useRef<HTMLDivElement>(null);
 
   // Accordion section open states
@@ -464,7 +465,7 @@ export default function FilterAndSortPopover({
                             isChecked ? "text-white font-semibold" : "text-slate-300 group-hover:text-white"
                           }`}
                         >
-                          {genre}
+                          {getLocalizedGenre(genre, locale)}
                         </span>
                       </div>
                       {count > 0 && (

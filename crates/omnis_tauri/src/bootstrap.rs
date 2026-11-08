@@ -311,10 +311,10 @@ impl AppBootstrap {
                     let _ = window.hide();
                 }
             }
-            tauri::WindowEvent::ScaleFactorChanged { .. } => {
-                if window.is_fullscreen().unwrap_or(false) {
-                    crate::services::window_service::ensure_fullscreen_geometry(window);
-                }
+            tauri::WindowEvent::ScaleFactorChanged { .. }
+                if window.is_fullscreen().unwrap_or(false) =>
+            {
+                crate::services::window_service::ensure_fullscreen_geometry(window);
             }
             _ => {}
         }

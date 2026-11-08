@@ -7,6 +7,7 @@ import soundEffects from "../../utils/soundEffects";
 import { ArtImage } from "./FullscreenCards";
 import { Glyph } from "./ConsoleChrome";
 import { STORE_LABELS } from "./constants";
+import { getLocalizedGenre } from "../../utils/genres";
 
 const TOP_GAMES = 8;
 const TOP_SHARES = 6;
@@ -203,33 +204,56 @@ export const FullscreenStatsPage: React.FC<FullscreenStatsPageProps> = ({ isOpen
       ]
     : [];
 
-  const renderShares = (title: string, items: CategoryShareDto[], isStore: boolean) => (
-    <div>
-      <h3 className="text-base font-semibold text-white/80 mb-4">{title}</h3>
-      {items.length === 0 ? (
-        <p className="text-base text-white/50">{t("statistics.no_data")}</p>
-      ) : (
-        <div className="flex flex-col gap-4">
-          {items.slice(0, TOP_SHARES).map((item) => (
-            <div key={item.name}>
-              <div className="flex items-baseline justify-between gap-4 text-base">
-                <span className="text-white truncate">{isStore ? STORE_LABELS[item.name] ?? item.name : item.name}</span>
-                <span className="text-white/60 tabular-nums shrink-0">
-                  {formatHours(item.duration_seconds)} · {Math.round(item.percentage)}%
-                </span>
+  const renderShares = (title: string, items: CategoryShareDto[], isStore: boolean) => {
+    let displayItems = items;
+    if (!isStore) {
+      const map = new Map<string, CategoryShareDto>();
+      for (const item of items) {
+        const localizedName = getLocalizedGenre(item.name, locale);
+        const existing = map.get(localizedName);
+        if (existing) {
+          existing.duration_seconds += item.duration_seconds;
+          existing.percentage += item.percentage;
+        } else {
+          map.set(localizedName, {
+            name: localizedName,
+            duration_seconds: item.duration_seconds,
+            percentage: item.percentage,
+          });
+        }
+      }
+      displayItems = Array.from(map.values());
+      displayItems.sort((a, b) => b.duration_seconds - a.duration_seconds);
+    }
+
+    return (
+      <div>
+        <h3 className="text-base font-semibold text-white/80 mb-4">{title}</h3>
+        {displayItems.length === 0 ? (
+          <p className="text-base text-white/50">{t("statistics.no_data")}</p>
+        ) : (
+          <div className="flex flex-col gap-4">
+            {displayItems.slice(0, TOP_SHARES).map((item) => (
+              <div key={item.name}>
+                <div className="flex items-baseline justify-between gap-4 text-base">
+                  <span className="text-white truncate">{isStore ? STORE_LABELS[item.name] ?? item.name : item.name}</span>
+                  <span className="text-white/60 tabular-nums shrink-0">
+                    {formatHours(item.duration_seconds)} · {Math.round(item.percentage)}%
+                  </span>
+                </div>
+                <div className="mt-1.5 h-2 rounded-full bg-white/10 overflow-hidden">
+                  <div
+                    className="h-full rounded-full"
+                    style={{ width: `${Math.max(item.percentage, 1)}%`, backgroundColor: "var(--accent-primary)" }}
+                  />
+                </div>
               </div>
-              <div className="mt-1.5 h-2 rounded-full bg-white/10 overflow-hidden">
-                <div
-                  className="h-full rounded-full"
-                  style={{ width: `${Math.max(item.percentage, 1)}%`, backgroundColor: "var(--accent-primary)" }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="fixed inset-0 z-[45] flex flex-col omnis-fade-in" style={{ backgroundColor: "var(--bg-base)" }}>

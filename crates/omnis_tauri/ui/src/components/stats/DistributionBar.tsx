@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { CategoryShareDto } from "../../types";
 import {
   SteamIcon,
@@ -14,6 +14,7 @@ import {
 } from "../StoreBadge";
 import { Gamepad2 } from "lucide-react";
 import { useTranslation } from "../../i18n";
+import { getLocalizedGenre } from "../../utils/genres";
 
 interface DistributionBarProps {
   title: string;
@@ -46,7 +47,29 @@ const GENRE_PALETTE = [
 ];
 
 export default function DistributionBar({ title, items, type }: DistributionBarProps) {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
+
+  const localizedItems = useMemo(() => {
+    if (type !== "genre") return items;
+    const map = new Map<string, CategoryShareDto>();
+    for (const item of items) {
+      const localizedName = getLocalizedGenre(item.name, locale);
+      const existing = map.get(localizedName);
+      if (existing) {
+        existing.duration_seconds += item.duration_seconds;
+        existing.percentage += item.percentage;
+      } else {
+        map.set(localizedName, {
+          name: localizedName,
+          duration_seconds: item.duration_seconds,
+          percentage: item.percentage,
+        });
+      }
+    }
+    const result = Array.from(map.values());
+    result.sort((a, b) => b.duration_seconds - a.duration_seconds);
+    return result;
+  }, [items, type, locale]);
 
   const formatDuration = (seconds: number) => {
     if (seconds <= 0) return `0${t("statistics.min")}`;
@@ -94,12 +117,12 @@ export default function DistributionBar({ title, items, type }: DistributionBarP
           {title}
         </span>
         <span className="text-xs text-[var(--text-muted)] font-mono">
-          {items.length} {type === "store" ? t("statistics.stores_label") : t("statistics.genres_label")}
+          {localizedItems.length} {type === "store" ? t("statistics.stores_label") : t("statistics.genres_label")}
         </span>
       </div>
 
       {/* Segmented Horizontal Progress Bar */}
-      {items.length > 0 ? (
+      {localizedItems.length > 0 ? (
         <>
           <div
             className="h-3 w-full rounded-full overflow-hidden flex p-0.5 border"
@@ -108,7 +131,7 @@ export default function DistributionBar({ title, items, type }: DistributionBarP
               borderColor: "var(--border-color)",
             }}
           >
-            {items.map((item, idx) => (
+            {localizedItems.map((item, idx) => (
               <div
                 key={idx}
                 title={`${item.name}: ${item.percentage.toFixed(1)}% (${formatDuration(
@@ -125,7 +148,7 @@ export default function DistributionBar({ title, items, type }: DistributionBarP
 
           {/* Breakdown List */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-            {items.slice(0, 8).map((item, idx) => {
+            {localizedItems.slice(0, 8).map((item, idx) => {
               const color = getColor(item.name, idx);
               return (
                 <div

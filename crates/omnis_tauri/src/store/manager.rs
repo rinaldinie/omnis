@@ -156,15 +156,13 @@ impl StoreAccountManager {
             None => return Ok(None),
         };
 
-        if session.is_expired() {
-            if session.refresh_token.is_some() {
-                tracing::info!(
-                    "Session for store '{}' is expired (expires_at={:?}); attempting automatic token refresh...",
-                    store_id,
-                    session.expires_at
-                );
-                return self.refresh_session(store_id).await.map(Some);
-            }
+        if session.is_expired() && session.refresh_token.is_some() {
+            tracing::info!(
+                "Session for store '{}' is expired (expires_at={:?}); attempting automatic token refresh...",
+                store_id,
+                session.expires_at
+            );
+            return self.refresh_session(store_id).await.map(Some);
         }
 
         Ok(Some(session))

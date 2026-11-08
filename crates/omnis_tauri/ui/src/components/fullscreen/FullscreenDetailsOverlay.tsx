@@ -3,6 +3,8 @@ import { Play } from "lucide-react";
 import { GameDto, ActiveGameSession, GameAchievementsSummary } from "../../types";
 import { ArtImage } from "./FullscreenCards";
 import { FullscreenAchievementsCard } from "./FullscreenAchievementsCard";
+import { useTranslation } from "../../i18n";
+import { getLocalizedGenre } from "../../utils/genres";
 
 export interface HeroActionDefinition {
   labelKey: string;
@@ -70,6 +72,7 @@ export const FullscreenDetailsOverlay: React.FC<FullscreenDetailsOverlayProps> =
   renderStoreIcon,
   t,
 }) => {
+  const { locale } = useTranslation();
   if (!showFullscreenDetails || !activeDetailGame) return null;
 
   return (
@@ -97,7 +100,11 @@ export const FullscreenDetailsOverlay: React.FC<FullscreenDetailsOverlayProps> =
           <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-wider text-white/70">
             {renderStoreIcon(activeDetailGame.library)}
             <span>{storeLabels[activeDetailGame.library] ?? activeDetailGame.library}</span>
-            {activeDetailGame.genres.length > 0 && <span>· {activeDetailGame.genres.slice(0, 3).join(" · ")}</span>}
+            {activeDetailGame.genres.length > 0 && (
+              <span>
+                · {activeDetailGame.genres.slice(0, 3).map((g) => getLocalizedGenre(g, locale)).join(" · ")}
+              </span>
+            )}
           </div>
 
           <div>
