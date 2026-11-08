@@ -159,7 +159,7 @@ export const AppToasts: React.FC<AppToastsProps> = ({
       {/* UPDATE NOTIFICATION TOAST */}
       {updater.status === "available" && (
         <div
-          onClick={() => onOpenSettings("general")}
+          onClick={() => onOpenSettings("general-updates")}
           className="fixed bottom-6 right-6 z-50 flex items-center gap-3 p-4 rounded-2xl bg-slate-900/95 border border-sky-500/50 text-white shadow-2xl backdrop-blur-xl animate-in slide-in-from-bottom-5 cursor-pointer hover:border-sky-400 transition-all"
         >
           <Sparkles className="w-5 h-5 text-sky-400 shrink-0" />
