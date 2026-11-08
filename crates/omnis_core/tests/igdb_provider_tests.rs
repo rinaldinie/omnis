@@ -326,8 +326,8 @@ async fn test_4_metadata_downloader_igdb_integration() {
 
     assert_eq!(igdb.name, "IGDB (Internet Game Database)");
     assert!(
-        !igdb.is_builtin,
-        "IGDB deve essere un provider esterno/plugin"
+        igdb.is_builtin,
+        "IGDB deve essere un provider nativo/built-in"
     );
     assert!(igdb.requires_api_key, "IGDB richiede credenziali Twitch");
     assert!(

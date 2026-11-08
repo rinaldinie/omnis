@@ -9,7 +9,6 @@ members = [
     "plugins/omnis_plugin_epic",
     "plugins/omnis_plugin_gog",
     "plugins/omnis_plugin_xbox",
-    "examples/sample_plugin",
 ]
 
 [workspace.package]

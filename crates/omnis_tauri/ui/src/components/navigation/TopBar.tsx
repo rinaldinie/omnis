@@ -19,6 +19,7 @@ import soundEffects from "../../utils/soundEffects";
 import { useUpdater } from "../../hooks/useAppUpdater";
 import { useActiveGameTimer } from "../../context/ActiveGameTimerContext";
 import AppMenuDropdown from "./AppMenuDropdown";
+import type { SettingsTab } from "../settings";
 
 export interface TopBarProps {
   currentTheme: ThemeConfig;
@@ -31,6 +32,7 @@ export interface TopBarProps {
   handleToggleSound: () => void;
   soundEnabled: boolean;
   setShowSettingsModal: (open: boolean) => void;
+  onOpenSettings?: (tab?: SettingsTab) => void;
   setShowThemeModal: (open: boolean) => void;
   loadProvidersAndConfig?: () => void;
   setShowPluginModal: (open: boolean) => void;
@@ -62,6 +64,7 @@ export default function TopBar({
   handleToggleSound,
   soundEnabled,
   setShowSettingsModal,
+  onOpenSettings,
   setShowThemeModal,
   loadProvidersAndConfig,
   setShowPluginModal,
@@ -154,6 +157,14 @@ export default function TopBar({
           onOpenPluginModal={() => {
             if (loadProvidersAndConfig) loadProvidersAndConfig();
             setShowPluginModal(true);
+          }}
+          onOpenMetadataSettings={() => {
+            soundEffects.playSelect();
+            if (onOpenSettings) {
+              onOpenSettings("metadata-igdb");
+            } else {
+              setShowSettingsModal(true);
+            }
           }}
           onOpenAddCustomModal={() => setShowAddCustomModal(true)}
           onOpenBatchEnrichModal={() => setShowBatchEnrichModal?.(true)}

@@ -24,20 +24,26 @@ import {
   RotateCcw,
   Layers,
   EyeOff,
+  Database,
+  Image as ImageIcon,
+  Award,
 } from 'lucide-react';
 import { soundEffects } from '../../utils/soundEffects';
 import { api, TAURI_EVENTS, listenTauri } from '../../api';
 import { useUpdater } from '../../hooks/useAppUpdater';
 import { GeneralSettingsTab } from './GeneralSettingsTab';
 import { StoreAccountsTab, STORE_LIST } from './StoreAccountsTab';
+import { MetadataSettingsTab } from './MetadataSettingsTab';
 import { AchievementsSettingsTab } from '../achievements';
 import { BackupSettingsTab } from './BackupSettingsTab';
 import { DuplicateHiderSettingsTab } from './DuplicateHiderSettingsTab';
 import type { StoreAccount } from '../store_accounts/types';
+import type { ProviderInfo } from '../../types';
 
 export type SettingsTab =
   | 'general'
   | 'accounts'
+  | 'metadata'
   | 'achievements'
   | 'duplicates'
   | 'backup'
@@ -53,6 +59,11 @@ export type SettingsTab =
   | 'store-gog'
   | 'store-xbox'
   | 'store-amazon'
+  | 'metadata-igdb'
+  | 'metadata-steamgriddb'
+  | 'metadata-opencritic'
+  | 'metadata-hltb'
+  | 'metadata-pipeline'
   | 'achievements-sources'
   | 'achievements-view'
   | 'achievements-appearance'
@@ -112,6 +123,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const resolveTargetTab = (tab?: SettingsTab): SettingsTab => {
     if (!tab || tab === 'general') return 'general-language';
     if (tab === 'accounts') return 'store-steam';
+    if (tab === 'metadata') return 'metadata-igdb';
     if (tab === 'achievements') return 'achievements-sources';
     if (tab === 'duplicates') return 'duplicates-priorities';
     if (tab === 'backup' || tab === 'backup-manager') return 'backup-manual';
@@ -121,18 +133,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [activeTab, setActiveTab] = useState<SettingsTab>(() => resolveTargetTab(initialTab));
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [storeAccounts, setStoreAccounts] = useState<StoreAccount[]>([]);
+  const [metadataProviders, setMetadataProviders] = useState<ProviderInfo[]>([]);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Group accordion expansion state
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
     general: true,
     accounts: true,
+    metadata: true,
     achievements: true,
     duplicates: true,
     backup: true,
   });
 
-  // Load and subscribe to store account connection statuses for the sidebar indicators
+  // Load and subscribe to store account connection statuses and metadata providers for sidebar indicators
   useEffect(() => {
     if (!isOpen) return;
 
@@ -140,6 +154,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     api.stores.getStoreAccounts().then((accs) => {
       if (isMounted && Array.isArray(accs)) {
         setStoreAccounts(accs);
+      }
+    }).catch(console.debug);
+
+    api.metadata.getProviders().then((provs) => {
+      if (isMounted && Array.isArray(provs)) {
+        setMetadataProviders(provs);
       }
     }).catch(console.debug);
 
@@ -279,6 +299,128 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         }),
       },
       {
+        id: 'metadata',
+        label: t('settings_modal.tab_metadata', { defaultValue: 'Metadati & Provider' }),
+        icon: (c = 'w-4 h-4') => <Sparkles className={c} />,
+        items: [
+          {
+            id: 'metadata-igdb',
+            label: 'IGDB (Twitch)',
+            icon: (c = 'w-4 h-4') => <Database className={c} />,
+            badge: (() => {
+              const p = metadataProviders.find((x) => x.id === 'igdb');
+              const isConn = p?.is_enabled && p?.has_configured_key;
+              const isDis = p && !p.is_enabled;
+              return (
+                <span
+                  className={`w-2 h-2 rounded-full shrink-0 transition-colors ${
+                    isDis ? 'bg-slate-700' : !isConn ? 'bg-amber-400' : ''
+                  }`}
+                  style={
+                    isConn
+                      ? {
+                          backgroundColor: 'var(--accent-primary)',
+                          boxShadow: '0 0 8px var(--accent-glow)',
+                        }
+                      : undefined
+                  }
+                  title={isDis ? 'Disabilitato' : isConn ? 'Autenticato' : 'Credenziali richieste'}
+                />
+              );
+            })(),
+            keywords: ['igdb', 'twitch', 'metadati', 'copertine', 'sinossi', 'valutazioni'],
+          },
+          {
+            id: 'metadata-steamgriddb',
+            label: 'SteamGridDB',
+            icon: (c = 'w-4 h-4') => <ImageIcon className={c} />,
+            badge: (() => {
+              const p = metadataProviders.find((x) => x.id === 'steamgriddb');
+              const isConn = p?.is_enabled && p?.has_configured_key;
+              const isDis = p && !p.is_enabled;
+              return (
+                <span
+                  className={`w-2 h-2 rounded-full shrink-0 transition-colors ${
+                    isDis ? 'bg-slate-700' : !isConn ? 'bg-amber-400' : ''
+                  }`}
+                  style={
+                    isConn
+                      ? {
+                          backgroundColor: 'var(--accent-primary)',
+                          boxShadow: '0 0 8px var(--accent-glow)',
+                        }
+                      : undefined
+                  }
+                  title={isDis ? 'Disabilitato' : isConn ? 'Autenticato' : 'API Key richiesta'}
+                />
+              );
+            })(),
+            keywords: ['steamgriddb', 'sgdb', 'artwork', 'grid', 'hero', 'logo', 'banner'],
+          },
+          {
+            id: 'metadata-opencritic',
+            label: 'OpenCritic',
+            icon: (c = 'w-4 h-4') => <Award className={c} />,
+            badge: (() => {
+              const p = metadataProviders.find((x) => x.id === 'opencritic');
+              const isConn = p?.is_enabled && p?.has_configured_key;
+              const isDis = p && !p.is_enabled;
+              return (
+                <span
+                  className={`w-2 h-2 rounded-full shrink-0 transition-colors ${
+                    isDis ? 'bg-slate-700' : !isConn ? 'bg-amber-400' : ''
+                  }`}
+                  style={
+                    isConn
+                      ? {
+                          backgroundColor: 'var(--accent-primary)',
+                          boxShadow: '0 0 8px var(--accent-glow)',
+                        }
+                      : undefined
+                  }
+                  title={isDis ? 'Disabilitato' : isConn ? 'Autenticato' : 'RapidAPI Key richiesta'}
+                />
+              );
+            })(),
+            keywords: ['opencritic', 'voti', 'recensioni', 'score', 'rapidapi'],
+          },
+          {
+            id: 'metadata-hltb',
+            label: 'HowLongToBeat',
+            icon: (c = 'w-4 h-4') => <Clock className={c} />,
+            badge: (() => {
+              const p = metadataProviders.find(
+                (x) => x.id === 'howlongtobeat' || x.id === 'hltb'
+              );
+              const isEnabled = p?.is_enabled ?? true;
+              return (
+                <span
+                  className={`w-2 h-2 rounded-full shrink-0 transition-colors ${
+                    !isEnabled ? 'bg-slate-700' : ''
+                  }`}
+                  style={
+                    isEnabled
+                      ? {
+                          backgroundColor: 'var(--accent-primary)',
+                          boxShadow: '0 0 8px var(--accent-glow)',
+                        }
+                      : undefined
+                  }
+                  title={isEnabled ? 'Attivo (Zero-Config)' : 'Disabilitato'}
+                />
+              );
+            })(),
+            keywords: ['howlongtobeat', 'hltb', 'durata', 'ore', 'completamento', 'playtime'],
+          },
+          {
+            id: 'metadata-pipeline',
+            label: t('metadata_settings.tab_pipeline', { defaultValue: 'Priorità Pipeline' }),
+            icon: (c = 'w-4 h-4') => <SlidersHorizontal className={c} />,
+            keywords: ['pipeline', 'priorità', 'regole', 'fonti', 'copertine', 'sfondi'],
+          },
+        ],
+      },
+      {
         id: 'achievements',
         label: t('settings_modal.tab_achievements', { defaultValue: 'Obiettivi (Achievements)' }),
         icon: (c = 'w-4 h-4') => <Trophy className={c} />,
@@ -372,7 +514,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         ],
       },
     ];
-  }, [t, updater?.status, storeAccounts]);
+  }, [t, updater?.status, storeAccounts, metadataProviders]);
 
   // Filter groups and items based on search query
   const filteredGroups = useMemo(() => {
@@ -657,6 +799,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   onSyncComplete={onSyncComplete}
                   onClose={handleClose}
                   selectedStoreId={activeTab.replace('store-', '')}
+                  hideTabBar={true}
+                />
+              )}
+
+              {/* SECTION: METADATI & PROVIDER */}
+              {activeTab.startsWith('metadata-') && (
+                <MetadataSettingsTab
+                  activeSubTab={
+                    activeTab === 'metadata-igdb'
+                      ? 'igdb'
+                      : activeTab === 'metadata-steamgriddb'
+                      ? 'steamgriddb'
+                      : activeTab === 'metadata-opencritic'
+                      ? 'opencritic'
+                      : activeTab === 'metadata-hltb'
+                      ? 'hltb'
+                      : 'pipeline'
+                  }
+                  onClose={handleClose}
+                  onSyncComplete={onSyncComplete}
                   hideTabBar={true}
                 />
               )}

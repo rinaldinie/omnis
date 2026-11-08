@@ -10,7 +10,6 @@ import {
 import { ProviderInfo, MetadataPipelineConfig, TAURI_EVENTS } from "../../types";
 import { api } from "../../api";
 import { listenTauri } from "../../api/client";
-import { MarketplaceTab } from "../settings/MarketplaceTab";
 import { useTranslation } from "../../i18n";
 import { BUILTIN_LIBRARIES, PluginCategory } from "./plugins/constants";
 import { PluginCard } from "./plugins/PluginCard";
@@ -82,7 +81,7 @@ export default function PluginManagerModal({
   // Built-in descriptions and badges hold translation keys; external plugin text is shown as-is
   const tr = (text: string) => (text.startsWith("plugin_manager.") ? t(text) : text);
   const [pluginModalTab, setPluginModalTab] = useState<
-    "providers" | "pipeline" | "enrich" | "marketplace"
+    "providers" | "pipeline" | "enrich"
   >("providers");
   const [categoryFilter, setCategoryFilter] = useState<PluginCategory>("all");
   const [liveProgress, setLiveProgress] = useState<{ current: number; total: number; title: string } | null>(null);
@@ -138,15 +137,8 @@ export default function PluginManagerModal({
     });
   };
 
-  const handleUninstall = async (pluginId: string) => {
-    try {
-      await api.marketplace.uninstallPlugin(pluginId);
-      if (onPluginInstalled) {
-        onPluginInstalled();
-      }
-    } catch (err) {
-      console.error("Failed to uninstall plugin:", err);
-    }
+  const handleUninstall = async (_pluginId: string) => {
+    // Tutti i provider sono integrati nativamente
   };
 
   if (!isOpen) return null;
@@ -414,18 +406,6 @@ export default function PluginManagerModal({
               <Sparkles className="w-3.5 h-3.5" />
               <span>{t("plugin_manager.tab_enrich")}</span>
             </button>
-            <button
-              onClick={() => setPluginModalTab("marketplace")}
-              className="flex-1 py-2 rounded-lg text-xs font-bold transition-all text-center flex items-center justify-center gap-2"
-              style={{
-                backgroundColor:
-                  pluginModalTab === "marketplace" ? "var(--accent-primary)" : "transparent",
-                color: pluginModalTab === "marketplace" ? "#ffffff" : "var(--text-muted)",
-              }}
-            >
-              <Store className="w-3.5 h-3.5" />
-              <span>{t("plugin_manager.tab_marketplace")}</span>
-            </button>
           </div>
         </div>
 
@@ -440,7 +420,6 @@ export default function PluginManagerModal({
               genericList={genericList}
               allCount={allCombined.length}
               renderPluginCard={renderPluginCard}
-              onNavigateToMarketplace={() => setPluginModalTab("marketplace")}
             />
           )}
 
@@ -468,10 +447,6 @@ export default function PluginManagerModal({
               onRunMassivePipeline={handleRunMassivePipeline}
               onCancelPipeline={handleCancelPipeline}
             />
-          )}
-
-          {pluginModalTab === "marketplace" && (
-            <MarketplaceTab onPluginInstalled={onPluginInstalled} />
           )}
         </div>
       </div>

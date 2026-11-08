@@ -7,7 +7,7 @@ use crate::store::StoreAccountManager;
 use crate::tray;
 use crate::types::{AppState, ImageCache};
 use omnis_core::{
-    Database, EventBus, MarketplaceManager, MetadataDownloader, PluginHost, SecretVault,
+    Database, EventBus, MetadataDownloader, PluginHost, SecretVault,
 };
 use omnis_plugin_epic::EpicLibraryPlugin;
 use omnis_plugin_gog::GogCloudPlugin;
@@ -76,14 +76,13 @@ impl AppBootstrap {
         db
     }
 
-    /// Initializes plugin host, marketplace manager, and metadata downloader
+    /// Initializes metadata downloader and core subsystems
     pub fn init_plugins(
         plugins_dir: &Path,
         db: Arc<Database>,
     ) -> (
         Arc<PluginHost>,
         Arc<MetadataDownloader>,
-        Arc<MarketplaceManager>,
     ) {
         let event_bus = EventBus::new(256);
         let mut host = PluginHost::new(event_bus.clone(), db);
@@ -93,20 +92,17 @@ impl AppBootstrap {
         host.register_plugin(Box::new(XboxCloudPlugin::new()));
 
         let downloader = Arc::new(MetadataDownloader::new());
-        let marketplace = Arc::new(MarketplaceManager::new());
 
         let plugins_dir_buf = plugins_dir.to_path_buf();
         let downloader_clone = downloader.clone();
-        let marketplace_clone = marketplace.clone();
         tauri::async_runtime::block_on(async {
             let _ = host.initialize_all().await;
             downloader_clone
                 .set_plugins_dir(plugins_dir_buf.clone())
                 .await;
-            marketplace_clone.set_plugins_dir(plugins_dir_buf).await;
         });
 
-        (Arc::new(host), downloader, marketplace)
+        (Arc::new(host), downloader)
     }
 
     /// Initializes secure vault and cloud store account manager with built-in integrations
@@ -133,7 +129,7 @@ impl AppBootstrap {
         let tauri_fallback = app.path().app_data_dir().ok();
         let paths = Self::init_directories(tauri_fallback);
         let db = Self::init_database(&paths.app_dir);
-        let (host, downloader, marketplace) = Self::init_plugins(&paths.plugins_dir, db.clone());
+        let (host, downloader) = Self::init_plugins(&paths.plugins_dir, db.clone());
         let store_account_manager = Self::init_store_accounts(&paths.app_dir, db.clone());
 
         let media_scope = Arc::new(MediaScope::new(app.asset_protocol_scope()));
@@ -156,7 +152,6 @@ impl AppBootstrap {
             db,
             host,
             downloader,
-            marketplace,
             app_dir: paths.app_dir,
             covers_dir: paths.covers_dir,
             backgrounds_dir: paths.backgrounds_dir,

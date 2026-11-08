@@ -153,7 +153,7 @@ impl MetadataProvider for SteamMetadataProvider {
     }
 
     fn is_builtin(&self) -> bool {
-        false
+        true
     }
 
     fn version(&self) -> Option<&str> {

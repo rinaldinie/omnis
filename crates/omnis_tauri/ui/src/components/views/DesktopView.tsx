@@ -17,6 +17,7 @@ import ListViewTable from "../ListViewTable";
 import StatisticsDashboardView from "./StatisticsDashboardView";
 import EmptyGamesView from "../common/EmptyGamesView";
 import { StatusBar } from "../navigation/StatusBar";
+import type { SettingsTab } from "../settings";
 
 export interface DesktopViewProps {
   currentTheme: ThemeConfig;
@@ -28,6 +29,7 @@ export interface DesktopViewProps {
   handleToggleSound: () => void;
   soundEnabled: boolean;
   setShowSettingsModal: (open: boolean) => void;
+  onOpenSettings?: (tab?: SettingsTab) => void;
   setShowThemeModal: (open: boolean) => void;
   loadProvidersAndConfig: () => void;
   setShowPluginModal: (open: boolean) => void;
@@ -117,6 +119,7 @@ export const DesktopView: React.FC<DesktopViewProps> = ({
   handleToggleSound,
   soundEnabled,
   setShowSettingsModal,
+  onOpenSettings,
   setShowThemeModal,
   loadProvidersAndConfig,
   setShowPluginModal,
@@ -247,6 +250,7 @@ export const DesktopView: React.FC<DesktopViewProps> = ({
         handleToggleSound={handleToggleSound}
         soundEnabled={soundEnabled}
         setShowSettingsModal={setShowSettingsModal}
+        onOpenSettings={onOpenSettings}
         setShowThemeModal={setShowThemeModal}
         loadProvidersAndConfig={loadProvidersAndConfig}
         setShowPluginModal={setShowPluginModal}

@@ -6,7 +6,6 @@ import { statsApi } from "./stats";
 import { windowApi } from "./window";
 import { themesApi } from "./themes";
 import { achievementsApi } from "./achievements";
-import { marketplaceApi } from "./marketplace";
 import { playniteApi } from "./playnite";
 import { slotsApi } from "./slots";
 
@@ -21,7 +20,6 @@ export * from "./stats";
 export * from "./window";
 export * from "./themes";
 export * from "./achievements";
-export * from "./marketplace";
 export * from "./playnite";
 
 export const api = {
@@ -33,7 +31,6 @@ export const api = {
   window: windowApi,
   themes: themesApi,
   achievements: achievementsApi,
-  marketplace: marketplaceApi,
   playnite: playniteApi,
   slots: slotsApi,
 };

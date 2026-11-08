@@ -1,7 +1,6 @@
 pub mod achievements;
 pub mod backup;
 pub mod games;
-pub mod marketplace;
 pub mod metadata;
 pub mod playnite;
 pub mod slots;
@@ -14,7 +13,6 @@ pub mod window;
 pub use achievements::*;
 pub use backup::*;
 pub use games::*;
-pub use marketplace::*;
 pub use metadata::*;
 pub use playnite::*;
 pub use slots::*;

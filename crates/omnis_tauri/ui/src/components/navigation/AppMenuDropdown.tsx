@@ -17,6 +17,7 @@ export interface AppMenuDropdownProps {
   triggerRef?: React.RefObject<HTMLElement | null>;
   onOpenThemeModal: () => void;
   onOpenPluginModal: () => void;
+  onOpenMetadataSettings?: () => void;
   onOpenAddCustomModal: () => void;
   onOpenBatchEnrichModal: () => void;
   onOpenPlayniteImport?: () => void;
@@ -34,6 +35,7 @@ export default function AppMenuDropdown({
   triggerRef,
   onOpenThemeModal,
   onOpenPluginModal,
+  onOpenMetadataSettings,
   onOpenAddCustomModal,
   onOpenBatchEnrichModal,
   onOpenPlayniteImport,
@@ -87,18 +89,22 @@ export default function AppMenuDropdown({
         },
       },
       {
-        id: "plugins",
-        label: t ? t("topbar.plugins") : "Plugin",
-        icon: <Puzzle className="w-4 h-4 text-indigo-400 shrink-0" />,
+        id: "metadata",
+        label: t ? (t("topbar.metadata_settings") || "Metadati & Provider") : "Metadati & Provider",
+        icon: <Sparkles className="w-4 h-4 text-indigo-400 shrink-0" />,
         badge: hasActiveProviders ? (
           <span
             className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0"
-            title="Active providers configured"
+            title="Provider attivi"
           />
         ) : null,
         action: () => {
           soundEffects.playSelect();
-          onOpenPluginModal();
+          if (onOpenMetadataSettings) {
+            onOpenMetadataSettings();
+          } else {
+            onOpenPluginModal();
+          }
           onClose();
         },
       },

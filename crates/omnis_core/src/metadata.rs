@@ -10,7 +10,6 @@ use uuid::Uuid;
 pub mod gog;
 pub mod igdb;
 pub mod opencritic;
-pub mod scaffold;
 pub mod steam;
 pub mod steamgriddb;
 pub mod types;
@@ -26,7 +25,6 @@ pub use utils::*;
 
 pub mod fallback;
 pub mod hltb;
-pub mod loader;
 pub mod media;
 pub mod registry;
 pub mod resolver;
@@ -34,8 +32,7 @@ pub mod search;
 pub mod storage;
 
 pub use fallback::FallbackMetadataGenerator;
-pub use hltb::HltbEnrichmentService;
-pub use loader::DynamicPluginScanner;
+pub use hltb::{HltbEnrichmentService, HowLongToBeatProvider};
 pub use media::{HttpMediaDownloader, MediaDownloader};
 pub use registry::{MetadataRegistry, ProviderRegistry};
 pub use resolver::MetadataPipelineResolver;

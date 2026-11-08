@@ -63,7 +63,7 @@ impl MetadataProvider for OpenCriticProvider {
     }
 
     fn is_builtin(&self) -> bool {
-        false
+        true
     }
 
     fn version(&self) -> Option<&str> {

@@ -12,7 +12,6 @@ export interface ProvidersTabProps {
   genericList: ProviderInfo[];
   allCount: number;
   renderPluginCard: (prov: ProviderInfo) => React.ReactNode;
-  onNavigateToMarketplace: () => void;
 }
 
 export const ProvidersTab: React.FC<ProvidersTabProps> = ({
@@ -23,7 +22,6 @@ export const ProvidersTab: React.FC<ProvidersTabProps> = ({
   genericList,
   allCount,
   renderPluginCard,
-  onNavigateToMarketplace,
 }) => {
   const { t } = useTranslation();
 
@@ -137,16 +135,6 @@ export const ProvidersTab: React.FC<ProvidersTabProps> = ({
               <p className="text-[11px] text-slate-500 max-w-sm mx-auto">
                 {t("plugin_manager.no_generic_hint")}
               </p>
-              <div className="pt-2 flex justify-center gap-2">
-                <button
-                  type="button"
-                  onClick={onNavigateToMarketplace}
-                  className="px-4 py-1.5 rounded-xl text-xs font-bold text-white shadow-md transition-all"
-                  style={{ backgroundColor: "var(--accent-primary)" }}
-                >
-                  {t("plugin_manager.explore_hub")}
-                </button>
-              </div>
             </div>
           )}
         </div>

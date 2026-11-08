@@ -449,7 +449,7 @@ impl MetadataProvider for IgdbMetadataProvider {
     }
 
     fn is_builtin(&self) -> bool {
-        false
+        true
     }
 
     fn plugin_path(&self) -> Option<&Path> {
@@ -783,7 +783,7 @@ mod tests {
         assert_eq!(provider.id(), "igdb");
         assert_eq!(provider.name(), "IGDB (Internet Game Database)");
         assert!(provider.requires_api_key());
-        assert!(!provider.is_builtin());
+        assert!(provider.is_builtin());
         assert_eq!(provider.website(), Some("https://www.igdb.com"));
         assert_eq!(
             provider.key_help_url(),

@@ -42,45 +42,15 @@ async fn test_steam_metadata_download() {
 }
 
 #[tokio::test]
-async fn test_plugins_scaffolding_and_dynamic_discovery() {
-    let temp_plugins =
-        std::env::temp_dir().join(format!("omnis_test_plugins_{}", uuid::Uuid::new_v4()));
-    let _ = std::fs::create_dir_all(&temp_plugins);
-
+async fn test_native_providers_registered_by_default() {
     let downloader = MetadataDownloader::new();
-    downloader.set_plugins_dir(temp_plugins.clone()).await;
-
-    // Verify scaffolding created README.txt and metacritic_provider
-    assert!(
-        temp_plugins.join("README.txt").exists(),
-        "README.txt was not scaffolded"
-    );
-    assert!(
-        temp_plugins
-            .join("metacritic_provider")
-            .join("manifest.json")
-            .exists(),
-        "manifest.json was not scaffolded"
-    );
-
-    // Verify provider was dynamically loaded
     let providers = downloader.get_providers_info().await;
-    let metacritic = providers.iter().find(|p| p.id == "metacritic_provider");
-    assert!(
-        metacritic.is_some(),
-        "metacritic_provider was not dynamically registered"
-    );
-
-    let meta = metacritic.unwrap();
-    assert!(
-        !meta.is_builtin,
-        "metacritic_provider must have is_builtin = false"
-    );
-    assert_eq!(meta.name, "Metacritic Community Scraper");
-    assert!(meta.version.is_some());
-    assert!(meta.plugin_path.is_some());
-
-    let _ = std::fs::remove_dir_all(&temp_plugins);
+    assert!(providers.iter().any(|p| p.id == "igdb"));
+    assert!(providers.iter().any(|p| p.id == "howlongtobeat"));
+    assert!(providers.iter().any(|p| p.id == "steamgriddb"));
+    assert!(providers.iter().any(|p| p.id == "opencritic"));
+    assert!(providers.iter().any(|p| p.id == "steam"));
+    assert!(providers.iter().any(|p| p.id == "gog"));
 }
 
 #[tokio::test]
@@ -130,7 +100,7 @@ async fn test_igdb_provider_registration_and_settings() {
 
     let igdb_info = igdb.unwrap();
     assert_eq!(igdb_info.name, "IGDB (Internet Game Database)");
-    assert!(!igdb_info.is_builtin);
+    assert!(igdb_info.is_builtin);
     assert!(igdb_info.requires_api_key);
     assert!(
         !igdb_info.has_configured_key,

@@ -723,6 +723,7 @@ export default function App() {
             handleToggleSound={handleToggleSound}
             soundEnabled={soundEnabled}
             setShowSettingsModal={setShowSettingsModal}
+            onOpenSettings={handleOpenSettings}
             setShowThemeModal={setShowThemeModal}
             loadProvidersAndConfig={loadProvidersAndConfig}
             setShowPluginModal={setShowPluginModal}

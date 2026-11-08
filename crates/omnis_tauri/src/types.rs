@@ -1,5 +1,5 @@
 use base64::prelude::*;
-use omnis_core::{Database, MarketplaceManager, MetadataDownloader, PluginHost};
+use omnis_core::{Database, MetadataDownloader, PluginHost};
 use omnis_sdk::Game;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -143,7 +143,6 @@ pub struct AppState {
     pub db: Arc<Database>,
     pub host: Arc<PluginHost>,
     pub downloader: Arc<MetadataDownloader>,
-    pub marketplace: Arc<MarketplaceManager>,
     pub app_dir: PathBuf,
     pub covers_dir: PathBuf,
     pub backgrounds_dir: PathBuf,
