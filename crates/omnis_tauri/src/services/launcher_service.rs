@@ -380,33 +380,25 @@ pub fn resolve_launch_configuration(game: &Game) -> LaunchConfiguration {
     // client launches the game directly with overlay, cloud saves, and achievements active.
     // If GalaxyClient.exe is not installed or detected, fallback to direct game binary execution.
     if game.library_id.eq_ignore_ascii_case("gog") {
-        let tracking_mode = game
-            .play_actions
-            .first()
-            .map(|action| match &action.tracking_mode {
-                ProcessTrackingMode::ProcessName(name) => {
-                    ProcessTrackingMode::ProcessName(name.clone())
-                }
-                _ => {
-                    let exe_name = std::path::Path::new(&action.executable)
-                        .file_name()
-                        .and_then(|f| f.to_str())
-                        .unwrap_or("game.exe");
-                    ProcessTrackingMode::ProcessName(exe_name.to_string())
-                }
-            })
-            .or_else(|| {
-                game.install_dir.as_ref().and_then(|dir| {
-                    omnis_core::launcher::find_gog_game_executable(dir)
-                        .or_else(|| omnis_core::launcher::find_primary_game_executable(dir))
-                        .and_then(|p| {
-                            p.file_name()
-                                .and_then(|f| f.to_str())
-                                .map(|s| ProcessTrackingMode::ProcessName(s.to_string()))
-                        })
+        let tracking_mode = if let Some(ref dir) = game.install_dir {
+            ProcessTrackingMode::WatchDirectory(dir.clone())
+        } else {
+            game.play_actions
+                .first()
+                .map(|action| match &action.tracking_mode {
+                    ProcessTrackingMode::ProcessName(name) => {
+                        ProcessTrackingMode::ProcessName(name.clone())
+                    }
+                    _ => {
+                        let exe_name = std::path::Path::new(&action.executable)
+                            .file_name()
+                            .and_then(|f| f.to_str())
+                            .unwrap_or("game.exe");
+                        ProcessTrackingMode::ProcessName(exe_name.to_string())
+                    }
                 })
-            })
-            .unwrap_or(ProcessTrackingMode::KernelJobObject);
+                .unwrap_or(ProcessTrackingMode::KernelJobObject)
+        };
 
         if let Some(galaxy_exe) = omnis_core::launcher::find_gog_galaxy_client() {
             let mut args = vec![
@@ -569,6 +561,10 @@ mod tests {
         if omnis_core::launcher::find_gog_galaxy_client().is_some() {
             assert!(resolved.arguments.contains(&"/command=runGame".to_string()));
             assert!(resolved.arguments.contains(&"/gameId=123456".to_string()));
+            assert_eq!(
+                resolved.tracking_mode,
+                ProcessTrackingMode::WatchDirectory(PathBuf::from("/path/to/game"))
+            );
         } else {
             // When GalaxyClient is not present (e.g. Linux / test environment), uses direct play action
             assert_eq!(resolved.executable, "/path/to/game/game.exe");

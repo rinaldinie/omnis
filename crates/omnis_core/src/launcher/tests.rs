@@ -84,6 +84,19 @@ fn test_is_uri_command() {
         tracking_mode: ProcessTrackingMode::KernelJobObject,
     };
     assert!(is_uri_command(&rundll_cfg));
+
+    // GOG Galaxy Client dispatch
+    let galaxy_cfg = LaunchConfiguration {
+        executable: "C:\\Program Files\\GOG Galaxy\\GalaxyClient.exe".to_string(),
+        arguments: vec![
+            "/command=runGame".to_string(),
+            "/gameId=2049187585".to_string(),
+            "/path=\"D:\\GOG Galaxy\\Games\\Control\"".to_string(),
+        ],
+        working_dir: None,
+        tracking_mode: ProcessTrackingMode::WatchDirectory(PathBuf::from("D:\\GOG Galaxy\\Games\\Control")),
+    };
+    assert!(is_uri_command(&galaxy_cfg));
 }
 
 #[test]
@@ -214,6 +227,8 @@ fn test_matches_target() {
 
         if let Some(parent_dir) = proc.exe().and_then(|e| e.parent()) {
             assert!(matches_target(proc, None, Some(parent_dir)));
+            // Process inside parent_dir must match even if target_name is a launcher / wrapper name
+            assert!(matches_target(proc, Some("Launcher.exe"), Some(parent_dir)));
         }
 
         assert!(!matches_target(
@@ -243,4 +258,52 @@ async fn test_kill_process_active() {
     let kill_res = kill_process(pid);
     assert!(kill_res.is_ok(), "Kill process failed: {:?}", kill_res);
     let _ = child.wait();
+}
+
+#[test]
+fn test_find_gog_game_executable_prefers_game_over_launcher() {
+    let temp_dir = std::env::temp_dir().join(format!("gog_test_{}", Uuid::new_v4()));
+    std::fs::create_dir_all(&temp_dir).unwrap();
+
+    // Create dummy executables
+    std::fs::write(temp_dir.join("Control.exe"), b"launcher").unwrap();
+    std::fs::write(temp_dir.join("Control_DX11.exe"), b"game dx11").unwrap();
+    std::fs::write(temp_dir.join("Control_DX12.exe"), b"game dx12").unwrap();
+
+    let manifest = r#"{
+        "gameId": "2049187585",
+        "name": "Control Ultimate Edition",
+        "playTasks": [
+            {
+                "isPrimary": true,
+                "name": "Control Ultimate Edition",
+                "path": "Control.exe",
+                "type": "FileTask",
+                "category": "launcher"
+            },
+            {
+                "name": "Control Ultimate Edition - DX11",
+                "path": "Control_DX11.exe",
+                "type": "FileTask",
+                "category": "game"
+            },
+            {
+                "name": "Control Ultimate Edition - DX12",
+                "path": "Control_DX12.exe",
+                "type": "FileTask",
+                "category": "game"
+            }
+        ]
+    }"#;
+    std::fs::write(temp_dir.join("goggame-2049187585.info"), manifest).unwrap();
+
+    let exe = find_gog_game_executable(&temp_dir);
+    assert!(exe.is_some());
+    // Should prefer the game task (DX12) over the launcher task (Control.exe)
+    assert_eq!(
+        exe.unwrap().file_name().unwrap().to_str().unwrap(),
+        "Control_DX12.exe"
+    );
+
+    let _ = std::fs::remove_dir_all(&temp_dir);
 }

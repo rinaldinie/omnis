@@ -304,6 +304,36 @@ pub fn find_gog_game_executable(install_dir: &Path) -> Option<PathBuf> {
                             if let Some(play_tasks) =
                                 json.get("playTasks").and_then(|p| p.as_array())
                             {
+                                // Pass 1: Look for tasks with category == "game" (actual game executables, not launcher trampolines)
+                                let mut game_candidates = Vec::new();
+                                for task in play_tasks {
+                                    let is_file = task.get("type").and_then(|t| t.as_str())
+                                        == Some("FileTask");
+                                    let is_game = task.get("category").and_then(|c| c.as_str())
+                                        == Some("game");
+                                    if is_file && is_game {
+                                        if let Some(rel_path) =
+                                            task.get("path").and_then(|p| p.as_str())
+                                        {
+                                            let exe = install_dir.join(rel_path);
+                                            if exe.exists() {
+                                                game_candidates.push(exe);
+                                            }
+                                        }
+                                    }
+                                }
+                                if !game_candidates.is_empty() {
+                                    // Prefer DX12 / x64 if present, otherwise first game candidate
+                                    if let Some(dx12) = game_candidates.iter().find(|p| {
+                                        let name = p.to_string_lossy().to_lowercase();
+                                        name.contains("dx12") || name.contains("x64")
+                                    }) {
+                                        return Some(dx12.clone());
+                                    }
+                                    return Some(game_candidates.remove(0));
+                                }
+
+                                // Pass 2: Primary FileTask
                                 for task in play_tasks {
                                     let is_primary = task
                                         .get("isPrimary")
@@ -311,7 +341,23 @@ pub fn find_gog_game_executable(install_dir: &Path) -> Option<PathBuf> {
                                         .unwrap_or(false);
                                     let is_file = task.get("type").and_then(|t| t.as_str())
                                         == Some("FileTask");
-                                    if is_primary || is_file {
+                                    if is_primary && is_file {
+                                        if let Some(rel_path) =
+                                            task.get("path").and_then(|p| p.as_str())
+                                        {
+                                            let exe = install_dir.join(rel_path);
+                                            if exe.exists() {
+                                                return Some(exe);
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Pass 3: Any FileTask
+                                for task in play_tasks {
+                                    let is_file = task.get("type").and_then(|t| t.as_str())
+                                        == Some("FileTask");
+                                    if is_file {
                                         if let Some(rel_path) =
                                             task.get("path").and_then(|p| p.as_str())
                                         {
@@ -401,11 +447,21 @@ pub fn is_uri_command(config: &LaunchConfiguration) -> bool {
     }
 
     // Synthesized Windows protocol dispatch: rundll32.exe url.dll,FileProtocolHandler <uri>
-    exe.ends_with("rundll32.exe")
+    if exe.ends_with("rundll32.exe")
         && config
             .arguments
             .iter()
             .any(|a| a.to_lowercase().contains("fileprotocolhandler"))
+    {
+        return true;
+    }
+
+    // GOG Galaxy Client CLI dispatcher: GalaxyClient.exe /command=runGame ...
+    if exe.ends_with("galaxyclient.exe") || exe == "galaxyclient" {
+        return true;
+    }
+
+    false
 }
 
 /// Returns true when a launch target is a protocol URI (`steam://`, `com.epicgames.launcher://`,
@@ -504,26 +560,53 @@ pub fn matches_target(
         }
     }
 
+    // 1. If target_dir is specified and real executable path is available, verify directory containment.
+    // Any non-blacklisted executable located inside the target install directory belongs to the game
+    // (e.g. Control_DX12.exe or Control_DX11.exe when launched from Control's install dir).
+    if let Some(dir) = target_dir {
+        if let Some(ref exe_path) = real_exe {
+            if path_contains(dir, exe_path) {
+                return true;
+            }
+        }
+    }
+
+    // 2. If target_name is specified, check process name with exact and variant matching
     if let Some(name) = target_name {
         let name_clean = name.strip_suffix(".exe").unwrap_or(name);
         let p_name_clean = p_name.strip_suffix(".exe").unwrap_or(p_name);
-        let name_match =
+        let exact_match =
             p_name.eq_ignore_ascii_case(name) || p_name_clean.eq_ignore_ascii_case(name_clean);
 
-        if !name_match {
-            return false;
-        }
+        let variant_match = if name_clean.len() >= 3 {
+            p_name_clean
+                .to_lowercase()
+                .starts_with(&format!("{}_", name_clean.to_lowercase()))
+                || p_name_clean
+                    .to_lowercase()
+                    .starts_with(&format!("{}-", name_clean.to_lowercase()))
+                || name_clean
+                    .to_lowercase()
+                    .starts_with(&format!("{}_", p_name_clean.to_lowercase()))
+                || name_clean
+                    .to_lowercase()
+                    .starts_with(&format!("{}-", p_name_clean.to_lowercase()))
+        } else {
+            false
+        };
 
-        // If target_dir is also specified, verify path containment if exe path is available
-        if let Some(dir) = target_dir {
-            if let Some(ref exe_path) = real_exe {
-                return path_contains(dir, exe_path);
+        if exact_match || variant_match {
+            // If target_dir is also specified and exe path is available, verify path containment
+            if let Some(dir) = target_dir {
+                if let Some(ref exe_path) = real_exe {
+                    return path_contains(dir, exe_path);
+                }
             }
+            return true;
         }
-        return true;
     }
 
-    // Only target_dir is provided (e.g. WatchDirectory mode without specific exe name)
+    // 3. Only target_dir is provided (e.g. WatchDirectory mode without specific exe name)
     if let Some(dir) = target_dir {
         if let Some(ref exe_path) = real_exe {
             return path_contains(dir, exe_path);
@@ -641,6 +724,7 @@ impl GameLauncher {
     ) -> Option<String> {
         match &config.tracking_mode {
             ProcessTrackingMode::ProcessName(name) => Some(process_file_name(name).to_string()),
+            ProcessTrackingMode::WatchDirectory(_) => None,
             _ => install_dir.and_then(|dir| {
                 find_gog_game_executable(dir)
                     .or_else(|| find_primary_game_executable(dir))
@@ -878,7 +962,7 @@ impl GameLauncher {
             if let Some(real_pid) = ProcessTracker::detect_process(
                 target_name.as_deref(),
                 target_dir.as_deref(),
-                Duration::from_secs(TRAMPOLINE_HANDOFF_SECS),
+                Duration::from_secs(30),
             )
             .await
             {
