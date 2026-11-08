@@ -205,6 +205,93 @@ pub fn get_steam_running_appid() -> Option<u64> {
     None
 }
 
+/// Locates GOG Galaxy client executable (`GalaxyClient.exe`) on the system.
+///
+/// On Windows, checks registry installations and standard Program Files paths.
+#[cfg(windows)]
+pub fn find_gog_galaxy_client() -> Option<PathBuf> {
+    use windows::core::PCWSTR;
+    use windows::Win32::System::Registry::{
+        RegCloseKey, RegOpenKeyExW, RegQueryValueExW, HKEY, HKEY_LOCAL_MACHINE, KEY_READ,
+        KEY_WOW64_32KEY, REG_SZ, REG_VALUE_TYPE,
+    };
+
+    // 1. Try Registry paths: HKLM\SOFTWARE\GOG.com\GalaxyClient\paths (with standard and 32-bit views)
+    for sam_desired in [KEY_READ, KEY_READ | KEY_WOW64_32KEY] {
+        for subkey_str in [
+            "SOFTWARE\\GOG.com\\GalaxyClient\\paths\0",
+            "SOFTWARE\\WOW6432Node\\GOG.com\\GalaxyClient\\paths\0",
+        ] {
+            let subkey: Vec<u16> = subkey_str.encode_utf16().collect();
+            unsafe {
+                let mut hkey = HKEY::default();
+                if RegOpenKeyExW(
+                    HKEY_LOCAL_MACHINE,
+                    PCWSTR(subkey.as_ptr()),
+                    0,
+                    sam_desired,
+                    &mut hkey,
+                )
+                .is_ok()
+                {
+                    let val_name: Vec<u16> = "client\0".encode_utf16().collect();
+                    let mut val_type = REG_VALUE_TYPE::default();
+                    let mut data_buf = [0u16; 512];
+                    let mut data_len = (data_buf.len() * std::mem::size_of::<u16>()) as u32;
+
+                    let res = RegQueryValueExW(
+                        hkey,
+                        PCWSTR(val_name.as_ptr()),
+                        None,
+                        Some(&mut val_type),
+                        Some(data_buf.as_mut_ptr() as *mut u8),
+                        Some(&mut data_len),
+                    );
+                    let _ = RegCloseKey(hkey);
+
+                    if res.is_ok() && val_type == REG_SZ && data_len > 0 {
+                        let len_chars = (data_len as usize / std::mem::size_of::<u16>())
+                            .saturating_sub(1);
+                        let client_dir = String::from_utf16_lossy(&data_buf[..len_chars]);
+                        let trimmed = client_dir.trim_matches('\0').trim();
+                        if !trimmed.is_empty() {
+                            let candidate = PathBuf::from(trimmed).join("GalaxyClient.exe");
+                            if candidate.is_file() {
+                                return Some(candidate);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 2. Check standard installation directories on Windows
+    let mut candidate_paths = Vec::new();
+    if let Ok(prog_files_x86) = std::env::var("ProgramFiles(x86)") {
+        candidate_paths.push(PathBuf::from(prog_files_x86).join("GOG Galaxy").join("GalaxyClient.exe"));
+    }
+    if let Ok(prog_files) = std::env::var("ProgramFiles") {
+        candidate_paths.push(PathBuf::from(prog_files).join("GOG Galaxy").join("GalaxyClient.exe"));
+    }
+    candidate_paths.push(PathBuf::from(r"C:\Program Files (x86)\GOG Galaxy\GalaxyClient.exe"));
+    candidate_paths.push(PathBuf::from(r"C:\Program Files\GOG Galaxy\GalaxyClient.exe"));
+
+    for candidate in candidate_paths {
+        if candidate.is_file() {
+            return Some(candidate);
+        }
+    }
+
+    None
+}
+
+/// Non-Windows stub for locating GOG Galaxy client
+#[cfg(not(windows))]
+pub fn find_gog_galaxy_client() -> Option<PathBuf> {
+    None
+}
+
 /// Store-specific heuristic: Locate primary game executable from GOG goggame-*.info (Requirement A7)
 pub fn find_gog_game_executable(install_dir: &Path) -> Option<PathBuf> {
     if let Ok(entries) = std::fs::read_dir(install_dir) {

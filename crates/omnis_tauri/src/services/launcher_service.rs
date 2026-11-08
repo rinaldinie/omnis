@@ -375,11 +375,11 @@ pub fn build_play_uri(library_id: &str, external_id: &str) -> String {
 
 /// Resolves the launch configuration for a game, creating default store protocol launcher if none configured.
 pub fn resolve_launch_configuration(game: &Game) -> LaunchConfiguration {
-    // For GOG games, always launch via the GOG Galaxy protocol to ensure the Galaxy client is running,
-    // which enables in-game achievements, cloud saves, and overlay hooks.
-    // We preserve the target executable name from play_actions (if available) for precise process tracking.
+    // For GOG games, if the official GOG Galaxy client (GalaxyClient.exe) is present on the system,
+    // launch via Galaxy CLI args (`/command=runGame /gameId={id} /path="{dir}"`) to ensure the Galaxy
+    // client launches the game directly with overlay, cloud saves, and achievements active.
+    // If GalaxyClient.exe is not installed or detected, fallback to direct game binary execution.
     if game.library_id.eq_ignore_ascii_case("gog") {
-        let play_uri = build_play_uri(&game.library_id, &game.external_id);
         let tracking_mode = game
             .play_actions
             .first()
@@ -408,22 +408,44 @@ pub fn resolve_launch_configuration(game: &Game) -> LaunchConfiguration {
             })
             .unwrap_or(ProcessTrackingMode::KernelJobObject);
 
-        return LaunchConfiguration {
-            executable: if cfg!(windows) {
-                "rundll32.exe".to_string()
-            } else if cfg!(target_os = "macos") {
-                "open".to_string()
-            } else {
-                "xdg-open".to_string()
-            },
-            arguments: if cfg!(windows) {
-                vec!["url.dll,FileProtocolHandler".to_string(), play_uri]
-            } else {
-                vec![play_uri]
-            },
-            working_dir: game.install_dir.clone(),
-            tracking_mode,
-        };
+        if let Some(galaxy_exe) = omnis_core::launcher::find_gog_galaxy_client() {
+            let mut args = vec![
+                "/command=runGame".to_string(),
+                format!("/gameId={}", game.external_id),
+            ];
+            if let Some(ref dir) = game.install_dir {
+                args.push(format!("/path=\"{}\"", dir.display()));
+            }
+
+            return LaunchConfiguration {
+                executable: galaxy_exe.to_string_lossy().to_string(),
+                arguments: args,
+                working_dir: game.install_dir.clone(),
+                tracking_mode,
+            };
+        }
+
+        // Fallback: If GalaxyClient is not installed, launch the game directly if play_actions or binary exists
+        if let Some(play_action) = game.play_actions.first().cloned() {
+            return play_action;
+        }
+
+        if let Some(ref dir) = game.install_dir {
+            if let Some(exe_path) = omnis_core::launcher::find_gog_game_executable(dir)
+                .or_else(|| omnis_core::launcher::find_primary_game_executable(dir))
+            {
+                let exe_name = exe_path
+                    .file_name()
+                    .and_then(|f| f.to_str())
+                    .unwrap_or("game.exe");
+                return LaunchConfiguration {
+                    executable: exe_path.to_string_lossy().to_string(),
+                    arguments: vec![],
+                    working_dir: game.install_dir.clone(),
+                    tracking_mode: ProcessTrackingMode::ProcessName(exe_name.to_string()),
+                };
+            }
+        }
     }
 
     if let Some(play_action) = game.play_actions.first().cloned() {
@@ -529,6 +551,29 @@ mod tests {
             build_play_uri("xbox", "9NBLGGGZ5155"),
             "ms-windows-store://pdp/?ProductId=9NBLGGGZ5155"
         );
+    }
+
+    #[test]
+    fn test_resolve_launch_configuration_gog_fallback_play_action() {
+        let mut game = Game::new("gog".to_string(), "123456".to_string(), "Test GOG Game".to_string());
+        game.install_dir = Some(PathBuf::from("/path/to/game"));
+        game.is_installed = true;
+        game.play_actions = vec![LaunchConfiguration {
+            executable: "/path/to/game/game.exe".to_string(),
+            arguments: vec!["--param".to_string()],
+            working_dir: Some(PathBuf::from("/path/to/game")),
+            tracking_mode: ProcessTrackingMode::ProcessName("game.exe".to_string()),
+        }];
+
+        let resolved = resolve_launch_configuration(&game);
+        if omnis_core::launcher::find_gog_galaxy_client().is_some() {
+            assert!(resolved.arguments.contains(&"/command=runGame".to_string()));
+            assert!(resolved.arguments.contains(&"/gameId=123456".to_string()));
+        } else {
+            // When GalaxyClient is not present (e.g. Linux / test environment), uses direct play action
+            assert_eq!(resolved.executable, "/path/to/game/game.exe");
+            assert_eq!(resolved.arguments, vec!["--param".to_string()]);
+        }
     }
 
     #[test]
