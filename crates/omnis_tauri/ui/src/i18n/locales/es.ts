@@ -758,6 +758,12 @@ export const es: TranslationSchema = {
     icon_preview: 'Vista previa del icono',
     icon_placeholder: 'Ruta local o URL del icono .ico/.png',
     pick_icon_title: 'Elegir un icono del equipo…',
+    remove_icon: 'Eliminar icono',
+    no_icon: 'Sin icono',
+    new_selection: 'Nueva selección',
+    revert_original: 'Restaurar original',
+    load_error: 'No se pudo cargar la imagen',
+    load_error_hint: 'Comprueba la ruta del archivo o la URL de la imagen',
   },
   editor_links: {
     intro: 'Añade enlaces a wikis, foros, páginas de mods o guías oficiales del juego.',

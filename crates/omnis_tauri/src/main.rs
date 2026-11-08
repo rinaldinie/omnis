@@ -96,6 +96,7 @@ fn main() {
             pick_directory,
             find_executables_in_folder,
             pick_image_file,
+            allow_media_file,
             start_store_login,
             get_store_accounts,
             disconnect_store_account,

@@ -774,6 +774,12 @@ export interface TranslationSchema {
     icon_preview: string;
     icon_placeholder: string;
     pick_icon_title: string;
+    remove_icon: string;
+    no_icon: string;
+    new_selection: string;
+    revert_original: string;
+    load_error: string;
+    load_error_hint: string;
   },
   editor_links: {
     intro: string;

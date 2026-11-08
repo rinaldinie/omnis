@@ -91,6 +91,10 @@ export const gamesApi = {
   /** Native file dialog: pick image file */
   pickImageFile: (): Promise<string | null> => invokeIpc<string | null>("pick_image_file"),
 
+  /** Allow a local media file in Tauri asset scope for preview */
+  allowMediaFile: (path: string): Promise<boolean> =>
+    invokeIpc<boolean>("allow_media_file", { path }),
+
   /** Set sync achievements on game exit */
   setSyncAchievementsOnGameExit: (enabled: boolean): Promise<void> =>
     invokeIpc<void>("set_sync_achievements_on_game_exit", { enabled }),

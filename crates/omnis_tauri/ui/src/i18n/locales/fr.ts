@@ -758,6 +758,12 @@ export const fr: TranslationSchema = {
     icon_preview: 'Aperçu de l’icône',
     icon_placeholder: 'Chemin local ou URL de l’icône .ico/.png',
     pick_icon_title: 'Choisir une icône sur l’ordinateur…',
+    remove_icon: 'Supprimer l\'icône',
+    no_icon: 'Aucune icône',
+    new_selection: 'Nouvelle sélection',
+    revert_original: 'Rétablir l\'original',
+    load_error: 'Impossible de charger l\'image',
+    load_error_hint: 'Vérifiez le chemin du fichier ou l\'URL de l\'image',
   },
   editor_links: {
     intro: 'Ajoutez des liens vers des wikis, forums, pages de mods ou guides officiels du jeu.',

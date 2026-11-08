@@ -21,6 +21,12 @@ pub struct GameDto {
     pub cover_image: Option<String>,
     pub background_image: Option<String>,
     pub icon_image: Option<String>,
+    #[serde(default)]
+    pub cover_image_path: Option<String>,
+    #[serde(default)]
+    pub background_image_path: Option<String>,
+    #[serde(default)]
+    pub icon_image_path: Option<String>,
     pub genres: Vec<String>,
     pub developers: Vec<String>,
     pub publishers: Vec<String>,
@@ -178,9 +184,12 @@ pub fn game_to_dto(g: Game, _cache: &ImageCache) -> GameDto {
         critic_score: g.critic_score.map(|s| s as u32),
         release_date: g.release_date,
         description: g.description,
-        cover_image: g.cover_image_path,
-        background_image: g.background_image_path,
+        cover_image: g.cover_image_path.clone(),
+        background_image: g.background_image_path.clone(),
         icon_image,
+        cover_image_path: g.cover_image_path,
+        background_image_path: g.background_image_path,
+        icon_image_path: g.icon_image_path,
         genres: g.genres,
         developers: g.developers,
         publishers: g.publishers,

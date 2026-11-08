@@ -51,6 +51,9 @@ export interface GameDto {
   cover_image: string | null;
   background_image: string | null;
   icon_image?: string | null;
+  cover_image_path?: string | null;
+  background_image_path?: string | null;
+  icon_image_path?: string | null;
   series?: string | null;
   completion_status?: string | null;
   user_notes?: string | null;
@@ -193,6 +196,9 @@ export function formatImageUrl(src: string | null | undefined): string | null {
   ) {
     return src;
   }
+  if (src.startsWith("file://")) {
+    src = decodeURIComponent(src.replace(/^file:\/\/\/?/, ""));
+  }
   try {
     if (isTauriEnvironment()) {
       return convertFileSrc(src);
@@ -206,9 +212,9 @@ export function formatImageUrl(src: string | null | undefined): string | null {
 export const normalizeGame = (g: any): GameDto => {
   if (!g) return g;
   const library = g.library || g.library_id || "custom";
-  const cover = g.cover_image || g.cover_image_path || null;
-  const bg = g.background_image || g.background_image_path || null;
-  const icon = g.icon_image || g.icon_image_path || cover || null;
+  const rawCover = g.cover_image_path ?? g.cover_image ?? null;
+  const rawBg = g.background_image_path ?? g.background_image ?? null;
+  const rawIcon = g.icon_image_path ?? g.icon_image ?? rawCover ?? null;
 
   let playtimeFormatted = g.playtime_formatted;
   if (!playtimeFormatted && typeof g.playtime_seconds === "number") {
@@ -220,9 +226,12 @@ export const normalizeGame = (g: any): GameDto => {
   return {
     ...g,
     library,
-    cover_image: formatImageUrl(cover),
-    background_image: formatImageUrl(bg),
-    icon_image: formatImageUrl(icon),
+    cover_image_path: rawCover,
+    background_image_path: rawBg,
+    icon_image_path: rawIcon,
+    cover_image: formatImageUrl(rawCover),
+    background_image: formatImageUrl(rawBg),
+    icon_image: formatImageUrl(rawIcon),
     playtime_formatted: playtimeFormatted || "0m",
   };
 };

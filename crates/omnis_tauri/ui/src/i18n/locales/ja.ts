@@ -758,6 +758,12 @@ export const ja: TranslationSchema = {
     icon_preview: 'アイコンのプレビュー',
     icon_placeholder: '.ico/.png アイコンのローカルパスまたは URL',
     pick_icon_title: 'PC 上のアイコンを選択…',
+    remove_icon: 'アイコンを削除',
+    no_icon: 'アイコンなし',
+    new_selection: '新しい選択',
+    revert_original: '元に戻す',
+    load_error: '画像を読み込めませんでした',
+    load_error_hint: 'ファイルパスまたは画像 URL を確認してください',
   },
   editor_links: {
     intro: 'このゲームの Wiki、フォーラム、Mod ページ、公式ガイドへのリンクを追加します。',

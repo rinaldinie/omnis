@@ -758,6 +758,12 @@ export const de: TranslationSchema = {
     icon_preview: 'Symbolvorschau',
     icon_placeholder: 'Lokaler Pfad oder URL des .ico/.png-Symbols',
     pick_icon_title: 'Symbol auf dem Computer auswählen…',
+    remove_icon: 'Symbol entfernen',
+    no_icon: 'Kein Symbol',
+    new_selection: 'Neue Auswahl',
+    revert_original: 'Original wiederherstellen',
+    load_error: 'Bild konnte nicht geladen werden',
+    load_error_hint: 'Dateipfad oder Bild-URL überprüfen',
   },
   editor_links: {
     intro: 'Füge Links zu Wikis, Foren, Mod-Seiten oder offiziellen Guides hinzu.',

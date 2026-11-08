@@ -63,6 +63,7 @@ pub async fn get_game(game_id: String, state: State<'_, AppState>) -> Result<Gam
         .get_game_by_id(id)
         .map_err(|e| e.to_string())?
         .ok_or_else(|| "Gioco non trovato".to_string())?;
+    state.media_scope.allow_game_media(&game);
     let mut dto = game_to_dto(game, &state.image_cache);
     if let Ok(all_games) = state.db.get_all_games() {
         let mut dtos: Vec<GameDto> = all_games
@@ -495,4 +496,10 @@ pub async fn promote_duplicate_copy(
         .collect();
     crate::types::populate_other_copies(&mut dtos);
     Ok(dtos)
+}
+
+#[tauri::command]
+pub async fn allow_media_file(path: String, state: State<'_, AppState>) -> Result<bool, String> {
+    state.media_scope.allow_media_file(&path);
+    Ok(true)
 }

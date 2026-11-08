@@ -75,6 +75,15 @@ export default function GameEditorModal({
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [initialMedia, setInitialMedia] = useState<{
+    cover_image_path: string;
+    background_image_path: string;
+    icon_image_path: string;
+  }>({
+    cover_image_path: "",
+    background_image_path: "",
+    icon_image_path: "",
+  });
 
   useEffect(() => {
     if (!isOpen || !game) return;
@@ -90,6 +99,20 @@ export default function GameEditorModal({
         }
       } catch {}
       const hltb = parsedExtra?.howlongtobeat || {};
+
+      const cleanRawMedia = (path?: string | null, img?: string | null) => {
+        if (path && !path.startsWith("asset:") && !path.startsWith("http://asset.localhost")) {
+          return path;
+        }
+        if (img && !img.startsWith("asset:") && !img.startsWith("http://asset.localhost")) {
+          return img;
+        }
+        return path || img || "";
+      };
+
+      const coverPath = cleanRawMedia(g.cover_image_path, g.cover_image);
+      const bgPath = cleanRawMedia(g.background_image_path, g.background_image);
+      const iconPath = cleanRawMedia(g.icon_image_path, g.icon_image);
 
       setFormData({
         title: g.title || "",
@@ -108,12 +131,22 @@ export default function GameEditorModal({
         featuresText: Array.isArray(g.features) ? g.features.join(", ") : "",
         description: g.description || "",
         user_notes: g.user_notes || "",
-        cover_image_path: g.cover_image_path || g.cover_image || "",
-        background_image_path: g.background_image_path || g.background_image || "",
-        icon_image_path: g.icon_image_path || "",
+        cover_image_path: coverPath,
+        background_image_path: bgPath,
+        icon_image_path: iconPath,
         play_actions: Array.isArray(g.play_actions) ? g.play_actions : [],
         custom_links: Array.isArray(g.custom_links) ? g.custom_links : [],
       });
+
+      setInitialMedia({
+        cover_image_path: coverPath,
+        background_image_path: bgPath,
+        icon_image_path: iconPath,
+      });
+
+      if (coverPath) api.games.allowMediaFile(coverPath).catch(() => {});
+      if (bgPath) api.games.allowMediaFile(bgPath).catch(() => {});
+      if (iconPath) api.games.allowMediaFile(iconPath).catch(() => {});
     };
 
     initFromGame(game);
@@ -286,6 +319,7 @@ export default function GameEditorModal({
     try {
       const path = await api.games.pickImageFile();
       if (path) {
+        await api.games.allowMediaFile(path).catch(() => {});
         setFormData((prev) => ({ ...prev, [field]: path }));
       }
     } catch (err) {
@@ -446,6 +480,7 @@ export default function GameEditorModal({
           {activeTab === "media" && (
             <MediaTab
               formData={formData}
+              initialMedia={initialMedia}
               onChange={updateFormData}
               onPickImage={handlePickImage}
             />
