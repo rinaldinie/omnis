@@ -30,6 +30,9 @@ function formatErrorMessage(err: unknown, fallback: string): string {
   }
 }
 
+const UPDATE_CHECK_TIMEOUT_MS = 15000;
+const UPDATE_DOWNLOAD_TIMEOUT_MS = 60000;
+
 export function useAppUpdater(defaultAppVersion: string = "0.2.0") {
   // Latest translator for the long-lived callbacks below
   const { t } = useTranslation();
@@ -57,7 +60,15 @@ export function useAppUpdater(defaultAppVersion: string = "0.2.0") {
       setErrorMessage(null);
 
       const { check } = await import("@tauri-apps/plugin-updater");
-      const update = await check();
+      const updatePromise = check({ timeout: UPDATE_CHECK_TIMEOUT_MS });
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(
+          () => reject(new Error("Timeout: il server di aggiornamento non risponde")),
+          UPDATE_CHECK_TIMEOUT_MS
+        )
+      );
+
+      const update = await Promise.race([updatePromise, timeoutPromise]);
 
       if (update && (update.available ?? true)) {
         updateRef.current = update;
@@ -96,17 +107,20 @@ export function useAppUpdater(defaultAppVersion: string = "0.2.0") {
       let downloaded = 0;
       let total = 0;
 
-      await update.downloadAndInstall((event: any) => {
-        if (event.event === "Started") {
-          total = event.data.contentLength || 0;
-        } else if (event.event === "Progress") {
-          downloaded += event.data.chunkLength || 0;
-          const percentage = total > 0 ? Math.round((downloaded / total) * 100) : 0;
-          setProgress({ downloadedBytes: downloaded, totalBytes: total, percentage });
-        } else if (event.event === "Finished") {
-          setProgress({ downloadedBytes: total, totalBytes: total, percentage: 100 });
-        }
-      });
+      await update.downloadAndInstall(
+        (event: any) => {
+          if (event.event === "Started") {
+            total = event.data.contentLength || 0;
+          } else if (event.event === "Progress") {
+            downloaded += event.data.chunkLength || 0;
+            const percentage = total > 0 ? Math.round((downloaded / total) * 100) : 0;
+            setProgress({ downloadedBytes: downloaded, totalBytes: total, percentage });
+          } else if (event.event === "Finished") {
+            setProgress({ downloadedBytes: total, totalBytes: total, percentage: 100 });
+          }
+        },
+        { timeout: UPDATE_DOWNLOAD_TIMEOUT_MS }
+      );
 
       setStatus("readyToInstall");
     } catch (err: any) {
