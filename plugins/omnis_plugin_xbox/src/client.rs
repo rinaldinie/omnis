@@ -676,7 +676,7 @@ pub async fn refresh_session_token(
     client: &reqwest::Client,
     refresh_token: &str,
 ) -> Result<StoreAccountSession, PluginError> {
-    // Attempt standard OAuth2 refresh token exchange with Microsoft login
+    // 1. Attempt standard OAuth2 refresh token exchange with Microsoft login
     let params = [
         ("client_id", MS_CLIENT_ID),
         ("grant_type", "refresh_token"),
@@ -685,28 +685,49 @@ pub async fn refresh_session_token(
         ("redirect_uri", MS_REDIRECT_URI),
     ];
 
-    if let Ok(resp) = client
+    let resp_res = client
         .post("https://login.live.com/oauth20_token.srf")
         .header("User-Agent", XBOX_USER_AGENT)
         .form(&params)
         .send()
-        .await
-    {
-        if resp.status().is_success() {
-            if let Ok(body) = resp.json::<MsTokenResponse>().await {
-                let mut session = authenticate_xbox_live(client, &body.access_token).await?;
-                if body.refresh_token.is_some() {
-                    session.refresh_token = body.refresh_token;
-                } else {
-                    session.refresh_token = Some(refresh_token.to_string());
-                }
-                return Ok(session);
+        .await;
+
+    let oauth_error = match resp_res {
+        Ok(resp) if resp.status().is_success() => {
+            let body = resp.json::<MsTokenResponse>().await.map_err(|e| {
+                PluginError::Parse(format!("Failed to parse Microsoft token response: {e}"))
+            })?;
+            let mut session = authenticate_xbox_live(client, &body.access_token).await?;
+            if body.refresh_token.is_some() {
+                session.refresh_token = body.refresh_token;
+            } else {
+                session.refresh_token = Some(refresh_token.to_string());
+            }
+            return Ok(session);
+        }
+        Ok(resp) => {
+            let status = resp.status();
+            let body = resp.text().await.unwrap_or_default();
+            Some(format!(
+                "Microsoft OAuth token refresh failed ({status}): {body}"
+            ))
+        }
+        Err(e) => Some(format!("Failed to connect to Microsoft login service: {e}")),
+    };
+
+    // 2. Fallback: If refresh_token was directly a Microsoft access token
+    match authenticate_xbox_live(client, refresh_token).await {
+        Ok(session) => Ok(session),
+        Err(e) => {
+            if let Some(oauth_err) = oauth_error {
+                Err(PluginError::SessionExpired(format!(
+                    "{oauth_err}. Xbox fallback error: {e}"
+                )))
+            } else {
+                Err(e)
             }
         }
     }
-
-    // Fallback: If refresh_token is directly a Microsoft access token
-    authenticate_xbox_live(client, refresh_token).await
 }
 
 /// Queries remote TitleHub API and retrieves the catalog of titles played/owned by the user

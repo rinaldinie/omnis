@@ -64,20 +64,15 @@ impl StoreCatalogSyncEngine {
                     store_id,
                     msg
                 );
-                if let Some(ref refresh_tok) = session.refresh_token {
-                    match plugin.refresh_session(refresh_tok).await {
-                        Ok(new_session) => {
-                            let _ = mgr.save_session(store_id, &new_session);
-                            session = new_session;
-                            match plugin.sync_games(&session).await {
-                                Ok(g) => (g, None),
-                                Err(e) => (Vec::new(), Some(e.to_string())),
-                            }
+                match mgr.refresh_session(store_id).await {
+                    Ok(new_session) => {
+                        session = new_session;
+                        match plugin.sync_games(&session).await {
+                            Ok(g) => (g, None),
+                            Err(e) => (Vec::new(), Some(e.to_string())),
                         }
-                        Err(refresh_err) => (Vec::new(), Some(format!("{}: {}", msg, refresh_err))),
                     }
-                } else {
-                    (Vec::new(), Some(msg))
+                    Err(refresh_err) => (Vec::new(), Some(format!("{}: {}", msg, refresh_err))),
                 }
             }
             Err(e) => {
@@ -213,45 +208,29 @@ impl StoreCatalogSyncEngine {
         mgr: &StoreAccountManager,
         app_handle: &AppHandle,
         store_id: &str,
-        plugin: &dyn CloudStorePlugin,
+        _plugin: &dyn CloudStorePlugin,
         session: &mut StoreAccountSession,
     ) -> Result<(), String> {
         if !session.is_expired() {
             return Ok(());
         }
 
-        if let Some(ref refresh_tok) = session.refresh_token {
-            match plugin.refresh_session(refresh_tok).await {
-                Ok(new_session) => {
-                    mgr.save_session(store_id, &new_session)?;
-                    *session = new_session;
-                    Ok(())
-                }
-                Err(e) => {
-                    let err_msg =
-                        format!("Errore nel rinnovo della sessione per {}: {}", store_id, e);
-                    Self::emit_sync_progress(
-                        app_handle,
-                        store_id,
-                        0,
-                        0,
-                        "error",
-                        Some(err_msg.clone()),
-                    );
-                    Err(err_msg)
-                }
+        match mgr.refresh_session(store_id).await {
+            Ok(new_session) => {
+                *session = new_session;
+                Ok(())
             }
-        } else {
-            let err_msg = "Sessione scaduta e nessun refresh token disponibile. Effettuare nuovamente il login.";
-            Self::emit_sync_progress(
-                app_handle,
-                store_id,
-                0,
-                0,
-                "error",
-                Some(err_msg.to_string()),
-            );
-            Err(err_msg.to_string())
+            Err(err_msg) => {
+                Self::emit_sync_progress(
+                    app_handle,
+                    store_id,
+                    0,
+                    0,
+                    "error",
+                    Some(err_msg.clone()),
+                );
+                Err(err_msg)
+            }
         }
     }
 

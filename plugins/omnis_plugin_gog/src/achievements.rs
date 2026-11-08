@@ -105,6 +105,17 @@ pub async fn fetch_gog_achievements_api(
     let product_id = &game.external_id;
     let user_id = &session.user_id;
 
+    if product_id.trim().is_empty() {
+        return Err("Game external ID is missing for GOG achievements.".to_string());
+    }
+
+    if user_id.trim().is_empty() {
+        return Err(
+            "An active GOG Galaxy session with a valid user ID is required to fetch achievements."
+                .to_string(),
+        );
+    }
+
     let endpoint =
         format!("https://gameplay.gog.com/clients/{product_id}/users/{user_id}/achievements");
     debug!("Fetching GOG achievements from {endpoint}");
@@ -119,6 +130,11 @@ pub async fn fetch_gog_achievements_api(
         .send()
         .await
         .map_err(|e| format!("Failed to connect to GOG achievements endpoint: {e}"))?;
+
+    if resp.status() == reqwest::StatusCode::NOT_FOUND {
+        debug!("GOG game {product_id} has no achievements endpoint (404 Not Found)");
+        return Ok(Vec::new());
+    }
 
     if !resp.status().is_success() {
         let status = resp.status();

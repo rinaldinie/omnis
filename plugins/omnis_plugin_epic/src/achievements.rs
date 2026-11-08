@@ -299,6 +299,11 @@ pub async fn fetch_epic_achievements_api(
         .await
         .map_err(|e| format!("Failed to connect to Epic GraphQL endpoint: {e}"))?;
 
+    if resp.status() == reqwest::StatusCode::NOT_FOUND {
+        debug!("Epic game {sandbox_id} has no achievements endpoint (404 Not Found)");
+        return Ok(Vec::new());
+    }
+
     if !resp.status().is_success() {
         let status = resp.status();
         let err_text = resp.text().await.unwrap_or_default();

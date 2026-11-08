@@ -145,6 +145,71 @@ impl StoreAccountManager {
         StoreSessionVault::load_session(self, store_id)
     }
 
+    /// Loads a store session, automatically renewing the token if expired and a refresh token is present.
+    pub async fn get_valid_session(
+        &self,
+        store_id: &str,
+    ) -> Result<Option<StoreAccountSession>, String> {
+        let session = self.load_session(store_id)?;
+        let session = match session {
+            Some(s) => s,
+            None => return Ok(None),
+        };
+
+        if session.is_expired() {
+            if session.refresh_token.is_some() {
+                tracing::info!(
+                    "Session for store '{}' is expired (expires_at={:?}); attempting automatic token refresh...",
+                    store_id,
+                    session.expires_at
+                );
+                return self.refresh_session(store_id).await.map(Some);
+            }
+        }
+
+        Ok(Some(session))
+    }
+
+    /// Explicitly refreshes the OAuth session for a store using its stored refresh token.
+    pub async fn refresh_session(&self, store_id: &str) -> Result<StoreAccountSession, String> {
+        let existing = self
+            .load_session(store_id)?
+            .ok_or_else(|| format!("Nessuna sessione trovata per lo store '{store_id}'"))?;
+
+        let refresh_tok = existing.refresh_token.as_ref().ok_or_else(|| {
+            format!(
+                "Sessione per '{store_id}' scaduta e nessun refresh token disponibile. Effettuare nuovamente il login."
+            )
+        })?;
+
+        let plugin = self
+            .get_plugin_sync(store_id)
+            .ok_or_else(|| format!("Plugin non trovato per lo store '{store_id}'"))?;
+
+        let mut new_session = plugin
+            .refresh_session(refresh_tok)
+            .await
+            .map_err(|e| format!("Errore nel rinnovo della sessione per '{store_id}': {e}"))?;
+
+        // Preserve username/avatar if refreshed session returned fallback placeholder
+        if new_session.username.starts_with("GOG User ")
+            && !existing.username.is_empty()
+            && !existing.username.starts_with("GOG User ")
+        {
+            new_session.username = existing.username.clone();
+        }
+        if new_session.avatar_url.is_none() && existing.avatar_url.is_some() {
+            new_session.avatar_url = existing.avatar_url.clone();
+        }
+
+        self.save_session(store_id, &new_session)?;
+        tracing::info!(
+            "Successfully refreshed and persisted session for store '{}'",
+            store_id
+        );
+        Ok(new_session)
+    }
+
     #[inline]
     pub fn delete_session(&self, store_id: &str) -> Result<(), String> {
         StoreSessionVault::delete_session(self, store_id)

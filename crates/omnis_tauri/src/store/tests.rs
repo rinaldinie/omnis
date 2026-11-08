@@ -320,3 +320,84 @@ async fn test_disconnect_store_account_with_settings_reset() {
     assert_eq!(settings.api_key, None);
     assert_eq!(settings.account_id, None);
 }
+
+struct MockRefreshablePlugin;
+
+#[async_trait::async_trait]
+impl omnis_sdk::LibraryPlugin for MockRefreshablePlugin {
+    fn id(&self) -> &str {
+        "mock_oauth"
+    }
+    fn name(&self) -> &str {
+        "Mock OAuth Store"
+    }
+    async fn scan(&self) -> Result<Vec<omnis_sdk::DiscoveredGame>, omnis_sdk::PluginError> {
+        Ok(vec![])
+    }
+}
+
+#[async_trait::async_trait]
+impl omnis_sdk::CloudStorePlugin for MockRefreshablePlugin {
+    fn login_url(&self) -> String {
+        "https://example.com/login".to_string()
+    }
+    fn is_redirect_url(&self, _url: &str) -> bool {
+        false
+    }
+    async fn exchange_code(&self, _url: &str) -> Result<StoreAccountSession, omnis_sdk::PluginError> {
+        unimplemented!()
+    }
+    async fn refresh_session(&self, refresh_token: &str) -> Result<StoreAccountSession, omnis_sdk::PluginError> {
+        Ok(StoreAccountSession {
+            store_id: "mock_oauth".to_string(),
+            user_id: "user123".to_string(),
+            username: "GOG User 12345".to_string(),
+            avatar_url: None,
+            access_token: format!("refreshed_{refresh_token}"),
+            refresh_token: Some("new_refresh_tok".to_string()),
+            expires_at: Some(Utc::now().timestamp() + 3600),
+        })
+    }
+    async fn sync_games(
+        &self,
+        _session: &StoreAccountSession,
+    ) -> Result<Vec<omnis_sdk::DiscoveredGame>, omnis_sdk::PluginError> {
+        Ok(vec![])
+    }
+}
+
+#[tokio::test]
+async fn test_get_valid_session_auto_refresh() {
+    let (manager, _db) = make_test_manager();
+    manager.register_plugin(Arc::new(MockRefreshablePlugin));
+
+    // 1. Expired session with refresh token
+    let expired_session = StoreAccountSession {
+        store_id: "mock_oauth".to_string(),
+        user_id: "user123".to_string(),
+        username: "OriginalGamer".to_string(),
+        avatar_url: Some("https://example.com/avatar.jpg".to_string()),
+        access_token: "old_expired_access_tok".to_string(),
+        refresh_token: Some("refresh_token_abc".to_string()),
+        expires_at: Some(Utc::now().timestamp() - 600), // Expired 10 min ago
+    };
+    manager.save_session("mock_oauth", &expired_session).unwrap();
+
+    // Call get_valid_session -> should auto-refresh
+    let valid_session = manager.get_valid_session("mock_oauth").await.unwrap();
+    assert!(valid_session.is_some());
+    let s = valid_session.unwrap();
+    assert_eq!(s.access_token, "refreshed_refresh_token_abc");
+    assert_eq!(s.refresh_token, Some("new_refresh_tok".to_string()));
+    // Original username and avatar preserved
+    assert_eq!(s.username, "OriginalGamer");
+    assert_eq!(s.avatar_url, Some("https://example.com/avatar.jpg".to_string()));
+
+    // Verify it was persisted to storage
+    let loaded = manager.load_session("mock_oauth").unwrap().unwrap();
+    assert_eq!(loaded.access_token, "refreshed_refresh_token_abc");
+
+    // 2. Now it is valid (not expired). Calling again should return cached without re-refreshing
+    let valid_again = manager.get_valid_session("mock_oauth").await.unwrap().unwrap();
+    assert_eq!(valid_again.access_token, "refreshed_refresh_token_abc");
+}

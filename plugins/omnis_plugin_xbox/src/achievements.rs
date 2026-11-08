@@ -196,6 +196,17 @@ pub async fn fetch_xbox_achievements_api(
     let title_id = &game.external_id;
     let xuid = &session.user_id;
 
+    if title_id.trim().is_empty() {
+        return Err("Game external ID is missing for Xbox achievements.".to_string());
+    }
+
+    if xuid.trim().is_empty() {
+        return Err(
+            "An active Xbox Live session with a valid XUID is required to fetch achievements."
+                .to_string(),
+        );
+    }
+
     let auth_header_value = if session.access_token.starts_with("XBL3.0 ") {
         session.access_token.clone()
     } else if session.access_token.starts_with("x=") {
@@ -221,6 +232,11 @@ pub async fn fetch_xbox_achievements_api(
         .send()
         .await
         .map_err(|e| format!("Failed to connect to Xbox achievements endpoint: {e}"))?;
+
+    if resp.status() == reqwest::StatusCode::NOT_FOUND {
+        debug!("Xbox game {title_id} has no achievements endpoint (404 Not Found)");
+        return Ok(Vec::new());
+    }
 
     if !resp.status().is_success() {
         let status = resp.status();

@@ -104,7 +104,8 @@ impl AchievementService {
         let session = match game.library_id.as_str() {
             stores::STEAM => Some(
                 store_account_manager
-                    .load_session(stores::STEAM)
+                    .get_valid_session(stores::STEAM)
+                    .await
                     .map_err(|e| format!("Errore nel caricamento della sessione Steam: {e}"))?
                     .ok_or_else(|| {
                         "Nessun account Steam configurato. Inserisci la Steam Web API Key e l'ID Account nelle impostazioni Store.".to_string()
@@ -112,7 +113,8 @@ impl AchievementService {
             ),
             stores::XBOX => Some(
                 store_account_manager
-                    .load_session(stores::XBOX)
+                    .get_valid_session(stores::XBOX)
+                    .await
                     .map_err(|e| format!("Error loading Xbox session: {e}"))?
                     .ok_or_else(|| {
                         "No active Xbox account found. Please connect your Xbox account in Store Accounts.".to_string()
@@ -120,17 +122,40 @@ impl AchievementService {
             ),
             stores::GOG => Some(
                 store_account_manager
-                    .load_session(stores::GOG)
+                    .get_valid_session(stores::GOG)
+                    .await
                     .map_err(|e| format!("Error loading GOG session: {e}"))?
                     .ok_or_else(|| {
                         "No active GOG Galaxy account found. Please connect your GOG account in Store Accounts.".to_string()
                     })?,
             ),
-            stores::EPIC => store_account_manager.load_session(stores::EPIC).ok().flatten(),
-            _ => store_account_manager.load_session(&game.library_id).ok().flatten(),
+            stores::EPIC => store_account_manager
+                .get_valid_session(stores::EPIC)
+                .await
+                .ok()
+                .flatten(),
+            _ => store_account_manager
+                .get_valid_session(&game.library_id)
+                .await
+                .ok()
+                .flatten(),
         };
 
-        provider.fetch_achievements(game, session.as_ref()).await
+        match provider.fetch_achievements(game, session.as_ref()).await {
+            Ok(achievements) => Ok(achievements),
+            Err(err) => {
+                if is_session_expired_error(&err) {
+                    tracing::info!(
+                        "Achievement fetch failed with authorization error for store '{}' ({err}). Attempting session refresh and retry...",
+                        game.library_id
+                    );
+                    if let Ok(new_session) = store_account_manager.refresh_session(&game.library_id).await {
+                        return provider.fetch_achievements(game, Some(&new_session)).await;
+                    }
+                }
+                Err(err)
+            }
+        }
     }
 
     /// Orchestrates full achievement sync: fetch, database upsert, background icon caching, and summary return
@@ -171,6 +196,17 @@ impl AchievementService {
         db.get_game_achievements(game_id)
             .map_err(|e| format!("Database error reading achievement summary: {e}"))
     }
+}
+
+/// Helper detecting HTTP 401 Unauthorized or OAuth expired grant errors
+fn is_session_expired_error(err: &str) -> bool {
+    let lower = err.to_lowercase();
+    lower.contains("401")
+        || lower.contains("invalid_grant")
+        || lower.contains("expired")
+        || lower.contains("unauthorized")
+        || lower.contains("sessionexpired")
+        || lower.contains("session expired")
 }
 
 impl Default for AchievementService {
@@ -262,5 +298,120 @@ mod tests {
         assert!(res
             .unwrap_err()
             .contains("Achievements are currently not supported for store 'unsupported_unknown'"));
+    }
+
+    struct MockRetryProvider;
+    #[async_trait::async_trait]
+    impl AchievementProvider for MockRetryProvider {
+        fn provider_id(&self) -> &'static str {
+            "retry_store"
+        }
+        async fn fetch_achievements(
+            &self,
+            _game: &Game,
+            session: Option<&omnis_sdk::StoreAccountSession>,
+        ) -> Result<Vec<Achievement>, String> {
+            let sess = session.ok_or_else(|| "Session missing".to_string())?;
+            if sess.access_token == "expired_token_123" {
+                return Err("GOG achievements request failed (401 Unauthorized): {\"error\":\"invalid_grant\",\"error_description\":\"The access token provided has expired.\"}".to_string());
+            }
+            if sess.access_token == "refreshed_token_456" {
+                return Ok(vec![Achievement {
+                    id: "retry_ach_1".to_string(),
+                    game_id: Uuid::new_v4(),
+                    api_name: "ACH_1".to_string(),
+                    display_name: "Success After Refresh".to_string(),
+                    description: None,
+                    icon_unlocked_url: "https://example.com/icon.png".to_string(),
+                    icon_locked_url: None,
+                    local_icon_path: None,
+                    is_unlocked: true,
+                    unlock_time: None,
+                    rarity_percentage: Some(100.0),
+                    points: None,
+                    is_hidden: false,
+                }]);
+            }
+            Err("Unexpected token".to_string())
+        }
+    }
+
+    struct MockRetryPlugin;
+    #[async_trait::async_trait]
+    impl omnis_sdk::LibraryPlugin for MockRetryPlugin {
+        fn id(&self) -> &str {
+            "retry_store"
+        }
+        fn name(&self) -> &str {
+            "Retry Store"
+        }
+        async fn scan(&self) -> Result<Vec<omnis_sdk::DiscoveredGame>, omnis_sdk::PluginError> {
+            Ok(vec![])
+        }
+    }
+    #[async_trait::async_trait]
+    impl omnis_sdk::CloudStorePlugin for MockRetryPlugin {
+        fn login_url(&self) -> String {
+            "".to_string()
+        }
+        fn is_redirect_url(&self, _url: &str) -> bool {
+            false
+        }
+        async fn exchange_code(&self, _url: &str) -> Result<omnis_sdk::StoreAccountSession, omnis_sdk::PluginError> {
+            unimplemented!()
+        }
+        async fn refresh_session(&self, _refresh_token: &str) -> Result<omnis_sdk::StoreAccountSession, omnis_sdk::PluginError> {
+            Ok(omnis_sdk::StoreAccountSession {
+                store_id: "retry_store".to_string(),
+                user_id: "user999".to_string(),
+                username: "RetryUser".to_string(),
+                avatar_url: None,
+                access_token: "refreshed_token_456".to_string(),
+                refresh_token: Some("new_refresh_token".to_string()),
+                expires_at: Some(chrono::Utc::now().timestamp() + 3600),
+            })
+        }
+        async fn sync_games(&self, _session: &omnis_sdk::StoreAccountSession) -> Result<Vec<omnis_sdk::DiscoveredGame>, omnis_sdk::PluginError> {
+            Ok(vec![])
+        }
+    }
+
+    #[tokio::test]
+    async fn test_achievements_retry_on_401_expired_token() {
+        let mut service = AchievementService::new();
+        service.register_provider(Box::new(MockRetryProvider));
+
+        let db = Database::open_in_memory().unwrap();
+        let vault = Arc::new(omnis_core::SecretVault::from_key([0x55; 32]));
+        let store_mgr = StoreAccountManager::new(Arc::new(db), vault);
+        store_mgr.register_plugin(Arc::new(MockRetryPlugin));
+
+        // Save session whose expires_at is in the future, but token was invalidated on server
+        let session = omnis_sdk::StoreAccountSession {
+            store_id: "retry_store".to_string(),
+            user_id: "user999".to_string(),
+            username: "RetryUser".to_string(),
+            avatar_url: None,
+            access_token: "expired_token_123".to_string(),
+            refresh_token: Some("old_refresh_token".to_string()),
+            expires_at: Some(chrono::Utc::now().timestamp() + 3600),
+        };
+        store_mgr.save_session("retry_store", &session).unwrap();
+
+        let game = Game::new(
+            "retry_store".to_string(),
+            "123".to_string(),
+            "Retry Game".to_string(),
+        );
+
+        let res = service.fetch_achievements(&game, &store_mgr).await;
+        assert!(res.is_ok(), "Expected retry to succeed after refreshing expired token: {:?}", res.err());
+        let achs = res.unwrap();
+        assert_eq!(achs.len(), 1);
+        assert_eq!(achs[0].display_name, "Success After Refresh");
+
+        // And verify session was updated in storage
+        let refreshed = store_mgr.load_session("retry_store").unwrap().unwrap();
+        assert_eq!(refreshed.access_token, "refreshed_token_456");
     }
 }

@@ -379,9 +379,10 @@ pub async fn refresh_token(
         .map_err(|e| PluginError::Io(format!("OAuth token refresh request failed: {}", e)))?;
 
     if !resp.status().is_success() {
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
         return Err(PluginError::Other(format!(
-            "Epic OAuth token refresh failed with HTTP status {}",
-            resp.status()
+            "Epic OAuth token refresh failed with HTTP status {status}: {body}"
         )));
     }
 
@@ -463,6 +464,11 @@ pub async fn discover_epic_candidates(
                     break;
                 }
             }
+            Ok(resp) if resp.status() == reqwest::StatusCode::UNAUTHORIZED => {
+                return Err(PluginError::SessionExpired(
+                    "Epic session expired: HTTP 401 Unauthorized".to_string(),
+                ));
+            }
             _ => break,
         }
     }
@@ -498,6 +504,10 @@ pub async fn discover_epic_candidates(
                     return Ok(candidates);
                 }
             }
+        } else if resp.status() == reqwest::StatusCode::UNAUTHORIZED {
+            return Err(PluginError::SessionExpired(
+                "Epic session expired: HTTP 401 Unauthorized".to_string(),
+            ));
         }
     }
 
@@ -515,9 +525,15 @@ pub async fn discover_epic_candidates(
         .map_err(|e| PluginError::Io(format!("Failed to fetch Epic entitlements: {}", e)))?;
 
     if !ent_resp.status().is_success() {
+        let status = ent_resp.status();
+        let body = ent_resp.text().await.unwrap_or_default();
+        if status == reqwest::StatusCode::UNAUTHORIZED {
+            return Err(PluginError::SessionExpired(format!(
+                "Epic session expired (401 Unauthorized): {body}"
+            )));
+        }
         return Err(PluginError::Other(format!(
-            "Failed to fetch Epic entitlements: HTTP {}",
-            ent_resp.status()
+            "Failed to fetch Epic entitlements: HTTP {status}: {body}"
         )));
     }
 

@@ -226,6 +226,11 @@ pub async fn fetch_steam_achievements_web_api(
         )
     })?;
 
+    if schema_resp.status() == reqwest::StatusCode::NOT_FOUND {
+        debug!("Steam game {app_id} has no achievements schema (404 Not Found)");
+        return Ok(Vec::new());
+    }
+
     if !schema_resp.status().is_success() {
         return Err(format!(
             "Steam schema request for '{}' (App ID {}) failed with status {}",

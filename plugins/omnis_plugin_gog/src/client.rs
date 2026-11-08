@@ -360,9 +360,10 @@ pub async fn refresh_token(
         .map_err(|e| PluginError::Io(format!("OAuth token refresh request failed: {}", e)))?;
 
     if !resp.status().is_success() {
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
         return Err(PluginError::Other(format!(
-            "OAuth token refresh failed with HTTP status {}",
-            resp.status()
+            "OAuth token refresh failed with HTTP status {status}: {body}"
         )));
     }
 
