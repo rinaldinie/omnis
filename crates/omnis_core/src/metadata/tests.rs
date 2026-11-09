@@ -426,8 +426,10 @@ fn test_generate_fallback_metadata_facade() {
 #[tokio::test]
 async fn test_provider_priority_in_candidate_search() {
     let downloader = MetadataDownloader::new();
-    let mut config = MetadataPipelineConfig::default();
-    config.provider_priority = vec!["gog".to_string(), "steam".to_string(), "igdb".to_string()];
+    let config = MetadataPipelineConfig {
+        provider_priority: vec!["gog".to_string(), "steam".to_string(), "igdb".to_string()],
+        ..Default::default()
+    };
     downloader.save_pipeline_config(config).await.unwrap();
 
     let candidates = downloader.search_candidates("Witcher", None).await.unwrap();

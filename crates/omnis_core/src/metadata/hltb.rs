@@ -407,45 +407,46 @@ impl MetadataProvider for HowLongToBeatProvider {
     }
 
     fn manifest(&self) -> PluginManifest {
-        let mut m = PluginManifest::default();
-        m.id = self.id().to_string();
-        m.name = self.name().to_string();
-        m.version = self.version().unwrap_or("1.2.0").to_string();
-        m.author = self.author().to_string();
-        m.description = self.description().to_string();
-        m.plugin_type = "metadata".to_string();
-        m.website = self.website().map(|s| s.to_string());
-        m.requires_api_key = false;
-        m.ui_slots = vec![omnis_sdk::widget::PluginSlotDeclaration {
-            slot: "details.info".to_string(),
-            widgets: vec![
-                omnis_sdk::widget::SlotWidgetTemplate {
-                    widget_type: "stat".to_string(),
-                    label: Some("Storia Principale".to_string()),
-                    value_key: Some("howlongtobeat.main_story".to_string()),
-                    icon: Some("clock".to_string()),
-                    max_key: None,
-                    content: None,
-                },
-                omnis_sdk::widget::SlotWidgetTemplate {
-                    widget_type: "stat".to_string(),
-                    label: Some("Storia + Extra".to_string()),
-                    value_key: Some("howlongtobeat.main_extra".to_string()),
-                    icon: Some("compass".to_string()),
-                    max_key: None,
-                    content: None,
-                },
-                omnis_sdk::widget::SlotWidgetTemplate {
-                    widget_type: "stat".to_string(),
-                    label: Some("Completamento 100%".to_string()),
-                    value_key: Some("howlongtobeat.completionist".to_string()),
-                    icon: Some("trophy".to_string()),
-                    max_key: None,
-                    content: None,
-                },
-            ],
-        }];
-        m
+        PluginManifest {
+            id: self.id().to_string(),
+            name: self.name().to_string(),
+            version: self.version().unwrap_or("1.2.0").to_string(),
+            author: self.author().to_string(),
+            description: self.description().to_string(),
+            plugin_type: "metadata".to_string(),
+            website: self.website().map(|s| s.to_string()),
+            requires_api_key: false,
+            ui_slots: vec![omnis_sdk::widget::PluginSlotDeclaration {
+                slot: "details.info".to_string(),
+                widgets: vec![
+                    omnis_sdk::widget::SlotWidgetTemplate {
+                        widget_type: "stat".to_string(),
+                        label: Some("Storia Principale".to_string()),
+                        value_key: Some("howlongtobeat.main_story".to_string()),
+                        icon: Some("clock".to_string()),
+                        max_key: None,
+                        content: None,
+                    },
+                    omnis_sdk::widget::SlotWidgetTemplate {
+                        widget_type: "stat".to_string(),
+                        label: Some("Storia + Extra".to_string()),
+                        value_key: Some("howlongtobeat.main_extra".to_string()),
+                        icon: Some("compass".to_string()),
+                        max_key: None,
+                        content: None,
+                    },
+                    omnis_sdk::widget::SlotWidgetTemplate {
+                        widget_type: "stat".to_string(),
+                        label: Some("Completamento 100%".to_string()),
+                        value_key: Some("howlongtobeat.completionist".to_string()),
+                        icon: Some("trophy".to_string()),
+                        max_key: None,
+                        content: None,
+                    },
+                ],
+            }],
+            ..Default::default()
+        }
     }
 }
 
