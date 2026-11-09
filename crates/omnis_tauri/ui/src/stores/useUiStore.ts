@@ -37,9 +37,14 @@ export interface UiState {
   setSoundEnabled: (enabled: boolean) => void;
   openSettings: (tab?: SettingsTab) => void;
   closeSettings: () => void;
+  setShowSettingsModal: (show: boolean) => void;
   setShowOnboarding: (show: boolean) => void;
+  setShowEditorModal: (show: boolean) => void;
+  setGameToEdit: (game: GameDto | null) => void;
   openGameEditor: (game: GameDto) => void;
   closeGameEditor: () => void;
+  setShowResolutionModal: (show: boolean) => void;
+  setGameToResolve: (game: GameDto | null) => void;
   openResolutionModal: (game: GameDto) => void;
   closeResolutionModal: () => void;
   setShowAddCustomModal: (show: boolean) => void;
@@ -80,14 +85,19 @@ export const useUiStore = create<UiState>((set) => ({
   openSettings: (tab = "general") =>
     set({ showSettingsModal: true, settingsInitialTab: tab }),
   closeSettings: () => set({ showSettingsModal: false }),
+  setShowSettingsModal: (showSettingsModal) => set({ showSettingsModal }),
 
   setShowOnboarding: (showOnboarding) => set({ showOnboarding }),
 
+  setShowEditorModal: (showEditorModal) => set({ showEditorModal }),
+  setGameToEdit: (gameToEdit) => set({ gameToEdit }),
   openGameEditor: (game) =>
     set({ showEditorModal: true, gameToEdit: game }),
   closeGameEditor: () =>
     set({ showEditorModal: false, gameToEdit: null }),
 
+  setShowResolutionModal: (showResolutionModal) => set({ showResolutionModal }),
+  setGameToResolve: (gameToResolve) => set({ gameToResolve }),
   openResolutionModal: (game) =>
     set({ showResolutionModal: true, gameToResolve: game }),
   closeResolutionModal: () =>
