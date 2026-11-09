@@ -166,10 +166,25 @@ pub fn restore_backup(
 
         for i in 0..archive.len() {
             let mut zip_entry = archive.by_index(i)?;
-            let entry_name = zip_entry.name().to_string();
+
+            // Zip Slip protection: ensure entry path is relative, normalized, and enclosed
+            let enclosed = match zip_entry.enclosed_name() {
+                Some(p) => p.to_path_buf(),
+                None => continue, // Reject entries with directory traversal or absolute paths
+            };
+            let entry_name = enclosed.to_string_lossy().replace('\\', "/");
 
             if entry_name.starts_with("custom_themes/") && !zip_entry.is_dir() {
                 if let Some(sub_path) = entry_name.strip_prefix("custom_themes/") {
+                    // Prevent any traversal components within sub_path
+                    let sub_path_buf = Path::new(sub_path);
+                    if sub_path_buf
+                        .components()
+                        .any(|c| matches!(c, std::path::Component::ParentDir | std::path::Component::RootDir | std::path::Component::Prefix(_)))
+                    {
+                        continue;
+                    }
+
                     let dest =
                         themes_dir.join(sub_path.replace('/', std::path::MAIN_SEPARATOR_STR));
                     if let Some(parent) = dest.parent() {
@@ -183,6 +198,15 @@ pub fn restore_backup(
                 }
             } else if entry_name.starts_with("cache/") && !zip_entry.is_dir() {
                 if let Some(sub_path) = entry_name.strip_prefix("cache/") {
+                    // Prevent any traversal components within sub_path
+                    let sub_path_buf = Path::new(sub_path);
+                    if sub_path_buf
+                        .components()
+                        .any(|c| matches!(c, std::path::Component::ParentDir | std::path::Component::RootDir | std::path::Component::Prefix(_)))
+                    {
+                        continue;
+                    }
+
                     let dest = cache_dir.join(sub_path.replace('/', std::path::MAIN_SEPARATOR_STR));
                     if let Some(parent) = dest.parent() {
                         let _ = fs::create_dir_all(parent);

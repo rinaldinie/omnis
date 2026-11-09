@@ -137,7 +137,12 @@ fn build_zip_image_index<R: Read + Seek>(archive: &mut ZipArchive<R>) -> HashMap
     let mut index = HashMap::new();
     for i in 0..archive.len() {
         if let Ok(file) = archive.by_index(i) {
-            let name = file.name().replace('\\', "/").to_ascii_lowercase();
+            // Zip Slip protection: ensure entry name is enclosed and contains no path traversal
+            let enclosed = match file.enclosed_name() {
+                Some(p) => p.to_path_buf(),
+                None => continue,
+            };
+            let name = enclosed.to_string_lossy().replace('\\', "/").to_ascii_lowercase();
             if name.starts_with("libraryfiles/") {
                 index.insert(name, i);
             }
