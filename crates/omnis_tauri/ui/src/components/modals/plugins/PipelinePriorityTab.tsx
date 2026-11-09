@@ -57,27 +57,27 @@ export const PipelinePriorityTab: React.FC<PipelinePriorityTabProps> = ({
             return (
               <div
                 key={provId}
-                className={`p-3 px-4 rounded-2xl border transition-all flex items-center justify-between gap-4 ${
+                className={`py-2 px-3.5 rounded-xl border transition-all flex items-center justify-between gap-3 ${
                   isFirst
-                    ? "border-emerald-500/40 bg-emerald-500/10 shadow-md shadow-emerald-500/5"
+                    ? "border-emerald-500/40 bg-emerald-500/10 shadow-xs"
                     : "border-white/5 bg-slate-900/40 hover:border-white/10"
                 }`}
               >
-                <div className="flex items-center gap-3.5 min-w-0">
+                <div className="flex items-center gap-2.5 min-w-0">
                   {/* Rank number badge */}
                   <div
-                    className={`w-7 h-7 rounded-xl flex items-center justify-center font-black text-xs shrink-0 ${
+                    className={`w-6 h-6 rounded-md flex items-center justify-center font-bold text-[10px] shrink-0 ${
                       isFirst
-                        ? "bg-emerald-500 text-black shadow-sm font-black"
+                        ? "bg-emerald-500 text-black shadow-xs font-black"
                         : "bg-slate-800 text-slate-300 border border-slate-700/60"
                     }`}
                   >
-                    {idx + 1}°
+                    #{idx + 1}
                   </div>
 
                   {/* Provider icon */}
                   <div
-                    className="w-9 h-9 rounded-xl flex items-center justify-center font-black text-xs text-white shadow-md shrink-0 border"
+                    className="w-6 h-6 rounded-md flex items-center justify-center text-xs text-white shadow-xs shrink-0 border"
                     style={{
                       backgroundColor: getProviderColor(provId),
                       borderColor: "rgba(255,255,255,0.15)",
@@ -86,30 +86,15 @@ export const PipelinePriorityTab: React.FC<PipelinePriorityTabProps> = ({
                     {renderProviderIcon(provId, true)}
                   </div>
 
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h4 className="text-sm font-bold text-white truncate">
-                        {meta.name}
-                      </h4>
-                      {isFirst && (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                          {t("plugin_manager.top_priority")}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-slate-400 truncate mt-0.5 max-w-lg">
-                      {tr(meta.description)}
-                    </p>
-                    <div className="flex flex-wrap gap-1.5 mt-1">
-                      {meta.badges.map((b) => (
-                        <span
-                          key={b}
-                          className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-black/30 border border-white/5 text-slate-300"
-                        >
-                          {tr(b)}
-                        </span>
-                      ))}
-                    </div>
+                  <div className="min-w-0 flex items-center gap-2">
+                    <h4 className="text-xs font-bold text-white truncate">
+                      {meta.name}
+                    </h4>
+                    {isFirst && (
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shrink-0">
+                        {t("plugin_manager.top_priority")}
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -120,28 +105,18 @@ export const PipelinePriorityTab: React.FC<PipelinePriorityTabProps> = ({
                     disabled={isFirst}
                     onClick={() => movePriority(idx, "up")}
                     title={t("plugin_manager.move_up")}
-                    className="w-8 h-8 rounded-xl border flex items-center justify-center transition-all disabled:opacity-20 disabled:cursor-not-allowed hover:bg-white/10 active:scale-95"
-                    style={{
-                      backgroundColor: "var(--bg-card)",
-                      borderColor: "var(--border-color)",
-                      color: "var(--text-primary)",
-                    }}
+                    className="p-1 rounded-md border border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white disabled:opacity-20 disabled:cursor-not-allowed transition-colors cursor-pointer"
                   >
-                    <ArrowUp className="w-4 h-4" />
+                    <ArrowUp className="w-3.5 h-3.5" />
                   </button>
                   <button
                     type="button"
                     disabled={isLast}
                     onClick={() => movePriority(idx, "down")}
                     title={t("plugin_manager.move_down")}
-                    className="w-8 h-8 rounded-xl border flex items-center justify-center transition-all disabled:opacity-20 disabled:cursor-not-allowed hover:bg-white/10 active:scale-95"
-                    style={{
-                      backgroundColor: "var(--bg-card)",
-                      borderColor: "var(--border-color)",
-                      color: "var(--text-primary)",
-                    }}
+                    className="p-1 rounded-md border border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white disabled:opacity-20 disabled:cursor-not-allowed transition-colors cursor-pointer"
                   >
-                    <ArrowDown className="w-4 h-4" />
+                    <ArrowDown className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>

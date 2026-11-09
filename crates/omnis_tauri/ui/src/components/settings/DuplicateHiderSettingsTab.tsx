@@ -438,11 +438,11 @@ export const DuplicateHiderSettingsTab: React.FC<DuplicateHiderSettingsTabProps>
                 return (
                   <div
                     key={storeId}
-                    className="flex items-center justify-between px-4 py-3 hover:bg-white/[0.02] transition-colors"
+                    className="flex items-center justify-between px-4 py-2 hover:bg-white/[0.02] transition-colors"
                   >
-                    <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex items-center gap-2.5 min-w-0">
                       <span
-                        className="w-7 h-6 rounded-lg text-[11px] font-mono font-black flex items-center justify-center border shrink-0"
+                        className="w-6 h-6 rounded-md text-[10px] font-mono font-black flex items-center justify-center border shrink-0"
                         style={
                           idx === 0
                             ? {
@@ -462,35 +462,30 @@ export const DuplicateHiderSettingsTab: React.FC<DuplicateHiderSettingsTabProps>
                         #{idx + 1}
                       </span>
 
-                      <div className="w-8 h-8 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-slate-200 shrink-0">
-                        <StoreIcon library={storeId} className="w-4 h-4" />
+                      <div className="w-6 h-6 rounded-md bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-slate-200 shrink-0">
+                        <StoreIcon library={storeId} className="w-3.5 h-3.5" />
                       </div>
 
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-slate-100">
-                            {getStoreDisplayName(storeId)}
-                          </span>
-                          {idx === 0 && (
-                            <span
-                              className="px-2 py-0.5 rounded text-[10px] font-bold border"
-                              style={{
-                                backgroundColor:
-                                  'color-mix(in srgb, var(--accent-primary) 12%, transparent)',
-                                borderColor:
-                                  'color-mix(in srgb, var(--accent-primary) 30%, transparent)',
-                                color: 'var(--accent-primary)',
-                              }}
-                            >
-                              {t('duplicate_hider.top_priority', {
-                                defaultValue: 'Priorità Massima',
-                              })}
-                            </span>
-                          )}
-                        </div>
-                        <span className="text-[10px] text-slate-500 font-mono uppercase">
-                          ID: {storeId}
+                      <div className="min-w-0 flex items-center gap-2">
+                        <span className="text-xs font-bold text-slate-100 truncate">
+                          {getStoreDisplayName(storeId)}
                         </span>
+                        {idx === 0 && (
+                          <span
+                            className="px-1.5 py-0.5 rounded text-[10px] font-bold border shrink-0"
+                            style={{
+                              backgroundColor:
+                                'color-mix(in srgb, var(--accent-primary) 12%, transparent)',
+                              borderColor:
+                                'color-mix(in srgb, var(--accent-primary) 30%, transparent)',
+                              color: 'var(--accent-primary)',
+                            }}
+                          >
+                            {t('duplicate_hider.top_priority', {
+                              defaultValue: 'Priorità Massima',
+                            })}
+                          </span>
+                        )}
                       </div>
                     </div>
 
@@ -499,7 +494,7 @@ export const DuplicateHiderSettingsTab: React.FC<DuplicateHiderSettingsTabProps>
                         type="button"
                         disabled={isFirst}
                         onClick={() => handleMoveStore(idx, -1)}
-                        className="p-1.5 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white disabled:opacity-25 disabled:pointer-events-none transition-colors cursor-pointer"
+                        className="p-1 rounded-md border border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white disabled:opacity-25 disabled:pointer-events-none transition-colors cursor-pointer"
                         title={t('plugin_manager.move_up', { defaultValue: 'Sposta su' })}
                       >
                         <ArrowUp className="w-3.5 h-3.5" />
@@ -508,7 +503,7 @@ export const DuplicateHiderSettingsTab: React.FC<DuplicateHiderSettingsTabProps>
                         type="button"
                         disabled={isLast}
                         onClick={() => handleMoveStore(idx, 1)}
-                        className="p-1.5 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white disabled:opacity-25 disabled:pointer-events-none transition-colors cursor-pointer"
+                        className="p-1 rounded-md border border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white disabled:opacity-25 disabled:pointer-events-none transition-colors cursor-pointer"
                         title={t('plugin_manager.move_down', { defaultValue: 'Sposta giù' })}
                       >
                         <ArrowDown className="w-3.5 h-3.5" />
