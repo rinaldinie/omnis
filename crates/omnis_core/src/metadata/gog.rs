@@ -67,6 +67,7 @@ struct GogV2EmbeddedDto {
 
 #[derive(Debug, Deserialize)]
 struct GogV2ProductDto {
+    title: Option<String>,
     #[serde(rename = "globalReleaseDate")]
     global_release_date: Option<String>,
 }
@@ -201,6 +202,7 @@ impl GogMetadataProvider {
                 let desc = format!("Titolo ufficiale GOG Store DRM-Free: {}", name);
 
                 let raw_patch = GameMetadataPatch {
+                    name: Some(name.clone()),
                     description: Some(desc.clone()),
                     release_date: release_date.clone(),
                     cover_url: cover_vert.clone(),
@@ -214,6 +216,7 @@ impl GogMetadataProvider {
                     tags: Vec::new(),
                     features: Vec::new(),
                     extra_metadata: None,
+                    ..Default::default()
                 };
 
                 MetadataCandidateDto {
@@ -273,13 +276,17 @@ impl MetadataProvider for GogMetadataProvider {
 
     fn supported_fields(&self) -> Vec<MetadataField> {
         vec![
+            MetadataField::Name,
             MetadataField::CoverImage,
             MetadataField::BackgroundImage,
+            MetadataField::Icon,
             MetadataField::Description,
             MetadataField::ReleaseDate,
             MetadataField::Genres,
             MetadataField::Developers,
             MetadataField::Publishers,
+            MetadataField::Features,
+            MetadataField::Platform,
         ]
     }
 
@@ -376,8 +383,15 @@ impl MetadataProvider for GogMetadataProvider {
                                     })
                                     .unwrap_or_default();
 
+                                let game_title = v2_data
+                                    .embedded
+                                    .as_ref()
+                                    .and_then(|e| e.product.as_ref())
+                                    .and_then(|p| p.title.clone());
+
                                 if cover_url.is_some() || desc.is_some() {
                                     return Ok(GameMetadataPatch {
+                                        name: game_title,
                                         description: desc,
                                         release_date,
                                         cover_url,
@@ -390,6 +404,12 @@ impl MetadataProvider for GogMetadataProvider {
                                         publishers,
                                         tags: Vec::new(),
                                         features,
+                                        series: None,
+                                        age_rating: None,
+                                        region: None,
+                                        platform: Some("PC".to_string()),
+                                        custom_links: Vec::new(),
+                                        install_size_bytes: None,
                                         extra_metadata: None,
                                     });
                                 }
@@ -459,6 +479,7 @@ impl MetadataProvider for GogMetadataProvider {
         };
 
         Ok(GameMetadataPatch {
+            name: first.title,
             description,
             release_date: first.release_date,
             cover_url,
@@ -471,6 +492,12 @@ impl MetadataProvider for GogMetadataProvider {
             publishers: first.publishers,
             tags: Vec::new(),
             features: Vec::new(),
+            series: None,
+            age_rating: None,
+            region: None,
+            platform: Some("PC".to_string()),
+            custom_links: Vec::new(),
+            install_size_bytes: None,
             extra_metadata: None,
         })
     }

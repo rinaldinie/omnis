@@ -16,6 +16,8 @@ pub struct GameDto {
     pub playtime_seconds: u64,
     pub playtime_formatted: String,
     pub critic_score: Option<u32>,
+    #[serde(default)]
+    pub community_score: Option<u32>,
     pub release_date: Option<String>,
     pub description: Option<String>,
     pub cover_image: Option<String>,
@@ -31,10 +33,14 @@ pub struct GameDto {
     pub developers: Vec<String>,
     pub publishers: Vec<String>,
     pub series: Option<String>,
+    #[serde(default)]
+    pub age_rating: Option<String>,
     pub completion_status: Option<String>,
     pub user_notes: Option<String>,
     #[serde(default)]
     pub features: Vec<String>,
+    #[serde(default)]
+    pub tags: Vec<String>,
     pub custom_links: Vec<omnis_sdk::CustomLink>,
     #[serde(default)]
     pub extra_metadata: Option<String>,
@@ -181,6 +187,7 @@ pub fn game_to_dto(g: Game, _cache: &ImageCache) -> GameDto {
         playtime_seconds: g.playtime_seconds,
         playtime_formatted,
         critic_score: g.critic_score.map(|s| s as u32),
+        community_score: g.community_score.map(|s| s as u32),
         release_date: g.release_date,
         description: g.description,
         cover_image: g.cover_image_path.clone(),
@@ -193,9 +200,11 @@ pub fn game_to_dto(g: Game, _cache: &ImageCache) -> GameDto {
         developers: g.developers,
         publishers: g.publishers,
         series: g.series,
+        age_rating: g.age_rating,
         completion_status: g.completion_status,
         user_notes: g.user_notes,
         features: g.features,
+        tags: g.tags,
         custom_links: g.custom_links,
         extra_metadata: g.extra_metadata,
         last_activity: g.last_activity.map(|t| t.to_rfc3339()),

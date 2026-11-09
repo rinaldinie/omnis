@@ -490,6 +490,7 @@ async fn test_5_metadata_candidate_dto_and_patch_enrichment() {
         tags: vec!["Cyberpunk".to_string(), "Sci-Fi".to_string()],
         features: vec!["Single-player".to_string(), "Ray Tracing".to_string()],
         extra_metadata: None,
+        ..Default::default()
     };
 
     let candidate = MetadataCandidateDto {

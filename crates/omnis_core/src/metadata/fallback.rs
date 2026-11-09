@@ -15,6 +15,7 @@ impl FallbackMetadataGenerator {
         let tags = Self::infer_tags(title);
 
         GameMetadataPatch {
+            name: Some(title.to_string()),
             description: Some(description),
             release_date: Some("Recent".to_string()),
             cover_url: None,
@@ -27,6 +28,12 @@ impl FallbackMetadataGenerator {
             publishers: vec![library.to_uppercase()],
             tags,
             features: vec!["Single-player".to_string()],
+            series: None,
+            age_rating: None,
+            region: None,
+            platform: Some("PC".to_string()),
+            custom_links: Vec::new(),
+            install_size_bytes: None,
             extra_metadata: None,
         }
     }

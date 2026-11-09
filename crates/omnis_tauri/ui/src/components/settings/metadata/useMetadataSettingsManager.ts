@@ -3,13 +3,18 @@ import { api } from "../../../api";
 import { useTranslation } from "../../../i18n";
 import { soundEffects } from "../../../utils/soundEffects";
 import { ProviderInfo, MetadataPipelineConfig } from "../../../types";
-import { ALL_METADATA_SOURCES, normalizeProviderPriority } from "./types";
+import {
+  ALL_METADATA_SOURCES,
+  getDefaultFieldRules,
+  normalizeProviderPriority,
+} from "./types";
 
 export function useMetadataSettingsManager() {
   const { t } = useTranslation();
 
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
   const [pipelineConfig, setPipelineConfig] = useState<MetadataPipelineConfig>({
+    fields: getDefaultFieldRules(),
     cover_source: "steamgriddb",
     background_source: "steamgriddb",
     score_source: "opencritic",
@@ -47,8 +52,11 @@ export function useMetadataSettingsManager() {
       }
 
       if (pipe) {
+        const defaultRules = getDefaultFieldRules();
+        const mergedFields = { ...defaultRules, ...(pipe.fields || {}) };
         setPipelineConfig({
           ...pipe,
+          fields: mergedFields,
           provider_priority: normalizeProviderPriority(pipe.provider_priority),
         });
       }
@@ -203,6 +211,103 @@ export function useMetadataSettingsManager() {
     setShowSecret((prev) => ({ ...prev, [providerId]: !prev[providerId] }));
   };
 
+  const handleToggleField = (fieldId: string, enabled: boolean) => {
+    soundEffects.playSelect();
+    const fields = { ...(pipelineConfig.fields || getDefaultFieldRules()) };
+    const currentRule = fields[fieldId] || { enabled: true, sources: ["official_store"] };
+    fields[fieldId] = { ...currentRule, enabled };
+    setPipelineConfig({ ...pipelineConfig, fields });
+  };
+
+  const handleMoveFieldSource = (
+    fieldId: string,
+    sourceIndex: number,
+    direction: -1 | 1
+  ) => {
+    const fields = { ...(pipelineConfig.fields || getDefaultFieldRules()) };
+    const rule = fields[fieldId];
+    if (!rule || !rule.sources) return;
+    const nextIndex = sourceIndex + direction;
+    if (nextIndex < 0 || nextIndex >= rule.sources.length) return;
+    soundEffects.playNav();
+    const nextSources = [...rule.sources];
+    const [moved] = nextSources.splice(sourceIndex, 1);
+    nextSources.splice(nextIndex, 0, moved);
+    fields[fieldId] = { ...rule, sources: nextSources };
+    setPipelineConfig({ ...pipelineConfig, fields });
+  };
+
+  const handleAddFieldSource = (fieldId: string, sourceId: string) => {
+    const fields = { ...(pipelineConfig.fields || getDefaultFieldRules()) };
+    const rule = fields[fieldId] || { enabled: true, sources: [] };
+    if (rule.sources.includes(sourceId)) return;
+    soundEffects.playSelect();
+    fields[fieldId] = { ...rule, sources: [...rule.sources, sourceId] };
+    setPipelineConfig({ ...pipelineConfig, fields });
+  };
+
+  const handleRemoveFieldSource = (fieldId: string, sourceIndex: number) => {
+    const fields = { ...(pipelineConfig.fields || getDefaultFieldRules()) };
+    const rule = fields[fieldId];
+    if (!rule || !rule.sources) return;
+    soundEffects.playSelect();
+    const nextSources = rule.sources.filter((_, idx) => idx !== sourceIndex);
+    fields[fieldId] = { ...rule, sources: nextSources };
+    setPipelineConfig({ ...pipelineConfig, fields });
+  };
+
+  const handleApplyPreset = (preset: "official_first" | "community_first" | "reset_defaults") => {
+    soundEffects.playSelect();
+    if (preset === "reset_defaults") {
+      setPipelineConfig({
+        ...pipelineConfig,
+        fields: getDefaultFieldRules(),
+        preserve_existing_artwork: true,
+      });
+      showBannerMessage("info", t("metadata_settings.preset_reset_msg", { defaultValue: "Regole pipeline reimpostate sui valori predefiniti." }));
+      return;
+    }
+
+    const currentFields = { ...(pipelineConfig.fields || getDefaultFieldRules()) };
+    const updatedFields: Record<string, any> = {};
+
+    Object.entries(currentFields).forEach(([fieldKey, rule]) => {
+      let sources = [...rule.sources];
+      if (preset === "official_first") {
+        if (!sources.includes("official_store")) {
+          sources.unshift("official_store");
+        } else {
+          sources = ["official_store", ...sources.filter((s) => s !== "official_store")];
+        }
+      } else if (preset === "community_first") {
+        // Prefer specialized universal databases
+        if (fieldKey.includes("cover") || fieldKey.includes("background")) {
+          sources = ["steamgriddb", ...sources.filter((s) => s !== "steamgriddb")];
+        } else if (fieldKey.includes("score")) {
+          sources = ["opencritic", "igdb", ...sources.filter((s) => s !== "opencritic" && s !== "igdb")];
+        } else {
+          sources = ["igdb", ...sources.filter((s) => s !== "igdb")];
+        }
+        if (!sources.includes("official_store")) {
+          sources.push("official_store");
+        }
+      }
+      updatedFields[fieldKey] = { ...rule, sources };
+    });
+
+    setPipelineConfig({
+      ...pipelineConfig,
+      fields: updatedFields,
+    });
+
+    showBannerMessage(
+      "success",
+      preset === "official_first"
+        ? t("metadata_settings.preset_official_msg", { defaultValue: "Preset 'Official Store First' applicato." })
+        : t("metadata_settings.preset_community_msg", { defaultValue: "Preset 'Community & DB First' applicato." })
+    );
+  };
+
   return {
     providers,
     pipelineConfig,
@@ -221,5 +326,10 @@ export function useMetadataSettingsManager() {
     handleTestConnection,
     handleSavePipeline,
     handleMovePriority,
+    handleToggleField,
+    handleMoveFieldSource,
+    handleAddFieldSource,
+    handleRemoveFieldSource,
+    handleApplyPreset,
   };
 }

@@ -1,4 +1,4 @@
-use omnis_sdk::{Game, GameMetadataPatch, MetadataProvider, MetadataSearchRequest};
+use omnis_sdk::{Game, GameMetadataPatch, MetadataField, MetadataProvider, MetadataSearchRequest};
 use serde_json::{Map, Value};
 use std::collections::HashMap;
 
@@ -44,88 +44,507 @@ impl MetadataPipelineResolver {
         let store_native_id = match game.library_id.to_lowercase().as_str() {
             "steam" => "steam",
             "gog" => "gog",
+            "epic" => "epic",
+            "xbox" => "xbox",
             _ => "steam",
         };
 
-        let effective_details_source =
-            Self::resolve_source_id(&pipeline.details_source, store_native_id);
-        let effective_cover_source =
-            Self::resolve_source_id(&pipeline.cover_source, store_native_id);
-        let effective_background_source =
-            Self::resolve_source_id(&pipeline.background_source, store_native_id);
-        let effective_score_source =
-            Self::resolve_source_id(&pipeline.score_source, store_native_id);
-
-        // 1. Fetch Primary Details & Descriptions (Store-First)
-        let details_patch = Self::fetch_details_with_fallback(
-            request,
-            providers,
-            enabled,
-            settings,
-            effective_details_source,
-            &pipeline.provider_priority,
-        )
-        .await;
-
-        let mut details_cover_fallback = None;
-        let mut details_bg_fallback = None;
-
-        if let Some(ref patch) = details_patch {
-            Self::merge_primary_details(&mut final_patch, game, patch);
-
-            if artwork_pre.should_fetch_cover {
-                if effective_cover_source == effective_details_source
-                    || effective_cover_source == store_native_id
-                {
-                    final_patch.cover_url = patch.cover_url.clone();
-                } else {
-                    details_cover_fallback = patch.cover_url.clone();
-                }
+        // Populate field rules combining user overrides and modern defaults
+        let field_rules = if pipeline.fields.is_empty() {
+            default_field_rules()
+        } else {
+            let mut rules = pipeline.fields.clone();
+            for (f, def) in default_field_rules() {
+                rules.entry(f).or_insert(def);
             }
+            rules
+        };
 
-            if artwork_pre.should_fetch_background {
-                if effective_background_source == effective_details_source
-                    || effective_background_source == store_native_id
-                {
-                    final_patch.background_url = patch.background_url.clone();
-                } else {
-                    details_bg_fallback = patch.background_url.clone();
+        let mut cache: HashMap<String, Option<GameMetadataPatch>> = HashMap::new();
+
+        // 1. Name
+        if let Some(rule) = field_rules.get(&MetadataField::Name) {
+            if rule.enabled && final_patch.name.is_none() {
+                for src in &rule.sources {
+                    if let Some(p) = Self::get_or_fetch_provider(
+                        src,
+                        store_native_id,
+                        request,
+                        providers,
+                        enabled,
+                        settings,
+                        &mut cache,
+                    )
+                    .await
+                    {
+                        if let Some(ref name) = p.name {
+                            if !name.trim().is_empty() {
+                                final_patch.name = Some(name.clone());
+                                break;
+                            }
+                        }
+                    }
                 }
             }
         }
 
-        // 2. Resolve High-Res Artwork if dedicated provider configured
-        Self::resolve_dedicated_artwork(
-            &mut final_patch,
-            request,
-            providers,
-            enabled,
-            settings,
-            effective_cover_source,
-            effective_background_source,
-            effective_details_source,
-            &artwork_pre,
-            details_cover_fallback,
-            details_bg_fallback,
-            &pipeline.provider_priority,
-        )
-        .await;
+        // 2. Description
+        if let Some(rule) = field_rules.get(&MetadataField::Description) {
+            let needs_desc = final_patch.description.is_none()
+                && (!pipeline.preserve_existing_artwork
+                    || game
+                        .description
+                        .as_ref()
+                        .map(|d| d.trim().is_empty())
+                        .unwrap_or(true));
+            if rule.enabled && needs_desc {
+                for src in &rule.sources {
+                    if let Some(p) = Self::get_or_fetch_provider(
+                        src,
+                        store_native_id,
+                        request,
+                        providers,
+                        enabled,
+                        settings,
+                        &mut cache,
+                    )
+                    .await
+                    {
+                        if let Some(ref d) = p.description {
+                            if !d.trim().is_empty() {
+                                final_patch.description = Some(d.clone());
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
-        // 3. Resolve Critic & Community Scores if needed
-        Self::resolve_scores(
-            &mut final_patch,
-            game,
-            request,
-            providers,
-            enabled,
-            settings,
-            effective_score_source,
-            effective_details_source,
-            &pipeline.provider_priority,
-        )
-        .await;
+        // 3. Release Date
+        if let Some(rule) = field_rules.get(&MetadataField::ReleaseDate) {
+            let needs_rd = final_patch.release_date.is_none()
+                && (!pipeline.preserve_existing_artwork
+                    || game
+                        .release_date
+                        .as_ref()
+                        .map(|r| r.trim().is_empty())
+                        .unwrap_or(true));
+            if rule.enabled && needs_rd {
+                for src in &rule.sources {
+                    if let Some(p) = Self::get_or_fetch_provider(
+                        src,
+                        store_native_id,
+                        request,
+                        providers,
+                        enabled,
+                        settings,
+                        &mut cache,
+                    )
+                    .await
+                    {
+                        if let Some(ref rd) = p.release_date {
+                            if !rd.trim().is_empty() {
+                                final_patch.release_date = Some(rd.clone());
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
-        // 4. Query enabled external/enrichment providers that contribute extra_metadata (e.g. HowLongToBeat)
+        // 4. Genres
+        if let Some(rule) = field_rules.get(&MetadataField::Genres) {
+            let needs_genres = final_patch.genres.is_empty()
+                && (!pipeline.preserve_existing_artwork || game.genres.is_empty());
+            if rule.enabled && needs_genres {
+                for src in &rule.sources {
+                    if let Some(p) = Self::get_or_fetch_provider(
+                        src,
+                        store_native_id,
+                        request,
+                        providers,
+                        enabled,
+                        settings,
+                        &mut cache,
+                    )
+                    .await
+                    {
+                        if !p.genres.is_empty() {
+                            final_patch.genres = p.genres.clone();
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 5. Developers
+        if let Some(rule) = field_rules.get(&MetadataField::Developers) {
+            let needs_devs = final_patch.developers.is_empty()
+                && (!pipeline.preserve_existing_artwork || game.developers.is_empty());
+            if rule.enabled && needs_devs {
+                for src in &rule.sources {
+                    if let Some(p) = Self::get_or_fetch_provider(
+                        src,
+                        store_native_id,
+                        request,
+                        providers,
+                        enabled,
+                        settings,
+                        &mut cache,
+                    )
+                    .await
+                    {
+                        if !p.developers.is_empty() {
+                            final_patch.developers = p.developers.clone();
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 6. Publishers
+        if let Some(rule) = field_rules.get(&MetadataField::Publishers) {
+            let needs_pubs = final_patch.publishers.is_empty()
+                && (!pipeline.preserve_existing_artwork || game.publishers.is_empty());
+            if rule.enabled && needs_pubs {
+                for src in &rule.sources {
+                    if let Some(p) = Self::get_or_fetch_provider(
+                        src,
+                        store_native_id,
+                        request,
+                        providers,
+                        enabled,
+                        settings,
+                        &mut cache,
+                    )
+                    .await
+                    {
+                        if !p.publishers.is_empty() {
+                            final_patch.publishers = p.publishers.clone();
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 7. Features
+        if let Some(rule) = field_rules.get(&MetadataField::Features) {
+            let needs_feats = final_patch.features.is_empty()
+                && (!pipeline.preserve_existing_artwork || game.features.is_empty());
+            if rule.enabled && needs_feats {
+                for src in &rule.sources {
+                    if let Some(p) = Self::get_or_fetch_provider(
+                        src,
+                        store_native_id,
+                        request,
+                        providers,
+                        enabled,
+                        settings,
+                        &mut cache,
+                    )
+                    .await
+                    {
+                        if !p.features.is_empty() {
+                            final_patch.features = p.features.clone();
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 8. Tags
+        if let Some(rule) = field_rules.get(&MetadataField::Tags) {
+            let needs_tags = final_patch.tags.is_empty()
+                && (!pipeline.preserve_existing_artwork || game.tags.is_empty());
+            if rule.enabled && needs_tags {
+                for src in &rule.sources {
+                    if let Some(p) = Self::get_or_fetch_provider(
+                        src,
+                        store_native_id,
+                        request,
+                        providers,
+                        enabled,
+                        settings,
+                        &mut cache,
+                    )
+                    .await
+                    {
+                        if !p.tags.is_empty() {
+                            final_patch.tags = p.tags.clone();
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 9. Series
+        if let Some(rule) = field_rules.get(&MetadataField::Series) {
+            let needs_series = final_patch.series.is_none()
+                && (!pipeline.preserve_existing_artwork
+                    || game.series.as_deref().unwrap_or("").trim().is_empty());
+            if rule.enabled && needs_series {
+                for src in &rule.sources {
+                    if let Some(p) = Self::get_or_fetch_provider(
+                        src,
+                        store_native_id,
+                        request,
+                        providers,
+                        enabled,
+                        settings,
+                        &mut cache,
+                    )
+                    .await
+                    {
+                        if let Some(ref s) = p.series {
+                            if !s.trim().is_empty() {
+                                final_patch.series = Some(s.clone());
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 10. Age Rating
+        if let Some(rule) = field_rules.get(&MetadataField::AgeRating) {
+            let needs_ar = final_patch.age_rating.is_none()
+                && (!pipeline.preserve_existing_artwork
+                    || game
+                        .age_rating
+                        .as_deref()
+                        .unwrap_or("")
+                        .trim()
+                        .is_empty());
+            if rule.enabled && needs_ar {
+                for src in &rule.sources {
+                    if let Some(p) = Self::get_or_fetch_provider(
+                        src,
+                        store_native_id,
+                        request,
+                        providers,
+                        enabled,
+                        settings,
+                        &mut cache,
+                    )
+                    .await
+                    {
+                        if let Some(ref ar) = p.age_rating {
+                            if !ar.trim().is_empty() {
+                                final_patch.age_rating = Some(ar.clone());
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 11. Links
+        if let Some(rule) = field_rules.get(&MetadataField::Links) {
+            let needs_links = final_patch.custom_links.is_empty()
+                && (!pipeline.preserve_existing_artwork || game.custom_links.is_empty());
+            if rule.enabled && needs_links {
+                for src in &rule.sources {
+                    if let Some(p) = Self::get_or_fetch_provider(
+                        src,
+                        store_native_id,
+                        request,
+                        providers,
+                        enabled,
+                        settings,
+                        &mut cache,
+                    )
+                    .await
+                    {
+                        if !p.custom_links.is_empty() {
+                            final_patch.custom_links = p.custom_links.clone();
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 12. Critic Score
+        if let Some(rule) = field_rules.get(&MetadataField::CriticScore) {
+            let needs_cs = final_patch.critic_score.is_none()
+                && (!pipeline.preserve_existing_artwork || game.critic_score.is_none());
+            if rule.enabled && needs_cs {
+                for src in &rule.sources {
+                    if let Some(p) = Self::get_or_fetch_provider(
+                        src,
+                        store_native_id,
+                        request,
+                        providers,
+                        enabled,
+                        settings,
+                        &mut cache,
+                    )
+                    .await
+                    {
+                        if let Some(score) = p.critic_score {
+                            final_patch.critic_score = Some(score);
+                            if final_patch.community_score.is_none() && p.community_score.is_some()
+                            {
+                                final_patch.community_score = p.community_score;
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 13. Community Score
+        if let Some(rule) = field_rules.get(&MetadataField::CommunityScore) {
+            let needs_comms = final_patch.community_score.is_none()
+                && (!pipeline.preserve_existing_artwork || game.community_score.is_none());
+            if rule.enabled && needs_comms {
+                for src in &rule.sources {
+                    if let Some(p) = Self::get_or_fetch_provider(
+                        src,
+                        store_native_id,
+                        request,
+                        providers,
+                        enabled,
+                        settings,
+                        &mut cache,
+                    )
+                    .await
+                    {
+                        if let Some(score) = p.community_score {
+                            final_patch.community_score = Some(score);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 14. Cover Image
+        if let Some(rule) = field_rules.get(&MetadataField::CoverImage) {
+            if rule.enabled && artwork_pre.should_fetch_cover && final_patch.cover_url.is_none() {
+                for src in &rule.sources {
+                    if let Some(p) = Self::get_or_fetch_provider(
+                        src,
+                        store_native_id,
+                        request,
+                        providers,
+                        enabled,
+                        settings,
+                        &mut cache,
+                    )
+                    .await
+                    {
+                        if let Some(ref cov) = p.cover_url {
+                            final_patch.cover_url = Some(cov.clone());
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 15. Icon
+        if let Some(rule) = field_rules.get(&MetadataField::Icon) {
+            let needs_icon = final_patch.icon_url.is_none()
+                && (!pipeline.preserve_existing_artwork
+                    || game
+                        .icon_image_path
+                        .as_deref()
+                        .unwrap_or("")
+                        .trim()
+                        .is_empty());
+            if rule.enabled && needs_icon {
+                for src in &rule.sources {
+                    if let Some(p) = Self::get_or_fetch_provider(
+                        src,
+                        store_native_id,
+                        request,
+                        providers,
+                        enabled,
+                        settings,
+                        &mut cache,
+                    )
+                    .await
+                    {
+                        if let Some(ref icon) = p.icon_url {
+                            final_patch.icon_url = Some(icon.clone());
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 16. Background Image
+        if let Some(rule) = field_rules.get(&MetadataField::BackgroundImage) {
+            if rule.enabled
+                && artwork_pre.should_fetch_background
+                && final_patch.background_url.is_none()
+            {
+                for src in &rule.sources {
+                    if let Some(p) = Self::get_or_fetch_provider(
+                        src,
+                        store_native_id,
+                        request,
+                        providers,
+                        enabled,
+                        settings,
+                        &mut cache,
+                    )
+                    .await
+                    {
+                        if let Some(ref bg) = p.background_url {
+                            final_patch.background_url = Some(bg.clone());
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 17. Install Size
+        if let Some(rule) = field_rules.get(&MetadataField::InstallSize) {
+            if rule.enabled && final_patch.install_size_bytes.is_none() {
+                for src in &rule.sources {
+                    if let Some(p) = Self::get_or_fetch_provider(
+                        src,
+                        store_native_id,
+                        request,
+                        providers,
+                        enabled,
+                        settings,
+                        &mut cache,
+                    )
+                    .await
+                    {
+                        if let Some(size) = p.install_size_bytes {
+                            final_patch.install_size_bytes = Some(size);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Fallback artwork from remote cache URLs if still unset
+        if final_patch.cover_url.is_none() {
+            final_patch.cover_url = artwork_pre.remote_cover_to_cache;
+        }
+        if final_patch.background_url.is_none() {
+            final_patch.background_url = artwork_pre.remote_bg_to_cache;
+        }
+
+        // Enrichment metadata (e.g. HowLongToBeat)
         Self::merge_enrichment_metadata(
             &mut final_patch,
             request,
@@ -136,10 +555,47 @@ impl MetadataPipelineResolver {
         )
         .await;
 
-        // 5. Generate aesthetic fallback only if fields are still empty
+        // Aesthetic fallback if essential fields are still absent
         Self::apply_fallback_if_needed(&mut final_patch, game, &fallback_fn);
 
         final_patch
+    }
+
+    async fn get_or_fetch_provider(
+        source_id: &str,
+        store_native_id: &str,
+        request: &MetadataSearchRequest,
+        providers: &HashMap<String, Box<dyn MetadataProvider>>,
+        enabled: &HashMap<String, bool>,
+        settings: &HashMap<String, Map<String, Value>>,
+        cache: &mut HashMap<String, Option<GameMetadataPatch>>,
+    ) -> Option<GameMetadataPatch> {
+        let eff_id = Self::resolve_source_id(source_id, store_native_id);
+        if let Some(cached) = cache.get(eff_id) {
+            return cached.clone();
+        }
+
+        if !enabled.get(eff_id).copied().unwrap_or(true) {
+            cache.insert(eff_id.to_string(), None);
+            return None;
+        }
+
+        if let Some(prov) = providers.get(eff_id) {
+            let s = settings.get(eff_id).cloned().unwrap_or_default();
+            match prov.fetch_metadata(request, &s).await {
+                Ok(patch) => {
+                    cache.insert(eff_id.to_string(), Some(patch.clone()));
+                    Some(patch)
+                }
+                Err(_) => {
+                    cache.insert(eff_id.to_string(), None);
+                    None
+                }
+            }
+        } else {
+            cache.insert(eff_id.to_string(), None);
+            None
+        }
     }
 
     fn resolve_source_id<'a>(source: &'a str, store_native_id: &'a str) -> &'a str {
@@ -222,222 +678,6 @@ impl MetadataPipelineResolver {
             should_fetch_background,
             remote_cover_to_cache,
             remote_bg_to_cache,
-        }
-    }
-
-    async fn fetch_details_with_fallback(
-        request: &MetadataSearchRequest,
-        providers: &HashMap<String, Box<dyn MetadataProvider>>,
-        enabled: &HashMap<String, bool>,
-        settings: &HashMap<String, Map<String, Value>>,
-        primary_source: &str,
-        priority_order: &[String],
-    ) -> Option<GameMetadataPatch> {
-        // 1. Try primary configured source
-        if enabled.get(primary_source).copied().unwrap_or(true) {
-            if let Some(prov) = providers.get(primary_source) {
-                let s = settings.get(primary_source).cloned().unwrap_or_default();
-                if let Ok(patch) = prov.fetch_metadata(request, &s).await {
-                    if patch.description.is_some() || !patch.genres.is_empty() {
-                        return Some(patch);
-                    }
-                }
-            }
-        }
-
-        // 2. Fallback through provider priority list
-        for prov_id in priority_order {
-            if prov_id == primary_source {
-                continue;
-            }
-            if enabled.get(prov_id).copied().unwrap_or(true) {
-                if let Some(prov) = providers.get(prov_id) {
-                    let s = settings.get(prov_id).cloned().unwrap_or_default();
-                    if let Ok(patch) = prov.fetch_metadata(request, &s).await {
-                        if patch.description.is_some() || !patch.genres.is_empty() {
-                            return Some(patch);
-                        }
-                    }
-                }
-            }
-        }
-
-        None
-    }
-
-    fn merge_primary_details(
-        final_patch: &mut GameMetadataPatch,
-        game: &Game,
-        patch: &GameMetadataPatch,
-    ) {
-        if game
-            .description
-            .as_ref()
-            .map(|d| d.trim().is_empty())
-            .unwrap_or(true)
-        {
-            final_patch.description = patch.description.clone();
-        }
-        if game
-            .release_date
-            .as_ref()
-            .map(|r| r.trim().is_empty())
-            .unwrap_or(true)
-        {
-            final_patch.release_date = patch.release_date.clone();
-        }
-        if game.genres.is_empty() {
-            final_patch.genres = patch.genres.clone();
-        }
-        if game.features.is_empty() || !patch.features.is_empty() {
-            final_patch.features = patch.features.clone();
-        }
-        if game.developers.is_empty() {
-            final_patch.developers = patch.developers.clone();
-        }
-        if game.publishers.is_empty() {
-            final_patch.publishers = patch.publishers.clone();
-        }
-        if game.critic_score.is_none() {
-            final_patch.critic_score = patch.critic_score;
-        }
-        if game.community_score.is_none() {
-            final_patch.community_score = patch.community_score;
-        }
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    async fn resolve_dedicated_artwork(
-        final_patch: &mut GameMetadataPatch,
-        request: &MetadataSearchRequest,
-        providers: &HashMap<String, Box<dyn MetadataProvider>>,
-        enabled: &HashMap<String, bool>,
-        settings: &HashMap<String, Map<String, Value>>,
-        cover_source: &str,
-        bg_source: &str,
-        details_source: &str,
-        artwork_pre: &ArtworkPrerequisites,
-        details_cover_fallback: Option<String>,
-        details_bg_fallback: Option<String>,
-        priority_order: &[String],
-    ) {
-        if artwork_pre.should_fetch_cover && final_patch.cover_url.is_none() {
-            if cover_source != details_source && enabled.get(cover_source).copied().unwrap_or(false)
-            {
-                if let Some(prov) = providers.get(cover_source) {
-                    let s = settings.get(cover_source).cloned().unwrap_or_default();
-                    if let Ok(cov_patch) = prov.fetch_metadata(request, &s).await {
-                        if cov_patch.cover_url.is_some() {
-                            final_patch.cover_url = cov_patch.cover_url;
-                        }
-                    }
-                }
-            }
-            if final_patch.cover_url.is_none() {
-                for prov_id in priority_order {
-                    if prov_id == cover_source || prov_id == details_source {
-                        continue;
-                    }
-                    if enabled.get(prov_id).copied().unwrap_or(false) {
-                        if let Some(prov) = providers.get(prov_id) {
-                            let s = settings.get(prov_id).cloned().unwrap_or_default();
-                            if let Ok(cov_patch) = prov.fetch_metadata(request, &s).await {
-                                if cov_patch.cover_url.is_some() {
-                                    final_patch.cover_url = cov_patch.cover_url;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            if final_patch.cover_url.is_none() {
-                final_patch.cover_url =
-                    details_cover_fallback.or(artwork_pre.remote_cover_to_cache.clone());
-            }
-        }
-
-        if artwork_pre.should_fetch_background && final_patch.background_url.is_none() {
-            if bg_source != details_source && enabled.get(bg_source).copied().unwrap_or(false) {
-                if let Some(prov) = providers.get(bg_source) {
-                    let s = settings.get(bg_source).cloned().unwrap_or_default();
-                    if let Ok(bg_patch) = prov.fetch_metadata(request, &s).await {
-                        if bg_patch.background_url.is_some() {
-                            final_patch.background_url = bg_patch.background_url;
-                        }
-                    }
-                }
-            }
-            if final_patch.background_url.is_none() {
-                for prov_id in priority_order {
-                    if prov_id == bg_source || prov_id == details_source {
-                        continue;
-                    }
-                    if enabled.get(prov_id).copied().unwrap_or(false) {
-                        if let Some(prov) = providers.get(prov_id) {
-                            let s = settings.get(prov_id).cloned().unwrap_or_default();
-                            if let Ok(bg_patch) = prov.fetch_metadata(request, &s).await {
-                                if bg_patch.background_url.is_some() {
-                                    final_patch.background_url = bg_patch.background_url;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            if final_patch.background_url.is_none() {
-                final_patch.background_url =
-                    details_bg_fallback.or(artwork_pre.remote_bg_to_cache.clone());
-            }
-        }
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    async fn resolve_scores(
-        final_patch: &mut GameMetadataPatch,
-        game: &Game,
-        request: &MetadataSearchRequest,
-        providers: &HashMap<String, Box<dyn MetadataProvider>>,
-        enabled: &HashMap<String, bool>,
-        settings: &HashMap<String, Map<String, Value>>,
-        score_source: &str,
-        details_source: &str,
-        priority_order: &[String],
-    ) {
-        if game.critic_score.is_none()
-            && final_patch.critic_score.is_none()
-            && score_source != details_source
-            && enabled.get(score_source).copied().unwrap_or(false)
-        {
-            if let Some(prov) = providers.get(score_source) {
-                let s = settings.get(score_source).cloned().unwrap_or_default();
-                if let Ok(sc_patch) = prov.fetch_metadata(request, &s).await {
-                    if sc_patch.critic_score.is_some() {
-                        final_patch.critic_score = sc_patch.critic_score;
-                        final_patch.community_score = sc_patch.community_score;
-                    }
-                }
-            }
-        }
-        if game.critic_score.is_none() && final_patch.critic_score.is_none() {
-            for prov_id in priority_order {
-                if prov_id == score_source || prov_id == details_source {
-                    continue;
-                }
-                if enabled.get(prov_id).copied().unwrap_or(false) {
-                    if let Some(prov) = providers.get(prov_id) {
-                        let s = settings.get(prov_id).cloned().unwrap_or_default();
-                        if let Ok(sc_patch) = prov.fetch_metadata(request, &s).await {
-                            if sc_patch.critic_score.is_some() {
-                                final_patch.critic_score = sc_patch.critic_score;
-                                final_patch.community_score = sc_patch.community_score;
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
         }
     }
 

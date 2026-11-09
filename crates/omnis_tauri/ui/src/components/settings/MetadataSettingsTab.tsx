@@ -57,6 +57,11 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
     handleTestConnection,
     handleSavePipeline,
     handleMovePriority,
+    handleToggleField,
+    handleMoveFieldSource,
+    handleAddFieldSource,
+    handleRemoveFieldSource,
+    handleApplyPreset,
   } = useMetadataSettingsManager();
 
   return (
@@ -184,6 +189,11 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
           onMovePriority={handleMovePriority}
           onSavePipeline={handleSavePipeline}
           isSaving={isSavingPipeline}
+          onToggleField={handleToggleField}
+          onMoveFieldSource={handleMoveFieldSource}
+          onAddFieldSource={handleAddFieldSource}
+          onRemoveFieldSource={handleRemoveFieldSource}
+          onApplyPreset={handleApplyPreset}
         />
       )}
     </div>

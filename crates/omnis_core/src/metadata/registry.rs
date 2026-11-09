@@ -170,7 +170,8 @@ impl ProviderRegistry {
         // 1. Load pipeline config
         let pipeline_path = dir.join("pipeline_config.json");
         if let Ok(content) = std::fs::read_to_string(&pipeline_path) {
-            if let Ok(cfg) = serde_json::from_str::<MetadataPipelineConfig>(&content) {
+            if let Ok(mut cfg) = serde_json::from_str::<MetadataPipelineConfig>(&content) {
+                cfg.ensure_field_rules();
                 *self.pipeline_config.write().await = cfg;
             }
         }

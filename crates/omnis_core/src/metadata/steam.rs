@@ -2,7 +2,7 @@ use super::utils::html_to_plain_text;
 use async_trait::async_trait;
 use omnis_sdk::constants::stores;
 use omnis_sdk::{
-    GameMetadataPatch, MetadataField, MetadataProvider, MetadataSearchRequest,
+    CustomLink, GameMetadataPatch, MetadataField, MetadataProvider, MetadataSearchRequest,
     PluginSettingsSchema, SettingField, SettingGroup, SettingType,
 };
 use serde::Deserialize;
@@ -33,6 +33,7 @@ struct SteamAppDetailsWrapper {
 
 #[derive(Debug, Deserialize)]
 struct SteamAppDataDto {
+    name: Option<String>,
     short_description: Option<String>,
     release_date: Option<SteamReleaseDateDto>,
     metacritic: Option<SteamMetacriticDto>,
@@ -166,6 +167,7 @@ impl MetadataProvider for SteamMetadataProvider {
 
     fn supported_fields(&self) -> Vec<MetadataField> {
         vec![
+            MetadataField::Name,
             MetadataField::CoverImage,
             MetadataField::BackgroundImage,
             MetadataField::Description,
@@ -174,6 +176,10 @@ impl MetadataProvider for SteamMetadataProvider {
             MetadataField::Developers,
             MetadataField::Publishers,
             MetadataField::CriticScore,
+            MetadataField::CommunityScore,
+            MetadataField::Features,
+            MetadataField::Links,
+            MetadataField::Platform,
         ]
     }
 
@@ -307,7 +313,19 @@ impl MetadataProvider for SteamMetadataProvider {
                 .to_string()
             });
 
+        let custom_links = vec![
+            CustomLink {
+                title: "Steam Store".to_string(),
+                url: format!("https://store.steampowered.com/app/{}", appid),
+            },
+            CustomLink {
+                title: "Steam Community".to_string(),
+                url: format!("https://steamcommunity.com/app/{}", appid),
+            },
+        ];
+
         Ok(GameMetadataPatch {
+            name: data.name,
             description: short_desc,
             release_date,
             cover_url: Some(primary_cover_url).or(header_img.clone()),
@@ -320,6 +338,12 @@ impl MetadataProvider for SteamMetadataProvider {
             publishers,
             tags: Vec::new(),
             features,
+            series: None,
+            age_rating: None,
+            region: None,
+            platform: Some("PC".to_string()),
+            custom_links,
+            install_size_bytes: None,
             extra_metadata,
         })
     }

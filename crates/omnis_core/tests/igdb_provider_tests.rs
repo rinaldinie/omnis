@@ -510,8 +510,12 @@ async fn test_6_remediation_fixes() {
     let fields = provider.supported_fields();
     assert_eq!(
         fields.len(),
-        9,
-        "I campi supportati devono essere esattamente 9"
+        10,
+        "I campi supportati devono essere esattamente 10"
+    );
+    assert!(
+        fields.contains(&MetadataField::Name),
+        "IGDB deve dichiarare il supporto al campo Name"
     );
     assert!(
         !fields.contains(&MetadataField::Icon),
