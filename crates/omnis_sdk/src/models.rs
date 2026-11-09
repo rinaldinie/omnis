@@ -253,16 +253,25 @@ pub struct GameUpdateDto {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MetadataField {
-    CoverImage,
-    BackgroundImage,
-    Icon,
-    CriticScore,
-    CommunityScore,
-    Description,
-    ReleaseDate,
+    Name,
     Genres,
+    ReleaseDate,
     Developers,
     Publishers,
+    Features,
+    Tags,
+    Description,
+    Links,
+    CriticScore,
+    CommunityScore,
+    AgeRating,
+    Series,
+    Region,
+    Platform,
+    CoverImage,
+    Icon,
+    BackgroundImage,
+    InstallSize,
 }
 
 /// Query context passed to metadata provider plugins
@@ -276,6 +285,7 @@ pub struct MetadataSearchRequest {
 /// Metadata update patch supplied by a metadata provider plugin
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GameMetadataPatch {
+    pub name: Option<String>,
     pub description: Option<String>,
     pub release_date: Option<String>,
     pub cover_url: Option<String>,
@@ -289,6 +299,13 @@ pub struct GameMetadataPatch {
     pub tags: Vec<String>,
     #[serde(default)]
     pub features: Vec<String>,
+    pub series: Option<String>,
+    pub age_rating: Option<String>,
+    pub region: Option<String>,
+    pub platform: Option<String>,
+    #[serde(default)]
+    pub custom_links: Vec<CustomLink>,
+    pub install_size_bytes: Option<u64>,
     #[serde(default)]
     pub extra_metadata: Option<String>,
 }

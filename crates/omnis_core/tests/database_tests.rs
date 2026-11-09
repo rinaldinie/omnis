@@ -80,6 +80,7 @@ fn test_seed_and_metadata_patch() {
         tags: vec![],
         features: vec!["Single-player".to_string(), "Achievements".to_string()],
         extra_metadata: None,
+        ..Default::default()
     };
 
     let updated = db

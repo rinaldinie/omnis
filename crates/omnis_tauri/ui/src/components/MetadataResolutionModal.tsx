@@ -14,6 +14,9 @@ import {
   AlertCircle,
   Gamepad2,
   Layers,
+  Tag,
+  Shield,
+  ExternalLink,
 } from "lucide-react";
 import { useTranslation } from "../i18n";
 import { GameDto } from "../types";
@@ -28,6 +31,7 @@ export interface MetadataCandidateDto {
   background_url?: string | null;
   description?: string | null;
   raw_patch: {
+    name?: string | null;
     description?: string | null;
     release_date?: string | null;
     cover_url?: string | null;
@@ -38,7 +42,14 @@ export interface MetadataCandidateDto {
     genres?: string[];
     developers?: string[];
     publishers?: string[];
+    features?: string[];
     tags?: string[];
+    series?: string | null;
+    age_rating?: string | null;
+    region?: string | null;
+    platform?: string | null;
+    custom_links?: Array<{ title: string; url: string }>;
+    install_size_bytes?: number | null;
   };
 }
 
@@ -58,6 +69,12 @@ interface FieldOption {
 
 const AVAILABLE_FIELDS: FieldOption[] = [
   {
+    key: "name",
+    label: "metadata_resolution.field_name",
+    description: "metadata_resolution.field_name_desc",
+    icon: <FileText className="w-3.5 h-3.5 text-blue-400" />,
+  },
+  {
     key: "cover_image",
     label: "metadata_resolution.field_cover",
     description: "metadata_resolution.field_cover_desc",
@@ -70,22 +87,16 @@ const AVAILABLE_FIELDS: FieldOption[] = [
     icon: <Layers className="w-3.5 h-3.5 text-sky-400" />,
   },
   {
+    key: "icon",
+    label: "metadata_resolution.field_icon",
+    description: "metadata_resolution.field_icon_desc",
+    icon: <ImageIcon className="w-3.5 h-3.5 text-teal-400" />,
+  },
+  {
     key: "description",
     label: "metadata_resolution.field_description",
     description: "metadata_resolution.field_description_desc",
     icon: <FileText className="w-3.5 h-3.5 text-slate-300" />,
-  },
-  {
-    key: "critic_score",
-    label: "metadata_resolution.field_critic",
-    description: "metadata_resolution.field_critic_desc",
-    icon: <Star className="w-3.5 h-3.5 text-amber-400" />,
-  },
-  {
-    key: "community_score",
-    label: "metadata_resolution.field_community",
-    description: "metadata_resolution.field_community_desc",
-    icon: <Star className="w-3.5 h-3.5 text-emerald-400" />,
   },
   {
     key: "genres",
@@ -103,7 +114,55 @@ const AVAILABLE_FIELDS: FieldOption[] = [
     key: "developers",
     label: "metadata_resolution.field_developers",
     description: "metadata_resolution.field_developers_desc",
-    icon: <FileText className="w-3.5 h-3.5 text-teal-400" />,
+    icon: <FileText className="w-3.5 h-3.5 text-emerald-400" />,
+  },
+  {
+    key: "publishers",
+    label: "metadata_resolution.field_publishers",
+    description: "metadata_resolution.field_publishers_desc",
+    icon: <FileText className="w-3.5 h-3.5 text-cyan-400" />,
+  },
+  {
+    key: "features",
+    label: "metadata_resolution.field_features",
+    description: "metadata_resolution.field_features_desc",
+    icon: <Sparkles className="w-3.5 h-3.5 text-yellow-400" />,
+  },
+  {
+    key: "tags",
+    label: "metadata_resolution.field_tags",
+    description: "metadata_resolution.field_tags_desc",
+    icon: <Tag className="w-3.5 h-3.5 text-orange-400" />,
+  },
+  {
+    key: "series",
+    label: "metadata_resolution.field_series",
+    description: "metadata_resolution.field_series_desc",
+    icon: <Layers className="w-3.5 h-3.5 text-violet-400" />,
+  },
+  {
+    key: "age_rating",
+    label: "metadata_resolution.field_age_rating",
+    description: "metadata_resolution.field_age_rating_desc",
+    icon: <Shield className="w-3.5 h-3.5 text-red-400" />,
+  },
+  {
+    key: "critic_score",
+    label: "metadata_resolution.field_critic",
+    description: "metadata_resolution.field_critic_desc",
+    icon: <Star className="w-3.5 h-3.5 text-amber-400" />,
+  },
+  {
+    key: "community_score",
+    label: "metadata_resolution.field_community",
+    description: "metadata_resolution.field_community_desc",
+    icon: <Star className="w-3.5 h-3.5 text-emerald-400" />,
+  },
+  {
+    key: "links",
+    label: "metadata_resolution.field_links",
+    description: "metadata_resolution.field_links_desc",
+    icon: <ExternalLink className="w-3.5 h-3.5 text-blue-300" />,
   },
 ];
 
@@ -116,6 +175,15 @@ export default function MetadataResolutionModal({
   const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [providerId, setProviderId] = useState<string>("all");
+  const [availableProviders, setAvailableProviders] = useState<
+    Array<{ id: string; name: string }>
+  >([
+    { id: "steam", name: "Steam Store" },
+    { id: "gog", name: "GOG Store" },
+    { id: "steamgriddb", name: "SteamGridDB" },
+    { id: "igdb", name: "IGDB" },
+    { id: "opencritic", name: "OpenCritic" },
+  ]);
   const [candidates, setCandidates] = useState<MetadataCandidateDto[]>([]);
   const [selectedCandidate, setSelectedCandidate] = useState<MetadataCandidateDto | null>(null);
 
@@ -130,10 +198,17 @@ export default function MetadataResolutionModal({
   const isFieldPresent = (key: string): boolean => {
     if (!game) return false;
     switch (key) {
+      case "name":
+        return Boolean(game.title && game.title.trim() !== "");
       case "cover_image":
         return Boolean(game.cover_image && String(game.cover_image).trim() !== "");
       case "background_image":
         return Boolean(game.background_image && String(game.background_image).trim() !== "");
+      case "icon":
+        return Boolean(
+          (game.icon_image && String(game.icon_image).trim() !== "") ||
+          (game.icon_image_path && String(game.icon_image_path).trim() !== "")
+        );
       case "description":
         return Boolean(game.description && String(game.description).trim() !== "");
       case "critic_score":
@@ -145,10 +220,19 @@ export default function MetadataResolutionModal({
       case "release_date":
         return Boolean(game.release_date && String(game.release_date).trim() !== "");
       case "developers":
-        return Boolean(
-          (game.developers && game.developers.length > 0) ||
-          (game.publishers && game.publishers.length > 0)
-        );
+        return Boolean(game.developers && game.developers.length > 0);
+      case "publishers":
+        return Boolean(game.publishers && game.publishers.length > 0);
+      case "features":
+        return Boolean(game.features && game.features.length > 0);
+      case "tags":
+        return Boolean(game.tags && game.tags.length > 0);
+      case "series":
+        return Boolean(game.series && String(game.series).trim() !== "");
+      case "age_rating":
+        return Boolean(game.age_rating && String(game.age_rating).trim() !== "");
+      case "links":
+        return Boolean(game.custom_links && game.custom_links.length > 0);
       default:
         return false;
     }
@@ -160,37 +244,157 @@ export default function MetadataResolutionModal({
     const missing: string[] = [];
     if (!game.cover_image || String(game.cover_image).trim() === "") missing.push("cover_image");
     if (!game.background_image || String(game.background_image).trim() === "") missing.push("background_image");
+    if (!game.icon_image && !game.icon_image_path) missing.push("icon");
     if (!game.description || String(game.description).trim() === "") missing.push("description");
     if (game.critic_score === null || game.critic_score === undefined) missing.push("critic_score");
     if (game.community_score === null || game.community_score === undefined) missing.push("community_score");
     if (!game.genres || game.genres.length === 0) missing.push("genres");
     if (!game.release_date || String(game.release_date).trim() === "") missing.push("release_date");
-    if (
-      (!game.developers || game.developers.length === 0) &&
-      (!game.publishers || game.publishers.length === 0)
-    ) {
-      missing.push("developers");
-    }
+    if (!game.developers || game.developers.length === 0) missing.push("developers");
+    if (!game.publishers || game.publishers.length === 0) missing.push("publishers");
+    if (!game.features || game.features.length === 0) missing.push("features");
+    if (!game.tags || game.tags.length === 0) missing.push("tags");
+    if (!game.series || String(game.series).trim() === "") missing.push("series");
+    if (!game.age_rating || String(game.age_rating).trim() === "") missing.push("age_rating");
+    if (!game.custom_links || game.custom_links.length === 0) missing.push("links");
     return missing;
   };
 
-  // On open, pre-fill search and pre-select ONLY missing fields to protect existing metadata
+  const getCandidateValueSummary = (cand: MetadataCandidateDto, key: string): string | null => {
+    switch (key) {
+      case "name":
+        return cand.raw_patch.name || cand.title || null;
+      case "cover_image":
+        return cand.cover_url || cand.raw_patch.cover_url ? "URL Immagine" : null;
+      case "background_image":
+        return cand.background_url || cand.raw_patch.background_url ? "URL Banner" : null;
+      case "icon":
+        return cand.raw_patch.icon_url ? "URL Icona" : null;
+      case "description":
+        return cand.description || cand.raw_patch.description || null;
+      case "critic_score":
+        return cand.raw_patch.critic_score != null ? `${cand.raw_patch.critic_score}/100` : null;
+      case "community_score":
+        return cand.raw_patch.community_score != null ? `${cand.raw_patch.community_score}%` : null;
+      case "genres":
+        return cand.raw_patch.genres && cand.raw_patch.genres.length > 0
+          ? cand.raw_patch.genres.join(", ")
+          : null;
+      case "release_date":
+        return cand.raw_patch.release_date || (cand.release_year ? String(cand.release_year) : null);
+      case "developers":
+        return cand.raw_patch.developers && cand.raw_patch.developers.length > 0
+          ? cand.raw_patch.developers.join(", ")
+          : null;
+      case "publishers":
+        return cand.raw_patch.publishers && cand.raw_patch.publishers.length > 0
+          ? cand.raw_patch.publishers.join(", ")
+          : null;
+      case "features":
+        return cand.raw_patch.features && cand.raw_patch.features.length > 0
+          ? cand.raw_patch.features.join(", ")
+          : null;
+      case "tags":
+        return cand.raw_patch.tags && cand.raw_patch.tags.length > 0
+          ? cand.raw_patch.tags.slice(0, 4).join(", ")
+          : null;
+      case "series":
+        return cand.raw_patch.series || null;
+      case "age_rating":
+        return cand.raw_patch.age_rating || null;
+      case "links":
+        return cand.raw_patch.custom_links && cand.raw_patch.custom_links.length > 0
+          ? `${cand.raw_patch.custom_links.length} collegamenti`
+          : null;
+      default:
+        return null;
+    }
+  };
+
+  const isCandidateFieldAvailable = (
+    cand: MetadataCandidateDto | null,
+    key: string
+  ): boolean => {
+    if (!cand) return false;
+    return getCandidateValueSummary(cand, key) !== null;
+  };
+
+  const handleSelectCandidate = (cand: MetadataCandidateDto) => {
+    setSelectedCandidate(cand);
+
+    // Auto-select fields that are missing in the game AND available in this candidate
+    const missing = computeMissingFields();
+    const availableMissing = missing.filter((key) =>
+      isCandidateFieldAvailable(cand, key)
+    );
+
+    if (availableMissing.length > 0) {
+      setSelectedFields(availableMissing);
+    } else {
+      // If no missing fields are available in this candidate, select available artwork or first available
+      const availableKeys = AVAILABLE_FIELDS.filter((f) =>
+        isCandidateFieldAvailable(cand, f.key)
+      ).map((f) => f.key);
+      const artwork = availableKeys.filter((k) =>
+        ["cover_image", "background_image", "icon"].includes(k)
+      );
+      if (artwork.length > 0) {
+        setSelectedFields(artwork);
+      } else if (availableKeys.length > 0) {
+        setSelectedFields([availableKeys[0]]);
+      } else {
+        setSelectedFields([]);
+      }
+    }
+  };
+
+  // On open, pre-fill search and reset candidate state
   useEffect(() => {
     if (!isOpen || !game) return;
 
     setSearchTerm(game.title || "");
     setProviderId("all");
     setSelectedCandidate(null);
+    setSelectedFields([]);
     setSearchError(null);
     setApplyError(null);
     setApplySuccess(false);
 
-    const missingFields = computeMissingFields();
-    // If no fields are missing, select cover_image by default so user can refresh artwork if desired
-    setSelectedFields(missingFields.length > 0 ? missingFields : ["cover_image"]);
-
     handleSearch(game.title || "", "all");
   }, [isOpen, game]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    api.metadata
+      .getProviders()
+      .then((list) => {
+        if (list && list.length > 0) {
+          const searchCapable = [
+            { id: "steam", defaultName: "Steam Store" },
+            { id: "gog", defaultName: "GOG Store" },
+            { id: "steamgriddb", defaultName: "SteamGridDB (Artwork HD)" },
+            { id: "igdb", defaultName: "IGDB (Database)" },
+            { id: "opencritic", defaultName: "OpenCritic (Valutazioni)" },
+          ];
+          const enabledMap = new Map(
+            list.map((p) => [p.id.toLowerCase(), p.is_enabled])
+          );
+          const active = searchCapable
+            .filter((p) => enabledMap.get(p.id) !== false)
+            .map((p) => {
+              const found = list.find((item) => item.id.toLowerCase() === p.id);
+              return {
+                id: p.id,
+                name: found && found.name ? found.name : p.defaultName,
+              };
+            });
+          if (active.length > 0) {
+            setAvailableProviders(active);
+          }
+        }
+      })
+      .catch(() => {});
+  }, [isOpen]);
 
   if (!isOpen || !game) return null;
 
@@ -210,9 +414,11 @@ export default function MetadataResolutionModal({
 
       if (result && result.length > 0) {
         setCandidates(result);
-        setSelectedCandidate(result[0]); // Auto-select top match
+        handleSelectCandidate(result[0]); // Auto-select top match and calibrate available fields
       } else {
         setCandidates([]);
+        setSelectedCandidate(null);
+        setSelectedFields([]);
         setSearchError(t("metadata_resolution.no_candidates"));
       }
     } catch (err: any) {
@@ -220,23 +426,45 @@ export default function MetadataResolutionModal({
         typeof err === "string" ? err : err.message || t("metadata_resolution.search_error")
       );
       setCandidates([]);
+      setSelectedCandidate(null);
+      setSelectedFields([]);
     } finally {
       setIsSearching(false);
     }
   };
 
   const toggleField = (key: string) => {
+    if (selectedCandidate && !isCandidateFieldAvailable(selectedCandidate, key)) {
+      return;
+    }
     setSelectedFields((prev) =>
       prev.includes(key) ? prev.filter((f) => f !== key) : [...prev, key]
     );
   };
 
   const selectAllFields = () => {
-    setSelectedFields(AVAILABLE_FIELDS.map((f) => f.key));
+    if (!selectedCandidate) return;
+    const available = AVAILABLE_FIELDS.filter((f) =>
+      isCandidateFieldAvailable(selectedCandidate, f.key)
+    ).map((f) => f.key);
+    setSelectedFields(available);
   };
 
   const selectMissingFields = () => {
-    setSelectedFields(computeMissingFields());
+    if (!selectedCandidate) return;
+    const missing = computeMissingFields();
+    const availableMissing = missing.filter((key) =>
+      isCandidateFieldAvailable(selectedCandidate, key)
+    );
+    setSelectedFields(availableMissing);
+  };
+
+  const selectArtworkOnly = () => {
+    if (!selectedCandidate) return;
+    const artworkKeys = ["cover_image", "background_image", "icon"];
+    setSelectedFields(
+      artworkKeys.filter((k) => isCandidateFieldAvailable(selectedCandidate, k))
+    );
   };
 
   const deselectAllFields = () => {
@@ -250,14 +478,10 @@ export default function MetadataResolutionModal({
       setIsApplying(true);
       setApplyError(null);
 
-      const fieldsToSend = selectedFields.includes("developers") && !selectedFields.includes("publishers")
-        ? [...selectedFields, "publishers"]
-        : selectedFields;
-
       const updated = await api.metadata.applyMetadataCandidate(
         game.id,
         selectedCandidate,
-        fieldsToSend
+        selectedFields
       );
 
       if (!updated) {
@@ -290,6 +514,9 @@ export default function MetadataResolutionModal({
         return { name: "OpenCritic", bg: "rgba(50, 20, 20, 0.9)", border: "#f87171", text: "#f87171" };
       case "igdb":
         return { name: "IGDB", bg: "rgba(45, 20, 80, 0.9)", border: "#9146ff", text: "#a970ff" };
+      case "howlongtobeat":
+      case "hltb":
+        return { name: "HLTB", bg: "rgba(20, 45, 40, 0.9)", border: "#34d399", text: "#6ee7b7" };
       default:
         return { name: pId, bg: "rgba(30, 41, 59, 0.9)", border: "#94a3b8", text: "#cbd5e1" };
     }
@@ -368,28 +595,34 @@ export default function MetadataResolutionModal({
             />
           </div>
 
-          <select
-            value={providerId}
-            onChange={(e) => {
-              setProviderId(e.target.value);
-              handleSearch(searchTerm, e.target.value);
-            }}
-            className="w-full md:w-56 px-3.5 py-2.5 rounded-xl border text-xs font-medium outline-none cursor-pointer"
-            style={{
-              backgroundColor: "var(--bg-card)",
-              borderColor: "var(--border-color)",
-              color: "var(--text-primary)",
-            }}
-          >
-            <option value="all">{t("metadata_resolution.opt_all")}</option>
-            <option value="steam">Steam Store ({t("plugin_manager.opt_official")})</option>
-            <option value="gog">GOG Store (DRM-Free)</option>
-          </select>
+          <div className="relative w-full md:w-60 shrink-0">
+            <select
+              value={providerId}
+              onChange={(e) => {
+                const nextProv = e.target.value;
+                setProviderId(nextProv);
+                handleSearch(searchTerm, nextProv);
+              }}
+              className="w-full px-3.5 py-2.5 rounded-xl border text-xs font-medium outline-none cursor-pointer"
+              style={{
+                backgroundColor: "var(--bg-card)",
+                borderColor: "var(--border-color)",
+                color: "var(--text-primary)",
+              }}
+            >
+              <option value="all">{t("metadata_resolution.opt_all")}</option>
+              {availableProviders.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
           <button
             onClick={() => handleSearch(searchTerm, providerId)}
             disabled={isSearching || !searchTerm.trim()}
-            className="w-full md:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-medium text-white shadow-md transition-all hover:brightness-110 active:opacity-90 disabled:opacity-50"
+            className="w-full md:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-medium text-white shadow-md transition-all hover:brightness-110 active:opacity-90 disabled:opacity-50 cursor-pointer"
             style={{
               backgroundColor: "var(--accent-primary)",
               boxShadow: "0 0 15px var(--accent-glow)",
@@ -454,7 +687,7 @@ export default function MetadataResolutionModal({
                   return (
                     <div
                       key={`${cand.provider_id}-${cand.provider_game_id}-${idx}`}
-                      onClick={() => setSelectedCandidate(cand)}
+                      onClick={() => handleSelectCandidate(cand)}
                       className={`p-3.5 rounded-2xl border cursor-pointer transition-all flex gap-4 items-start ${
                         isSelected
                           ? "ring-2 ring-indigo-500 shadow-lg"
@@ -468,9 +701,9 @@ export default function MetadataResolutionModal({
                     >
                       {/* Thumbnail Cover */}
                       <div className="w-20 aspect-[2/3] rounded-xl overflow-hidden bg-black/60 shrink-0 border border-white/10 shadow-md">
-                        {cand.cover_url ? (
+                        {cand.cover_url || cand.raw_patch.cover_url ? (
                           <img
-                            src={cand.cover_url}
+                            src={cand.cover_url || cand.raw_patch.cover_url || ""}
                             alt=""
                             className="w-full h-full object-cover"
                             onError={(e) => {
@@ -498,15 +731,21 @@ export default function MetadataResolutionModal({
                             {badge.name}
                           </span>
 
-                          {cand.release_year && (
+                          {(cand.release_year || cand.raw_patch.release_date) && (
                             <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-white/10 text-slate-200">
-                              {cand.release_year}
+                              {cand.release_year || cand.raw_patch.release_date?.slice(0, 4)}
                             </span>
                           )}
 
-                          {cand.raw_patch.critic_score && (
+                          {cand.raw_patch.critic_score != null && (
                             <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-500/20 text-amber-300 border border-amber-500/30">
                               ★ {cand.raw_patch.critic_score}
+                            </span>
+                          )}
+
+                          {cand.raw_patch.community_score != null && (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                              {cand.raw_patch.community_score}%
                             </span>
                           )}
                         </div>
@@ -514,7 +753,7 @@ export default function MetadataResolutionModal({
                         <h4 className="text-sm font-semibold text-white truncate">{cand.title}</h4>
 
                         <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">
-                          {cand.description || t("metadata_resolution.no_description")}
+                          {cand.description || cand.raw_patch.description || t("metadata_resolution.no_description")}
                         </p>
 
                         {cand.raw_patch.genres && cand.raw_patch.genres.length > 0 && (
@@ -522,7 +761,7 @@ export default function MetadataResolutionModal({
                             {cand.raw_patch.genres.slice(0, 3).map((g, gi) => (
                               <span
                                 key={gi}
-                                className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700"
+                                className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700 truncate"
                               >
                                 {g}
                               </span>
@@ -539,73 +778,123 @@ export default function MetadataResolutionModal({
 
           {/* RIGHT: CHECKLIST "CAMPI DA IMPORTARE" & PREVIEW */}
           <div
-            className="w-full md:w-80 lg:w-96 overflow-y-auto p-6 space-y-5"
+            className="w-full md:w-88 lg:w-96 overflow-y-auto p-6 space-y-5"
             style={{ backgroundColor: "var(--bg-surface)" }}
           >
             <div>
-              <div className="flex items-center justify-between pb-2">
+              <div className="flex items-center justify-between pb-2 flex-wrap gap-1">
                 <span className="text-xs font-medium tracking-wider uppercase text-slate-300">
                   {t("metadata_resolution.fields_title")}
                 </span>
-                <div className="flex items-center gap-2 text-[11px]">
+                <div className="flex items-center gap-1.5 text-[11px] flex-wrap">
                   <button
                     onClick={selectAllFields}
-                    className="text-indigo-400 hover:underline font-medium"
+                    className="text-indigo-400 hover:underline font-medium cursor-pointer"
                   >
                     {t("metadata_resolution.select_all")}
                   </button>
                   <span className="text-slate-600">•</span>
                   <button
                     onClick={selectMissingFields}
-                    className="text-amber-400 hover:underline font-medium"
+                    className="text-amber-400 hover:underline font-medium cursor-pointer"
                   >
                     {t("metadata_resolution.select_missing")}
                   </button>
                   <span className="text-slate-600">•</span>
                   <button
+                    onClick={selectArtworkOnly}
+                    className="text-cyan-400 hover:underline font-medium cursor-pointer"
+                  >
+                    {t("metadata_resolution.select_artwork")}
+                  </button>
+                  <span className="text-slate-600">•</span>
+                  <button
                     onClick={deselectAllFields}
-                    className="text-slate-400 hover:underline font-medium"
+                    className="text-slate-400 hover:underline font-medium cursor-pointer"
                   >
                     {t("metadata_resolution.select_none")}
                   </button>
                 </div>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 {AVAILABLE_FIELDS.map((field) => {
-                  const isChecked = selectedFields.includes(field.key);
+                  const isAvailableInCand = selectedCandidate
+                    ? isCandidateFieldAvailable(selectedCandidate, field.key)
+                    : true;
+                  const isChecked = isAvailableInCand && selectedFields.includes(field.key);
                   const alreadyPresent = isFieldPresent(field.key);
+                  const candValue = selectedCandidate
+                    ? getCandidateValueSummary(selectedCandidate, field.key)
+                    : null;
+
                   return (
                     <div
                       key={field.key}
-                      onClick={() => toggleField(field.key)}
-                      className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${
-                        isChecked
-                          ? "border-indigo-500/50 bg-indigo-500/10 text-white"
-                          : "border-slate-800 bg-slate-900/40 text-slate-400 hover:border-slate-700"
+                      onClick={() => isAvailableInCand && toggleField(field.key)}
+                      className={`p-2.5 rounded-xl border transition-all flex items-start justify-between gap-3 ${
+                        !isAvailableInCand
+                          ? "border-slate-800/40 bg-slate-950/30 text-slate-600 opacity-45 cursor-not-allowed"
+                          : isChecked
+                          ? "border-indigo-500/50 bg-indigo-500/10 text-white cursor-pointer"
+                          : "border-slate-800 bg-slate-900/40 text-slate-400 hover:border-slate-700 cursor-pointer"
                       }`}
                     >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="shrink-0">{field.icon}</div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="text-xs font-medium truncate">{t(field.label)}</p>
+                      <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                        <div className={`shrink-0 mt-0.5 ${!isAvailableInCand ? "opacity-40" : ""}`}>
+                          {field.icon}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p
+                              className={`text-xs font-medium truncate ${
+                                !isAvailableInCand ? "text-slate-500" : ""
+                              }`}
+                            >
+                              {t(field.label)}
+                            </p>
+
                             {alreadyPresent ? (
-                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shrink-0 font-medium">
+                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shrink-0 font-medium">
                                 {t("metadata_resolution.present")}
                               </span>
                             ) : (
-                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300/80 border border-amber-500/20 shrink-0">
+                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-300/80 border border-amber-500/20 shrink-0">
                                 {t("metadata_resolution.missing")}
                               </span>
                             )}
+
+                            {!isAvailableInCand && selectedCandidate && (
+                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-slate-800/80 text-slate-500 border border-slate-700/60 shrink-0 font-medium">
+                                {t("metadata_resolution.field_not_available")}
+                              </span>
+                            )}
                           </div>
-                          <p className="text-[10px] text-slate-400 truncate">{t(field.description)}</p>
+
+                          {selectedCandidate && (
+                            <p className="text-[10px] mt-0.5 truncate">
+                              {candValue ? (
+                                <span className="text-indigo-300 font-normal">
+                                  {candValue}
+                                </span>
+                              ) : (
+                                <span className="text-slate-600 italic">
+                                  —
+                                </span>
+                              )}
+                            </p>
+                          )}
+
+                          {!selectedCandidate && (
+                            <p className="text-[10px] text-slate-400 truncate">{t(field.description)}</p>
+                          )}
                         </div>
                       </div>
 
-                      <div className="shrink-0 pl-2">
-                        {isChecked ? (
+                      <div className="shrink-0 pt-0.5">
+                        {!isAvailableInCand ? (
+                          <Square className="w-4 h-4 text-slate-800" />
+                        ) : isChecked ? (
                           <CheckSquare className="w-4 h-4 text-indigo-400" />
                         ) : (
                           <Square className="w-4 h-4 text-slate-600" />
@@ -631,10 +920,10 @@ export default function MetadataResolutionModal({
                 </span>
 
                 <div className="space-y-2">
-                  {selectedCandidate.background_url && (
+                  {(selectedCandidate.background_url || selectedCandidate.raw_patch.background_url) && (
                     <div className="w-full h-24 rounded-lg overflow-hidden border border-white/10 bg-black/40">
                       <img
-                        src={selectedCandidate.background_url}
+                        src={selectedCandidate.background_url || selectedCandidate.raw_patch.background_url || ""}
                         alt={t("metadata_resolution.hero_preview")}
                         className="w-full h-full object-cover"
                       />
@@ -642,16 +931,16 @@ export default function MetadataResolutionModal({
                   )}
 
                   <div className="flex items-center gap-3">
-                    {selectedCandidate.cover_url && (
+                    {(selectedCandidate.cover_url || selectedCandidate.raw_patch.cover_url) && (
                       <div className="w-12 aspect-[2/3] rounded-lg overflow-hidden border border-white/10 shrink-0">
                         <img
-                          src={selectedCandidate.cover_url}
+                          src={selectedCandidate.cover_url || selectedCandidate.raw_patch.cover_url || ""}
                           alt={t("metadata_resolution.cover_preview")}
                           className="w-full h-full object-cover"
                         />
                       </div>
                     )}
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="text-xs font-semibold text-white truncate">
                         {selectedCandidate.title}
                       </p>

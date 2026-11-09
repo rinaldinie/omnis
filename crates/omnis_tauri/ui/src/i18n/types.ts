@@ -605,10 +605,14 @@ export interface TranslationSchema {
     saved: string;
   },
   metadata_resolution: {
+    field_name: string;
+    field_name_desc: string;
     field_cover: string;
     field_cover_desc: string;
     field_background: string;
     field_background_desc: string;
+    field_icon: string;
+    field_icon_desc: string;
     field_description: string;
     field_description_desc: string;
     field_critic: string;
@@ -621,6 +625,19 @@ export interface TranslationSchema {
     field_release_desc: string;
     field_developers: string;
     field_developers_desc: string;
+    field_publishers: string;
+    field_publishers_desc: string;
+    field_features: string;
+    field_features_desc: string;
+    field_tags: string;
+    field_tags_desc: string;
+    field_series: string;
+    field_series_desc: string;
+    field_age_rating: string;
+    field_age_rating_desc: string;
+    field_links: string;
+    field_links_desc: string;
+    select_artwork: string;
     no_candidates: string;
     search_error: string;
     save_failed: string;
@@ -640,6 +657,8 @@ export interface TranslationSchema {
     select_none: string;
     present: string;
     missing: string;
+    field_not_available: string;
+    field_available: string;
     preview: string;
     hero_preview: string;
     cover_preview: string;

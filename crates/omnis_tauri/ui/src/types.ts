@@ -55,9 +55,11 @@ export interface GameDto {
   background_image_path?: string | null;
   icon_image_path?: string | null;
   series?: string | null;
+  age_rating?: string | null;
   completion_status?: string | null;
   user_notes?: string | null;
   features?: string[];
+  tags?: string[];
   custom_links?: Array<{ title: string; url: string }>;
   extra_metadata?: string | null;
   genres: string[];
@@ -164,11 +166,17 @@ export interface ProviderInfo {
   plugin_type?: string | null;
 }
 
+export interface FieldPipelineRule {
+  enabled: boolean;
+  sources: string[];
+}
+
 export interface MetadataPipelineConfig {
-  cover_source: string;
-  background_source: string;
-  score_source: string;
-  details_source: string;
+  fields?: Record<string, FieldPipelineRule>;
+  cover_source?: string;
+  background_source?: string;
+  score_source?: string;
+  details_source?: string;
   preserve_existing_artwork?: boolean;
   provider_priority?: string[];
 }

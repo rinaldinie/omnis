@@ -217,6 +217,60 @@ impl<'a> CandidateMetadataApplier<'a> {
                         patch.publishers = candidate.raw_patch.publishers.clone();
                     }
                 }
+                MetadataField::Name => {
+                    patch.name = candidate
+                        .raw_patch
+                        .name
+                        .clone()
+                        .or_else(|| {
+                            let t = candidate.title.trim();
+                            if !t.is_empty() {
+                                Some(t.to_string())
+                            } else {
+                                None
+                            }
+                        });
+                }
+                MetadataField::Features => {
+                    if !candidate.raw_patch.features.is_empty() {
+                        patch.features = candidate.raw_patch.features.clone();
+                    }
+                }
+                MetadataField::Tags => {
+                    if !candidate.raw_patch.tags.is_empty() {
+                        patch.tags = candidate.raw_patch.tags.clone();
+                    }
+                }
+                MetadataField::Series => {
+                    if candidate.raw_patch.series.is_some() {
+                        patch.series = candidate.raw_patch.series.clone();
+                    }
+                }
+                MetadataField::AgeRating => {
+                    if candidate.raw_patch.age_rating.is_some() {
+                        patch.age_rating = candidate.raw_patch.age_rating.clone();
+                    }
+                }
+                MetadataField::Links => {
+                    if !candidate.raw_patch.custom_links.is_empty() {
+                        patch.custom_links = candidate.raw_patch.custom_links.clone();
+                    }
+                }
+                MetadataField::Platform => {
+                    if candidate.raw_patch.platform.is_some() {
+                        patch.platform = candidate.raw_patch.platform.clone();
+                    }
+                }
+                MetadataField::Region => {
+                    if candidate.raw_patch.region.is_some() {
+                        patch.region = candidate.raw_patch.region.clone();
+                    }
+                }
+                MetadataField::InstallSize => {
+                    if candidate.raw_patch.install_size_bytes.is_some() {
+                        patch.install_size_bytes = candidate.raw_patch.install_size_bytes;
+                    }
+                }
             }
         }
 

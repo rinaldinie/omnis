@@ -548,9 +548,22 @@ impl GameRepository for Database {
             None
         };
 
+        let custom_links_json = if !patch.custom_links.is_empty() {
+            serde_json::to_string(&patch.custom_links).ok()
+        } else {
+            None
+        };
+
+        let sorting_title_val = patch.name.as_ref().map(|n| n.to_lowercase());
+
         let updated = conn.execute(
             "
             UPDATE games SET
+                title = COALESCE(?16, title),
+                sorting_title = COALESCE(?17, sorting_title),
+                series = COALESCE(?18, series),
+                age_rating = COALESCE(?19, age_rating),
+                custom_links = COALESCE(?20, custom_links),
                 description = COALESCE(?2, description),
                 release_date = COALESCE(?3, release_date),
                 cover_image_path = COALESCE(?4, cover_image_path),
@@ -583,6 +596,11 @@ impl GameRepository for Database {
                 now,
                 extra_metadata_merged,
                 features_joined,
+                patch.name,
+                sorting_title_val,
+                patch.series,
+                patch.age_rating,
+                custom_links_json,
             ],
         )?;
 

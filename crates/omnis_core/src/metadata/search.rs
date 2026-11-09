@@ -216,6 +216,7 @@ impl MetadataSearchEngine {
                 }
 
                 let raw_patch = GameMetadataPatch {
+                    name: Some(name.clone()),
                     description: Some(desc.clone()),
                     release_date,
                     cover_url: Some(cover_url.clone()),
@@ -229,6 +230,7 @@ impl MetadataSearchEngine {
                     tags: Vec::new(),
                     features: Vec::new(),
                     extra_metadata: None,
+                    ..Default::default()
                 };
 
                 results.push(MetadataCandidateDto {

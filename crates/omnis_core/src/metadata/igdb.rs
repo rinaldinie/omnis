@@ -200,6 +200,7 @@ pub fn igdb_game_to_patch(game: &IgdbGame) -> GameMetadataPatch {
     }
 
     GameMetadataPatch {
+        name: Some(game.name.clone()),
         description,
         release_date,
         cover_url,
@@ -212,6 +213,12 @@ pub fn igdb_game_to_patch(game: &IgdbGame) -> GameMetadataPatch {
         publishers,
         tags: Vec::new(),
         features: Vec::new(),
+        series: None,
+        age_rating: None,
+        region: None,
+        platform: None,
+        custom_links: Vec::new(),
+        install_size_bytes: None,
         extra_metadata: None,
     }
 }
@@ -458,6 +465,7 @@ impl MetadataProvider for IgdbMetadataProvider {
 
     fn supported_fields(&self) -> Vec<MetadataField> {
         vec![
+            MetadataField::Name,
             MetadataField::CoverImage,
             MetadataField::BackgroundImage,
             MetadataField::CriticScore,
@@ -791,8 +799,9 @@ mod tests {
         );
 
         let fields = provider.supported_fields();
-        assert_eq!(fields.len(), 9);
+        assert_eq!(fields.len(), 10);
         assert!(!fields.contains(&MetadataField::Icon));
+        assert!(fields.contains(&MetadataField::Name));
         assert!(fields.contains(&MetadataField::CoverImage));
         assert!(fields.contains(&MetadataField::BackgroundImage));
         assert!(fields.contains(&MetadataField::CriticScore));
