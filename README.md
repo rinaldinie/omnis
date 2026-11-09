@@ -18,7 +18,7 @@ Omnis aggregates your PC gaming library across platforms into a single, cohesive
 
 - **Universal Library Aggregation**: Built-in integrations for Steam, Epic Games Store, GOG and Xbox / PC Game Pass (local scanners and cloud accounts), plus custom executables.
 - **Robust Process Tracking**: Windows Kernel Job Objects track game processes and child trees accurately without relying solely on window handles.
-- **Metadata Pipeline**: Pluggable providers (Steam Store, IGDB, SteamGridDB, OpenCritic, HowLongToBeat, GOG) with offline fallback and manual candidate resolution.
+- **Metadata Pipeline**: 6 built-in native providers (Steam Store, GOG, IGDB, SteamGridDB, OpenCritic, HowLongToBeat) with drag-and-drop source priority ranking, offline fallback, credential management, and manual candidate resolution.
 - **Achievements**: Per-store achievement sync with local cache, automatic sync on game exit and on startup.
 - **Statistics Dashboard**: Playtime analytics, activity heatmap, weekly charts and backlog progress.
 - **Backup & Restore**: Native library backups with scheduling and rotation.
@@ -27,7 +27,7 @@ Omnis aggregates your PC gaming library across platforms into a single, cohesive
 - **Multi-View Interface**: Grid view with dynamic zoom, split details panel, and list view with sorting and dynamic grouping.
 - **Fullscreen Mode**: Controller-first fullscreen experience with synthesized SFX and a virtual gamepad keyboard.
 - **Themes & Localization**: Built-in themes with a slot-based theme API; UI available in English, Italian, French, German, Spanish and Japanese.
-- **Extensibility**: 3-Tier plugin model (built-in Tier 0 integrations, native Tier 1 C-ABI dynamic plugins, and an experimental Tier 2 WebAssembly sandbox, not yet integrated into the app).
+- **Modular Native Architecture**: Zero cold-start overhead with statically linked store integrations and built-in metadata providers, backed by the `omnis_sdk` contracts.
 - **Auto-Update**: Signed in-app updates via the Tauri updater.
 
 ### Screenshots
@@ -57,74 +57,61 @@ omnis/
 │   ├── omnis_plugin_epic/   # Epic Games Store manifests, cloud sync, achievements
 │   ├── omnis_plugin_gog/    # GOG Galaxy integration
 │   └── omnis_plugin_xbox/   # Xbox Live & PC Game Pass integration
-├── examples/
-│   └── sample_plugin/   # Reference template for native dynamic plugins
 ├── scripts/             # Release tooling (version bump, tagging, local update server)
 └── .github/             # CI, release workflow, issue/PR templates
 ```
 
 ---
 
-## Plugin Architecture & Extensibility Model
+## Architecture: Store Integrations & Metadata Pipeline
 
-Omnis employs an explicit **3-Tier Hybrid Plugin Architecture** designed to balance out-of-the-box performance with community extensibility:
+Omnis uses a fully native, in-process architecture designed for zero cold-start latency, maximum reliability, and secure credential handling:
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
-│                        Omnis Desktop & CLI Shell                       │
-├────────────────────────────────────────────────────────────────────────┤
-│                     PluginHost & StoreAccountManager                   │
-├──────────────────────────┬─────────────────────────┬───────────────────┤
-│ Tier 0: Built-in Static  │ Tier 1: Native Dynamic  │ Tier 2: WASM Host │
-│ (Steam, Epic, GOG, Xbox) │ (.dll / .so / .dylib)   │ (Experimental)    │
-│ Zero-overhead in-process │ C-ABI FFI + Panic Guard │ Wasmtime Sandbox  │
-└──────────────────────────┴─────────────────────────┴───────────────────┘
+│                       Omnis Desktop & CLI Shell                        │
+├───────────────────────────────────┬────────────────────────────────────┤
+│         Store Integrations        │     Native Metadata Pipeline       │
+│  (Steam, Epic Games, GOG, Xbox)   │  (IGDB, SteamGridDB, OpenCritic,   │
+│                                   │   HowLongToBeat, Steam, GOG)       │
+├───────────────────────────────────┼────────────────────────────────────┤
+│  • Local Manifest Scanners        │  • Reorderable Priority Ranking    │
+│  • OAuth Cloud Synchronization    │  • Live Connectivity & Auth Badges │
+│  • Job Objects Process Tracking   │  • Unified & Backward-Compat JSON  │
+│  • SecretVault (DPAPI / Keyring)  │  • Offline Caching & Cover Scrape  │
+└───────────────────────────────────┴────────────────────────────────────┘
 ```
 
-### The Canonical Model Explained
+### Store Integrations (First-Party Built-ins)
 
-Omnis intentionally differentiates between first-party store aggregators and community extensions:
+All store integrations live as dedicated workspace crates under [`plugins/`](plugins/):
+- [`omnis_plugin_steam`](plugins/omnis_plugin_steam): Local VDF manifest detection, Steam Cloud sync, and Steam achievements.
+- [`omnis_plugin_epic`](plugins/omnis_plugin_epic): Local `.item` manifest parsing, Epic Games account sync, and achievements.
+- [`omnis_plugin_gog`](plugins/omnis_plugin_gog): GOG Galaxy local database scanning, OAuth token exchange, and cloud library sync.
+- [`omnis_plugin_xbox`](plugins/omnis_plugin_xbox): Xbox Live / PC Game Pass integration, title history, and achievement synchronization.
 
-1. **Official Model for Store Integrations (Tier 0 — Built-in Static)**:
-   - First-party stores ([`omnis_plugin_steam`](plugins/omnis_plugin_steam), [`omnis_plugin_epic`](plugins/omnis_plugin_epic), [`omnis_plugin_gog`](plugins/omnis_plugin_gog), [`omnis_plugin_xbox`](plugins/omnis_plugin_xbox)) are statically linked into the desktop and CLI binaries.
-   - **Why static?**
-     - **Zero Cold-Start Overhead**: Instant boot without dynamic library lookups or ABI negotiation overhead.
-     - **Deep OS & Vault Wiring**: Direct integration with `SecretVault` (DPAPI/Keyring), OS deep-link OAuth protocols, and Windows Kernel Job Objects for child-process tracking.
-     - **Zero Setup**: Users immediately aggregate libraries out-of-the-box without downloading third-party plugins.
+**Design Benefits:**
+- **Zero Cold-Start Overhead**: Compiles directly into the final desktop and CLI binaries without dynamic library loading or ABI negotiation.
+- **Deep OS & Vault Wiring**: Direct access to `SecretVault` (hardware-backed DPAPI / OS Keyring), desktop OAuth protocol handlers, and Windows Kernel Job Objects for child-process lifecycle tracking.
+- **Zero Setup**: All stores work immediately out of the box without downloading external packages or dependencies.
 
-2. **Power-User Model for Low-Level Native Code (Tier 1 — Dynamic C-ABI Shared Libraries)**:
-   - For community extensions requiring raw system performance or custom integrations.
-   - **Current scope**: Currently, native dynamic plugins only load external **metadata providers** (`MetadataProvider`).
-   - Loaded dynamically at runtime via `libloading` from the user's `plugins/` directory.
-   - Protected by `ffi_guard`, catching any C/Rust panics before they can terminate the main application process.
+### Native Metadata Pipeline
 
-3. **Experimental Model for Community Extensions & Sandbox (Tier 2 — WebAssembly Sandbox)**:
-   - *Status: Experimental / Not yet integrated in the desktop application.*
-   - WebAssembly is designed as the sandboxed distribution format for third-party extensions. Note: **WASI is not supported**; modules run as pure WebAssembly bytecode under explicit host capabilities.
-   - Executed within a strict `wasmtime` capability sandbox:
-     - Explicit domain whitelisting (e.g. `"net:api.igdb.com"`).
-     - Storage ACL and fuel consumption limits (preventing runaway loops or memory leaks).
-     - Epoch interruption timers to enforce timeouts on synchronous tasks.
+Omnis includes **6 built-in native providers** for rich metadata, covers, playtime estimates, and critic scores:
 
-### Runtime Discovery & Environments
+| Provider | Supported Features | Credentials Required |
+| :--- | :--- | :--- |
+| **Steam Store** | Details, descriptions, genres, release dates, screenshots, hero banners | No (Public API) |
+| **GOG** | Descriptions, covers, release dates, background artwork | No (Public API) |
+| **IGDB** | Comprehensive game database, high-res artwork, developer/publisher, genres | Yes (Twitch Client ID & Client Secret) |
+| **SteamGridDB** | High-res grids, hero banners, logos, and icons | Yes (SteamGridDB API Key) |
+| **OpenCritic** | Critic average scores, recommendations, review tiers | Yes (RapidAPI Key) |
+| **HowLongToBeat** | Live search & playtime estimates (Main Story, Main + Extra, Completionist) | No (Direct built-in scraper) |
 
-- **Plugin Directory Layout**:
-  - Windows: `%LOCALAPPDATA%\com.omnis.gamelibrary\plugins` (or `%APPDATA%\Omnis Game Library\plugins`)
-  - Linux: `~/.local/share/com.omnis.gamelibrary/plugins`
-  - macOS: `~/Library/Application Support/com.omnis.gamelibrary/plugins`
-  - Portable: `<exe_dir>/data/plugins`
-- **Desktop UI (`omnis`)**: Initializes all 4 Tier 0 plugins (local manifest scanning and OAuth cloud synchronization), alongside dynamically discovered Tier 1 dynamic libraries (Tier 2 WebAssembly is experimental and not yet integrated into the desktop shell).
-- **Headless CLI (`omnis-cli`)**: Boots in lightweight offline mode with Tier 0 local scanners (`steam`, `epic`). Cloud-only syncs (GOG, Xbox) require interactive OAuth flows managed by the desktop shell.
-
-### Developing External Plugins
-
-- **For Native Plugins (Tier 1)**: Refer to [`examples/sample_plugin`](examples/sample_plugin) and [`crates/omnis_sdk`](crates/omnis_sdk). Currently supports external metadata providers. Expose standard C-ABI symbols:
-  - `omnis_plugin_get_manifest`
-  - `omnis_metadata_fetch`
-  - `omnis_plugin_abi_version`
-  - `omnis_free_string`
-  - *(optional)* `omnis_metadata_test`
-- **For WebAssembly Plugins (Tier 2 — Experimental)**: Experimental sandbox. Compile targeting pure WebAssembly (WASI is not supported). Declare required network permissions in `plugin.json` (e.g., `"permissions": ["net:api.example.com"]`).
+#### Reorderable Priority Pipeline & Settings
+- **Custom Priority Ordering**: Users can customize the evaluation order of metadata providers (e.g., prioritize SteamGridDB for covers, IGDB for descriptions, and OpenCritic for review scores) directly from **Settings → Metadata → Pipeline Priority**.
+- **Credentials & Connectivity**: Each provider tab features direct developer portal links, credential testing, and real-time connectivity status badges.
+- **Unified Settings Persistence**: Provider keys and pipeline configuration are persisted in `metadata_settings.json` and `pipeline_config.json` inside the application config directory.
 
 ---
 

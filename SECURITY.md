@@ -21,8 +21,8 @@ You can expect an acknowledgement within a few days. Once a fix is available, a 
 Areas of particular interest include:
 
 - storage of store credentials and tokens (secret vault, OS keyring, envelope encryption);
-- OAuth / store session handling;
-- the plugin system (native C-ABI loader, WASM sandbox, marketplace package installation);
+- store session handling and OAuth flow security;
+- the metadata resolution pipeline and media caching;
 - theme loading and CSS validation;
 - the auto-update channel and its signature verification;
 - the Tauri IPC surface and content security policy.

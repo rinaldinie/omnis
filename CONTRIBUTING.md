@@ -57,9 +57,9 @@ The project follows [Conventional Commits](https://www.conventionalcommits.org/)
 
 - Add or update tests for behavioural changes. Integration tests for the engine live in `crates/omnis_core/tests/`.
 
-## Plugins
+## Store Integrations & Metadata Providers
 
-Built-in integrations live in `plugins/`. For external native plugins, start from the reference template in [`examples/sample_plugin`](examples/sample_plugin).
+Store integrations live as modular crates in `plugins/` (e.g. `omnis_plugin_steam`, `omnis_plugin_epic`, `omnis_plugin_gog`, `omnis_plugin_xbox`). Metadata providers (Steam, GOG, IGDB, SteamGridDB, OpenCritic, HowLongToBeat) are implemented natively inside `crates/omnis_core/src/metadata/` using the contracts defined in `crates/omnis_sdk`.
 
 ## Reporting Issues
 
