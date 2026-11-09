@@ -63,6 +63,7 @@ impl MetadataPipelineResolver {
             enabled,
             settings,
             effective_details_source,
+            &pipeline.provider_priority,
         )
         .await;
 
@@ -106,6 +107,7 @@ impl MetadataPipelineResolver {
             &artwork_pre,
             details_cover_fallback,
             details_bg_fallback,
+            &pipeline.provider_priority,
         )
         .await;
 
@@ -119,12 +121,20 @@ impl MetadataPipelineResolver {
             settings,
             effective_score_source,
             effective_details_source,
+            &pipeline.provider_priority,
         )
         .await;
 
         // 4. Query enabled external/enrichment providers that contribute extra_metadata (e.g. HowLongToBeat)
-        Self::merge_enrichment_metadata(&mut final_patch, request, providers, enabled, settings)
-            .await;
+        Self::merge_enrichment_metadata(
+            &mut final_patch,
+            request,
+            providers,
+            enabled,
+            settings,
+            &pipeline.provider_priority,
+        )
+        .await;
 
         // 5. Generate aesthetic fallback only if fields are still empty
         Self::apply_fallback_if_needed(&mut final_patch, game, &fallback_fn);
@@ -221,26 +231,33 @@ impl MetadataPipelineResolver {
         enabled: &HashMap<String, bool>,
         settings: &HashMap<String, Map<String, Value>>,
         primary_source: &str,
+        priority_order: &[String],
     ) -> Option<GameMetadataPatch> {
+        // 1. Try primary configured source
         if enabled.get(primary_source).copied().unwrap_or(true) {
             if let Some(prov) = providers.get(primary_source) {
                 let s = settings.get(primary_source).cloned().unwrap_or_default();
                 if let Ok(patch) = prov.fetch_metadata(request, &s).await {
-                    return Some(patch);
+                    if patch.description.is_some() || !patch.genres.is_empty() {
+                        return Some(patch);
+                    }
                 }
             }
         }
 
-        let alt_store = if primary_source == "steam" {
-            "gog"
-        } else {
-            "steam"
-        };
-        if enabled.get(alt_store).copied().unwrap_or(true) {
-            if let Some(prov) = providers.get(alt_store) {
-                let s = settings.get(alt_store).cloned().unwrap_or_default();
-                if let Ok(patch) = prov.fetch_metadata(request, &s).await {
-                    return Some(patch);
+        // 2. Fallback through provider priority list
+        for prov_id in priority_order {
+            if prov_id == primary_source {
+                continue;
+            }
+            if enabled.get(prov_id).copied().unwrap_or(true) {
+                if let Some(prov) = providers.get(prov_id) {
+                    let s = settings.get(prov_id).cloned().unwrap_or_default();
+                    if let Ok(patch) = prov.fetch_metadata(request, &s).await {
+                        if patch.description.is_some() || !patch.genres.is_empty() {
+                            return Some(patch);
+                        }
+                    }
                 }
             }
         }
@@ -302,6 +319,7 @@ impl MetadataPipelineResolver {
         artwork_pre: &ArtworkPrerequisites,
         details_cover_fallback: Option<String>,
         details_bg_fallback: Option<String>,
+        priority_order: &[String],
     ) {
         if artwork_pre.should_fetch_cover && final_patch.cover_url.is_none() {
             if cover_source != details_source && enabled.get(cover_source).copied().unwrap_or(false)
@@ -311,6 +329,24 @@ impl MetadataPipelineResolver {
                     if let Ok(cov_patch) = prov.fetch_metadata(request, &s).await {
                         if cov_patch.cover_url.is_some() {
                             final_patch.cover_url = cov_patch.cover_url;
+                        }
+                    }
+                }
+            }
+            if final_patch.cover_url.is_none() {
+                for prov_id in priority_order {
+                    if prov_id == cover_source || prov_id == details_source {
+                        continue;
+                    }
+                    if enabled.get(prov_id).copied().unwrap_or(false) {
+                        if let Some(prov) = providers.get(prov_id) {
+                            let s = settings.get(prov_id).cloned().unwrap_or_default();
+                            if let Ok(cov_patch) = prov.fetch_metadata(request, &s).await {
+                                if cov_patch.cover_url.is_some() {
+                                    final_patch.cover_url = cov_patch.cover_url;
+                                    break;
+                                }
+                            }
                         }
                     }
                 }
@@ -333,6 +369,24 @@ impl MetadataPipelineResolver {
                 }
             }
             if final_patch.background_url.is_none() {
+                for prov_id in priority_order {
+                    if prov_id == bg_source || prov_id == details_source {
+                        continue;
+                    }
+                    if enabled.get(prov_id).copied().unwrap_or(false) {
+                        if let Some(prov) = providers.get(prov_id) {
+                            let s = settings.get(prov_id).cloned().unwrap_or_default();
+                            if let Ok(bg_patch) = prov.fetch_metadata(request, &s).await {
+                                if bg_patch.background_url.is_some() {
+                                    final_patch.background_url = bg_patch.background_url;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if final_patch.background_url.is_none() {
                 final_patch.background_url =
                     details_bg_fallback.or(artwork_pre.remote_bg_to_cache.clone());
             }
@@ -349,6 +403,7 @@ impl MetadataPipelineResolver {
         settings: &HashMap<String, Map<String, Value>>,
         score_source: &str,
         details_source: &str,
+        priority_order: &[String],
     ) {
         if game.critic_score.is_none()
             && final_patch.critic_score.is_none()
@@ -365,6 +420,25 @@ impl MetadataPipelineResolver {
                 }
             }
         }
+        if game.critic_score.is_none() && final_patch.critic_score.is_none() {
+            for prov_id in priority_order {
+                if prov_id == score_source || prov_id == details_source {
+                    continue;
+                }
+                if enabled.get(prov_id).copied().unwrap_or(false) {
+                    if let Some(prov) = providers.get(prov_id) {
+                        let s = settings.get(prov_id).cloned().unwrap_or_default();
+                        if let Ok(sc_patch) = prov.fetch_metadata(request, &s).await {
+                            if sc_patch.critic_score.is_some() {
+                                final_patch.critic_score = sc_patch.critic_score;
+                                final_patch.community_score = sc_patch.community_score;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     async fn merge_enrichment_metadata(
@@ -373,33 +447,36 @@ impl MetadataPipelineResolver {
         providers: &HashMap<String, Box<dyn MetadataProvider>>,
         enabled: &HashMap<String, bool>,
         settings: &HashMap<String, Map<String, Value>>,
+        priority_order: &[String],
     ) {
-        for (prov_id, prov) in providers {
+        for prov_id in priority_order {
             if prov_id != "steam"
                 && prov_id != "gog"
                 && prov_id != "epic"
                 && enabled.get(prov_id).copied().unwrap_or(true)
             {
-                let s = settings.get(prov_id).cloned().unwrap_or_default();
-                if let Ok(p_patch) = prov.fetch_metadata(request, &s).await {
-                    if let Some(extra) = p_patch.extra_metadata {
-                        let mut current_merged: serde_json::Map<String, serde_json::Value> =
-                            final_patch
-                                .extra_metadata
-                                .as_deref()
-                                .and_then(|s| serde_json::from_str(s).ok())
-                                .unwrap_or_default();
-                        if let Ok(incoming) = serde_json::from_str::<
-                            serde_json::Map<String, serde_json::Value>,
-                        >(&extra)
-                        {
-                            for (k, v) in incoming {
-                                current_merged.insert(k, v);
+                if let Some(prov) = providers.get(prov_id) {
+                    let s = settings.get(prov_id).cloned().unwrap_or_default();
+                    if let Ok(p_patch) = prov.fetch_metadata(request, &s).await {
+                        if let Some(extra) = p_patch.extra_metadata {
+                            let mut current_merged: serde_json::Map<String, serde_json::Value> =
+                                final_patch
+                                    .extra_metadata
+                                    .as_deref()
+                                    .and_then(|s| serde_json::from_str(s).ok())
+                                    .unwrap_or_default();
+                            if let Ok(incoming) = serde_json::from_str::<
+                                serde_json::Map<String, serde_json::Value>,
+                            >(&extra)
+                            {
+                                for (k, v) in incoming {
+                                    current_merged.entry(k).or_insert(v);
+                                }
+                                final_patch.extra_metadata =
+                                    Some(serde_json::to_string(&current_merged).unwrap_or(extra));
+                            } else if final_patch.extra_metadata.is_none() {
+                                final_patch.extra_metadata = Some(extra);
                             }
-                            final_patch.extra_metadata =
-                                Some(serde_json::to_string(&current_merged).unwrap_or(extra));
-                        } else {
-                            final_patch.extra_metadata = Some(extra);
                         }
                     }
                 }

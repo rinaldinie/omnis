@@ -102,6 +102,7 @@ export interface TranslationSchema {
     options: string;
     settings: string;
     playnite_import?: string;
+    metadata_settings?: string;
     zoom_ui: string;
     zoom_in: string;
     zoom_out: string;
@@ -860,6 +861,7 @@ export interface TranslationSchema {
     version_info: string;
     tab_general: string;
     tab_accounts: string;
+    tab_metadata?: string;
     tab_achievements?: string;
     tab_backup?: string;
     tray_section: string;
@@ -1340,5 +1342,124 @@ export interface TranslationSchema {
     available_copies: string;
     active_copy: string;
     switch_copy: string;
+  };
+  metadata_settings: {
+    tab_title: string;
+    tab_pipeline: string;
+    provider_enabled: string;
+    provider_disabled: string;
+    saved_success: string;
+    pipeline_saved: string;
+    test_success: string;
+    badge_native: string;
+    badge_authenticated: string;
+    badge_missing_credentials: string;
+    badge_key_required: string;
+    badge_rapidapi_required: string;
+    badge_disabled: string;
+    badge_active: string;
+    badge_inactive: string;
+    badge_builtin_integrated: string;
+    badge_zero_config: string;
+    btn_test_connection: string;
+    btn_save_credentials: string;
+    btn_save_settings: string;
+    btn_save_status: string;
+    btn_save_pipeline: string;
+
+    // IGDB
+    igdb_desc: string;
+    igdb_credentials_title: string;
+    igdb_credentials_desc: string;
+    igdb_client_id_title: string;
+    igdb_client_id_desc: string;
+    igdb_client_secret_title: string;
+    igdb_client_secret_desc: string;
+    igdb_guide_title: string;
+    igdb_guide_desc: string;
+    igdb_btn_console: string;
+    igdb_testing: string;
+
+    // SteamGridDB
+    sgdb_desc: string;
+    sgdb_credentials_title: string;
+    sgdb_credentials_desc: string;
+    sgdb_api_key_title: string;
+    sgdb_api_key_desc: string;
+    sgdb_guide_title: string;
+    sgdb_guide_desc: string;
+    sgdb_btn_portal: string;
+    sgdb_testing: string;
+
+    // OpenCritic
+    opencritic_desc: string;
+    opencritic_credentials_title: string;
+    opencritic_credentials_desc: string;
+    opencritic_rapidapi_key_title: string;
+    opencritic_rapidapi_key_desc: string;
+    opencritic_guide_title: string;
+    opencritic_guide_desc: string;
+    opencritic_btn_portal: string;
+    opencritic_testing: string;
+
+    // HowLongToBeat
+    hltb_desc: string;
+    hltb_metrics_title: string;
+    hltb_metrics_desc: string;
+    hltb_main_badge: string;
+    hltb_main_title: string;
+    hltb_main_desc: string;
+    hltb_extra_badge: string;
+    hltb_extra_title: string;
+    hltb_extra_desc: string;
+    hltb_comp_badge: string;
+    hltb_comp_title: string;
+    hltb_comp_desc: string;
+    hltb_integration_title: string;
+    hltb_integration_item1: string;
+    hltb_integration_item2: string;
+    hltb_integration_item3: string;
+    hltb_btn_test: string;
+    hltb_testing: string;
+
+    // Pipeline
+    pipeline_title: string;
+    pipeline_desc: string;
+    provider_priority_title: string;
+    provider_priority_desc: string;
+    top_priority: string;
+    move_up: string;
+    move_down: string;
+    prov_steamgriddb_name: string;
+    prov_steamgriddb_desc: string;
+    prov_steam_name: string;
+    prov_steam_desc: string;
+    prov_igdb_name: string;
+    prov_igdb_desc: string;
+    prov_opencritic_name: string;
+    prov_opencritic_desc: string;
+    prov_hltb_name: string;
+    prov_hltb_desc: string;
+    prov_gog_name: string;
+    prov_gog_desc: string;
+    pipeline_sources_title: string;
+    pipeline_sources_desc: string;
+    pipeline_cover_title: string;
+    pipeline_cover_desc: string;
+    pipeline_bg_title: string;
+    pipeline_bg_desc: string;
+    pipeline_score_title: string;
+    pipeline_score_desc: string;
+    pipeline_details_title: string;
+    pipeline_details_desc: string;
+    pipeline_preserve_title: string;
+    pipeline_preserve_desc: string;
+    pipeline_preserve_row_title: string;
+    pipeline_preserve_row_desc: string;
+    pipeline_preserve_protected: string;
+    pipeline_preserve_overwrite: string;
+    opt_official: string;
+    opt_official_drm_free: string;
+    opt_localized: string;
   };
 }

@@ -422,3 +422,25 @@ fn test_generate_fallback_metadata_facade() {
     assert_eq!(patch.developers, vec!["Official Developer".to_string()]);
     assert!(patch.description.unwrap().contains("Baldur's Gate 3"));
 }
+
+#[tokio::test]
+async fn test_provider_priority_in_candidate_search() {
+    let downloader = MetadataDownloader::new();
+    let mut config = MetadataPipelineConfig::default();
+    config.provider_priority = vec!["gog".to_string(), "steam".to_string(), "igdb".to_string()];
+    downloader.save_pipeline_config(config).await.unwrap();
+
+    let candidates = downloader.search_candidates("Witcher", None).await.unwrap();
+    if candidates.len() >= 2 {
+        let gog_idx = candidates.iter().position(|c| c.provider_id == "gog");
+        let steam_idx = candidates.iter().position(|c| c.provider_id == "steam");
+        if let (Some(gi), Some(si)) = (gog_idx, steam_idx) {
+            assert!(
+                gi < si,
+                "GOG (index {}) should appear before Steam (index {}) when prioritized in pipeline config",
+                gi,
+                si
+            );
+        }
+    }
+}

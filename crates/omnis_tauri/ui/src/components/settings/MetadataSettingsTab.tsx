@@ -14,13 +14,10 @@ import {
   EyeOff,
   RefreshCw,
   SlidersHorizontal,
-  Folder,
-  Star,
-  Scroll,
-  ArrowUp,
-  ArrowDown,
   Info,
   Check,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { api } from "../../api";
 import { useTranslation } from "../../i18n";
@@ -28,7 +25,35 @@ import { openExternalUrl } from "../../utils/openUrl";
 import { soundEffects } from "../../utils/soundEffects";
 import { ProviderInfo, MetadataPipelineConfig } from "../../types";
 import { SettingGroup, SettingRow, ToggleSwitch } from "./SettingsControls";
-import { SteamIcon, GogIcon } from "../StoreBadge";
+import { StoreIcon } from "../StoreBadge";
+
+const ALL_METADATA_SOURCES = [
+  "steamgriddb",
+  "steam",
+  "igdb",
+  "opencritic",
+  "howlongtobeat",
+  "gog",
+];
+
+function normalizeProviderPriority(raw?: string[]): string[] {
+  const result: string[] = [];
+  if (Array.isArray(raw)) {
+    for (const item of raw) {
+      const normalized =
+        item.toLowerCase() === "hltb" ? "howlongtobeat" : item.toLowerCase();
+      if (ALL_METADATA_SOURCES.includes(normalized) && !result.includes(normalized)) {
+        result.push(normalized);
+      }
+    }
+  }
+  for (const src of ALL_METADATA_SOURCES) {
+    if (!result.includes(src)) {
+      result.push(src);
+    }
+  }
+  return result;
+}
 
 export type MetadataSubTab =
   | "igdb"
@@ -61,6 +86,7 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
     score_source: "opencritic",
     details_source: "steam",
     preserve_existing_artwork: true,
+    provider_priority: ALL_METADATA_SOURCES,
   });
 
   const [settingsValues, setSettingsValues] = useState<
@@ -94,7 +120,10 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
       }
 
       if (pipe) {
-        setPipelineConfig(pipe);
+        setPipelineConfig({
+          ...pipe,
+          provider_priority: normalizeProviderPriority(pipe.provider_priority),
+        });
       }
     } catch (err) {
       console.warn("Failed loading metadata settings data:", err);
@@ -146,17 +175,19 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
         "success",
         enabled
           ? t("metadata_settings.provider_enabled", {
-              defaultValue: `Provider ${providerId.toUpperCase()} abilitato con successo.`,
+              provider: providerId.toUpperCase(),
+              defaultValue: `Provider ${providerId.toUpperCase()} enabled.`,
             })
           : t("metadata_settings.provider_disabled", {
-              defaultValue: `Provider ${providerId.toUpperCase()} disabilitato.`,
+              provider: providerId.toUpperCase(),
+              defaultValue: `Provider ${providerId.toUpperCase()} disabled.`,
             })
       );
       await loadData();
     } catch (err: any) {
       showBannerMessage(
         "error",
-        `Errore durante l'attivazione: ${err?.message || err}`
+        String(err?.message || err)
       );
     }
   };
@@ -170,14 +201,15 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
       showBannerMessage(
         "success",
         t("metadata_settings.saved_success", {
-          defaultValue: `Impostazioni di ${providerId.toUpperCase()} salvate correttamente.`,
+          provider: providerId.toUpperCase(),
+          defaultValue: `${providerId.toUpperCase()} settings saved successfully.`,
         })
       );
       await loadData();
     } catch (err: any) {
       showBannerMessage(
         "error",
-        `Errore durante il salvataggio: ${err?.message || err}`
+        String(err?.message || err)
       );
     } finally {
       setIsSaving((prev) => ({ ...prev, [providerId]: false }));
@@ -202,7 +234,7 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
         [providerId]: {
           loading: false,
           success: true,
-          message: res || "Connessione riuscita!",
+          message: res || t("metadata_settings.test_success", { defaultValue: "Connection successful!" }),
         },
       }));
       await loadData();
@@ -226,36 +258,122 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
       showBannerMessage(
         "success",
         t("metadata_settings.pipeline_saved", {
-          defaultValue: "Configurazione della pipeline salvata con successo.",
+          defaultValue: "Pipeline configuration saved successfully.",
         })
       );
       await loadData();
     } catch (err: any) {
       showBannerMessage(
         "error",
-        `Errore salvataggio pipeline: ${err?.message || err}`
+        String(err?.message || err)
       );
     } finally {
       setIsSavingPipeline(false);
     }
   };
 
-  const defaultPriorityOrder = [
-    "steamgriddb",
-    "steam",
-    "gog",
-    "igdb",
-    "opencritic",
-    "howlongtobeat",
-  ];
+  const handleMovePriority = async (index: number, direction: -1 | 1) => {
+    const currentList = normalizeProviderPriority(pipelineConfig.provider_priority);
+    const nextIndex = index + direction;
+    if (nextIndex < 0 || nextIndex >= currentList.length) return;
+    soundEffects.playNav();
+    const nextPriority = [...currentList];
+    const [moved] = nextPriority.splice(index, 1);
+    nextPriority.splice(nextIndex, 0, moved);
+    const updated: MetadataPipelineConfig = {
+      ...pipelineConfig,
+      provider_priority: nextPriority,
+    };
+    setPipelineConfig(updated);
+    try {
+      await api.metadata.savePipelineConfig(updated);
+    } catch (err) {
+      console.warn("Failed to auto-save metadata pipeline order:", err);
+    }
+  };
 
-  const movePriority = (index: number, direction: "up" | "down") => {
-    const list = [...defaultPriorityOrder];
-    const targetIdx = direction === "up" ? index - 1 : index + 1;
-    if (targetIdx < 0 || targetIdx >= list.length) return;
-    const temp = list[index];
-    list[index] = list[targetIdx];
-    list[targetIdx] = temp;
+  const renderProviderIcon = (provId: string) => {
+    switch (provId) {
+      case "steam":
+      case "gog":
+        return <StoreIcon library={provId} className="w-4 h-4" />;
+      case "steamgriddb":
+        return <Image className="w-4 h-4 text-emerald-400" />;
+      case "igdb":
+        return <Database className="w-4 h-4 text-indigo-400" />;
+      case "opencritic":
+        return <Award className="w-4 h-4 text-amber-400" />;
+      case "howlongtobeat":
+      case "hltb":
+        return <Clock className="w-4 h-4 text-blue-400" />;
+      default:
+        return <Sparkles className="w-4 h-4 text-slate-300" />;
+    }
+  };
+
+  const getProviderMeta = (provId: string) => {
+    switch (provId) {
+      case "steamgriddb":
+        return {
+          name: t("metadata_settings.prov_steamgriddb_name", {
+            defaultValue: "SteamGridDB",
+          }),
+          description: t("metadata_settings.prov_steamgriddb_desc", {
+            defaultValue: "Artwork HD (copertine 600x900, loghi e sfondi panoramici)",
+          }),
+        };
+      case "steam":
+        return {
+          name: t("metadata_settings.prov_steam_name", {
+            defaultValue: "Steam Store",
+          }),
+          description: t("metadata_settings.prov_steam_desc", {
+            defaultValue: "Descrizioni ufficiali localizzate, tag, generi, screenshot e metadati nativi",
+          }),
+        };
+      case "igdb":
+        return {
+          name: t("metadata_settings.prov_igdb_name", {
+            defaultValue: "IGDB (Twitch)",
+          }),
+          description: t("metadata_settings.prov_igdb_desc", {
+            defaultValue: "Database multimediale completo: sinossi, rating critico/community e franchise",
+          }),
+        };
+      case "opencritic":
+        return {
+          name: t("metadata_settings.prov_opencritic_name", {
+            defaultValue: "OpenCritic",
+          }),
+          description: t("metadata_settings.prov_opencritic_desc", {
+            defaultValue: "Top Critic Score ufficiale, tier percentuali e recensioni della critica",
+          }),
+        };
+      case "howlongtobeat":
+      case "hltb":
+        return {
+          name: t("metadata_settings.prov_hltb_name", {
+            defaultValue: "HowLongToBeat",
+          }),
+          description: t("metadata_settings.prov_hltb_desc", {
+            defaultValue: "Statistiche stimate di completamento (Main Story, Main+Extra, Completionist)",
+          }),
+        };
+      case "gog":
+        return {
+          name: t("metadata_settings.prov_gog_name", {
+            defaultValue: "GOG Catalog",
+          }),
+          description: t("metadata_settings.prov_gog_desc", {
+            defaultValue: "Metadati ufficiali e artwork HD dal catalogo store DRM-Free",
+          }),
+        };
+      default:
+        return {
+          name: provId.toUpperCase(),
+          description: provId,
+        };
+    }
   };
 
   return (
@@ -285,7 +403,7 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
             },
             {
               id: "pipeline" as MetadataSubTab,
-              label: "Priorità Pipeline",
+              label: t("metadata_settings.tab_pipeline", { defaultValue: "Priorità Pipeline" }),
               icon: SlidersHorizontal,
             },
           ].map((tab) => {
@@ -374,54 +492,69 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
                       IGDB (Internet Game Database)
                     </h3>
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                      Nativo
+                      {t("metadata_settings.badge_native", { defaultValue: "Nativo" })}
                     </span>
                     {isEnabled ? (
                       hasKey ? (
                         <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                           <CheckCircle2 className="w-3 h-3" />
-                          <span>Autenticato</span>
+                          <span>{t("metadata_settings.badge_authenticated", { defaultValue: "Autenticato" })}</span>
                         </span>
                       ) : (
                         <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
                           <Key className="w-3 h-3" />
-                          <span>Credenziali mancanti</span>
+                          <span>{t("metadata_settings.badge_missing_credentials", { defaultValue: "Credenziali mancanti" })}</span>
                         </span>
                       )
                     ) : (
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700/50">
-                        Disabilitato
+                        {t("metadata_settings.badge_disabled", { defaultValue: "Disabilitato" })}
                       </span>
                     )}
                   </div>
                   <p className="text-xs text-slate-400 mt-1 max-w-xl">
-                    Database globale gestito da Twitch con sinossi ufficiali,
-                    screenshot ad alta risoluzione, generi, date di rilascio e
-                    valutazioni della critica.
+                    {t("metadata_settings.igdb_desc", {
+                      defaultValue:
+                        "Database globale gestito da Twitch con sinossi ufficiali, screenshot ad alta risoluzione, generi, date di rilascio e valutazioni della critica.",
+                    })}
                   </p>
                 </div>
               </div>
 
               <div className="flex items-center gap-2.5 shrink-0 self-end md:self-center">
                 <span className="text-xs font-bold text-slate-300">
-                  {isEnabled ? "Attivo" : "Disattivato"}
+                  {isEnabled
+                    ? t("metadata_settings.badge_active", { defaultValue: "Attivo" })
+                    : t("metadata_settings.badge_inactive", { defaultValue: "Disattivato" })}
                 </span>
                 <ToggleSwitch
                   checked={isEnabled}
                   onChange={(val) => handleToggle("igdb", val)}
-                  ariaLabel={isEnabled ? "Attivo" : "Disattivato"}
+                  ariaLabel={
+                    isEnabled
+                      ? t("metadata_settings.badge_active", { defaultValue: "Attivo" })
+                      : t("metadata_settings.badge_inactive", { defaultValue: "Disattivato" })
+                  }
                 />
               </div>
             </div>
 
             {/* Credentials & Settings Group */}
             <SettingGroup
-              title="Credenziali API Twitch / IGDB"
-              description="Richieste per autorizzare le chiamate Apicalypse v4 tramite OAuth2 Twitch"
+              title={t("metadata_settings.igdb_credentials_title", {
+                defaultValue: "Credenziali API Twitch / IGDB",
+              })}
+              description={t("metadata_settings.igdb_credentials_desc", {
+                defaultValue: "Richieste per autorizzare le chiamate Apicalypse v4 tramite OAuth2 Twitch",
+              })}
             >
               <SettingRow
-                title="Client ID Twitch"
-                description="L'identificativo client della tua applicazione creata nella Twitch Developer Console."
+                title={t("metadata_settings.igdb_client_id_title", {
+                  defaultValue: "Client ID Twitch",
+                })}
+                description={t("metadata_settings.igdb_client_id_desc", {
+                  defaultValue: "L'identificativo client della tua applicazione creata nella Twitch Developer Console.",
+                })}
               >
                 <div className="w-full md:w-80">
                   <input
@@ -442,8 +575,12 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
               </SettingRow>
 
               <SettingRow
-                title="Client Secret Twitch"
-                description="La chiave segreta dell'applicazione. Verrà cifrata e memorizzata in modo sicuro."
+                title={t("metadata_settings.igdb_client_secret_title", {
+                  defaultValue: "Client Secret Twitch",
+                })}
+                description={t("metadata_settings.igdb_client_secret_desc", {
+                  defaultValue: "La chiave segreta dell'applicazione. Verrà cifrata e memorizzata in modo sicuro.",
+                })}
               >
                 <div className="w-full md:w-80 relative flex items-center">
                   <input
@@ -495,12 +632,15 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
               <div className="space-y-1">
                 <span className="font-bold text-white flex items-center gap-1.5">
                   <Info className="w-4 h-4 text-indigo-400" />
-                  Come ottenere le credenziali gratuite:
+                  {t("metadata_settings.igdb_guide_title", {
+                    defaultValue: "Come ottenere le credenziali gratuite:",
+                  })}
                 </span>
                 <p className="text-slate-400 text-[11px] leading-relaxed max-w-xl">
-                  Accedi a Twitch Dev Console, registra una nuova applicazione
-                  (URL reindirizzamento: http://localhost, categoria: Application
-                  Integration), genera un Client Secret e incollali qui sopra.
+                  {t("metadata_settings.igdb_guide_desc", {
+                    defaultValue:
+                      "Accedi a Twitch Dev Console, registra una nuova applicazione (URL reindirizzamento: http://localhost, categoria: Application Integration), genera un Client Secret e incollali qui sopra.",
+                  })}
                 </p>
               </div>
               <button
@@ -515,7 +655,11 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
                   color: "var(--text-primary)",
                 }}
               >
-                <span>Console Sviluppatori Twitch</span>
+                <span>
+                  {t("metadata_settings.igdb_btn_console", {
+                    defaultValue: "Console Sviluppatori Twitch",
+                  })}
+                </span>
                 <ExternalLink className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -532,7 +676,11 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
                 {test?.loading && (
                   <div className="flex items-center gap-2 text-xs text-indigo-400 animate-pulse">
                     <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Autenticazione OAuth e verifica IGDB in corso...</span>
+                    <span>
+                      {t("metadata_settings.igdb_testing", {
+                        defaultValue: "Autenticazione OAuth e verifica IGDB in corso...",
+                      })}
+                    </span>
                   </div>
                 )}
                 {!test?.loading && test?.message && (
@@ -564,7 +712,11 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
                   }}
                 >
                   <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                  <span>Testa Connessione</span>
+                  <span>
+                    {t("metadata_settings.btn_test_connection", {
+                      defaultValue: "Testa Connessione",
+                    })}
+                  </span>
                 </button>
                 <button
                   type="button"
@@ -578,7 +730,11 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
                   ) : (
                     <Check className="w-3.5 h-3.5" />
                   )}
-                  <span>Salva Credenziali</span>
+                  <span>
+                    {t("metadata_settings.btn_save_credentials", {
+                      defaultValue: "Salva Credenziali",
+                    })}
+                  </span>
                 </button>
               </div>
             </div>
@@ -624,54 +780,69 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
                       SteamGridDB
                     </h3>
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                      Nativo
+                      {t("metadata_settings.badge_native", { defaultValue: "Nativo" })}
                     </span>
                     {isEnabled ? (
                       hasKey ? (
                         <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                           <CheckCircle2 className="w-3 h-3" />
-                          <span>Autenticato</span>
+                          <span>{t("metadata_settings.badge_authenticated", { defaultValue: "Autenticato" })}</span>
                         </span>
                       ) : (
                         <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
                           <Key className="w-3 h-3" />
-                          <span>API Key richiesta</span>
+                          <span>{t("metadata_settings.badge_key_required", { defaultValue: "API Key richiesta" })}</span>
                         </span>
                       )
                     ) : (
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700/50">
-                        Disabilitato
+                        {t("metadata_settings.badge_disabled", { defaultValue: "Disabilitato" })}
                       </span>
                     )}
                   </div>
                   <p className="text-xs text-slate-400 mt-1 max-w-xl">
-                    Il gold standard della community per copertine verticali HD
-                    (600x900), sfondi panoramici Hero (1920x1080 / 4K), loghi
-                    trasparenti e icone.
+                    {t("metadata_settings.sgdb_desc", {
+                      defaultValue:
+                        "Il gold standard della community per copertine verticali HD (600x900), sfondi panoramici Hero (1920x1080 / 4K), loghi trasparenti e icone.",
+                    })}
                   </p>
                 </div>
               </div>
 
               <div className="flex items-center gap-2.5 shrink-0 self-end md:self-center">
                 <span className="text-xs font-bold text-slate-300">
-                  {isEnabled ? "Attivo" : "Disattivato"}
+                  {isEnabled
+                    ? t("metadata_settings.badge_active", { defaultValue: "Attivo" })
+                    : t("metadata_settings.badge_inactive", { defaultValue: "Disattivato" })}
                 </span>
                 <ToggleSwitch
                   checked={isEnabled}
                   onChange={(val) => handleToggle("steamgriddb", val)}
-                  ariaLabel={isEnabled ? "Attivo" : "Disattivato"}
+                  ariaLabel={
+                    isEnabled
+                      ? t("metadata_settings.badge_active", { defaultValue: "Attivo" })
+                      : t("metadata_settings.badge_inactive", { defaultValue: "Disattivato" })
+                  }
                 />
               </div>
             </div>
 
             {/* Credentials Group */}
             <SettingGroup
-              title="Credenziali SteamGridDB"
-              description="Richiesta una chiave API personale per effettuare ricerche e download di artwork HD"
+              title={t("metadata_settings.sgdb_credentials_title", {
+                defaultValue: "Credenziali SteamGridDB",
+              })}
+              description={t("metadata_settings.sgdb_credentials_desc", {
+                defaultValue: "Richiesta una chiave API personale per effettuare ricerche e download di artwork HD",
+              })}
             >
               <SettingRow
-                title="API Key"
-                description="La tua chiave API SteamGridDB personale (generabile dal tuo profilo)."
+                title={t("metadata_settings.sgdb_api_key_title", {
+                  defaultValue: "API Key",
+                })}
+                description={t("metadata_settings.sgdb_api_key_desc", {
+                  defaultValue: "La tua chiave API SteamGridDB personale (generabile dal tuo profilo).",
+                })}
               >
                 <div className="w-full md:w-80 relative flex items-center">
                   <input
@@ -723,12 +894,15 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
               <div className="space-y-1">
                 <span className="font-bold text-white flex items-center gap-1.5">
                   <Info className="w-4 h-4 text-cyan-400" />
-                  Come ottenere la tua chiave gratuita:
+                  {t("metadata_settings.sgdb_guide_title", {
+                    defaultValue: "Come ottenere la tua chiave gratuita:",
+                  })}
                 </span>
                 <p className="text-slate-400 text-[11px] leading-relaxed max-w-xl">
-                  Accedi su steamgriddb.com con il tuo account, apri le
-                  Preferenze del profilo &gt; sezione API, genera una nuova
-                  chiave e incollala qui.
+                  {t("metadata_settings.sgdb_guide_desc", {
+                    defaultValue:
+                      "Accedi su steamgriddb.com con il tuo account, apri le Preferenze del profilo > sezione API, genera una nuova chiave e incollala qui.",
+                  })}
                 </p>
               </div>
               <button
@@ -745,7 +919,11 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
                   color: "var(--text-primary)",
                 }}
               >
-                <span>Genera API Key su SteamGridDB</span>
+                <span>
+                  {t("metadata_settings.sgdb_btn_portal", {
+                    defaultValue: "Genera API Key su SteamGridDB",
+                  })}
+                </span>
                 <ExternalLink className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -762,7 +940,11 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
                 {test?.loading && (
                   <div className="flex items-center gap-2 text-xs text-cyan-400 animate-pulse">
                     <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Verifica chiave SteamGridDB in corso...</span>
+                    <span>
+                      {t("metadata_settings.sgdb_testing", {
+                        defaultValue: "Verifica chiave SteamGridDB in corso...",
+                      })}
+                    </span>
                   </div>
                 )}
                 {!test?.loading && test?.message && (
@@ -794,7 +976,11 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
                   }}
                 >
                   <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                  <span>Testa Connessione</span>
+                  <span>
+                    {t("metadata_settings.btn_test_connection", {
+                      defaultValue: "Testa Connessione",
+                    })}
+                  </span>
                 </button>
                 <button
                   type="button"
@@ -808,7 +994,11 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
                   ) : (
                     <Check className="w-3.5 h-3.5" />
                   )}
-                  <span>Salva Impostazioni</span>
+                  <span>
+                    {t("metadata_settings.btn_save_settings", {
+                      defaultValue: "Salva Impostazioni",
+                    })}
+                  </span>
                 </button>
               </div>
             </div>
@@ -852,54 +1042,69 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="text-base font-bold text-white">OpenCritic</h3>
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                      Nativo
+                      {t("metadata_settings.badge_native", { defaultValue: "Nativo" })}
                     </span>
                     {isEnabled ? (
                       hasKey ? (
                         <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                           <CheckCircle2 className="w-3 h-3" />
-                          <span>Autenticato</span>
+                          <span>{t("metadata_settings.badge_authenticated", { defaultValue: "Autenticato" })}</span>
                         </span>
                       ) : (
                         <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
                           <Key className="w-3 h-3" />
-                          <span>RapidAPI Key richiesta</span>
+                          <span>{t("metadata_settings.badge_rapidapi_required", { defaultValue: "RapidAPI Key richiesta" })}</span>
                         </span>
                       )
                     ) : (
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700/50">
-                        Disabilitato
+                        {t("metadata_settings.badge_disabled", { defaultValue: "Disabilitato" })}
                       </span>
                     )}
                   </div>
                   <p className="text-xs text-slate-400 mt-1 max-w-xl">
-                    Aggregatore globale di recensioni e voti della stampa
-                    specializzata: Top Critic Score, percentuale di raccomandazione
-                    e badge di fascia (Mighty, Strong, Fair, Weak).
+                    {t("metadata_settings.opencritic_desc", {
+                      defaultValue:
+                        "Aggregatore globale di recensioni e voti della stampa specializzata: Top Critic Score, percentuale di raccomandazione e badge di fascia (Mighty, Strong, Fair, Weak).",
+                    })}
                   </p>
                 </div>
               </div>
 
               <div className="flex items-center gap-2.5 shrink-0 self-end md:self-center">
                 <span className="text-xs font-bold text-slate-300">
-                  {isEnabled ? "Attivo" : "Disattivato"}
+                  {isEnabled
+                    ? t("metadata_settings.badge_active", { defaultValue: "Attivo" })
+                    : t("metadata_settings.badge_inactive", { defaultValue: "Disattivato" })}
                 </span>
                 <ToggleSwitch
                   checked={isEnabled}
                   onChange={(val) => handleToggle("opencritic", val)}
-                  ariaLabel={isEnabled ? "Attivo" : "Disattivato"}
+                  ariaLabel={
+                    isEnabled
+                      ? t("metadata_settings.badge_active", { defaultValue: "Attivo" })
+                      : t("metadata_settings.badge_inactive", { defaultValue: "Disattivato" })
+                  }
                 />
               </div>
             </div>
 
             {/* Credentials Group */}
             <SettingGroup
-              title="Credenziali RapidAPI OpenCritic"
-              description="OpenCritic distribuisce i propri endpoint tramite il portale per sviluppatori RapidAPI"
+              title={t("metadata_settings.opencritic_credentials_title", {
+                defaultValue: "Credenziali RapidAPI OpenCritic",
+              })}
+              description={t("metadata_settings.opencritic_credentials_desc", {
+                defaultValue: "OpenCritic distribuisce i propri endpoint tramite il portale per sviluppatori RapidAPI",
+              })}
             >
               <SettingRow
-                title="RapidAPI Key (X-RapidAPI-Key)"
-                description="La chiave personale per effettuare le richieste verso l'endpoint opencritic-api."
+                title={t("metadata_settings.opencritic_rapidapi_key_title", {
+                  defaultValue: "RapidAPI Key (X-RapidAPI-Key)",
+                })}
+                description={t("metadata_settings.opencritic_rapidapi_key_desc", {
+                  defaultValue: "La chiave personale per effettuare le richieste verso l'endpoint opencritic-api.",
+                })}
               >
                 <div className="w-full md:w-80 relative flex items-center">
                   <input
@@ -951,12 +1156,15 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
               <div className="space-y-1">
                 <span className="font-bold text-white flex items-center gap-1.5">
                   <Info className="w-4 h-4 text-amber-400" />
-                  Piano gratuito RapidAPI:
+                  {t("metadata_settings.opencritic_guide_title", {
+                    defaultValue: "Piano gratuito RapidAPI:",
+                  })}
                 </span>
                 <p className="text-slate-400 text-[11px] leading-relaxed max-w-xl">
-                  Iscriviti su rapidapi.com, sottoscrivi il piano Basic
-                  (gratuito) dell&apos;API OpenCritic e copia la chiave
-                  dall&apos;header di prova X-RapidAPI-Key.
+                  {t("metadata_settings.opencritic_guide_desc", {
+                    defaultValue:
+                      "Iscriviti su rapidapi.com, sottoscrivi il piano Basic (gratuito) dell'API OpenCritic e copia la chiave dall'header di prova X-RapidAPI-Key.",
+                  })}
                 </p>
               </div>
               <button
@@ -973,7 +1181,11 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
                   color: "var(--text-primary)",
                 }}
               >
-                <span>Iscriviti su RapidAPI</span>
+                <span>
+                  {t("metadata_settings.opencritic_btn_portal", {
+                    defaultValue: "Iscriviti su RapidAPI",
+                  })}
+                </span>
                 <ExternalLink className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -990,7 +1202,11 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
                 {test?.loading && (
                   <div className="flex items-center gap-2 text-xs text-amber-400 animate-pulse">
                     <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Verifica endpoint OpenCritic in corso...</span>
+                    <span>
+                      {t("metadata_settings.opencritic_testing", {
+                        defaultValue: "Verifica endpoint OpenCritic in corso...",
+                      })}
+                    </span>
                   </div>
                 )}
                 {!test?.loading && test?.message && (
@@ -1022,7 +1238,11 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
                   }}
                 >
                   <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                  <span>Testa Connessione</span>
+                  <span>
+                    {t("metadata_settings.btn_test_connection", {
+                      defaultValue: "Testa Connessione",
+                    })}
+                  </span>
                 </button>
                 <button
                   type="button"
@@ -1036,7 +1256,11 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
                   ) : (
                     <Check className="w-3.5 h-3.5" />
                   )}
-                  <span>Salva Impostazioni</span>
+                  <span>
+                    {t("metadata_settings.btn_save_settings", {
+                      defaultValue: "Salva Impostazioni",
+                    })}
+                  </span>
                 </button>
               </div>
             </div>
@@ -1079,48 +1303,59 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
                       HowLongToBeat (HLTB)
                     </h3>
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                      Nativo Integrato
+                      {t("metadata_settings.badge_builtin_integrated", { defaultValue: "Nativo Integrato" })}
                     </span>
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-                      Zero-Config
+                      {t("metadata_settings.badge_zero_config", { defaultValue: "Zero-Config" })}
                     </span>
                     {isEnabled ? (
                       <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                         <CheckCircle2 className="w-3 h-3" />
-                        <span>Attivo</span>
+                        <span>{t("metadata_settings.badge_active", { defaultValue: "Attivo" })}</span>
                       </span>
                     ) : (
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700/50">
-                        Disabilitato
+                        {t("metadata_settings.badge_disabled", { defaultValue: "Disabilitato" })}
                       </span>
                     )}
                   </div>
                   <p className="text-xs text-slate-400 mt-1 max-w-xl">
-                    Recupera in tempo reale le durate medie di completamento
-                    fornite dalla community di HowLongToBeat, senza alcuna
-                    configurazione o account richiesto.
+                    {t("metadata_settings.hltb_desc", {
+                      defaultValue:
+                        "Recupera in tempo reale le durate medie di completamento fornite dalla community di HowLongToBeat, senza alcuna configurazione o account richiesto.",
+                    })}
                   </p>
                 </div>
               </div>
 
               <div className="flex items-center gap-2.5 shrink-0 self-end md:self-center">
                 <span className="text-xs font-bold text-slate-300">
-                  {isEnabled ? "Attivo" : "Disattivato"}
+                  {isEnabled
+                    ? t("metadata_settings.badge_active", { defaultValue: "Attivo" })
+                    : t("metadata_settings.badge_inactive", { defaultValue: "Disattivato" })}
                 </span>
                 <ToggleSwitch
                   checked={isEnabled}
                   onChange={(val) =>
                     handleToggle(prov?.id || "howlongtobeat", val)
                   }
-                  ariaLabel={isEnabled ? "Attivo" : "Disattivato"}
+                  ariaLabel={
+                    isEnabled
+                      ? t("metadata_settings.badge_active", { defaultValue: "Attivo" })
+                      : t("metadata_settings.badge_inactive", { defaultValue: "Disattivato" })
+                  }
                 />
               </div>
             </div>
 
             {/* Feature Showcase Grid */}
             <SettingGroup
-              title="Tempi di Gioco Tracciati"
-              description="Ogni titolo nella tua libreria può visualizzare fino a tre metriche temporali stimate"
+              title={t("metadata_settings.hltb_metrics_title", {
+                defaultValue: "Tempi di Gioco Tracciati",
+              })}
+              description={t("metadata_settings.hltb_metrics_desc", {
+                defaultValue: "Ogni titolo nella tua libreria può visualizzare fino a tre metriche temporali stimate",
+              })}
             >
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
                 <div
@@ -1131,12 +1366,16 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
                   }}
                 >
                   <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-400">
-                    Storia Principale
+                    {t("metadata_settings.hltb_main_badge", { defaultValue: "Storia Principale" })}
                   </span>
-                  <h4 className="text-sm font-bold text-white">Main Story</h4>
+                  <h4 className="text-sm font-bold text-white">
+                    {t("metadata_settings.hltb_main_title", { defaultValue: "Main Story" })}
+                  </h4>
                   <p className="text-[11px] text-slate-400 leading-relaxed">
-                    Tempo necessario per completare la sola campagna principale
-                    o i titoli di coda, tralasciando missioni secondarie o extra.
+                    {t("metadata_settings.hltb_main_desc", {
+                      defaultValue:
+                        "Tempo necessario per completare la sola campagna principale o i titoli di coda, tralasciando missioni secondarie o extra.",
+                    })}
                   </p>
                 </div>
 
@@ -1148,12 +1387,16 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
                   }}
                 >
                   <span className="text-[10px] font-bold uppercase tracking-wider text-purple-400">
-                    Storia + Extra
+                    {t("metadata_settings.hltb_extra_badge", { defaultValue: "Storia + Extra" })}
                   </span>
-                  <h4 className="text-sm font-bold text-white">Main + Extra</h4>
+                  <h4 className="text-sm font-bold text-white">
+                    {t("metadata_settings.hltb_extra_title", { defaultValue: "Main + Extra" })}
+                  </h4>
                   <p className="text-[11px] text-slate-400 leading-relaxed">
-                    Campagna principale godendosi missioni opzionali, collezionabili
-                    chiave e contenuti secondari della mappa.
+                    {t("metadata_settings.hltb_extra_desc", {
+                      defaultValue:
+                        "Campagna principale godendosi missioni opzionali, collezionabili chiave e contenuti secondari della mappa.",
+                    })}
                   </p>
                 </div>
 
@@ -1165,12 +1408,16 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
                   }}
                 >
                   <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400">
-                    Completamento Totale
+                    {t("metadata_settings.hltb_comp_badge", { defaultValue: "Completamento Totale" })}
                   </span>
-                  <h4 className="text-sm font-bold text-white">Completionist</h4>
+                  <h4 className="text-sm font-bold text-white">
+                    {t("metadata_settings.hltb_comp_title", { defaultValue: "Completionist" })}
+                  </h4>
                   <p className="text-[11px] text-slate-400 leading-relaxed">
-                    100% di completamento: sblocco di tutti gli obiettivi/trofei,
-                    segreti, equipaggiamenti massimi e sfide bonus.
+                    {t("metadata_settings.hltb_comp_desc", {
+                      defaultValue:
+                        "100% di completamento: sblocco di tutti gli obiettivi/trofei, segreti, equipaggiamenti massimi e sfide bonus.",
+                    })}
                   </p>
                 </div>
               </div>
@@ -1186,22 +1433,28 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
             >
               <span className="font-bold text-white flex items-center gap-1.5">
                 <Info className="w-4 h-4 text-cyan-400" />
-                Integrazione Nativa in Omnis:
+                {t("metadata_settings.hltb_integration_title", {
+                  defaultValue: "Integrazione Nativa in Omnis:",
+                })}
               </span>
               <ul className="text-slate-400 text-[11px] space-y-1 list-disc pl-5 leading-relaxed">
                 <li>
-                  I tempi di gioco vengono memorizzati nei metadati estesi del
-                  titolo e visualizzati direttamente nella scheda dettagli del gioco.
+                  {t("metadata_settings.hltb_integration_item1", {
+                    defaultValue:
+                      "I tempi di gioco vengono memorizzati nei metadati estesi del titolo e visualizzati direttamente nella scheda dettagli del gioco.",
+                  })}
                 </li>
                 <li>
-                  Nel modale <strong>Sincronizzazione Metadati Batch</strong> è
-                  disponibile il preset dedicato &quot;Mancanti di HowLongToBeat&quot;
-                  per arricchire la libreria con un solo clic.
+                  {t("metadata_settings.hltb_integration_item2", {
+                    defaultValue:
+                      "Nel modale Sincronizzazione Metadati Batch è disponibile il preset dedicato 'Mancanti di HowLongToBeat' per arricchire la libreria con un solo clic.",
+                  })}
                 </li>
                 <li>
-                  Dalla scheda dettagli di qualsiasi gioco puoi cliccare sul
-                  pulsante di aggiornamento HLTB per ricalcolare i tempi in tempo
-                  reale.
+                  {t("metadata_settings.hltb_integration_item3", {
+                    defaultValue:
+                      "Dalla scheda dettagli di qualsiasi gioco puoi cliccare sul pulsante di aggiornamento HLTB per ricalcolare i tempi in tempo reale.",
+                  })}
                 </li>
               </ul>
             </div>
@@ -1218,7 +1471,11 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
                 {test?.loading && (
                   <div className="flex items-center gap-2 text-xs text-blue-400 animate-pulse">
                     <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Verifica endpoint di ricerca HowLongToBeat in corso...</span>
+                    <span>
+                      {t("metadata_settings.hltb_testing", {
+                        defaultValue: "Verifica endpoint di ricerca HowLongToBeat in corso...",
+                      })}
+                    </span>
                   </div>
                 )}
                 {!test?.loading && test?.message && (
@@ -1252,7 +1509,11 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
                   }}
                 >
                   <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                  <span>Testa Connettività HLTB</span>
+                  <span>
+                    {t("metadata_settings.hltb_btn_test", {
+                      defaultValue: "Testa Connettività HLTB",
+                    })}
+                  </span>
                 </button>
                 <button
                   type="button"
@@ -1268,7 +1529,11 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
                   ) : (
                     <Check className="w-3.5 h-3.5" />
                   )}
-                  <span>Salva Stato</span>
+                  <span>
+                    {t("metadata_settings.btn_save_status", {
+                      defaultValue: "Salva Stato",
+                    })}
+                  </span>
                 </button>
               </div>
             </div>
@@ -1295,24 +1560,141 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
                 style={{ color: "var(--accent-primary)" }}
               />
               <h3 className="text-base font-bold text-white">
-                Regole e Risoluzione dei Metadati
+                {t("metadata_settings.pipeline_title", {
+                  defaultValue: "Regole e Risoluzione dei Metadati",
+                })}
               </h3>
             </div>
             <p className="text-xs text-slate-400 leading-relaxed max-w-2xl">
-              Imposta da quale sorgente recuperare copertine verticali, sfondi
-              panoramici, valutazioni della critica e dettagli testuali durante la
-              sincronizzazione automatica o batch.
+              {t("metadata_settings.pipeline_desc", {
+                defaultValue:
+                  "Imposta da quale sorgente recuperare copertine verticali, sfondi panoramici, valutazioni della critica e dettagli testuali durante la sincronizzazione automatica o batch.",
+              })}
             </p>
           </div>
 
+          {/* Reorderable Metadata Sources Priority List - Duplicate Hider Style */}
+          <SettingGroup
+            title={t("metadata_settings.provider_priority_title", {
+              defaultValue: "Classifica Priorità Fonti Metadati",
+            })}
+            description={t("metadata_settings.provider_priority_desc", {
+              defaultValue:
+                "Ordina le fonti dalla preferita (#1) alla meno prioritaria. Spostare più in alto una fonte le conferisce priorità assoluta durante la ricerca e la sincronizzazione dei metadati.",
+            })}
+            icon={<SlidersHorizontal className="w-4 h-4" />}
+          >
+            {normalizeProviderPriority(pipelineConfig.provider_priority).map(
+              (provId, idx, arr) => {
+                const meta = getProviderMeta(provId);
+                const isFirst = idx === 0;
+                const isLast = idx === arr.length - 1;
+
+                return (
+                  <div
+                    key={provId}
+                    className="flex items-center justify-between px-4 py-3 hover:bg-white/[0.02] transition-colors"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span
+                        className="w-7 h-6 rounded-lg text-[11px] font-mono font-black flex items-center justify-center border shrink-0"
+                        style={
+                          idx === 0
+                            ? {
+                                backgroundColor:
+                                  "color-mix(in srgb, var(--accent-primary) 18%, transparent)",
+                                borderColor:
+                                  "color-mix(in srgb, var(--accent-primary) 40%, transparent)",
+                                color: "var(--accent-primary)",
+                              }
+                            : {
+                                backgroundColor: "rgba(255,255,255,0.04)",
+                                borderColor: "rgba(255,255,255,0.08)",
+                                color: "#94a3b8",
+                              }
+                        }
+                      >
+                        #{idx + 1}
+                      </span>
+
+                      <div className="w-8 h-8 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-slate-200 shrink-0">
+                        {renderProviderIcon(provId)}
+                      </div>
+
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-slate-100">
+                            {meta.name}
+                          </span>
+                          {idx === 0 && (
+                            <span
+                              className="px-2 py-0.5 rounded text-[10px] font-bold border"
+                              style={{
+                                backgroundColor:
+                                  "color-mix(in srgb, var(--accent-primary) 12%, transparent)",
+                                borderColor:
+                                  "color-mix(in srgb, var(--accent-primary) 30%, transparent)",
+                                color: "var(--accent-primary)",
+                              }}
+                            >
+                              {t("metadata_settings.top_priority", {
+                                defaultValue: "Priorità Massima",
+                              })}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-400 truncate max-w-xl">
+                          {meta.description}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        disabled={isFirst}
+                        onClick={() => handleMovePriority(idx, -1)}
+                        className="p-1.5 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white disabled:opacity-25 disabled:pointer-events-none transition-colors cursor-pointer"
+                        title={t("metadata_settings.move_up", {
+                          defaultValue: "Sposta su",
+                        })}
+                      >
+                        <ArrowUp className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isLast}
+                        onClick={() => handleMovePriority(idx, 1)}
+                        className="p-1.5 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white disabled:opacity-25 disabled:pointer-events-none transition-colors cursor-pointer"
+                        title={t("metadata_settings.move_down", {
+                          defaultValue: "Sposta giù",
+                        })}
+                      >
+                        <ArrowDown className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              }
+            )}
+          </SettingGroup>
+
           {/* Granular Source Selectors */}
           <SettingGroup
-            title="Sorgenti Preferite per Campo"
-            description="Seleziona il provider prioritario per ciascun elemento multimediale del gioco"
+            title={t("metadata_settings.pipeline_sources_title", {
+              defaultValue: "Sorgenti Preferite per Campo",
+            })}
+            description={t("metadata_settings.pipeline_sources_desc", {
+              defaultValue: "Seleziona il provider prioritario per ciascun elemento multimediale del gioco",
+            })}
           >
             <SettingRow
-              title="Copertina Principale (Cover Grid 600x900)"
-              description="Visualizzata nella visualizzazione a griglia e nella copertina frontale 3D."
+              title={t("metadata_settings.pipeline_cover_title", {
+                defaultValue: "Copertina Principale (Cover Grid 600x900)",
+              })}
+              description={t("metadata_settings.pipeline_cover_desc", {
+                defaultValue: "Visualizzata nella visualizzazione a griglia e nella copertina frontale 3D.",
+              })}
             >
               <select
                 value={pipelineConfig.cover_source}
@@ -1332,15 +1714,23 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
                 <option value="steamgriddb">
                   SteamGridDB (Artwork HD 600x900)
                 </option>
-                <option value="steam">Steam Store CDN (Ufficiale)</option>
-                <option value="gog">GOG Catalog (Ufficiale DRM-Free)</option>
+                <option value="steam">
+                  {`Steam Store CDN (${t("metadata_settings.opt_official", { defaultValue: "Ufficiale" })})`}
+                </option>
+                <option value="gog">
+                  {`GOG Catalog (${t("metadata_settings.opt_official_drm_free", { defaultValue: "Ufficiale DRM-Free" })})`}
+                </option>
                 <option value="igdb">IGDB (Twitch Database)</option>
               </select>
             </SettingRow>
 
             <SettingRow
-              title="Sfondo Panoramico (Hero Background)"
-              description="Mostrato nell'intestazione dettagli, visualizzazione desktop e fullscreen."
+              title={t("metadata_settings.pipeline_bg_title", {
+                defaultValue: "Sfondo Panoramico (Hero Background)",
+              })}
+              description={t("metadata_settings.pipeline_bg_desc", {
+                defaultValue: "Mostrato nell'intestazione dettagli, visualizzazione desktop e fullscreen.",
+              })}
             >
               <select
                 value={pipelineConfig.background_source}
@@ -1360,15 +1750,23 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
                 <option value="steamgriddb">
                   SteamGridDB (Hero 1920x1080 / 4K)
                 </option>
-                <option value="steam">Steam Store CDN (Ufficiale)</option>
-                <option value="gog">GOG Catalog (Artwork HD)</option>
+                <option value="steam">
+                  {`Steam Store CDN (${t("metadata_settings.opt_official", { defaultValue: "Ufficiale" })})`}
+                </option>
+                <option value="gog">
+                  {`GOG Catalog (${t("metadata_settings.opt_official_drm_free", { defaultValue: "Artwork HD" })})`}
+                </option>
                 <option value="igdb">IGDB (Screenshot HD)</option>
               </select>
             </SettingRow>
 
             <SettingRow
-              title="Valutazione Critica (Score & Voti)"
-              description="Sorgente del punteggio numerico e del badge mostrato sul gioco."
+              title={t("metadata_settings.pipeline_score_title", {
+                defaultValue: "Valutazione Critica (Score & Voti)",
+              })}
+              description={t("metadata_settings.pipeline_score_desc", {
+                defaultValue: "Sorgente del punteggio numerico e del badge mostrato sul gioco.",
+              })}
             >
               <select
                 value={pipelineConfig.score_source}
@@ -1396,8 +1794,12 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
             </SettingRow>
 
             <SettingRow
-              title="Descrizioni e Sinossi"
-              description="Sorgente del testo della trama, sviluppatore, data e generi del gioco."
+              title={t("metadata_settings.pipeline_details_title", {
+                defaultValue: "Descrizioni e Sinossi",
+              })}
+              description={t("metadata_settings.pipeline_details_desc", {
+                defaultValue: "Sorgente del testo della trama, sviluppatore, data e generi del gioco.",
+              })}
             >
               <select
                 value={pipelineConfig.details_source}
@@ -1415,9 +1817,11 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
                 }}
               >
                 <option value="steam">
-                  Steam Store Engine (Localizzato in Italiano)
+                  {`Steam Store Engine (${t("metadata_settings.opt_localized", { defaultValue: "Localizzato" })})`}
                 </option>
-                <option value="gog">GOG Catalog (Catalogo DRM-Free)</option>
+                <option value="gog">
+                  {`GOG Catalog (${t("metadata_settings.opt_official_drm_free", { defaultValue: "Catalogo DRM-Free" })})`}
+                </option>
                 <option value="igdb">IGDB (Twitch Gaming Database)</option>
               </select>
             </SettingRow>
@@ -1425,18 +1829,26 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
 
           {/* Preserve Existing Artwork Protection */}
           <SettingGroup
-            title="Protezione Media Esistenti"
-            description="Impedisci la sovrascrittura accidentale delle copertine e degli sfondi già scaricati"
+            title={t("metadata_settings.pipeline_preserve_title", {
+              defaultValue: "Protezione Media Esistenti",
+            })}
+            description={t("metadata_settings.pipeline_preserve_desc", {
+              defaultValue: "Impedisci la sovrascrittura accidentale delle copertine e degli sfondi già scaricati",
+            })}
           >
             <SettingRow
-              title="Conserva Copertine e Sfondi Esistenti"
-              description="Se attivato, il download batch arricchisce soltanto i titoli sprovvisti di immagini o voti, senza sostituire i media attuali."
+              title={t("metadata_settings.pipeline_preserve_row_title", {
+                defaultValue: "Conserva Copertine e Sfondi Esistenti",
+              })}
+              description={t("metadata_settings.pipeline_preserve_row_desc", {
+                defaultValue: "Se attivato, il download batch arricchisce soltanto i titoli sprovvisti di immagini o voti, senza sostituire i media attuali.",
+              })}
             >
               <div className="flex items-center gap-2.5">
                 <span className="text-xs font-bold text-slate-300">
                   {pipelineConfig.preserve_existing_artwork !== false
-                    ? "Protetto"
-                    : "Sovrascrivi"}
+                    ? t("metadata_settings.pipeline_preserve_protected", { defaultValue: "Protetto" })
+                    : t("metadata_settings.pipeline_preserve_overwrite", { defaultValue: "Sovrascrivi" })}
                 </span>
                 <ToggleSwitch
                   checked={pipelineConfig.preserve_existing_artwork !== false}
@@ -1446,7 +1858,9 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
                       preserve_existing_artwork: val,
                     })
                   }
-                  ariaLabel="Conserva Copertine Esistenti"
+                  ariaLabel={t("metadata_settings.pipeline_preserve_row_title", {
+                    defaultValue: "Conserva Copertine e Sfondi Esistenti",
+                  })}
                 />
               </div>
             </SettingRow>
@@ -1466,7 +1880,11 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
               ) : (
                 <Check className="w-4 h-4" />
               )}
-              <span>Salva Configurazione Pipeline</span>
+              <span>
+                {t("metadata_settings.btn_save_pipeline", {
+                  defaultValue: "Salva Configurazione Pipeline",
+                })}
+              </span>
             </button>
           </div>
         </div>

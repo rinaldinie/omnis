@@ -324,11 +324,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         }
                       : undefined
                   }
-                  title={isDis ? 'Disabilitato' : isConn ? 'Autenticato' : 'Credenziali richieste'}
+                  title={
+                    isDis
+                      ? t('metadata_settings.badge_disabled', { defaultValue: 'Disabilitato' })
+                      : isConn
+                      ? t('metadata_settings.badge_authenticated', { defaultValue: 'Autenticato' })
+                      : t('metadata_settings.badge_missing_credentials', { defaultValue: 'Credenziali richieste' })
+                  }
                 />
               );
             })(),
-            keywords: ['igdb', 'twitch', 'metadati', 'copertine', 'sinossi', 'valutazioni'],
+            keywords: ['igdb', 'twitch', 'metadata', 'covers', 'synopsis', 'ratings', 'metadati', 'copertine', 'sinossi', 'valutazioni'],
           },
           {
             id: 'metadata-steamgriddb',
@@ -351,11 +357,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         }
                       : undefined
                   }
-                  title={isDis ? 'Disabilitato' : isConn ? 'Autenticato' : 'API Key richiesta'}
+                  title={
+                    isDis
+                      ? t('metadata_settings.badge_disabled', { defaultValue: 'Disabilitato' })
+                      : isConn
+                      ? t('metadata_settings.badge_authenticated', { defaultValue: 'Autenticato' })
+                      : t('metadata_settings.badge_key_required', { defaultValue: 'API Key richiesta' })
+                  }
                 />
               );
             })(),
-            keywords: ['steamgriddb', 'sgdb', 'artwork', 'grid', 'hero', 'logo', 'banner'],
+            keywords: ['steamgriddb', 'sgdb', 'artwork', 'grid', 'hero', 'logo', 'banner', 'copertine'],
           },
           {
             id: 'metadata-opencritic',
@@ -378,11 +390,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         }
                       : undefined
                   }
-                  title={isDis ? 'Disabilitato' : isConn ? 'Autenticato' : 'RapidAPI Key richiesta'}
+                  title={
+                    isDis
+                      ? t('metadata_settings.badge_disabled', { defaultValue: 'Disabilitato' })
+                      : isConn
+                      ? t('metadata_settings.badge_authenticated', { defaultValue: 'Autenticato' })
+                      : t('metadata_settings.badge_rapidapi_required', { defaultValue: 'RapidAPI Key richiesta' })
+                  }
                 />
               );
             })(),
-            keywords: ['opencritic', 'voti', 'recensioni', 'score', 'rapidapi'],
+            keywords: ['opencritic', 'scores', 'reviews', 'ratings', 'voti', 'recensioni', 'score', 'rapidapi'],
           },
           {
             id: 'metadata-hltb',
@@ -406,17 +424,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         }
                       : undefined
                   }
-                  title={isEnabled ? 'Attivo (Zero-Config)' : 'Disabilitato'}
+                  title={
+                    isEnabled
+                      ? `${t('metadata_settings.badge_active', { defaultValue: 'Attivo' })} (${t('metadata_settings.badge_zero_config', { defaultValue: 'Zero-Config' })})`
+                      : t('metadata_settings.badge_disabled', { defaultValue: 'Disabilitato' })
+                  }
                 />
               );
             })(),
-            keywords: ['howlongtobeat', 'hltb', 'durata', 'ore', 'completamento', 'playtime'],
+            keywords: ['howlongtobeat', 'hltb', 'playtime', 'duration', 'completion', 'ore', 'completamento', 'durata'],
           },
           {
             id: 'metadata-pipeline',
             label: t('metadata_settings.tab_pipeline', { defaultValue: 'Priorità Pipeline' }),
             icon: (c = 'w-4 h-4') => <SlidersHorizontal className={c} />,
-            keywords: ['pipeline', 'priorità', 'regole', 'fonti', 'copertine', 'sfondi'],
+            keywords: ['pipeline', 'priority', 'rules', 'sources', 'priorità', 'regole', 'fonti', 'copertine', 'sfondi'],
           },
         ],
       },

@@ -92,6 +92,19 @@ impl MetadataSearchEngine {
         // 6. Guarantee candidates: if no online provider returned results, produce aesthetic fallback candidate
         if candidates.is_empty() {
             candidates.push(Self::generate_fallback(title, &filter, &fallback_fn));
+        } else {
+            let pipeline_guard = registry.pipeline_config.read().await;
+            let priority_order = &pipeline_guard.provider_priority;
+            candidates.sort_by_key(|c| {
+                priority_order
+                    .iter()
+                    .position(|p| {
+                        p.eq_ignore_ascii_case(&c.provider_id)
+                            || (p == "howlongtobeat" && c.provider_id == "hltb")
+                            || (p == "hltb" && c.provider_id == "howlongtobeat")
+                    })
+                    .unwrap_or(usize::MAX)
+            });
         }
 
         Ok(candidates)
