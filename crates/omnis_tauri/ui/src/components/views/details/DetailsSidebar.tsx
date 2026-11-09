@@ -161,6 +161,10 @@ export const DetailsSidebar: React.FC<DetailsSidebarProps> = ({
                     ? "bg-white/[0.04] text-white border-l-2 border-[var(--accent-primary)] shadow-xs"
                     : "hover:bg-white/[0.02] text-slate-400 hover:text-slate-200 border-l-2 border-transparent"
                 }`}
+                style={{
+                  contentVisibility: "auto",
+                  containIntrinsicSize: "0 54px",
+                }}
               >
                 <div
                   className="w-9 h-9 rounded-lg overflow-hidden flex items-center justify-center border border-white/[0.06] shrink-0 shadow-xs bg-black/40"
