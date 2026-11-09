@@ -299,7 +299,11 @@ const DesktopRecentCard = React.memo(function DesktopRecentCard({
           ? "border-emerald-500/60 ring-1 ring-emerald-500/30 shadow-lg"
           : "border-[var(--border-color)] hover:border-white/25"
       }`}
-      style={{ backgroundColor: "var(--bg-card)" }}
+      style={{
+        backgroundColor: "var(--bg-card)",
+        contentVisibility: "auto",
+        containIntrinsicSize: "0 140px",
+      }}
     >
       {/* Background Banner */}
       {bgImg ? (
