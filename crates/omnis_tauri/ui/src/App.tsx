@@ -48,6 +48,7 @@ import { usePluginManager } from "./hooks/usePluginManager";
 import { useAppEvents } from "./hooks/useAppEvents";
 import { useGameOperations } from "./hooks/useGameOperations";
 import { useThemeEngine } from "./hooks/useThemeEngine";
+import { useLibraryStore, useUiStore } from "./stores";
 
 export type { SessionToastInfo, SyncBannerInfo };
 
@@ -78,24 +79,52 @@ export { formatImageUrl, normalizeGame };
 export type { ViewMode, GroupBy, GameDto };
 
 export default function App() {
-  const [games, setGames] = useState<GameDto[]>([]);
-  const [counts, setCounts] = useState<LibraryCounts>({
-    total: 0,
-    installed: 0,
-    steam: 0,
-    gog: 0,
-    epic: 0,
-    xbox: 0,
-    recent: 0,
-    favorites: 0,
-    action: 0,
-    rpg: 0,
-    strategy: 0,
-    indie: 0,
-  });
+  const {
+    games,
+    counts,
+    selectedGame,
+    setGames,
+    setSelectedGame,
+    loadGames: storeLoadGames,
+    refreshLibrary: storeRefreshLibrary,
+  } = useLibraryStore();
 
-  const [viewMode, setViewMode] = useState<ViewMode>("grid");
-  const [selectedGame, setSelectedGame] = useState<GameDto | null>(null);
+  const {
+    viewMode,
+    setViewMode,
+    isFullscreen,
+    setIsFullscreen,
+    soundEnabled,
+    setSoundEnabled,
+    showSettingsModal,
+    settingsInitialTab,
+    openSettings: handleOpenSettings,
+    closeSettings,
+    showOnboarding,
+    setShowOnboarding,
+    showEditorModal,
+    setShowEditorModal,
+    showResolutionModal,
+    setShowResolutionModal,
+    showAddCustomModal,
+    setShowAddCustomModal,
+    showVirtualKeyboard,
+    setShowVirtualKeyboard,
+    gameToEdit,
+    setGameToEdit,
+    gameToResolve,
+    setGameToResolve,
+    contextMenu,
+    setContextMenu,
+  } = useUiStore();
+
+  const setShowSettingsModal = useCallback(
+    (open: boolean) => {
+      if (open) handleOpenSettings();
+      else closeSettings();
+    },
+    [handleOpenSettings, closeSettings]
+  );
 
   // I18N
   const { t } = useTranslation();
@@ -106,17 +135,6 @@ export default function App() {
       tRef.current(`app_status.${key}`, params),
     []
   );
-
-  const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
-  const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTab>("general");
-
-  const handleOpenSettings = useCallback((tab: SettingsTab = "general") => {
-    setSettingsInitialTab(tab);
-    setShowSettingsModal(true);
-  }, []);
-
-  // ONBOARDING WIZARD
-  const [showOnboarding, setShowOnboarding] = useState<boolean>(false);
 
   // ONLINE APP UPDATER
   const updater = useAppUpdater();
@@ -132,42 +150,12 @@ export default function App() {
 
   // LOAD GAMES
   const loadGames = useCallback(async () => {
-    try {
-      const loadedGames = await api.games.getGames();
-      if (loadedGames) {
-        const normalized = loadedGames.map(normalizeGame);
-        setGames(normalized);
-        setSelectedGame((prev) => {
-          if (prev) {
-            const current = normalized.find((g) => g.id === prev.id);
-            if (current) {
-              if (current.is_hidden && current.other_copies && current.other_copies.length > 0) {
-                const primary = normalized.find(
-                  (g) =>
-                    !g.is_hidden &&
-                    (g.duplicate_group_id === current.duplicate_group_id ||
-                      current.other_copies?.some((c) => c.id === g.id))
-                );
-                if (primary) return primary;
-              }
-              return current;
-            }
-          }
-          return normalized.length > 0 ? normalized[0] : null;
-        });
-      }
-      const loadedCounts = await api.games.getCounts();
-      if (loadedCounts) {
-        setCounts(loadedCounts);
-        if (loadedCounts.total === 0 && shouldShowOnboarding()) {
-          setShowOnboarding(true);
-        }
-      }
-    } catch (err) {
-      console.error("Failed to load games or counts", err);
-    }
-  }, []);
-  const refreshLibrary = loadGames;
+    await storeLoadGames({
+      shouldShowOnboardingCheck: shouldShowOnboarding,
+      onShowOnboarding: () => setShowOnboarding(true),
+    });
+  }, [storeLoadGames, setShowOnboarding]);
+  const refreshLibrary = storeRefreshLibrary;
 
   // REFS & DEFERRED INTEGRATION
   const gamesRef = useRef<GameDto[]>([]);
@@ -291,30 +279,10 @@ export default function App() {
 
   handleLaunchRef.current = handleLaunch;
 
-  // METADATA & CUSTOM GAME MODALS
-  const [showEditorModal, setShowEditorModal] = useState<boolean>(false);
-  const [showResolutionModal, setShowResolutionModal] = useState<boolean>(false);
-  const [gameToEdit, setGameToEdit] = useState<GameDto | null>(null);
-  const [gameToResolve, setGameToResolve] = useState<GameDto | null>(null);
-  const [showAddCustomModal, setShowAddCustomModal] = useState<boolean>(false);
-
-  // FULLSCREEN MODE
-  const [isFullscreen, setIsFullscreen] = useState<boolean>(() => {
-    if (typeof window !== "undefined") {
-      const p = new URLSearchParams(window.location.search);
-      return (
-        p.get("fullscreen") === "true" ||
-        p.has("fullscreen") ||
-        window.location.hash.includes("fullscreen")
-      );
-    }
-    return false;
-  });
+  // FULLSCREEN MODE REFS & SIZING
   const carouselRef = useRef<HTMLDivElement>(null);
-  const [showVirtualKeyboard, setShowVirtualKeyboard] = useState<boolean>(false);
   const [fullscreenGridColumns, setFullscreenGridColumns] = useState<number>(0);
   const [fullscreenHasRecentRow, setFullscreenHasRecentRow] = useState<boolean>(false);
-  const [soundEnabled, setSoundEnabled] = useState<boolean>(soundEffects.enabled);
 
   // DETECT --fullscreen / --bigpicture CLI ARGUMENTS FROM TAURI & SINGLE-INSTANCE
   useEffect(() => {
@@ -358,15 +326,9 @@ export default function App() {
     return () => {
       if (unlistenEvent) unlistenEvent();
     };
-  }, []);
+  }, [setIsFullscreen]);
 
   // CONTEXT MENU
-  const [contextMenu, setContextMenu] = useState<{
-    x: number;
-    y: number;
-    game: GameDto;
-  } | null>(null);
-
   const handleOpenContextMenu = useCallback((e: React.MouseEvent, game: GameDto) => {
     e.preventDefault();
     e.stopPropagation();
@@ -375,7 +337,7 @@ export default function App() {
     const x = Math.min(e.clientX, window.innerWidth - menuWidth - 10);
     const y = Math.min(e.clientY, window.innerHeight - menuHeight - 10);
     setContextMenu({ x, y, game });
-  }, []);
+  }, [setContextMenu]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -383,7 +345,7 @@ export default function App() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [setContextMenu]);
 
   // FILTERS & GROUPING HOOK
   const {
