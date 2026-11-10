@@ -17,6 +17,7 @@ omnis_core.workspace = true
 omnis_plugin_steam.workspace = true
 omnis_plugin_epic.workspace = true
 omnis_plugin_gog.workspace = true
+omnis_plugin_emulators.workspace = true
 clap.workspace = true
 tokio.workspace = true
 tracing.workspace = true

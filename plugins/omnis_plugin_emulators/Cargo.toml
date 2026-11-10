@@ -1,0 +1,23 @@
+[package]
+name = "omnis_plugin_emulators"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Emulator library integration plugin for Omnis Game Library (Nintendo Switch: yuzu-family and Ryujinx)"
+
+[dependencies]
+omnis_sdk.workspace = true
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+chrono.workspace = true
+aes = "0.8"
+
+[target.'cfg(windows)'.dependencies]
+winreg = "0.56"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

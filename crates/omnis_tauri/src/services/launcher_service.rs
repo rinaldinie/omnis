@@ -90,6 +90,19 @@ impl GameLaunchCoordinator {
             .map_err(|e| e.to_string())?
             .ok_or_else(|| "Gioco non trovato".to_string())?;
 
+        // Emulated games have no store protocol to fall back on: without an emulator
+        // launch action there is nothing to start.
+        if game
+            .library_id
+            .eq_ignore_ascii_case(omnis_plugin_emulators::SWITCH_LIBRARY_ID)
+            && game.play_actions.is_empty()
+        {
+            return Err(
+                "Nessun emulatore Switch trovato: apri almeno una volta Eden, Citron o Ryujinx e aggiorna la libreria"
+                    .to_string(),
+            );
+        }
+
         let is_installed = game.is_installed;
         let install_dir = game.install_dir.clone();
         let title = game.title.clone();

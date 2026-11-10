@@ -9,6 +9,7 @@ use crate::types::{AppState, ImageCache};
 use omnis_core::{
     Database, EventBus, MetadataDownloader, PluginHost, SecretVault,
 };
+use omnis_plugin_emulators::EmulatorsPlugin;
 use omnis_plugin_epic::EpicLibraryPlugin;
 use omnis_plugin_gog::GogCloudPlugin;
 use omnis_plugin_steam::SteamPlugin;
@@ -90,6 +91,10 @@ impl AppBootstrap {
         host.register_plugin(Box::new(EpicLibraryPlugin::new()));
         host.register_plugin(Box::new(GogCloudPlugin::new()));
         host.register_plugin(Box::new(XboxCloudPlugin::new()));
+        host.register_plugin(Box::new(
+            EmulatorsPlugin::new()
+                .with_data_dir(plugins_dir.join(omnis_plugin_emulators::PLUGIN_ID)),
+        ));
 
         let downloader = Arc::new(MetadataDownloader::new());
 

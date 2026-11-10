@@ -308,4 +308,7 @@ pub struct LibraryCounts {
     pub indie: usize,
     #[serde(default)]
     pub hidden: usize,
+    /// Nintendo Switch games discovered through emulators
+    #[serde(default)]
+    pub switch: usize,
 }
