@@ -14,6 +14,7 @@ import {
 export const resolveTargetTab = (tab?: SettingsTab): SettingsTab => {
   if (!tab || tab === 'general') return 'general-language';
   if (tab === 'accounts') return 'store-steam';
+  if (tab === 'emulators') return 'emulators-switch';
   if (tab === 'metadata') return 'metadata-igdb';
   if (tab === 'achievements') return 'achievements-sources';
   if (tab === 'duplicates') return 'duplicates-priorities';
@@ -46,6 +47,7 @@ export function useSettingsNavigation({
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
     general: true,
     accounts: true,
+    emulators: true,
     metadata: true,
     achievements: true,
     duplicates: true,

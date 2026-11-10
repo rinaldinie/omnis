@@ -154,7 +154,7 @@ export function useLibraryFilters(games: GameDto[]) {
     if (["installed", "recent", "favorites", "hidden"].includes(idLower)) {
       return selectedFlags.includes(idLower);
     }
-    if (["steam", "gog", "epic", "xbox"].includes(idLower)) {
+    if (["steam", "gog", "epic", "xbox", "switch"].includes(idLower)) {
       return selectedStores.some((s) => s.toLowerCase() === idLower);
     }
     if (id.startsWith("completion:")) {
@@ -203,7 +203,7 @@ export function useLibraryFilters(games: GameDto[]) {
     const fLower = filter.toLowerCase().trim();
     if (["installed", "recent", "favorites", "hidden"].includes(fLower)) {
       toggleFlag(fLower);
-    } else if (["steam", "gog", "epic", "xbox"].includes(fLower)) {
+    } else if (["steam", "gog", "epic", "xbox", "switch"].includes(fLower)) {
       toggleStore(fLower);
     } else if (filter.startsWith("completion:")) {
       toggleStatus(filter.slice(11));

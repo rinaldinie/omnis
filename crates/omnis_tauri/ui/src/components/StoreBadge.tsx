@@ -10,6 +10,27 @@ export function SteamIcon({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
+/** Generic handheld-console glyph used for emulated Nintendo Switch games. */
+export function SwitchIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-label="Nintendo Switch"
+    >
+      <rect x="2" y="6" width="20" height="12" rx="3" />
+      <rect x="7" y="8.5" width="10" height="7" rx="1" />
+      <circle cx="4.5" cy="10" r="0.6" fill="currentColor" />
+      <circle cx="19.5" cy="14" r="0.6" fill="currentColor" />
+    </svg>
+  );
+}
+
 export function EpicIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-label="Epic Games">
@@ -97,6 +118,9 @@ export function StoreIcon({ library, className = "w-3.5 h-3.5" }: { library: str
   if (lib.includes("ubisoft") || lib.includes("uplay")) {
     return <UbisoftIcon className={className} />;
   }
+  if (lib === "switch") {
+    return <SwitchIcon className={className} />;
+  }
   if (lib.includes("battle") || lib.includes("blizzard")) {
     return <BattlenetIcon className={className} />;
   }
@@ -172,6 +196,11 @@ export function StoreBadge({
     title = t("store_badge.available_on", { store: "itch.io" });
     icon = <ItchIcon className="w-3.5 h-3.5 text-[#fa5c5c] shrink-0" />;
     brandStyles = "bg-[#fa5c5c]/10 border-[#fa5c5c]/25 hover:bg-[#fa5c5c]/20 text-[#fa5c5c]";
+  } else if (lib === "switch") {
+    storeName = "Switch";
+    title = t("store_badge.available_on", { store: "Nintendo Switch" });
+    icon = <SwitchIcon className="w-3.5 h-3.5 text-[#f87171] shrink-0" />;
+    brandStyles = "bg-[#ef4444]/10 border-[#ef4444]/25 hover:bg-[#ef4444]/20 text-white/95";
   }
 
   const badgeStyle =

@@ -194,6 +194,60 @@ pub async fn detect_stores() -> Vec<StoreDetectionResult> {
     results
 }
 
+/// Folder owned by Omnis for the emulator integration (settings and extracted icons).
+fn emulators_data_dir(state: &AppState) -> PathBuf {
+    state.plugins_dir.join(omnis_plugin_emulators::PLUGIN_ID)
+}
+
+/// Name of the supported emulator an executable picked by the user belongs to, if any.
+#[tauri::command]
+pub async fn identify_emulator_executable(path: String) -> Option<String> {
+    omnis_plugin_emulators::spec_for_executable(std::path::Path::new(&path))
+        .map(|spec| spec.display_name.to_string())
+}
+
+/// Emulators found on this machine (Settings > Emulators).
+#[tauri::command]
+pub async fn get_emulator_status(
+    state: State<'_, AppState>,
+) -> Result<Vec<omnis_plugin_emulators::EmulatorStatus>, String> {
+    let plugin =
+        omnis_plugin_emulators::EmulatorsPlugin::new().with_data_dir(emulators_data_dir(&state));
+    Ok(plugin.emulator_status())
+}
+
+#[tauri::command]
+pub async fn get_emulator_settings(
+    state: State<'_, AppState>,
+) -> Result<omnis_plugin_emulators::EmulatorSettings, String> {
+    Ok(omnis_plugin_emulators::EmulatorSettings::load(
+        &emulators_data_dir(&state),
+    ))
+}
+
+/// Saves the emulator settings and re-syncs the Switch library right away, so a new
+/// default / per-game emulator (or the keys option) applies without a full library sync.
+#[tauri::command]
+pub async fn set_emulator_settings(
+    settings: omnis_plugin_emulators::EmulatorSettings,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    settings
+        .save(&emulators_data_dir(&state))
+        .map_err(|e| e.to_string())?;
+    state
+        .host
+        .dispatch_event_and_wait(
+            None,
+            PluginEvent::SyncRequested {
+                library_id: omnis_plugin_emulators::SWITCH_LIBRARY_ID.to_string(),
+                force_full: false,
+            },
+        )
+        .await;
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn add_custom_game(
     payload: AddCustomGamePayload,
