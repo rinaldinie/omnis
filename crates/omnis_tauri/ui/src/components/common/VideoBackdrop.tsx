@@ -212,6 +212,11 @@ export const VideoBackdrop: React.FC<VideoBackdropProps> = ({
     formatImageUrl(game?.cover_image) ||
     game?.cover_image;
 
+  // Without a real backdrop the cover is stretched across the whole hero: small or square
+  // covers (e.g. 256px Switch icons) would look pixelated, so the fallback is always shown
+  // as a soft ambient blur, like the theme-less hero does.
+  const usingCoverFallback = !game?.background_image && !!game?.cover_image;
+
   return (
     <div
       className={`absolute inset-0 z-0 overflow-hidden pointer-events-none select-none ${className}`}
@@ -225,6 +230,8 @@ export const VideoBackdrop: React.FC<VideoBackdropProps> = ({
           className={`w-full h-full object-cover transition-opacity duration-700 ${
             isVideoPlaying && !isPaused
               ? "opacity-0 pointer-events-none"
+              : usingCoverFallback
+              ? "opacity-50 filter blur-2xl scale-110"
               : blurLevel === "none"
               ? "opacity-95 filter-none scale-100"
               : blurLevel === "subtle"
