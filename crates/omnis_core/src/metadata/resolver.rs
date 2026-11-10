@@ -46,6 +46,8 @@ impl MetadataPipelineResolver {
             "gog" => "gog",
             "epic" => "epic",
             "xbox" => "xbox",
+            // Console games have no PC storefront: IGDB is their reference catalog
+            "switch" => "igdb",
             _ => "steam",
         };
 
@@ -575,7 +577,9 @@ impl MetadataPipelineResolver {
             return cached.clone();
         }
 
-        if !enabled.get(eff_id).copied().unwrap_or(true) {
+        if !enabled.get(eff_id).copied().unwrap_or(true)
+            || !Self::provider_applies_to(eff_id, &request.library_id)
+        {
             cache.insert(eff_id.to_string(), None);
             return None;
         }
@@ -596,6 +600,19 @@ impl MetadataPipelineResolver {
             cache.insert(eff_id.to_string(), None);
             None
         }
+    }
+
+    /// PC storefront catalogs only list PC games: asked about a console title they answer
+    /// with an unrelated "closest" product (GOG returns "Stellaris" for "Metroid Dread"),
+    /// so they are skipped for libraries of emulated console games.
+    pub(crate) fn provider_applies_to(provider_id: &str, library_id: &str) -> bool {
+        const PC_STOREFRONTS: &[&str] = &["steam", "gog", "epic", "xbox"];
+        const CONSOLE_LIBRARIES: &[&str] = &["switch"];
+
+        let is_console = CONSOLE_LIBRARIES
+            .iter()
+            .any(|l| library_id.eq_ignore_ascii_case(l));
+        !(is_console && PC_STOREFRONTS.contains(&provider_id))
     }
 
     fn resolve_source_id<'a>(source: &'a str, store_native_id: &'a str) -> &'a str {
@@ -774,6 +791,23 @@ impl MetadataPipelineResolver {
                 final_patch.critic_score = fallback.critic_score;
                 final_patch.community_score = fallback.community_score;
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::MetadataPipelineResolver as Resolver;
+
+    #[test]
+    fn pc_storefronts_are_skipped_for_console_libraries() {
+        for store in ["steam", "gog", "epic", "xbox"] {
+            assert!(!Resolver::provider_applies_to(store, "switch"));
+            assert!(Resolver::provider_applies_to(store, "steam"));
+            assert!(Resolver::provider_applies_to(store, "custom"));
+        }
+        for provider in ["igdb", "steamgriddb", "hltb", "opencritic"] {
+            assert!(Resolver::provider_applies_to(provider, "switch"));
         }
     }
 }
