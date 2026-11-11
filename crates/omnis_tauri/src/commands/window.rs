@@ -185,7 +185,21 @@ pub fn resolve_executable_path_sync(path: &str) -> Result<ResolvedExecutable, St
     let default_working_dir = p
         .parent()
         .filter(|parent| !parent.as_os_str().is_empty())
-        .map(|parent| parent.to_string_lossy().to_string());
+        .map(|parent| parent.to_string_lossy().to_string())
+        .or_else(|| {
+            // Fallback for Windows-style backslashes on non-Windows platforms (e.g. Wine/Proton or cross-platform tests)
+            let trimmed = path.trim_end_matches(['/', '\\']);
+            trimmed.rfind(['/', '\\']).and_then(|idx| {
+                let parent = &trimmed[..idx];
+                if parent.is_empty() {
+                    None
+                } else if parent.len() == 2 && parent.ends_with(':') {
+                    Some(format!("{}\\", parent))
+                } else {
+                    Some(parent.to_string())
+                }
+            })
+        });
 
     Ok(ResolvedExecutable {
         original_path: path.to_string(),
@@ -544,11 +558,17 @@ mod tests {
 
     #[test]
     fn test_resolve_executable_path_sync_plain_exe() {
-        let res = resolve_executable_path_sync(r#"C:\Games\Game\game.exe"#).unwrap();
-        assert_eq!(res.executable_path, r#"C:\Games\Game\game.exe"#);
-        assert_eq!(res.working_dir, Some(r#"C:\Games\Game"#.to_string()));
-        assert!(res.arguments.is_empty());
-        assert_eq!(res.shortcut_name, None);
+        let res_win = resolve_executable_path_sync(r#"C:\Games\Game\game.exe"#).unwrap();
+        assert_eq!(res_win.executable_path, r#"C:\Games\Game\game.exe"#);
+        assert_eq!(res_win.working_dir, Some(r#"C:\Games\Game"#.to_string()));
+        assert!(res_win.arguments.is_empty());
+        assert_eq!(res_win.shortcut_name, None);
+
+        let res_unix = resolve_executable_path_sync("/usr/games/game/start.sh").unwrap();
+        assert_eq!(res_unix.executable_path, "/usr/games/game/start.sh");
+        assert_eq!(res_unix.working_dir, Some("/usr/games/game".to_string()));
+        assert!(res_unix.arguments.is_empty());
+        assert_eq!(res_unix.shortcut_name, None);
     }
 
     #[cfg(windows)]
