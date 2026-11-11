@@ -161,7 +161,11 @@ pub async fn sync_selected_libraries(
             )
             .await;
         if connected.iter().any(|c| c == id) {
-            if let Err(e) = state.store_account_manager.sync_store(&app_handle, id).await {
+            if let Err(e) = state
+                .store_account_manager
+                .sync_store(&app_handle, id)
+                .await
+            {
                 tracing::warn!("Cloud sync failed for {}: {}", id, e);
             }
         }
