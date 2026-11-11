@@ -321,6 +321,7 @@ fn expand_env_strings(input: &str) -> String {
     }
 }
 
+#[allow(dead_code)]
 pub fn parse_windows_arguments(args_str: &str) -> Vec<String> {
     let trimmed = args_str.trim();
     if trimmed.is_empty() {
