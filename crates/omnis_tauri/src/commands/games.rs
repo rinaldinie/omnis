@@ -250,9 +250,22 @@ pub async fn set_emulator_settings(
 
 #[tauri::command]
 pub async fn add_custom_game(
-    payload: AddCustomGamePayload,
+    mut payload: AddCustomGamePayload,
     state: State<'_, AppState>,
 ) -> Result<GameDto, String> {
+    let raw_path = payload.executable_path.trim().to_string();
+    if raw_path.to_lowercase().ends_with(".lnk") {
+        if let Ok(resolved) = crate::commands::window::resolve_executable_path_sync(&raw_path) {
+            payload.executable_path = resolved.executable_path;
+            if payload.arguments.is_empty() && !resolved.arguments.is_empty() {
+                payload.arguments = resolved.arguments;
+            }
+            if payload.working_dir.is_none() && resolved.working_dir.is_some() {
+                payload.working_dir = resolved.working_dir;
+            }
+        }
+    }
+
     let id = Uuid::new_v4();
     let sorting_title = payload.title.to_lowercase();
     let exe_path = PathBuf::from(&payload.executable_path);
