@@ -1,5 +1,5 @@
 use super::types::MetadataCandidateDto;
-use super::utils::{extract_year, html_to_plain_text, url_encode};
+use super::utils::{extract_year, html_to_plain_text, titles_match, titles_match_strict, url_encode};
 use async_trait::async_trait;
 use omnis_sdk::constants::stores;
 use omnis_sdk::{GameMetadataPatch, MetadataField, MetadataProvider, MetadataSearchRequest};
@@ -422,7 +422,7 @@ impl MetadataProvider for GogMetadataProvider {
 
         // 2. Search GOG Catalog API v1 by title
         let catalog_url = format!(
-            "https://catalog.gog.com/v1/catalog?limit=1&query=like:{}",
+            "https://catalog.gog.com/v1/catalog?limit=5&query=like:{}",
             url_encode(&request.title)
         );
         let resp = self
@@ -441,18 +441,40 @@ impl MetadataProvider for GogMetadataProvider {
             .await
             .map_err(|e| format!("Failed to parse GOG catalog response: {}", e))?;
 
-        let first = catalog_resp
-            .products
-            .into_iter()
-            .next()
-            .ok_or_else(|| format!("Nessun gioco trovato su GOG per '{}'", request.title))?;
+        let mut products = catalog_resp.products;
+        let matched_idx = products
+            .iter()
+            .position(|p| {
+                p.title
+                    .as_deref()
+                    .map_or(false, |t| titles_match_strict(&request.title, t))
+            })
+            .or_else(|| {
+                products
+                    .iter()
+                    .position(|p| {
+                        p.title
+                            .as_deref()
+                            .map_or(false, |t| titles_match(&request.title, t))
+                    })
+            });
 
-        let cover_url = first.cover_vertical_url();
-        let background_url = first.cover_horizontal_url();
-        let genres = first.genres_list();
+        let matched = match matched_idx {
+            Some(idx) => products.swap_remove(idx),
+            None => {
+                return Err(format!(
+                    "Nessun titolo corrispondente trovato su GOG per '{}'",
+                    request.title
+                ))
+            }
+        };
+
+        let cover_url = matched.cover_vertical_url();
+        let background_url = matched.cover_horizontal_url();
+        let genres = matched.genres_list();
 
         // Optional: fetch description lead if available from GOG product details
-        let prod_id = first.id_string();
+        let prod_id = matched.id_string();
         let description = if !prod_id.is_empty() {
             let details_url = format!(
                 "https://api.gog.com/products/{}?expand=description",
@@ -479,17 +501,17 @@ impl MetadataProvider for GogMetadataProvider {
         };
 
         Ok(GameMetadataPatch {
-            name: first.title,
+            name: matched.title,
             description,
-            release_date: first.release_date,
+            release_date: matched.release_date,
             cover_url,
             background_url,
             icon_url: None,
             critic_score: None,
             community_score: None,
             genres,
-            developers: first.developers,
-            publishers: first.publishers,
+            developers: matched.developers,
+            publishers: matched.publishers,
             tags: Vec::new(),
             features: Vec::new(),
             series: None,
@@ -645,5 +667,64 @@ mod tests {
             .filter_map(|t| t.name)
             .collect();
         assert_eq!(genres, vec!["RPG", "Open World"]);
+    }
+
+    #[test]
+    fn test_gog_catalog_title_filtering() {
+        let json = r#"{
+            "products": [
+                {
+                    "id": "1468493317",
+                    "title": "Stellaris Upgrade Bundle"
+                },
+                {
+                    "id": "1207658924",
+                    "title": "The Witcher 3: Wild Hunt — Remastered"
+                }
+            ]
+        }"#;
+
+        let parsed: GogCatalogResponseDto = serde_json::from_str(json).unwrap();
+        let products = parsed.products;
+
+        // "Metroid Dread" should match neither Stellaris nor Witcher
+        let match_metroid = products
+            .iter()
+            .position(|p| {
+                p.title
+                    .as_deref()
+                    .map_or(false, |t| titles_match_strict("Metroid Dread", t))
+            })
+            .or_else(|| {
+                products
+                    .iter()
+                    .position(|p| {
+                        p.title
+                            .as_deref()
+                            .map_or(false, |t| titles_match("Metroid Dread", t))
+                    })
+            });
+        assert!(match_metroid.is_none());
+
+        // "The Witcher 3: Wild Hunt" should match the remastered edition
+        let match_witcher = products
+            .iter()
+            .position(|p| {
+                p.title
+                    .as_deref()
+                    .map_or(false, |t| {
+                        titles_match_strict("The Witcher 3: Wild Hunt", t)
+                    })
+            })
+            .or_else(|| {
+                products
+                    .iter()
+                    .position(|p| {
+                        p.title
+                            .as_deref()
+                            .map_or(false, |t| titles_match("The Witcher 3: Wild Hunt", t))
+                    })
+            });
+        assert_eq!(match_witcher, Some(1));
     }
 }

@@ -41,14 +41,14 @@ impl MetadataPipelineResolver {
             }
         }
 
-        let store_native_id = match game.library_id.to_lowercase().as_str() {
-            "steam" => "steam",
-            "gog" => "gog",
-            "epic" => "epic",
-            "xbox" => "xbox",
+        let store_native_id = match game.library_id.trim().to_lowercase().as_str() {
+            "steam" => Some("steam"),
+            "gog" => Some("gog"),
+            "epic" => Some("epic"),
+            "xbox" => Some("xbox"),
             // Console games have no PC storefront: IGDB is their reference catalog
-            "switch" => "igdb",
-            _ => "steam",
+            "switch" => Some("igdb"),
+            _ => None,
         };
 
         // Populate field rules combining user overrides and modern defaults
@@ -565,14 +565,17 @@ impl MetadataPipelineResolver {
 
     async fn get_or_fetch_provider(
         source_id: &str,
-        store_native_id: &str,
+        store_native_id: Option<&str>,
         request: &MetadataSearchRequest,
         providers: &HashMap<String, Box<dyn MetadataProvider>>,
         enabled: &HashMap<String, bool>,
         settings: &HashMap<String, Map<String, Value>>,
         cache: &mut HashMap<String, Option<GameMetadataPatch>>,
     ) -> Option<GameMetadataPatch> {
-        let eff_id = Self::resolve_source_id(source_id, store_native_id);
+        let eff_id = match Self::resolve_source_id(source_id, store_native_id) {
+            Some(id) => id,
+            None => return None,
+        };
         if let Some(cached) = cache.get(eff_id) {
             return cached.clone();
         }
@@ -615,11 +618,14 @@ impl MetadataPipelineResolver {
         !(is_console && PC_STOREFRONTS.contains(&provider_id))
     }
 
-    fn resolve_source_id<'a>(source: &'a str, store_native_id: &'a str) -> &'a str {
-        if source == "store_native" {
+    pub(crate) fn resolve_source_id<'a>(
+        source: &'a str,
+        store_native_id: Option<&'a str>,
+    ) -> Option<&'a str> {
+        if source == "store_native" || source == "official_store" {
             store_native_id
         } else {
-            source
+            Some(source)
         }
     }
 
@@ -809,5 +815,48 @@ mod tests {
         for provider in ["igdb", "steamgriddb", "hltb", "opencritic"] {
             assert!(Resolver::provider_applies_to(provider, "switch"));
         }
+    }
+
+    #[test]
+    fn official_store_resolves_to_native_store_provider() {
+        assert_eq!(
+            Resolver::resolve_source_id("official_store", Some("steam")),
+            Some("steam")
+        );
+        assert_eq!(
+            Resolver::resolve_source_id("official_store", Some("gog")),
+            Some("gog")
+        );
+        assert_eq!(
+            Resolver::resolve_source_id("official_store", Some("epic")),
+            Some("epic")
+        );
+        assert_eq!(
+            Resolver::resolve_source_id("official_store", Some("xbox")),
+            Some("xbox")
+        );
+        assert_eq!(
+            Resolver::resolve_source_id("official_store", Some("igdb")),
+            Some("igdb")
+        );
+        assert_eq!(Resolver::resolve_source_id("official_store", None), None);
+
+        // store_native backwards compatibility
+        assert_eq!(
+            Resolver::resolve_source_id("store_native", Some("steam")),
+            Some("steam")
+        );
+        assert_eq!(Resolver::resolve_source_id("store_native", None), None);
+
+        // Explicit providers resolve to themselves
+        assert_eq!(Resolver::resolve_source_id("steam", None), Some("steam"));
+        assert_eq!(
+            Resolver::resolve_source_id("igdb", Some("steam")),
+            Some("igdb")
+        );
+        assert_eq!(
+            Resolver::resolve_source_id("steamgriddb", Some("gog")),
+            Some("steamgriddb")
+        );
     }
 }

@@ -446,3 +446,48 @@ async fn test_provider_priority_in_candidate_search() {
         }
     }
 }
+
+#[tokio::test]
+async fn test_enrichment_does_not_accept_unrelated_gog_hit_for_custom_game() {
+    let db = Database::open_in_memory().expect("Failed to open DB");
+    let custom_game_id = uuid::Uuid::new_v4();
+    db.insert_custom_game(
+        custom_game_id,
+        "Metroid Dread",
+        "metroid dread",
+        None,
+        vec![],
+        None,
+    )
+    .expect("Failed to insert custom game");
+
+    let temp_cache =
+        std::env::temp_dir().join(format!("omnis_test_custom_enrich_{}", uuid::Uuid::new_v4()));
+    let _ = std::fs::create_dir_all(&temp_cache);
+
+    let downloader = MetadataDownloader::new();
+    let patch_result = downloader
+        .download_for_game(&db, custom_game_id, &temp_cache)
+        .await;
+
+    assert!(patch_result.is_ok());
+    let patch = patch_result.unwrap();
+
+    // Verify that GOG's closest hit ("Stellaris Upgrade Bundle") is NOT accepted
+    if let Some(ref cover) = patch.cover_url {
+        assert!(
+            !cover.to_lowercase().contains("stellaris"),
+            "Cover must not be from Stellaris Upgrade Bundle: {}",
+            cover
+        );
+    }
+    if let Some(ref desc) = patch.description {
+        assert!(
+            !desc.to_lowercase().contains("stellaris"),
+            "Description must not mention Stellaris: {}",
+            desc
+        );
+    }
+
+    let _ = std::fs::remove_dir_all(&temp_cache);
+}
