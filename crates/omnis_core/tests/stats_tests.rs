@@ -228,3 +228,78 @@ fn test_ingest_external_sessions_idempotency_and_metrics() {
         "Second ingest must be idempotent and add 0 duplicate sessions"
     );
 }
+
+#[test]
+fn test_steam_sync_does_not_duplicate_omnis_recorded_session() {
+    use chrono::{Duration, Utc};
+    use omnis_core::Database;
+    use omnis_sdk::{DiscoveredGame, ExternalSessionDto};
+    use std::path::PathBuf;
+    use uuid::Uuid;
+
+    let db = Database::open_in_memory().expect("Failed to open DB");
+
+    let appid = "123456";
+
+    let games = vec![DiscoveredGame {
+        library_id: "steam".to_string(),
+        external_id: appid.to_string(),
+        title: "Test Steam Game".to_string(),
+        install_dir: Some(PathBuf::from("D:\\SteamLibrary\\steamapps\\common\\TestGame")),
+        is_installed: true,
+        play_action: None,
+        playtime_seconds: 0,
+        play_count: 0,
+        last_activity: None,
+        cover_image_path: None,
+        background_image_path: None,
+    }];
+    db.ingest_discovered_batch(&games).expect("Ingest game");
+
+    let all_games = db.get_all_games().unwrap();
+    let target_game = all_games.iter().find(|g| g.external_id == appid).unwrap();
+
+    // 1. Omnis records the game session in real-time when the player plays
+    let live_session_id = Uuid::new_v4();
+    let live_start = Utc::now() - Duration::hours(1);
+    let live_end = live_start + Duration::seconds(1828); // 30m 28s
+
+    db.start_play_session(live_session_id, target_game.id, live_start)
+        .expect("Start session");
+    db.finish_play_session(live_session_id, target_game.id, 1828, live_start, live_end)
+        .expect("Finish session");
+
+    let game_after_live = db.get_game_by_id(target_game.id).unwrap().unwrap();
+    assert_eq!(game_after_live.play_count, 1);
+    assert_eq!(game_after_live.playtime_seconds, 1828);
+    let sessions_after_live = db.get_game_sessions(target_game.id).unwrap();
+    assert_eq!(sessions_after_live.len(), 1);
+
+    // 2. User closes Omnis and reopens it. Steam sync reads gameprocess_log.txt:
+    // Steam logged 18s later (PID attach delay) and 2s earlier (1808s duration)
+    let steam_start = live_start + Duration::seconds(18);
+    let steam_end = live_start + Duration::seconds(1826);
+    let steam_sessions = vec![ExternalSessionDto {
+        external_id: appid.to_string(),
+        started_at: steam_start.to_rfc3339(),
+        ended_at: steam_end.to_rfc3339(),
+        duration_seconds: 1808,
+    }];
+
+    let added = db
+        .ingest_external_sessions("steam", &steam_sessions)
+        .expect("Sync steam sessions");
+
+    // Must NOT insert duplicate session!
+    assert_eq!(added, 0, "Steam sync must recognize real-time session as already recorded");
+
+    let game_after_sync = db.get_game_by_id(target_game.id).unwrap().unwrap();
+    assert_eq!(game_after_sync.play_count, 1, "Play count must NOT be doubled");
+    assert_eq!(
+        game_after_sync.playtime_seconds, 1828,
+        "Playtime must NOT be inflated"
+    );
+
+    let sessions_after_sync = db.get_game_sessions(target_game.id).unwrap();
+    assert_eq!(sessions_after_sync.len(), 1, "Must remain exactly 1 session record");
+}
