@@ -282,6 +282,7 @@ export const DesktopView: React.FC<DesktopViewProps> = ({
           gamepadName={gamepadName}
           handleOpenFolder={handleOpenFolder}
           onOpenStoreAccounts={() => handleOpenSettings("accounts")}
+          onOpenEmulatorSettings={() => handleOpenSettings("emulators")}
           viewMode={viewMode}
           setViewMode={setViewMode}
         />

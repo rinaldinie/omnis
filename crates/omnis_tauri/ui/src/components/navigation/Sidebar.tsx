@@ -9,6 +9,7 @@ import {
   Cloud,
   BarChart2,
   EyeOff,
+  Settings2,
 } from "lucide-react";
 import { LibraryCounts, ViewMode } from "../../types";
 import { SteamIcon, EpicIcon, GogIcon, XboxIcon, SwitchIcon } from "../StoreBadge";
@@ -23,6 +24,8 @@ interface SidebarProps {
   gamepadName?: string;
   handleOpenFolder: (folderType: string) => void;
   onOpenStoreAccounts?: () => void;
+  /** Opens Settings > Emulators */
+  onOpenEmulatorSettings?: () => void;
   viewMode?: ViewMode;
   setViewMode?: (mode: ViewMode) => void;
 }
@@ -36,6 +39,7 @@ export default function Sidebar({
   gamepadName: _gamepadName,
   handleOpenFolder,
   onOpenStoreAccounts,
+  onOpenEmulatorSettings,
   viewMode,
   setViewMode,
 }: SidebarProps) {
@@ -59,8 +63,48 @@ export default function Sidebar({
     { id: "gog", label: "GOG Galaxy", count: counts.gog, icon: GogIcon },
     { id: "epic", label: "Epic Games", count: counts.epic, icon: EpicIcon },
     { id: "xbox", label: "Xbox / Pass", count: counts.xbox || 0, icon: XboxIcon },
+  ];
+
+  // Emulated platforms get their own section, shown once at least one has games
+  const emulatorItems = [
     { id: "switch", label: "Nintendo Switch", count: counts.switch || 0, icon: SwitchIcon },
   ];
+  const showEmulators = emulatorItems.some((item) => item.count > 0);
+
+  const renderSourceItem = (source: (typeof storeItems)[number]) => {
+    const Icon = source.icon;
+    const isActive = checkActive(source.id);
+    return (
+      <button
+        key={source.id}
+        data-omnis="sidebar.item"
+        data-state={isActive ? "active" : "idle"}
+        onClick={() => {
+          if (viewMode === "stats" && setViewMode) {
+            setViewMode("grid");
+          }
+          setActiveFilter(source.id);
+        }}
+        className={`flex items-center justify-between px-2 py-1.5 rounded-md text-xs transition-colors group ${
+          isActive
+            ? "font-semibold bg-white/10 text-white"
+            : "font-normal hover:bg-white/5 text-slate-300 hover:text-white"
+        }`}
+        style={{
+          borderLeft: isActive ? "2.5px solid var(--accent-primary)" : "2.5px solid transparent",
+          backgroundColor: isActive ? "rgba(255, 255, 255, 0.08)" : undefined,
+        }}
+      >
+        <div className="flex items-center gap-2 min-w-0">
+          <Icon className="w-3.5 h-3.5 shrink-0" />
+          <span className="truncate">{source.label}</span>
+        </div>
+        <span className="text-[9px] font-mono px-1 py-0.2 rounded text-slate-400 bg-black/20 shrink-0">
+          {source.count}
+        </span>
+      </button>
+    );
+  };
 
   return (
     <aside
@@ -182,43 +226,33 @@ export default function Sidebar({
               </button>
             )}
           </div>
-          {storeItems.map((store) => {
-            const Icon = store.icon;
-            const isActive = checkActive(store.id);
-            return (
-              <button
-                key={store.id}
-                data-omnis="sidebar.item"
-                data-state={isActive ? "active" : "idle"}
-                onClick={() => {
-                  if (viewMode === "stats" && setViewMode) {
-                    setViewMode("grid");
-                  }
-                  setActiveFilter(store.id);
-                }}
-                className={`flex items-center justify-between px-2 py-1.5 rounded-md text-xs transition-colors group ${
-                  isActive
-                    ? "font-semibold bg-white/10 text-white"
-                    : "font-normal hover:bg-white/5 text-slate-300 hover:text-white"
-                }`}
-                style={{
-                  borderLeft: isActive ? "2.5px solid var(--accent-primary)" : "2.5px solid transparent",
-                  backgroundColor: isActive ? "rgba(255, 255, 255, 0.08)" : undefined,
-                }}
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <Icon className="w-3.5 h-3.5 shrink-0" />
-                  <span className="truncate">{store.label}</span>
-                </div>
-                <span
-                  className="text-[9px] font-mono px-1 py-0.2 rounded text-slate-400 bg-black/20 shrink-0"
-                >
-                  {store.count}
-                </span>
-              </button>
-            );
-          })}
+          {storeItems.map(renderSourceItem)}
         </div>
+
+        {/* Section: Emulators */}
+        {showEmulators && (
+          <div className="flex flex-col gap-0.5" data-omnis="sidebar.emulators">
+            <div className="flex items-center justify-between px-2 pt-1 pb-0.5">
+              <span
+                className="text-[9px] font-bold tracking-wider uppercase"
+                style={{ color: "var(--text-muted)" }}
+              >
+                {t("sidebar.emulators")}
+              </span>
+              {onOpenEmulatorSettings && (
+                <button
+                  type="button"
+                  onClick={onOpenEmulatorSettings}
+                  className="p-0.5 rounded text-slate-500 hover:text-white hover:bg-white/10 transition-all"
+                  title={t("sidebar.emulator_settings_title")}
+                >
+                  <Settings2 className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+            {emulatorItems.map(renderSourceItem)}
+          </div>
+        )}
       </div>
 
       {/* Sidebar Footer (Heroic-style compact storage & folder tools) */}
