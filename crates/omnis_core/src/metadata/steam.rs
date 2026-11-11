@@ -1,4 +1,4 @@
-use super::utils::html_to_plain_text;
+use super::utils::{html_to_plain_text, titles_match, titles_match_strict};
 use async_trait::async_trait;
 use omnis_sdk::constants::stores;
 use omnis_sdk::{
@@ -23,6 +23,8 @@ struct SteamStoreSearchResponse {
 #[derive(Debug, Deserialize)]
 struct SteamStoreSearchItem {
     id: u64,
+    #[serde(default)]
+    name: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -117,8 +119,19 @@ impl SteamMetadataProvider {
 
         if let Ok(resp) = self.client.get(search_url).send().await {
             if let Ok(search_res) = resp.json::<SteamStoreSearchResponse>().await {
-                if let Some(first) = search_res.items.first() {
-                    return Some(first.id.to_string());
+                let matched = search_res
+                    .items
+                    .iter()
+                    .find(|item| titles_match_strict(title, &item.name))
+                    .or_else(|| {
+                        search_res
+                            .items
+                            .iter()
+                            .find(|item| titles_match(title, &item.name))
+                    });
+
+                if let Some(item) = matched {
+                    return Some(item.id.to_string());
                 }
             }
         }
@@ -413,5 +426,47 @@ mod tests {
         assert_eq!(data.metacritic.and_then(|m| m.score), Some(90));
         assert_eq!(data.developers, vec!["Valve"]);
         assert_eq!(data.achievements.and_then(|a| a.total), Some(15));
+    }
+
+    #[test]
+    fn test_steam_store_search_item_selection() {
+        let json = r#"{
+            "total": 2,
+            "items": [
+                { "id": 620, "name": "Portal 2" },
+                { "id": 400, "name": "Portal" }
+            ]
+        }"#;
+        let search_res: SteamStoreSearchResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(search_res.items.len(), 2);
+
+        let title = "Portal";
+        let matched = search_res
+            .items
+            .iter()
+            .find(|item| titles_match_strict(title, &item.name))
+            .or_else(|| {
+                search_res
+                    .items
+                    .iter()
+                    .find(|item| titles_match(title, &item.name))
+            });
+
+        assert!(matched.is_some());
+        assert_eq!(matched.unwrap().id, 400);
+
+        // Searching for unrelated title should not match
+        let unrelated = "Metroid Dread";
+        let no_match = search_res
+            .items
+            .iter()
+            .find(|item| titles_match_strict(unrelated, &item.name))
+            .or_else(|| {
+                search_res
+                    .items
+                    .iter()
+                    .find(|item| titles_match(unrelated, &item.name))
+            });
+        assert!(no_match.is_none());
     }
 }
