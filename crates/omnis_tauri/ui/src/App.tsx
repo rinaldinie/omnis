@@ -595,6 +595,9 @@ export default function App() {
             refreshLibrary();
           }}
           onSkip={() => setShowOnboarding(false)}
+          onLibraryImported={refreshLibrary}
+          onStartMetadataDownload={gameOps.handleDownloadAll}
+          onOpenSettings={handleOpenSettings}
         />
       )}
 

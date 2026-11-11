@@ -107,9 +107,20 @@ export const gamesApi = {
   /** Synchronize local store installations */
   syncLibrary: (): Promise<number> => invokeIpc<number>("sync_library"),
 
+  /** Synchronize only the given libraries (e.g. ["steam", "switch"]) */
+  syncSelectedLibraries: (libraryIds: string[]): Promise<number> =>
+    invokeIpc<number>("sync_selected_libraries", { libraryIds }),
+
   /** Detect installed launchers and stores */
   detectStores: (): Promise<StoreDetectionResult[]> =>
     invokeIpc<StoreDetectionResult[]>("detect_stores"),
+
+  /** Whether the first-run wizard was completed or skipped for this data folder */
+  getOnboardingCompleted: (): Promise<boolean> => invokeIpc<boolean>("get_onboarding_completed"),
+
+  /** Record the first-run wizard as completed / skipped */
+  setOnboardingCompleted: (completed: boolean): Promise<void> =>
+    invokeIpc<void>("set_onboarding_completed", { completed }),
 
   /** Add custom executable game to library */
   addCustomGame: (payload: {
