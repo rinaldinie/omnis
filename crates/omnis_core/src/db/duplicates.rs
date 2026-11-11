@@ -9,19 +9,31 @@ use crate::db::Database;
 
 const EDITION_SUFFIXES: &[&str] = &[
     "game of the year edition",
+    "the game of the year edition",
     "digital deluxe edition",
-    "anniversary edition",
+    "the definitive edition",
     "definitive edition",
+    "anniversary edition",
+    "the ultimate edition",
     "ultimate edition",
+    "the complete edition",
     "complete edition",
     "standard edition",
     "enhanced edition",
+    "collector's edition",
+    "collectors edition",
+    "special edition",
     "deluxe edition",
+    "gold edition",
+    "silver edition",
+    "platinum edition",
     "goty edition",
     "director's cut",
     "directors cut",
+    "upgrade bundle",
     "remastered",
     "goty",
+    "bundle",
 ];
 
 /// Normalize a game title into a canonical deduplication key.

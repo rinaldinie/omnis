@@ -416,11 +416,61 @@ async fn test_steam_fallback_resolution() {
 fn test_generate_fallback_metadata_facade() {
     let downloader = MetadataDownloader::new();
     let patch = downloader.generate_fallback_metadata("Baldur's Gate 3", "gog");
-    assert!(patch.genres.contains(&"RPG".to_string()));
-    assert!(patch.genres.contains(&"Open World Adventure".to_string()));
-    assert_eq!(patch.publishers, vec!["GOG".to_string()]);
-    assert_eq!(patch.developers, vec!["Official Developer".to_string()]);
-    assert!(patch.description.unwrap().contains("Baldur's Gate 3"));
+    assert_eq!(patch.name.as_deref(), Some("Baldur's Gate 3"));
+    assert_eq!(patch.description, None);
+    assert_eq!(patch.critic_score, None);
+    assert_eq!(patch.community_score, None);
+    assert!(patch.genres.is_empty());
+    assert!(patch.developers.is_empty());
+    assert!(patch.publishers.is_empty());
+    assert_eq!(patch.platform, None);
+}
+
+#[tokio::test]
+async fn test_unmatched_game_enrichment_does_not_invent_metadata() {
+    let db = Database::open_in_memory().expect("Failed to open DB");
+    let unknown_game = omnis_sdk::DiscoveredGame {
+        library_id: "custom".to_string(),
+        external_id: "unknown-12345".to_string(),
+        title: "XyzzyQqqNonExistentGameTotallyUnknown998877".to_string(),
+        install_dir: None,
+        is_installed: false,
+        play_action: None,
+        playtime_seconds: 0,
+        play_count: 0,
+        last_activity: None,
+        cover_image_path: None,
+        background_image_path: None,
+    };
+    db.ingest_discovered_batch(&[unknown_game]).expect("Ingest failed");
+    let all = db.get_all_games().expect("Get games failed");
+    let game = all.into_iter().find(|g| g.external_id == "unknown-12345").unwrap();
+
+    let temp_cache = std::env::temp_dir().join(format!("omnis_test_unmatched_{}", uuid::Uuid::new_v4()));
+    let _ = std::fs::create_dir_all(&temp_cache);
+
+    let downloader = MetadataDownloader::new();
+    let patch = downloader
+        .download_for_game(&db, game.id, &temp_cache)
+        .await
+        .expect("Enrichment run should succeed");
+
+    assert_eq!(patch.critic_score, None, "Critic score must not be invented");
+    assert_eq!(patch.community_score, None, "Community score must not be invented");
+    assert!(patch.developers.is_empty(), "Developers must stay empty");
+    assert!(patch.publishers.is_empty(), "Publishers must stay empty");
+    assert!(patch.tags.is_empty(), "Tags must stay empty");
+    assert_eq!(patch.platform, None, "Platform must not be assumed");
+    assert_eq!(patch.release_date, None, "Release date must not be invented");
+
+    let saved = db.get_game_by_id(game.id).unwrap().unwrap();
+    assert_eq!(saved.critic_score, None);
+    assert_eq!(saved.community_score, None);
+    assert!(saved.developers.is_empty());
+    assert!(saved.publishers.is_empty());
+    assert!(saved.tags.is_empty());
+
+    let _ = std::fs::remove_dir_all(&temp_cache);
 }
 
 #[tokio::test]
@@ -445,4 +495,49 @@ async fn test_provider_priority_in_candidate_search() {
             );
         }
     }
+}
+
+#[tokio::test]
+async fn test_enrichment_does_not_accept_unrelated_gog_hit_for_custom_game() {
+    let db = Database::open_in_memory().expect("Failed to open DB");
+    let custom_game_id = uuid::Uuid::new_v4();
+    db.insert_custom_game(
+        custom_game_id,
+        "Metroid Dread",
+        "metroid dread",
+        None,
+        vec![],
+        None,
+    )
+    .expect("Failed to insert custom game");
+
+    let temp_cache =
+        std::env::temp_dir().join(format!("omnis_test_custom_enrich_{}", uuid::Uuid::new_v4()));
+    let _ = std::fs::create_dir_all(&temp_cache);
+
+    let downloader = MetadataDownloader::new();
+    let patch_result = downloader
+        .download_for_game(&db, custom_game_id, &temp_cache)
+        .await;
+
+    assert!(patch_result.is_ok());
+    let patch = patch_result.unwrap();
+
+    // Verify that GOG's closest hit ("Stellaris Upgrade Bundle") is NOT accepted
+    if let Some(ref cover) = patch.cover_url {
+        assert!(
+            !cover.to_lowercase().contains("stellaris"),
+            "Cover must not be from Stellaris Upgrade Bundle: {}",
+            cover
+        );
+    }
+    if let Some(ref desc) = patch.description {
+        assert!(
+            !desc.to_lowercase().contains("stellaris"),
+            "Description must not mention Stellaris: {}",
+            desc
+        );
+    }
+
+    let _ = std::fs::remove_dir_all(&temp_cache);
 }

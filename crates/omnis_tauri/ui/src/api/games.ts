@@ -139,6 +139,17 @@ export const gamesApi = {
   pickExecutableFile: (): Promise<string | null> =>
     invokeIpc<string | null>("pick_executable_file"),
 
+  /** Resolve executable or .lnk shortcut path */
+  resolveExecutablePath: (
+    path: string
+  ): Promise<{
+    original_path: string;
+    executable_path: string;
+    arguments: string[];
+    working_dir: string | null;
+    shortcut_name: string | null;
+  }> => invokeIpc("resolve_executable_path", { path }),
+
   /** Native file dialog: pick directory */
   pickDirectory: (): Promise<string | null> => invokeIpc<string | null>("pick_directory"),
 
