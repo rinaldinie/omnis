@@ -447,7 +447,7 @@ impl MetadataProvider for GogMetadataProvider {
             .position(|p| {
                 p.title
                     .as_deref()
-                    .map_or(false, |t| titles_match_strict(&request.title, t))
+                    .is_some_and(|t| titles_match_strict(&request.title, t))
             })
             .or_else(|| {
                 products
@@ -455,7 +455,7 @@ impl MetadataProvider for GogMetadataProvider {
                     .position(|p| {
                         p.title
                             .as_deref()
-                            .map_or(false, |t| titles_match(&request.title, t))
+                            .is_some_and(|t| titles_match(&request.title, t))
                     })
             });
 
@@ -693,7 +693,7 @@ mod tests {
             .position(|p| {
                 p.title
                     .as_deref()
-                    .map_or(false, |t| titles_match_strict("Metroid Dread", t))
+                    .is_some_and(|t| titles_match_strict("Metroid Dread", t))
             })
             .or_else(|| {
                 products
@@ -701,7 +701,7 @@ mod tests {
                     .position(|p| {
                         p.title
                             .as_deref()
-                            .map_or(false, |t| titles_match("Metroid Dread", t))
+                            .is_some_and(|t| titles_match("Metroid Dread", t))
                     })
             });
         assert!(match_metroid.is_none());
@@ -712,7 +712,7 @@ mod tests {
             .position(|p| {
                 p.title
                     .as_deref()
-                    .map_or(false, |t| {
+                    .is_some_and(|t| {
                         titles_match_strict("The Witcher 3: Wild Hunt", t)
                     })
             })
@@ -722,7 +722,7 @@ mod tests {
                     .position(|p| {
                         p.title
                             .as_deref()
-                            .map_or(false, |t| titles_match("The Witcher 3: Wild Hunt", t))
+                            .is_some_and(|t| titles_match("The Witcher 3: Wild Hunt", t))
                     })
             });
         assert_eq!(match_witcher, Some(1));
