@@ -94,6 +94,7 @@ fn main() {
             search_metadata_candidates,
             apply_metadata_candidate,
             pick_executable_file,
+            resolve_executable_path,
             pick_directory,
             find_executables_in_folder,
             pick_image_file,

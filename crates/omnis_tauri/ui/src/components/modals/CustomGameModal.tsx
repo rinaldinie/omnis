@@ -17,6 +17,8 @@ export default function CustomGameModal({
   const { t } = useTranslation();
   const [customTitle, setCustomTitle] = useState<string>("");
   const [customExePath, setCustomExePath] = useState<string>("");
+  const [customArguments, setCustomArguments] = useState<string[]>([]);
+  const [customWorkingDir, setCustomWorkingDir] = useState<string | null>(null);
   const [customCoverPath, setCustomCoverPath] = useState<string>("");
   const [isAddingCustom, setIsAddingCustom] = useState<boolean>(false);
 
@@ -24,17 +26,46 @@ export default function CustomGameModal({
 
   const handlePickCustomExe = async () => {
     try {
-      const path = await api.games.pickExecutableFile();
-      if (path) {
-        setCustomExePath(path);
+      const pickedPath = await api.games.pickExecutableFile();
+      if (pickedPath) {
+        let exeToSet = pickedPath;
+        let argsToSet: string[] = [];
+        let workingDirToSet: string | null = null;
+        let suggestedName = "";
+
+        try {
+          const resolved = await api.games.resolveExecutablePath(pickedPath);
+          if (resolved) {
+            exeToSet = resolved.executable_path || pickedPath;
+            argsToSet = resolved.arguments || [];
+            workingDirToSet = resolved.working_dir || null;
+            if (resolved.shortcut_name) {
+              suggestedName = resolved.shortcut_name;
+            }
+          }
+        } catch (resolveErr) {
+          console.warn("Could not resolve shortcut details, using raw path:", resolveErr);
+        }
+
+        setCustomExePath(exeToSet);
+        setCustomArguments(argsToSet);
+        setCustomWorkingDir(workingDirToSet);
+
         if (!customTitle.trim()) {
-          const sep = path.includes("\\") ? "\\" : "/";
-          const filename = path.split(sep).pop() || "";
-          const formatted = filename
-            .replace(/\.(exe|bat|cmd|lnk)$/i, "")
-            .replace(/[_-]/g, " ")
-            .trim();
-          setCustomTitle(formatted);
+          if (suggestedName) {
+            const formatted = suggestedName
+              .replace(/[_-]/g, " ")
+              .trim();
+            setCustomTitle(formatted);
+          } else {
+            const sep = exeToSet.includes("\\") ? "\\" : "/";
+            const filename = exeToSet.split(sep).pop() || "";
+            const formatted = filename
+              .replace(/\.(exe|bat|cmd|lnk)$/i, "")
+              .replace(/[_-]/g, " ")
+              .trim();
+            setCustomTitle(formatted);
+          }
         }
       }
     } catch (e) {
@@ -49,8 +80,12 @@ export default function CustomGameModal({
         const exes = await api.games.findExecutablesInFolder(dir);
         if (exes && exes.length > 0) {
           setCustomExePath(exes[0]);
+          setCustomArguments([]);
+          setCustomWorkingDir(dir);
         } else {
           setCustomExePath(dir);
+          setCustomArguments([]);
+          setCustomWorkingDir(dir);
         }
         if (!customTitle.trim()) {
           const sep = dir.includes("\\") ? "\\" : "/";
@@ -82,13 +117,15 @@ export default function CustomGameModal({
       await api.games.addCustomGame({
         title: customTitle.trim(),
         executable_path: customExePath.trim(),
-        arguments: [],
-        working_dir: null,
+        arguments: customArguments,
+        working_dir: customWorkingDir,
         cover_image_path: customCoverPath.trim() || null,
       });
       const title = customTitle;
       setCustomTitle("");
       setCustomExePath("");
+      setCustomArguments([]);
+      setCustomWorkingDir(null);
       setCustomCoverPath("");
       onSuccess(title);
     } catch (err) {

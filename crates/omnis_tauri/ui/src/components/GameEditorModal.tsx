@@ -289,14 +289,38 @@ export default function GameEditorModal({
     try {
       const path = await api.games.pickExecutableFile();
       if (path) {
-        handleUpdateAction(actionIdx, "executable", path);
-        const currentAction = formData.play_actions[actionIdx];
-        if (!currentAction?.working_dir) {
-          const sep = path.includes("\\") ? "\\" : "/";
-          const lastIdx = path.lastIndexOf(sep);
-          if (lastIdx > 0) {
-            handleUpdateAction(actionIdx, "working_dir", path.substring(0, lastIdx));
+        let exeToSet = path;
+        let workingDirToSet: string | null = null;
+        let argsToSet: string[] = [];
+
+        try {
+          const resolved = await api.games.resolveExecutablePath(path);
+          if (resolved) {
+            exeToSet = resolved.executable_path || path;
+            if (resolved.working_dir) {
+              workingDirToSet = resolved.working_dir;
+            }
+            if (resolved.arguments && resolved.arguments.length > 0) {
+              argsToSet = resolved.arguments;
+            }
           }
+        } catch (resolveErr) {
+          console.warn("Could not resolve shortcut details:", resolveErr);
+        }
+
+        handleUpdateAction(actionIdx, "executable", exeToSet);
+        const currentAction = formData.play_actions[actionIdx];
+        if (workingDirToSet && !currentAction?.working_dir) {
+          handleUpdateAction(actionIdx, "working_dir", workingDirToSet);
+        } else if (!currentAction?.working_dir) {
+          const sep = exeToSet.includes("\\") ? "\\" : "/";
+          const lastIdx = exeToSet.lastIndexOf(sep);
+          if (lastIdx > 0) {
+            handleUpdateAction(actionIdx, "working_dir", exeToSet.substring(0, lastIdx));
+          }
+        }
+        if (argsToSet.length > 0 && (!currentAction?.arguments || currentAction.arguments.length === 0)) {
+          handleUpdateAction(actionIdx, "arguments", argsToSet);
         }
       }
     } catch (err) {
