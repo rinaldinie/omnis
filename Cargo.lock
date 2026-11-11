@@ -3153,6 +3153,7 @@ dependencies = [
  "chrono",
  "clap",
  "omnis_core",
+ "omnis_plugin_emulators",
  "omnis_plugin_epic",
  "omnis_plugin_gog",
  "omnis_plugin_steam",
@@ -3194,6 +3195,21 @@ dependencies = [
  "windows 0.58.0",
  "zeroize",
  "zip 2.6.1",
+]
+
+[[package]]
+name = "omnis_plugin_emulators"
+version = "0.19.0"
+dependencies = [
+ "aes",
+ "async-trait",
+ "chrono",
+ "omnis_sdk",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "winreg",
 ]
 
 [[package]]
@@ -3284,6 +3300,7 @@ dependencies = [
  "chrono",
  "keyring",
  "omnis_core",
+ "omnis_plugin_emulators",
  "omnis_plugin_epic",
  "omnis_plugin_gog",
  "omnis_plugin_steam",

@@ -8,7 +8,50 @@ import type {
   StoreDetectionResult,
 } from "../types";
 
+/** An emulator found by the emulator integration (Settings > Emulators). */
+export interface EmulatorStatus {
+  id: string;
+  name: string;
+  platform: string;
+  executable: string | null;
+  game_dirs: string[];
+  has_keys: boolean;
+  /** Games are launched with this emulator by default */
+  is_default: boolean;
+  /** The executable was picked by hand in Settings */
+  custom_executable: boolean;
+}
+
+/** Settings of the emulator integration. */
+export interface EmulatorSettings {
+  use_emulator_keys: boolean;
+  /** Emulator id used for Switch games (null = first available) */
+  switch_default_emulator?: string | null;
+  /** Per-game exceptions: Switch Title ID -> emulator id */
+  switch_game_emulators?: Record<string, string>;
+  /** Emulator executables picked by hand */
+  switch_custom_executables?: string[];
+  /** Extra game folders scanned besides the emulators' own */
+  switch_extra_game_dirs?: string[];
+}
+
 export const gamesApi = {
+  /** Emulators detected on this machine */
+  getEmulatorStatus: (): Promise<EmulatorStatus[]> =>
+    invokeIpc<EmulatorStatus[]>("get_emulator_status"),
+
+  /** Name of the supported emulator an executable belongs to, or null */
+  identifyEmulatorExecutable: (path: string): Promise<string | null> =>
+    invokeIpc<string | null>("identify_emulator_executable", { path }),
+
+  /** Emulator integration settings */
+  getEmulatorSettings: (): Promise<EmulatorSettings> =>
+    invokeIpc<EmulatorSettings>("get_emulator_settings"),
+
+  /** Save emulator integration settings */
+  setEmulatorSettings: (settings: EmulatorSettings): Promise<void> =>
+    invokeIpc<void>("set_emulator_settings", { settings }),
+
   /** Fetch all games in the library */
   getGames: (): Promise<GameDto[]> => invokeIpc<GameDto[]>("get_games"),
 

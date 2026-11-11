@@ -11,7 +11,7 @@ import {
   EyeOff,
 } from "lucide-react";
 import { LibraryCounts, ViewMode } from "../../types";
-import { SteamIcon, EpicIcon, GogIcon, XboxIcon } from "../StoreBadge";
+import { SteamIcon, EpicIcon, GogIcon, XboxIcon, SwitchIcon } from "../StoreBadge";
 import { useTranslation } from "../../i18n";
 
 interface SidebarProps {
@@ -59,6 +59,7 @@ export default function Sidebar({
     { id: "gog", label: "GOG Galaxy", count: counts.gog, icon: GogIcon },
     { id: "epic", label: "Epic Games", count: counts.epic, icon: EpicIcon },
     { id: "xbox", label: "Xbox / Pass", count: counts.xbox || 0, icon: XboxIcon },
+    { id: "switch", label: "Nintendo Switch", count: counts.switch || 0, icon: SwitchIcon },
   ];
 
   return (

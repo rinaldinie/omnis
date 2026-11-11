@@ -1,6 +1,20 @@
 import React, { useState, useEffect } from "react";
 import { formatImageUrl } from "../../types";
 
+/**
+ * Width/height ratios treated as "square" artwork (e.g. Nintendo Switch icons, 1:1).
+ * Cropping those to the 2:3 card would cut a third of the image, so they are shown whole,
+ * centred, on the theme's card background colour.
+ */
+export const SQUARE_ART_MIN_RATIO = 0.8;
+export const SQUARE_ART_MAX_RATIO = 1.25;
+
+export function isSquareArt(width: number, height: number): boolean {
+  if (width <= 0 || height <= 0) return false;
+  const ratio = width / height;
+  return ratio >= SQUARE_ART_MIN_RATIO && ratio <= SQUARE_ART_MAX_RATIO;
+}
+
 export interface GameCardCoverProps {
   coverImage?: string | null;
   backgroundImage?: string | null;
@@ -20,13 +34,20 @@ export function GameCardCover({
   const [imgSrc, setImgSrc] = useState<string | null>(formattedCover);
   const [isFallback, setIsFallback] = useState(false);
   const [hasError, setHasError] = useState(!formattedCover);
+  const [isSquare, setIsSquare] = useState(false);
 
   useEffect(() => {
     const formatted = formatImageUrl(coverImage) || null;
     setImgSrc(formatted);
     setIsFallback(false);
     setHasError(!formatted);
+    setIsSquare(false);
   }, [coverImage]);
+
+  const handleLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const { naturalWidth, naturalHeight } = e.currentTarget;
+    setIsSquare(isSquareArt(naturalWidth, naturalHeight));
+  };
 
   const handleError = () => {
     if (imgSrc && imgSrc.includes("library_600x900_2x.jpg") && !isFallback) {
@@ -59,15 +80,32 @@ export function GameCardCover({
     );
   }
 
-  return (
+  const image = (
     <img
       key={imgSrc}
       data-omnis="game-card.cover"
+      data-fit={isSquare ? "square" : "cover"}
       src={imgSrc}
       alt={title}
       className={imgClassName}
       loading="lazy"
+      onLoad={handleLoad}
       onError={handleError}
     />
+  );
+
+  if (!isSquare) {
+    return image;
+  }
+
+  // Square art: the whole image, centred, with the space above and below painted in the
+  // active theme's card colour, so it follows theme changes like the rest of the card.
+  return (
+    <div
+      className="w-full h-full flex items-center overflow-hidden [transform:translateZ(0)]"
+      style={{ backgroundColor: "var(--bg-card)" }}
+    >
+      <div className="w-full aspect-square">{image}</div>
+    </div>
   );
 }

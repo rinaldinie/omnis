@@ -87,6 +87,7 @@ export interface LibraryCounts {
   strategy: number;
   indie: number;
   hidden?: number;
+  switch?: number;
 }
 
 export type SessionState = "launching" | "running" | "stopping";
@@ -265,6 +266,7 @@ export const FILTER_ORDER = [
   "gog",
   "epic",
   "xbox",
+  "switch",
   "action",
   "rpg",
   "strategy",

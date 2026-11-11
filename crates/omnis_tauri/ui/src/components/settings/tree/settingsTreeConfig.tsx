@@ -20,6 +20,7 @@ import {
   Database,
   Image as ImageIcon,
   Award,
+  Gamepad2,
 } from 'lucide-react';
 import { STORE_LIST } from '../StoreAccountsTab';
 import type { StoreAccount } from '../../store_accounts/types';
@@ -44,6 +45,8 @@ export type SettingsTab =
   | 'store-gog'
   | 'store-xbox'
   | 'store-amazon'
+  | 'emulators'
+  | 'emulators-switch'
   | 'metadata-igdb'
   | 'metadata-steamgriddb'
   | 'metadata-opencritic'
@@ -174,6 +177,19 @@ export function buildSettingsTree({
           ],
         };
       }),
+    },
+    {
+      id: 'emulators',
+      label: t('settings_modal.tab_emulators', { defaultValue: 'Emulatori' }),
+      icon: (c = 'w-4 h-4') => <Gamepad2 className={c} />,
+      items: [
+        {
+          id: 'emulators-switch',
+          label: t('emulators_settings.switch_title', { defaultValue: 'Nintendo Switch' }),
+          icon: (c = 'w-4 h-4') => <Gamepad2 className={c} />,
+          keywords: ['emulatori', 'emulator', 'switch', 'eden', 'ryujinx', 'citron', 'yuzu', 'chiavi', 'keys', 'icone'],
+        },
+      ],
     },
     {
       id: 'metadata',

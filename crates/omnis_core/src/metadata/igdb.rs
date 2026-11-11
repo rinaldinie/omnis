@@ -127,6 +127,22 @@ pub fn sanitize_apicalypse_query(input: &str) -> String {
         .replace(['\r', '\n'], " ")
 }
 
+/// IGDB platform IDs of console libraries, used to keep title searches on the right
+/// platform (e.g. "Bayonetta" on Switch rather than the PC release).
+pub fn igdb_platform_for_library(library_id: &str) -> Option<u32> {
+    match library_id.to_lowercase().as_str() {
+        "switch" => Some(130), // Nintendo Switch
+        _ => None,
+    }
+}
+
+/// APICalypse `where` clause restricting a search to the library's platform, if any.
+pub fn platform_filter_clause(library_id: &str) -> String {
+    igdb_platform_for_library(library_id)
+        .map(|id| format!(" where platforms = ({});", id))
+        .unwrap_or_default()
+}
+
 /// Convert Unix timestamp in seconds to ISO date string (YYYY-MM-DD)
 pub fn format_release_date(timestamp: i64) -> Option<String> {
     chrono::DateTime::from_timestamp(timestamp, 0).map(|dt| dt.format("%Y-%m-%d").to_string())
@@ -529,8 +545,9 @@ impl MetadataProvider for IgdbMetadataProvider {
             "fields name, summary, storyline, total_rating, rating, first_release_date, \
             cover.image_id, artworks.image_id, screenshots.image_id, genres.name, \
             involved_companies.company.name, involved_companies.developer, involved_companies.publisher; \
-            search \"{}\"; limit 1;",
-            sanitized_title
+            search \"{}\";{} limit 1;",
+            sanitized_title,
+            platform_filter_clause(&request.library_id)
         );
 
         let resp = self
@@ -626,6 +643,18 @@ impl MetadataProvider for IgdbMetadataProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_platform_filter_only_for_console_libraries() {
+        assert_eq!(igdb_platform_for_library("switch"), Some(130));
+        assert_eq!(igdb_platform_for_library("Switch"), Some(130));
+        assert_eq!(
+            platform_filter_clause("switch"),
+            " where platforms = (130);"
+        );
+        assert_eq!(platform_filter_clause("steam"), "");
+        assert_eq!(platform_filter_clause("custom"), "");
+    }
 
     #[test]
     fn test_sanitize_apicalypse_query() {

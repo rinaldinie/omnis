@@ -241,7 +241,8 @@ impl CatalogMaintenanceRepository for Database {
                 COALESCE(SUM(CASE WHEN is_hidden = 0 AND (LOWER(genres) LIKE '%rpg%' OR LOWER(genres) LIKE '%gdr%') THEN 1 ELSE 0 END), 0),
                 COALESCE(SUM(CASE WHEN is_hidden = 0 AND (LOWER(genres) LIKE '%strategy%' OR LOWER(genres) LIKE '%strategia%' OR LOWER(genres) LIKE '%puzzle%') THEN 1 ELSE 0 END), 0),
                 COALESCE(SUM(CASE WHEN is_hidden = 0 AND LOWER(genres) LIKE '%indie%' THEN 1 ELSE 0 END), 0),
-                COALESCE(SUM(CASE WHEN is_hidden = 1 THEN 1 ELSE 0 END), 0)
+                COALESCE(SUM(CASE WHEN is_hidden = 1 THEN 1 ELSE 0 END), 0),
+                COALESCE(SUM(CASE WHEN is_hidden = 0 AND LOWER(library_id) = 'switch' THEN 1 ELSE 0 END), 0)
             FROM games
         ";
         let counts = conn.query_row(query, [], |row| {
@@ -259,6 +260,7 @@ impl CatalogMaintenanceRepository for Database {
                 strategy: row.get::<_, i64>(10)? as usize,
                 indie: row.get::<_, i64>(11)? as usize,
                 hidden: row.get::<_, i64>(12)? as usize,
+                switch: row.get::<_, i64>(13)? as usize,
             })
         })?;
         Ok(counts)

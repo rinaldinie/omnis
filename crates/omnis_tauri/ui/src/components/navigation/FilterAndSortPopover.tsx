@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { X, ChevronDown, ChevronUp, Check, Sparkles, SlidersHorizontal } from "lucide-react";
 import { GameSortMode } from "../../utils/sortGames";
-import { SteamIcon, EpicIcon, GogIcon, XboxIcon } from "../StoreBadge";
+import { SteamIcon, EpicIcon, GogIcon, XboxIcon, SwitchIcon } from "../StoreBadge";
 import { useTranslation } from "../../i18n";
 import { getLocalizedGenre } from "../../utils/genres";
 
@@ -210,6 +210,13 @@ export default function FilterAndSortPopover({
       icon: XboxIcon,
       checked: selectedStores.includes("xbox"),
       count: filterCounts.stores["xbox"] || 0,
+    },
+    {
+      id: "switch",
+      label: "Nintendo Switch",
+      icon: SwitchIcon,
+      checked: selectedStores.includes("switch"),
+      count: filterCounts.stores["switch"] || 0,
     },
   ];
 

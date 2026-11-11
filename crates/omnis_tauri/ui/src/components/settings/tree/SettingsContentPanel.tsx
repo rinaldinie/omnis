@@ -4,6 +4,7 @@ import { FolderArchive } from 'lucide-react';
 import { soundEffects } from '../../../utils/soundEffects';
 import { GeneralSettingsTab } from '../GeneralSettingsTab';
 import { StoreAccountsTab } from '../StoreAccountsTab';
+import { EmulatorsSettingsTab } from '../EmulatorsSettingsTab';
 import { MetadataSettingsTab } from '../MetadataSettingsTab';
 import { AchievementsSettingsTab } from '../../achievements';
 import { BackupSettingsTab } from '../BackupSettingsTab';
@@ -69,6 +70,11 @@ export const SettingsContentPanel: React.FC<SettingsContentPanelProps> = ({
           selectedStoreId={activeTab.replace('store-', '')}
           hideTabBar={true}
         />
+      )}
+
+      {/* SECTION: EMULATORI */}
+      {activeTab.startsWith('emulators-') && (
+        <EmulatorsSettingsTab onSyncComplete={onSyncComplete} />
       )}
 
       {/* SECTION: METADATI & PROVIDER */}
