@@ -17,7 +17,7 @@ Closes #
 
 ## Checklist
 
-- [ ] `cargo fmt --all -- --check` and `cargo clippy --workspace --all-targets -- -D warnings` pass
+- [ ] `cargo clippy --workspace --all-targets -- -D warnings` passes
 - [ ] `cargo test --workspace` passes
 - [ ] `npm run typecheck` and `npm run build` pass in `crates/omnis_tauri/ui`
 - [ ] New user-facing strings are added to all locales

@@ -148,7 +148,6 @@ cargo run -p omnis_tauri --release
 ### 3. Run the Checks
 
 ```bash
-cargo fmt --all -- --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 npm --prefix crates/omnis_tauri/ui run typecheck
