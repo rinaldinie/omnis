@@ -1,4 +1,4 @@
-import { invokeIpc, invokeTauri } from "./client";
+import { invokeIpc } from "./client";
 import type {
   ActiveGameSession,
   DuplicateHiderConfig,

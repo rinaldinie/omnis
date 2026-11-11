@@ -883,6 +883,7 @@ export interface TranslationSchema {
     tab_metadata?: string;
     tab_achievements?: string;
     tab_backup?: string;
+    tab_emulators?: string;
     tray_section: string;
     minimize_to_tray: string;
     minimize_to_tray_desc: string;
@@ -1480,5 +1481,40 @@ export interface TranslationSchema {
     opt_official: string;
     opt_official_drm_free: string;
     opt_localized: string;
+  };
+  emulators_settings: {
+    switch_title: string;
+    detected_title: string;
+    detected_desc: string;
+    sync: string;
+    none_title: string;
+    none_desc: string;
+    no_exe: string;
+    custom_exe: string;
+    has_keys: string;
+    pick_exe: string;
+    remove_exe: string;
+    add_emulator: string;
+    add_emulator_desc: string;
+    pick_unknown: string;
+    extra_dirs_title: string;
+    extra_dirs_desc: string;
+    add_folder: string;
+    no_extra_dirs: string;
+    remove_folder: string;
+    default_title: string;
+    default_single: string;
+    default_desc: string;
+    per_game_title: string;
+    per_game_desc: string;
+    per_game_select: string;
+    per_game_default: string;
+    keys_title: string;
+    keys_desc: string;
+    use_keys: string;
+    use_keys_desc: string;
+    use_keys_missing: string;
+    privacy: string;
+    playtime_note: string;
   };
 }

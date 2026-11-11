@@ -341,7 +341,8 @@ impl EmulatorsPlugin {
 
 /// Writes an extracted icon (unchanged files are left alone) and returns its path.
 fn save_icon(dir: &Path, external_id: &str, jpeg: &[u8]) -> Option<String> {
-    let path = dir.join(format!("{}.jpg", external_id));
+    let sanitized = external_id.replace([':', '/', '\\', '*', '?', '"', '<', '>', '|'], "_");
+    let path = dir.join(format!("{}.jpg", sanitized));
     let unchanged = std::fs::metadata(&path)
         .map(|m| m.len() == jpeg.len() as u64)
         .unwrap_or(false);
