@@ -18,7 +18,6 @@ Follow the [Getting Started](README.md#getting-started) section of the README to
 CI runs these on every push and pull request; please run them before opening a PR:
 
 ```bash
-cargo fmt --all -- --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 npm --prefix crates/omnis_tauri/ui run typecheck
@@ -40,7 +39,7 @@ The project follows [Conventional Commits](https://www.conventionalcommits.org/)
 
 ### Rust
 
-- Format with `cargo fmt` (configuration in [`rustfmt.toml`](rustfmt.toml)).
+- Automatic formatting (`cargo fmt`) is not enforced in CI. Please avoid blanket formatting passes across unrelated files in pull requests to keep diffs focused.
 - Keep `cargo clippy` warning-free. If a lint must be silenced, use a targeted `#[allow(...)]` on the item and explain why.
 - Avoid `unwrap()` / `expect()` outside tests; propagate errors with `Result` and `thiserror` types.
 - Declare shared dependencies in the root `[workspace.dependencies]` and reference them with `.workspace = true`.
