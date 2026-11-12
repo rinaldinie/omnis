@@ -412,11 +412,7 @@ export default function App() {
     return Array.from(set).sort((a, b) => (filterCounts.features[b] || 0) - (filterCounts.features[a] || 0));
   }, [games, filterCounts.features]);
 
-  const [fullscreenSort, setFullscreenSort] = useState<GameSortMode>(readSavedSortMode);
-  const fullscreenGames = useMemo(
-    () => (isFullscreen ? sortGames(filteredGames, fullscreenSort) : filteredGames),
-    [isFullscreen, filteredGames, fullscreenSort]
-  );
+  const fullscreenGames = filteredGames;
 
   // WINDOW CONTROLS HOOK
   const { handleMinimize, handleToggleMaximize, handleClose, handleExit } = useWindowControls();
@@ -649,10 +645,9 @@ export default function App() {
               else if (action === "shortcut") handleCreateShortcut(gameId);
               else if (action === "uninstall") handleConfirmUninstall(gameId);
             }}
-            sortMode={fullscreenSort}
+            sortMode={sortMode}
             onSortModeChange={(mode) => {
-              setFullscreenSort(mode);
-              saveSortMode(mode);
+              setSortMode(mode);
               setFocusedIndex(0);
             }}
             onClearSearch={() => {

@@ -119,18 +119,11 @@ pub async fn enrich_single_game(
         .map_err(|e| e.to_string())?
         .ok_or_else(|| "Gioco non trovato".to_string())?;
 
-    if let Some(ref p) = game.cover_image_path {
-        state.image_cache.invalidate(p);
-    }
-    if let Some(ref p) = game.background_image_path {
-        state.image_cache.invalidate(p);
-    }
-
     let _ = app_handle.emit(events::GAME_UPDATED, &game_id);
     let _ = app_handle.emit(events::LIBRARY_UPDATED, ());
 
     state.media_scope.allow_game_media(&game);
-    Ok(game_to_dto(game, &state.image_cache))
+    Ok(game_to_dto(game))
 }
 
 #[tauri::command]
@@ -175,7 +168,7 @@ pub async fn refresh_game_howlongtobeat(
     let _ = app_handle.emit(events::LIBRARY_UPDATED, ());
 
     state.media_scope.allow_game_media(&updated_game);
-    Ok(game_to_dto(updated_game, &state.image_cache))
+    Ok(game_to_dto(updated_game))
 }
 
 #[tauri::command]

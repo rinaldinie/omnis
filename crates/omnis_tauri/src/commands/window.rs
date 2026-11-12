@@ -407,56 +407,11 @@ pub async fn pick_directory() -> Result<Option<String>, String> {
 #[tauri::command]
 pub async fn find_executables_in_folder(folder_path: String) -> Result<Vec<String>, String> {
     tokio::task::spawn_blocking(move || {
-        let mut exes = Vec::new();
         let path = std::path::Path::new(&folder_path);
-        if path.is_dir() {
-            let mut search_dirs = vec![path.to_path_buf()];
-            if let Ok(entries) = std::fs::read_dir(path) {
-                for entry in entries.flatten() {
-                    let p = entry.path();
-                    if p.is_dir() {
-                        let name = p
-                            .file_name()
-                            .unwrap_or_default()
-                            .to_string_lossy()
-                            .to_lowercase();
-                        if ["bin", "binaries", "x64", "win64", "win32", "game"]
-                            .contains(&name.as_str())
-                        {
-                            search_dirs.push(p);
-                        }
-                    }
-                }
-            }
-
-            for sdir in search_dirs {
-                if let Ok(entries) = std::fs::read_dir(sdir) {
-                    for entry in entries.flatten() {
-                        let p = entry.path();
-                        if p.is_file() {
-                            if let Some(ext) = p.extension() {
-                                if ext.eq_ignore_ascii_case("exe") {
-                                    let fname = p
-                                        .file_name()
-                                        .unwrap_or_default()
-                                        .to_string_lossy()
-                                        .to_lowercase();
-                                    if !fname.contains("unins")
-                                        && !fname.contains("crash")
-                                        && !fname.contains("update")
-                                        && !fname.contains("setup")
-                                        && !fname.contains("redist")
-                                        && !fname.contains("dxsetup")
-                                    {
-                                        exes.push(p.to_string_lossy().to_string());
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        let exes = omnis_core::launcher::scan_game_executables(path)
+            .into_iter()
+            .map(|p| p.to_string_lossy().to_string())
+            .collect();
         Ok(exes)
     })
     .await

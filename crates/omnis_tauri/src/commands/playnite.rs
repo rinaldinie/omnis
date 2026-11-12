@@ -79,11 +79,6 @@ pub async fn execute_playnite_import(
     .await
     .map_err(|e| e.to_string())??;
 
-    // Invalidate in-memory image cache if any new images were extracted
-    if stats.images_cached > 0 {
-        state.image_cache.clear();
-    }
-
     // Notify UI if games were merged or created
     if stats.games_merged > 0 || stats.games_created > 0 {
         let _ = app_handle.emit(events::LIBRARY_UPDATED, ());

@@ -372,10 +372,10 @@ pub fn find_gog_game_executable(install_dir: &Path) -> Option<PathBuf> {
     None
 }
 
-/// Heuristic: Locate primary game executable from an install directory by scanning for valid, non-blacklisted binaries
-pub fn find_primary_game_executable(install_dir: &Path) -> Option<PathBuf> {
+/// Scans an install directory and its common binary subdirectories for valid, non-blacklisted game executables
+pub fn scan_game_executables(install_dir: &Path) -> Vec<PathBuf> {
     if !install_dir.is_dir() {
-        return None;
+        return Vec::new();
     }
 
     let mut candidates = Vec::new();
@@ -416,9 +416,14 @@ pub fn find_primary_game_executable(install_dir: &Path) -> Option<PathBuf> {
         }
     }
 
-    // Prefer candidate in shallower directory depth (root of install folder)
+    // Sort by shallower directory depth first (root of install folder)
     candidates.sort_by_key(|p| p.components().count());
-    candidates.into_iter().next()
+    candidates
+}
+
+/// Heuristic: Locate primary game executable from an install directory by scanning for valid, non-blacklisted binaries
+pub fn find_primary_game_executable(install_dir: &Path) -> Option<PathBuf> {
+    scan_game_executables(install_dir).into_iter().next()
 }
 
 /// Helper function to detect if a launch configuration is a shell/URI invocation

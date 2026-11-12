@@ -1,4 +1,3 @@
-use base64::prelude::*;
 use omnis_core::{Database, MetadataDownloader, PluginHost};
 use omnis_sdk::Game;
 use serde::{Deserialize, Serialize};
@@ -94,57 +93,6 @@ pub struct ThemeConfig {
     pub video_delay_ms: Option<u32>,
 }
 
-pub struct ImageCache {
-    cache: std::sync::RwLock<HashMap<String, String>>,
-}
-
-impl ImageCache {
-    pub fn new() -> Self {
-        Self {
-            cache: std::sync::RwLock::new(HashMap::new()),
-        }
-    }
-
-    #[allow(dead_code)]
-    pub fn get_or_load(&self, path_str: &str) -> Option<String> {
-        if let Ok(guard) = self.cache.read() {
-            if let Some(cached) = guard.get(path_str) {
-                return Some(cached.clone());
-            }
-        }
-
-        let path = Path::new(path_str);
-        if path.exists() {
-            if let Ok(bytes) = std::fs::read(path) {
-                let data_url = format!("data:image/jpeg;base64,{}", BASE64_STANDARD.encode(&bytes));
-                if let Ok(mut guard) = self.cache.write() {
-                    guard.insert(path_str.to_string(), data_url.clone());
-                }
-                return Some(data_url);
-            }
-        }
-        None
-    }
-
-    pub fn invalidate(&self, path_str: &str) {
-        if let Ok(mut guard) = self.cache.write() {
-            guard.remove(path_str);
-        }
-    }
-
-    pub fn clear(&self) {
-        if let Ok(mut guard) = self.cache.write() {
-            guard.clear();
-        }
-    }
-}
-
-impl Default for ImageCache {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 pub struct AppState {
     pub db: Arc<Database>,
     pub host: Arc<PluginHost>,
@@ -154,7 +102,6 @@ pub struct AppState {
     pub backgrounds_dir: PathBuf,
     pub plugins_dir: PathBuf,
     pub themes_dir: PathBuf,
-    pub image_cache: Arc<ImageCache>,
     pub media_scope: Arc<crate::media_scope::MediaScope>,
     pub store_account_manager: Arc<crate::store::StoreAccountManager>,
     pub trailer_cache: Arc<tokio::sync::RwLock<HashMap<String, String>>>,
@@ -164,7 +111,7 @@ pub struct AppState {
     pub sync_achievements_on_game_exit: Arc<std::sync::atomic::AtomicBool>,
 }
 
-pub fn game_to_dto(g: Game, _cache: &ImageCache) -> GameDto {
+pub fn game_to_dto(g: Game) -> GameDto {
     let hours = g.playtime_seconds / 3600;
     let mins = (g.playtime_seconds % 3600) / 60;
     let playtime_formatted = if hours > 0 {

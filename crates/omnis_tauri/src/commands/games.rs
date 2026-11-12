@@ -21,12 +21,11 @@ pub struct AddCustomGamePayload {
 #[tauri::command]
 pub async fn get_games(state: State<'_, AppState>) -> Result<Vec<GameDto>, String> {
     let games = state.db.get_all_games().map_err(|e| e.to_string())?;
-    let cache = &state.image_cache;
     let mut dtos: Vec<GameDto> = games
         .into_iter()
         .map(|g| {
             state.media_scope.allow_game_media(&g);
-            game_to_dto(g, cache)
+            game_to_dto(g)
         })
         .collect();
     crate::types::populate_other_copies(&mut dtos);
@@ -43,12 +42,11 @@ pub async fn get_games_paginated(
         .db
         .get_games_paginated(limit, offset)
         .map_err(|e| e.to_string())?;
-    let cache = &state.image_cache;
     let mut dtos: Vec<GameDto> = games
         .into_iter()
         .map(|g| {
             state.media_scope.allow_game_media(&g);
-            game_to_dto(g, cache)
+            game_to_dto(g)
         })
         .collect();
     crate::types::populate_other_copies(&mut dtos);
@@ -64,11 +62,11 @@ pub async fn get_game(game_id: String, state: State<'_, AppState>) -> Result<Gam
         .map_err(|e| e.to_string())?
         .ok_or_else(|| "Gioco non trovato".to_string())?;
     state.media_scope.allow_game_media(&game);
-    let mut dto = game_to_dto(game, &state.image_cache);
+    let mut dto = game_to_dto(game);
     if let Ok(all_games) = state.db.get_all_games() {
         let mut dtos: Vec<GameDto> = all_games
             .into_iter()
-            .map(|g| game_to_dto(g, &state.image_cache))
+            .map(game_to_dto)
             .collect();
         crate::types::populate_other_copies(&mut dtos);
         if let Some(populated) = dtos.into_iter().find(|d| d.id == dto.id) {
@@ -406,7 +404,7 @@ pub async fn add_custom_game(
         )
         .map_err(|e| e.to_string())?;
     state.media_scope.allow_game_media(&game);
-    Ok(game_to_dto(game, &state.image_cache))
+    Ok(game_to_dto(game))
 }
 
 #[tauri::command]
@@ -419,17 +417,11 @@ pub async fn update_game_metadata(
         .update_game(&game_update)
         .map_err(|e| e.to_string())?;
     state.media_scope.allow_game_media(&updated);
-    if let Some(ref p) = updated.cover_image_path {
-        state.image_cache.invalidate(p);
-    }
-    if let Some(ref p) = updated.background_image_path {
-        state.image_cache.invalidate(p);
-    }
-    let mut dto = game_to_dto(updated, &state.image_cache);
+    let mut dto = game_to_dto(updated);
     if let Ok(all_games) = state.db.get_all_games() {
         let mut dtos: Vec<GameDto> = all_games
             .into_iter()
-            .map(|g| game_to_dto(g, &state.image_cache))
+            .map(game_to_dto)
             .collect();
         crate::types::populate_other_copies(&mut dtos);
         if let Some(populated) = dtos.into_iter().find(|d| d.id == dto.id) {
@@ -454,11 +446,11 @@ pub async fn update_game_completion_status(
         .db
         .set_game_completion_status(id, &status_val)
         .map_err(|e| e.to_string())?;
-    let mut dto = game_to_dto(game, &state.image_cache);
+    let mut dto = game_to_dto(game);
     if let Ok(all_games) = state.db.get_all_games() {
         let mut dtos: Vec<GameDto> = all_games
             .into_iter()
-            .map(|g| game_to_dto(g, &state.image_cache))
+            .map(game_to_dto)
             .collect();
         crate::types::populate_other_copies(&mut dtos);
         if let Some(populated) = dtos.into_iter().find(|d| d.id == dto.id) {
@@ -637,7 +629,7 @@ pub async fn set_game_hidden(
         .set_game_hidden(id, is_hidden)
         .map_err(|e| e.to_string())?;
     state.media_scope.allow_game_media(&updated);
-    Ok(game_to_dto(updated, &state.image_cache))
+    Ok(game_to_dto(updated))
 }
 
 #[tauri::command]
@@ -652,7 +644,7 @@ pub async fn set_game_favorite(
         .set_game_favorite(id, is_favorite)
         .map_err(|e| e.to_string())?;
     state.media_scope.allow_game_media(&updated);
-    Ok(game_to_dto(updated, &state.image_cache))
+    Ok(game_to_dto(updated))
 }
 
 #[tauri::command]
@@ -665,12 +657,11 @@ pub async fn promote_duplicate_copy(
         .db
         .promote_duplicate_copy(id)
         .map_err(|e| e.to_string())?;
-    let cache = &state.image_cache;
     let mut dtos: Vec<GameDto> = games
         .into_iter()
         .map(|g| {
             state.media_scope.allow_game_media(&g);
-            game_to_dto(g, cache)
+            game_to_dto(g)
         })
         .collect();
     crate::types::populate_other_copies(&mut dtos);

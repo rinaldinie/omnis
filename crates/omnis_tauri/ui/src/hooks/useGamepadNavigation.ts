@@ -328,124 +328,39 @@ export function useGamepadNavigation({
               dispatchPage("nav", { direction: currentDirY === 1 ? "down" : "up" })
             );
           } else if (showFullscreenDetailsRef.current) {
-            // When in Fullscreen Details: handle horizontal navigation
-            if (currentDirX !== 0) {
-              if (navDirectionRef.current !== currentDirX) {
-                navDirectionRef.current = currentDirX;
-                navStartTimeRef.current = now;
-                lastNavTimeRef.current = now;
-                window.dispatchEvent(
-                  new CustomEvent("omnis:details-nav", {
-                    detail: { direction: currentDirX === 1 ? "right" : "left" },
-                  })
-                );
-              } else {
-                const holdDuration = now - navStartTimeRef.current;
-                const INITIAL_HOLD_DELAY = 380;
-                const REPEAT_INTERVAL = 170;
-                if (holdDuration >= INITIAL_HOLD_DELAY && now - lastNavTimeRef.current >= REPEAT_INTERVAL) {
-                  lastNavTimeRef.current = now;
-                  window.dispatchEvent(
-                    new CustomEvent("omnis:details-nav", {
-                      detail: { direction: currentDirX === 1 ? "right" : "left" },
-                    })
-                  );
-                }
-              }
-            } else {
-              navDirectionRef.current = 0;
-              navStartTimeRef.current = 0;
-            }
-
-            // Handle vertical navigation (Up / Down) in details
-            if (currentDirY !== 0) {
-              if (navDirectionYRef.current !== currentDirY) {
-                navDirectionYRef.current = currentDirY;
-                navStartYTimeRef.current = now;
-                lastNavYTimeRef.current = now;
-                window.dispatchEvent(
-                  new CustomEvent("omnis:details-nav", {
-                    detail: { direction: currentDirY === 1 ? "down" : "up" },
-                  })
-                );
-              } else {
-                const holdDuration = now - navStartYTimeRef.current;
-                const INITIAL_HOLD_DELAY = 380;
-                const REPEAT_INTERVAL = 170;
-                if (holdDuration >= INITIAL_HOLD_DELAY && now - lastNavYTimeRef.current >= REPEAT_INTERVAL) {
-                  lastNavYTimeRef.current = now;
-                  window.dispatchEvent(
-                    new CustomEvent("omnis:details-nav", {
-                      detail: { direction: currentDirY === 1 ? "down" : "up" },
-                    })
-                  );
-                }
-              }
-            } else {
-              navDirectionYRef.current = 0;
-              navStartYTimeRef.current = 0;
-            }
+            // When in Fullscreen Details: handle horizontal and vertical navigation
+            repeatAxis(currentDirX, navDirectionRef, navStartTimeRef, lastNavTimeRef, () =>
+              window.dispatchEvent(
+                new CustomEvent("omnis:details-nav", {
+                  detail: { direction: currentDirX === 1 ? "right" : "left" },
+                })
+              )
+            );
+            repeatAxis(currentDirY, navDirectionYRef, navStartYTimeRef, lastNavYTimeRef, () =>
+              window.dispatchEvent(
+                new CustomEvent("omnis:details-nav", {
+                  detail: { direction: currentDirY === 1 ? "down" : "up" },
+                })
+              )
+            );
           } else {
             // Main Fullscreen Home Screen
             if (isMenuOpenRef.current) {
               // --- A. DROPDOWN MENU IS OPEN ---
-              // Vertical navigation inside dropdown menu
-              if (currentDirY !== 0) {
-                if (navDirectionYRef.current !== currentDirY) {
-                  navDirectionYRef.current = currentDirY;
-                  navStartYTimeRef.current = now;
-                  lastNavYTimeRef.current = now;
-                  window.dispatchEvent(
-                    new CustomEvent("omnis:menu-nav", {
-                      detail: { direction: currentDirY === 1 ? "down" : "up" },
-                    })
-                  );
-                } else {
-                  const holdDuration = now - navStartYTimeRef.current;
-                  const INITIAL_HOLD_DELAY = 380;
-                  const REPEAT_INTERVAL = 170;
-                  if (holdDuration >= INITIAL_HOLD_DELAY && now - lastNavYTimeRef.current >= REPEAT_INTERVAL) {
-                    lastNavYTimeRef.current = now;
-                    window.dispatchEvent(
-                      new CustomEvent("omnis:menu-nav", {
-                        detail: { direction: currentDirY === 1 ? "down" : "up" },
-                      })
-                    );
-                  }
-                }
-              } else {
-                navDirectionYRef.current = 0;
-                navStartYTimeRef.current = 0;
-              }
-
-              // Horizontal navigation in menu (for cycling settings/themes)
-              if (currentDirX !== 0) {
-                if (navDirectionRef.current !== currentDirX) {
-                  navDirectionRef.current = currentDirX;
-                  navStartTimeRef.current = now;
-                  lastNavTimeRef.current = now;
-                  window.dispatchEvent(
-                    new CustomEvent("omnis:menu-nav", {
-                      detail: { direction: currentDirX === 1 ? "right" : "left" },
-                    })
-                  );
-                } else {
-                  const holdDuration = now - navStartTimeRef.current;
-                  const INITIAL_HOLD_DELAY = 380;
-                  const REPEAT_INTERVAL = 170;
-                  if (holdDuration >= INITIAL_HOLD_DELAY && now - lastNavTimeRef.current >= REPEAT_INTERVAL) {
-                    lastNavTimeRef.current = now;
-                    window.dispatchEvent(
-                      new CustomEvent("omnis:menu-nav", {
-                        detail: { direction: currentDirX === 1 ? "right" : "left" },
-                      })
-                    );
-                  }
-                }
-              } else {
-                navDirectionRef.current = 0;
-                navStartTimeRef.current = 0;
-              }
+              repeatAxis(currentDirY, navDirectionYRef, navStartYTimeRef, lastNavYTimeRef, () =>
+                window.dispatchEvent(
+                  new CustomEvent("omnis:menu-nav", {
+                    detail: { direction: currentDirY === 1 ? "down" : "up" },
+                  })
+                )
+              );
+              repeatAxis(currentDirX, navDirectionRef, navStartTimeRef, lastNavTimeRef, () =>
+                window.dispatchEvent(
+                  new CustomEvent("omnis:menu-nav", {
+                    detail: { direction: currentDirX === 1 ? "right" : "left" },
+                  })
+                )
+              );
             } else if (homeFocusZoneRef.current === "recent") {
               // --- B2. "CONTINUE PLAYING" ROW IS FOCUSED ---
               if (currentDirY !== 0) {
@@ -459,22 +374,9 @@ export function useGamepadNavigation({
                 navDirectionYRef.current = 0;
                 navStartYTimeRef.current = 0;
               }
-              if (currentDirX !== 0) {
-                const isNewPress = navDirectionRef.current !== currentDirX;
-                const isRepeat =
-                  !isNewPress && now - navStartTimeRef.current >= 380 && now - lastNavTimeRef.current >= 170;
-                if (isNewPress) {
-                  navDirectionRef.current = currentDirX;
-                  navStartTimeRef.current = now;
-                }
-                if (isNewPress || isRepeat) {
-                  lastNavTimeRef.current = now;
-                  dispatchRecent("nav", { direction: currentDirX === 1 ? "right" : "left" });
-                }
-              } else {
-                navDirectionRef.current = 0;
-                navStartTimeRef.current = 0;
-              }
+              repeatAxis(currentDirX, navDirectionRef, navStartTimeRef, lastNavTimeRef, () =>
+                dispatchRecent("nav", { direction: currentDirX === 1 ? "right" : "left" })
+              );
             } else if (homeFocusZoneRef.current === "topbar") {
               // --- B. TOP BAR MENU BUTTON IS FOCUSED ---
               if (currentDirY === 1) {
@@ -518,26 +420,9 @@ export function useGamepadNavigation({
               }
 
               // Horizontal navigation in game carousel
-              if (currentDirX !== 0) {
-                if (navDirectionRef.current !== currentDirX) {
-                  navDirectionRef.current = currentDirX;
-                  navStartTimeRef.current = now;
-                  lastNavTimeRef.current = now;
-                  stepCarousel(currentDirX);
-                } else {
-                  const holdDuration = now - navStartTimeRef.current;
-                  const INITIAL_HOLD_DELAY = 380;
-                  const REPEAT_INTERVAL = 170;
-
-                  if (holdDuration >= INITIAL_HOLD_DELAY && now - lastNavTimeRef.current >= REPEAT_INTERVAL) {
-                    lastNavTimeRef.current = now;
-                    stepCarousel(currentDirX);
-                  }
-                }
-              } else {
-                navDirectionRef.current = 0;
-                navStartTimeRef.current = 0;
-              }
+              repeatAxis(currentDirX, navDirectionRef, navStartTimeRef, lastNavTimeRef, () =>
+                stepCarousel(currentDirX)
+              );
             }
           }
         }

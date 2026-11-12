@@ -67,11 +67,11 @@ impl Database {
     }
 
     /// Open or create the unified SQLite database with WAL mode and dedicated reader/writer connections
-    pub fn open<P: AsRef<Path>>(path: P) -> Result<Self> {
-        let path_ref = path.as_ref();
-        let writer = Connection::open(path_ref)?;
-
-        // Tune SQLite for maximum desktop performance and safe WAL concurrency
+    /// Helper to open and configure SQLite writer and reader connections with tuned pragmas
+    fn open_configured_connections(
+        path: &Path,
+    ) -> Result<(Connection, Vec<Connection>)> {
+        let writer = Connection::open(path)?;
         writer.execute_batch(
             "
             PRAGMA journal_mode = WAL;
@@ -83,12 +83,11 @@ impl Database {
             ",
         )?;
 
-        // Initialize dedicated reader connection pool for non-blocking concurrent reads in WAL mode
         const READER_POOL_SIZE: usize = 4;
         let mut readers = Vec::with_capacity(READER_POOL_SIZE);
         for _ in 0..READER_POOL_SIZE {
             let reader = Connection::open_with_flags(
-                path_ref,
+                path,
                 OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_URI,
             )?;
             reader.execute_batch(
@@ -101,12 +100,19 @@ impl Database {
                 PRAGMA query_only = ON;
                 ",
             )?;
-            readers.push(Mutex::new(reader));
+            readers.push(reader);
         }
+
+        Ok((writer, readers))
+    }
+
+    pub fn open<P: AsRef<Path>>(path: P) -> Result<Self> {
+        let path_ref = path.as_ref();
+        let (writer, readers) = Self::open_configured_connections(path_ref)?;
 
         let db = Self {
             writer: Mutex::new(writer),
-            readers,
+            readers: readers.into_iter().map(Mutex::new).collect(),
             reader_cursor: std::sync::atomic::AtomicUsize::new(0),
             search_index: RwLock::new(FuzzyGameSearchIndex::new()),
         };
@@ -203,36 +209,10 @@ impl Database {
         let reopen_connections = |w_guard: &mut Connection,
                                   r_guards: &mut [std::sync::MutexGuard<'_, Connection>]|
          -> Result<()> {
-            let new_writer = Connection::open(target_path)?;
-            new_writer.execute_batch(
-                "
-                PRAGMA journal_mode = WAL;
-                PRAGMA synchronous = NORMAL;
-                PRAGMA temp_store = MEMORY;
-                PRAGMA cache_size = -64000;
-                PRAGMA foreign_keys = ON;
-                PRAGMA busy_timeout = 5000;
-                ",
-            )?;
-
-            for r_guard in r_guards.iter_mut() {
-                let new_reader = Connection::open_with_flags(
-                    target_path,
-                    OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_URI,
-                )?;
-                new_reader.execute_batch(
-                    "
-                    PRAGMA synchronous = NORMAL;
-                    PRAGMA temp_store = MEMORY;
-                    PRAGMA cache_size = -32000;
-                    PRAGMA foreign_keys = ON;
-                    PRAGMA busy_timeout = 5000;
-                    PRAGMA query_only = ON;
-                    ",
-                )?;
+            let (new_writer, new_readers) = Self::open_configured_connections(target_path)?;
+            for (r_guard, new_reader) in r_guards.iter_mut().zip(new_readers) {
                 **r_guard = new_reader;
             }
-
             *w_guard = new_writer;
             Ok(())
         };
@@ -279,6 +259,21 @@ impl Database {
 
     /// Retrieve the column names for a given table via PRAGMA table_info
     pub fn get_table_columns(&self, table: &str) -> Result<Vec<String>> {
+        if table.is_empty()
+            || !table
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '_')
+        {
+            return Err(rusqlite::Error::FromSqlConversionFailure(
+                0,
+                rusqlite::types::Type::Text,
+                Box::new(std::io::Error::other(format!(
+                    "Invalid table name for schema lookup: {:?}",
+                    table
+                ))),
+            ));
+        }
+
         let conn = self.reader();
         let pragma = format!("PRAGMA table_info({})", table);
         let mut stmt = conn.prepare(&pragma)?;

@@ -191,12 +191,11 @@ impl GameTrailerResolver {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{game_to_dto, ImageCache};
+    use crate::types::game_to_dto;
     use omnis_sdk::Game;
 
     #[test]
     fn test_game_dto_external_id_serialization() {
-        let cache = ImageCache::new();
         let mut game = Game::new(
             "steam".to_string(),
             "1091500".to_string(),
@@ -206,7 +205,7 @@ mod tests {
         game.playtime_seconds = 7200;
         game.critic_score = Some(86);
 
-        let dto = game_to_dto(game, &cache);
+        let dto = game_to_dto(game);
         assert_eq!(dto.external_id, "1091500");
         assert_eq!(dto.library, "steam");
 

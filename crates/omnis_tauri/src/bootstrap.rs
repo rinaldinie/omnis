@@ -5,7 +5,7 @@ use crate::migration;
 use crate::services::{AchievementService, ActiveGameManager};
 use crate::store::StoreAccountManager;
 use crate::tray;
-use crate::types::{AppState, ImageCache};
+use crate::types::AppState;
 use omnis_core::{
     Database, EventBus, MetadataDownloader, PluginHost, SecretVault,
 };
@@ -149,7 +149,6 @@ impl AppBootstrap {
             Err(e) => tracing::warn!("Failed to load games for asset scope: {}", e),
         }
 
-        let image_cache = Arc::new(ImageCache::new());
         let active_game_manager = Arc::new(ActiveGameManager::new());
         let achievement_service = Arc::new(AchievementService::new());
 
@@ -162,7 +161,6 @@ impl AppBootstrap {
             backgrounds_dir: paths.backgrounds_dir,
             plugins_dir: paths.plugins_dir,
             themes_dir: paths.themes_dir,
-            image_cache,
             media_scope,
             store_account_manager,
             trailer_cache: Arc::new(tokio::sync::RwLock::new(HashMap::new())),

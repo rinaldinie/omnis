@@ -1,4 +1,4 @@
-use crate::types::{game_to_dto, AppState, GameDto, ImageCache};
+use crate::types::{game_to_dto, AppState, GameDto};
 use omnis_core::{Database, MetadataCandidateDto, MetadataDownloader};
 use omnis_sdk::{Game, GameMetadataPatch, MetadataField};
 use std::path::Path;
@@ -11,7 +11,6 @@ use uuid::Uuid;
 pub struct CandidateMetadataApplier<'a> {
     pub db: &'a Database,
     pub downloader: &'a MetadataDownloader,
-    pub image_cache: &'a ImageCache,
     pub covers_dir: &'a Path,
     pub backgrounds_dir: &'a Path,
 }
@@ -21,14 +20,12 @@ impl<'a> CandidateMetadataApplier<'a> {
     pub fn new(
         db: &'a Database,
         downloader: &'a MetadataDownloader,
-        image_cache: &'a ImageCache,
         covers_dir: &'a Path,
         backgrounds_dir: &'a Path,
     ) -> Self {
         Self {
             db,
             downloader,
-            image_cache,
             covers_dir,
             backgrounds_dir,
         }
@@ -38,7 +35,6 @@ impl<'a> CandidateMetadataApplier<'a> {
         Self {
             db: &state.db,
             downloader: &state.downloader,
-            image_cache: &state.image_cache,
             covers_dir: &state.covers_dir,
             backgrounds_dir: &state.backgrounds_dir,
         }
@@ -79,14 +75,7 @@ impl<'a> CandidateMetadataApplier<'a> {
             .map_err(|e| e.to_string())?
             .ok_or_else(|| "Gioco non trovato".to_string())?;
 
-        if let Some(ref p) = updated_game.cover_image_path {
-            self.image_cache.invalidate(p);
-        }
-        if let Some(ref p) = updated_game.background_image_path {
-            self.image_cache.invalidate(p);
-        }
-
-        Ok(game_to_dto(updated_game, self.image_cache))
+        Ok(game_to_dto(updated_game))
     }
 
     pub fn resolve_appid_hint(
@@ -319,10 +308,8 @@ impl<'a> CandidateMetadataApplier<'a> {
                         {
                             let _ = std::fs::remove_file(old_path);
                         }
-                        self.image_cache.invalidate(old_path_str);
                     }
                     let dest_str = dest.to_string_lossy().to_string();
-                    self.image_cache.invalidate(&dest_str);
                     Some(dest_str)
                 }
             }

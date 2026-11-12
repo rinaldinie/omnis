@@ -65,478 +65,330 @@ impl MetadataPipelineResolver {
         let mut cache: HashMap<String, Option<GameMetadataPatch>> = HashMap::new();
 
         // 1. Name
-        if let Some(rule) = field_rules.get(&MetadataField::Name) {
-            if rule.enabled && final_patch.name.is_none() {
-                for src in &rule.sources {
-                    if let Some(p) = Self::get_or_fetch_provider(
-                        src,
-                        store_native_id,
-                        request,
-                        providers,
-                        enabled,
-                        settings,
-                        &mut cache,
-                    )
-                    .await
-                    {
-                        if let Some(ref name) = p.name {
-                            if !name.trim().is_empty() {
-                                final_patch.name = Some(name.clone());
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        Self::resolve_field(
+            MetadataField::Name,
+            &field_rules,
+            final_patch.name.is_none(),
+            store_native_id,
+            request,
+            providers,
+            enabled,
+            settings,
+            &mut cache,
+            |p| p.name.as_ref().filter(|s| !s.trim().is_empty()).cloned(),
+            |val, _| final_patch.name = Some(val),
+        )
+        .await;
 
         // 2. Description
-        if let Some(rule) = field_rules.get(&MetadataField::Description) {
-            let needs_desc = final_patch.description.is_none()
-                && (!pipeline.preserve_existing_artwork
-                    || game
-                        .description
-                        .as_ref()
-                        .map(|d| d.trim().is_empty())
-                        .unwrap_or(true));
-            if rule.enabled && needs_desc {
-                for src in &rule.sources {
-                    if let Some(p) = Self::get_or_fetch_provider(
-                        src,
-                        store_native_id,
-                        request,
-                        providers,
-                        enabled,
-                        settings,
-                        &mut cache,
-                    )
-                    .await
-                    {
-                        if let Some(ref d) = p.description {
-                            if !d.trim().is_empty() {
-                                final_patch.description = Some(d.clone());
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        let needs_desc = final_patch.description.is_none()
+            && (!pipeline.preserve_existing_artwork
+                || game
+                    .description
+                    .as_ref()
+                    .map(|d| d.trim().is_empty())
+                    .unwrap_or(true));
+        Self::resolve_field(
+            MetadataField::Description,
+            &field_rules,
+            needs_desc,
+            store_native_id,
+            request,
+            providers,
+            enabled,
+            settings,
+            &mut cache,
+            |p| p.description.as_ref().filter(|s| !s.trim().is_empty()).cloned(),
+            |val, _| final_patch.description = Some(val),
+        )
+        .await;
 
         // 3. Release Date
-        if let Some(rule) = field_rules.get(&MetadataField::ReleaseDate) {
-            let needs_rd = final_patch.release_date.is_none()
-                && (!pipeline.preserve_existing_artwork
-                    || game
-                        .release_date
-                        .as_ref()
-                        .map(|r| r.trim().is_empty())
-                        .unwrap_or(true));
-            if rule.enabled && needs_rd {
-                for src in &rule.sources {
-                    if let Some(p) = Self::get_or_fetch_provider(
-                        src,
-                        store_native_id,
-                        request,
-                        providers,
-                        enabled,
-                        settings,
-                        &mut cache,
-                    )
-                    .await
-                    {
-                        if let Some(ref rd) = p.release_date {
-                            if !rd.trim().is_empty() {
-                                final_patch.release_date = Some(rd.clone());
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        let needs_rd = final_patch.release_date.is_none()
+            && (!pipeline.preserve_existing_artwork
+                || game
+                    .release_date
+                    .as_ref()
+                    .map(|r| r.trim().is_empty())
+                    .unwrap_or(true));
+        Self::resolve_field(
+            MetadataField::ReleaseDate,
+            &field_rules,
+            needs_rd,
+            store_native_id,
+            request,
+            providers,
+            enabled,
+            settings,
+            &mut cache,
+            |p| p.release_date.as_ref().filter(|s| !s.trim().is_empty()).cloned(),
+            |val, _| final_patch.release_date = Some(val),
+        )
+        .await;
 
         // 4. Genres
-        if let Some(rule) = field_rules.get(&MetadataField::Genres) {
-            let needs_genres = final_patch.genres.is_empty()
-                && (!pipeline.preserve_existing_artwork || game.genres.is_empty());
-            if rule.enabled && needs_genres {
-                for src in &rule.sources {
-                    if let Some(p) = Self::get_or_fetch_provider(
-                        src,
-                        store_native_id,
-                        request,
-                        providers,
-                        enabled,
-                        settings,
-                        &mut cache,
-                    )
-                    .await
-                    {
-                        if !p.genres.is_empty() {
-                            final_patch.genres = p.genres.clone();
-                            break;
-                        }
-                    }
-                }
-            }
-        }
+        let needs_genres = final_patch.genres.is_empty()
+            && (!pipeline.preserve_existing_artwork || game.genres.is_empty());
+        Self::resolve_field(
+            MetadataField::Genres,
+            &field_rules,
+            needs_genres,
+            store_native_id,
+            request,
+            providers,
+            enabled,
+            settings,
+            &mut cache,
+            |p| if !p.genres.is_empty() { Some(p.genres.clone()) } else { None },
+            |val, _| final_patch.genres = val,
+        )
+        .await;
 
         // 5. Developers
-        if let Some(rule) = field_rules.get(&MetadataField::Developers) {
-            let needs_devs = final_patch.developers.is_empty()
-                && (!pipeline.preserve_existing_artwork || game.developers.is_empty());
-            if rule.enabled && needs_devs {
-                for src in &rule.sources {
-                    if let Some(p) = Self::get_or_fetch_provider(
-                        src,
-                        store_native_id,
-                        request,
-                        providers,
-                        enabled,
-                        settings,
-                        &mut cache,
-                    )
-                    .await
-                    {
-                        if !p.developers.is_empty() {
-                            final_patch.developers = p.developers.clone();
-                            break;
-                        }
-                    }
-                }
-            }
-        }
+        let needs_devs = final_patch.developers.is_empty()
+            && (!pipeline.preserve_existing_artwork || game.developers.is_empty());
+        Self::resolve_field(
+            MetadataField::Developers,
+            &field_rules,
+            needs_devs,
+            store_native_id,
+            request,
+            providers,
+            enabled,
+            settings,
+            &mut cache,
+            |p| if !p.developers.is_empty() { Some(p.developers.clone()) } else { None },
+            |val, _| final_patch.developers = val,
+        )
+        .await;
 
         // 6. Publishers
-        if let Some(rule) = field_rules.get(&MetadataField::Publishers) {
-            let needs_pubs = final_patch.publishers.is_empty()
-                && (!pipeline.preserve_existing_artwork || game.publishers.is_empty());
-            if rule.enabled && needs_pubs {
-                for src in &rule.sources {
-                    if let Some(p) = Self::get_or_fetch_provider(
-                        src,
-                        store_native_id,
-                        request,
-                        providers,
-                        enabled,
-                        settings,
-                        &mut cache,
-                    )
-                    .await
-                    {
-                        if !p.publishers.is_empty() {
-                            final_patch.publishers = p.publishers.clone();
-                            break;
-                        }
-                    }
-                }
-            }
-        }
+        let needs_pubs = final_patch.publishers.is_empty()
+            && (!pipeline.preserve_existing_artwork || game.publishers.is_empty());
+        Self::resolve_field(
+            MetadataField::Publishers,
+            &field_rules,
+            needs_pubs,
+            store_native_id,
+            request,
+            providers,
+            enabled,
+            settings,
+            &mut cache,
+            |p| if !p.publishers.is_empty() { Some(p.publishers.clone()) } else { None },
+            |val, _| final_patch.publishers = val,
+        )
+        .await;
 
         // 7. Features
-        if let Some(rule) = field_rules.get(&MetadataField::Features) {
-            let needs_feats = final_patch.features.is_empty()
-                && (!pipeline.preserve_existing_artwork || game.features.is_empty());
-            if rule.enabled && needs_feats {
-                for src in &rule.sources {
-                    if let Some(p) = Self::get_or_fetch_provider(
-                        src,
-                        store_native_id,
-                        request,
-                        providers,
-                        enabled,
-                        settings,
-                        &mut cache,
-                    )
-                    .await
-                    {
-                        if !p.features.is_empty() {
-                            final_patch.features = p.features.clone();
-                            break;
-                        }
-                    }
-                }
-            }
-        }
+        let needs_feats = final_patch.features.is_empty()
+            && (!pipeline.preserve_existing_artwork || game.features.is_empty());
+        Self::resolve_field(
+            MetadataField::Features,
+            &field_rules,
+            needs_feats,
+            store_native_id,
+            request,
+            providers,
+            enabled,
+            settings,
+            &mut cache,
+            |p| if !p.features.is_empty() { Some(p.features.clone()) } else { None },
+            |val, _| final_patch.features = val,
+        )
+        .await;
 
         // 8. Tags
-        if let Some(rule) = field_rules.get(&MetadataField::Tags) {
-            let needs_tags = final_patch.tags.is_empty()
-                && (!pipeline.preserve_existing_artwork || game.tags.is_empty());
-            if rule.enabled && needs_tags {
-                for src in &rule.sources {
-                    if let Some(p) = Self::get_or_fetch_provider(
-                        src,
-                        store_native_id,
-                        request,
-                        providers,
-                        enabled,
-                        settings,
-                        &mut cache,
-                    )
-                    .await
-                    {
-                        if !p.tags.is_empty() {
-                            final_patch.tags = p.tags.clone();
-                            break;
-                        }
-                    }
-                }
-            }
-        }
+        let needs_tags = final_patch.tags.is_empty()
+            && (!pipeline.preserve_existing_artwork || game.tags.is_empty());
+        Self::resolve_field(
+            MetadataField::Tags,
+            &field_rules,
+            needs_tags,
+            store_native_id,
+            request,
+            providers,
+            enabled,
+            settings,
+            &mut cache,
+            |p| if !p.tags.is_empty() { Some(p.tags.clone()) } else { None },
+            |val, _| final_patch.tags = val,
+        )
+        .await;
 
         // 9. Series
-        if let Some(rule) = field_rules.get(&MetadataField::Series) {
-            let needs_series = final_patch.series.is_none()
-                && (!pipeline.preserve_existing_artwork
-                    || game.series.as_deref().unwrap_or("").trim().is_empty());
-            if rule.enabled && needs_series {
-                for src in &rule.sources {
-                    if let Some(p) = Self::get_or_fetch_provider(
-                        src,
-                        store_native_id,
-                        request,
-                        providers,
-                        enabled,
-                        settings,
-                        &mut cache,
-                    )
-                    .await
-                    {
-                        if let Some(ref s) = p.series {
-                            if !s.trim().is_empty() {
-                                final_patch.series = Some(s.clone());
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        let needs_series = final_patch.series.is_none()
+            && (!pipeline.preserve_existing_artwork
+                || game.series.as_deref().unwrap_or("").trim().is_empty());
+        Self::resolve_field(
+            MetadataField::Series,
+            &field_rules,
+            needs_series,
+            store_native_id,
+            request,
+            providers,
+            enabled,
+            settings,
+            &mut cache,
+            |p| p.series.as_ref().filter(|s| !s.trim().is_empty()).cloned(),
+            |val, _| final_patch.series = Some(val),
+        )
+        .await;
 
         // 10. Age Rating
-        if let Some(rule) = field_rules.get(&MetadataField::AgeRating) {
-            let needs_ar = final_patch.age_rating.is_none()
-                && (!pipeline.preserve_existing_artwork
-                    || game
-                        .age_rating
-                        .as_deref()
-                        .unwrap_or("")
-                        .trim()
-                        .is_empty());
-            if rule.enabled && needs_ar {
-                for src in &rule.sources {
-                    if let Some(p) = Self::get_or_fetch_provider(
-                        src,
-                        store_native_id,
-                        request,
-                        providers,
-                        enabled,
-                        settings,
-                        &mut cache,
-                    )
-                    .await
-                    {
-                        if let Some(ref ar) = p.age_rating {
-                            if !ar.trim().is_empty() {
-                                final_patch.age_rating = Some(ar.clone());
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        let needs_ar = final_patch.age_rating.is_none()
+            && (!pipeline.preserve_existing_artwork
+                || game
+                    .age_rating
+                    .as_deref()
+                    .unwrap_or("")
+                    .trim()
+                    .is_empty());
+        Self::resolve_field(
+            MetadataField::AgeRating,
+            &field_rules,
+            needs_ar,
+            store_native_id,
+            request,
+            providers,
+            enabled,
+            settings,
+            &mut cache,
+            |p| p.age_rating.as_ref().filter(|s| !s.trim().is_empty()).cloned(),
+            |val, _| final_patch.age_rating = Some(val),
+        )
+        .await;
 
         // 11. Links
-        if let Some(rule) = field_rules.get(&MetadataField::Links) {
-            let needs_links = final_patch.custom_links.is_empty()
-                && (!pipeline.preserve_existing_artwork || game.custom_links.is_empty());
-            if rule.enabled && needs_links {
-                for src in &rule.sources {
-                    if let Some(p) = Self::get_or_fetch_provider(
-                        src,
-                        store_native_id,
-                        request,
-                        providers,
-                        enabled,
-                        settings,
-                        &mut cache,
-                    )
-                    .await
-                    {
-                        if !p.custom_links.is_empty() {
-                            final_patch.custom_links = p.custom_links.clone();
-                            break;
-                        }
-                    }
-                }
-            }
-        }
+        let needs_links = final_patch.custom_links.is_empty()
+            && (!pipeline.preserve_existing_artwork || game.custom_links.is_empty());
+        Self::resolve_field(
+            MetadataField::Links,
+            &field_rules,
+            needs_links,
+            store_native_id,
+            request,
+            providers,
+            enabled,
+            settings,
+            &mut cache,
+            |p| if !p.custom_links.is_empty() { Some(p.custom_links.clone()) } else { None },
+            |val, _| final_patch.custom_links = val,
+        )
+        .await;
 
         // 12. Critic Score
-        if let Some(rule) = field_rules.get(&MetadataField::CriticScore) {
-            let needs_cs = final_patch.critic_score.is_none()
-                && (!pipeline.preserve_existing_artwork || game.critic_score.is_none());
-            if rule.enabled && needs_cs {
-                for src in &rule.sources {
-                    if let Some(p) = Self::get_or_fetch_provider(
-                        src,
-                        store_native_id,
-                        request,
-                        providers,
-                        enabled,
-                        settings,
-                        &mut cache,
-                    )
-                    .await
-                    {
-                        if let Some(score) = p.critic_score {
-                            final_patch.critic_score = Some(score);
-                            if final_patch.community_score.is_none() && p.community_score.is_some()
-                            {
-                                final_patch.community_score = p.community_score;
-                            }
-                            break;
-                        }
-                    }
+        let needs_cs = final_patch.critic_score.is_none()
+            && (!pipeline.preserve_existing_artwork || game.critic_score.is_none());
+        Self::resolve_field(
+            MetadataField::CriticScore,
+            &field_rules,
+            needs_cs,
+            store_native_id,
+            request,
+            providers,
+            enabled,
+            settings,
+            &mut cache,
+            |p| p.critic_score,
+            |val, p| {
+                final_patch.critic_score = Some(val);
+                if final_patch.community_score.is_none() && p.community_score.is_some() {
+                    final_patch.community_score = p.community_score;
                 }
-            }
-        }
+            },
+        )
+        .await;
 
         // 13. Community Score
-        if let Some(rule) = field_rules.get(&MetadataField::CommunityScore) {
-            let needs_comms = final_patch.community_score.is_none()
-                && (!pipeline.preserve_existing_artwork || game.community_score.is_none());
-            if rule.enabled && needs_comms {
-                for src in &rule.sources {
-                    if let Some(p) = Self::get_or_fetch_provider(
-                        src,
-                        store_native_id,
-                        request,
-                        providers,
-                        enabled,
-                        settings,
-                        &mut cache,
-                    )
-                    .await
-                    {
-                        if let Some(score) = p.community_score {
-                            final_patch.community_score = Some(score);
-                            break;
-                        }
-                    }
-                }
-            }
-        }
+        let needs_comms = final_patch.community_score.is_none()
+            && (!pipeline.preserve_existing_artwork || game.community_score.is_none());
+        Self::resolve_field(
+            MetadataField::CommunityScore,
+            &field_rules,
+            needs_comms,
+            store_native_id,
+            request,
+            providers,
+            enabled,
+            settings,
+            &mut cache,
+            |p| p.community_score,
+            |val, _| final_patch.community_score = Some(val),
+        )
+        .await;
 
         // 14. Cover Image
-        if let Some(rule) = field_rules.get(&MetadataField::CoverImage) {
-            if rule.enabled && artwork_pre.should_fetch_cover && final_patch.cover_url.is_none() {
-                for src in &rule.sources {
-                    if let Some(p) = Self::get_or_fetch_provider(
-                        src,
-                        store_native_id,
-                        request,
-                        providers,
-                        enabled,
-                        settings,
-                        &mut cache,
-                    )
-                    .await
-                    {
-                        if let Some(ref cov) = p.cover_url {
-                            final_patch.cover_url = Some(cov.clone());
-                            break;
-                        }
-                    }
-                }
-            }
-        }
+        Self::resolve_field(
+            MetadataField::CoverImage,
+            &field_rules,
+            artwork_pre.should_fetch_cover && final_patch.cover_url.is_none(),
+            store_native_id,
+            request,
+            providers,
+            enabled,
+            settings,
+            &mut cache,
+            |p| p.cover_url.clone(),
+            |val, _| final_patch.cover_url = Some(val),
+        )
+        .await;
 
         // 15. Icon
-        if let Some(rule) = field_rules.get(&MetadataField::Icon) {
-            let needs_icon = final_patch.icon_url.is_none()
-                && (!pipeline.preserve_existing_artwork
-                    || game
-                        .icon_image_path
-                        .as_deref()
-                        .unwrap_or("")
-                        .trim()
-                        .is_empty());
-            if rule.enabled && needs_icon {
-                for src in &rule.sources {
-                    if let Some(p) = Self::get_or_fetch_provider(
-                        src,
-                        store_native_id,
-                        request,
-                        providers,
-                        enabled,
-                        settings,
-                        &mut cache,
-                    )
-                    .await
-                    {
-                        if let Some(ref icon) = p.icon_url {
-                            final_patch.icon_url = Some(icon.clone());
-                            break;
-                        }
-                    }
-                }
-            }
-        }
+        let needs_icon = final_patch.icon_url.is_none()
+            && (!pipeline.preserve_existing_artwork
+                || game
+                    .icon_image_path
+                    .as_deref()
+                    .unwrap_or("")
+                    .trim()
+                    .is_empty());
+        Self::resolve_field(
+            MetadataField::Icon,
+            &field_rules,
+            needs_icon,
+            store_native_id,
+            request,
+            providers,
+            enabled,
+            settings,
+            &mut cache,
+            |p| p.icon_url.clone(),
+            |val, _| final_patch.icon_url = Some(val),
+        )
+        .await;
 
         // 16. Background Image
-        if let Some(rule) = field_rules.get(&MetadataField::BackgroundImage) {
-            if rule.enabled
-                && artwork_pre.should_fetch_background
-                && final_patch.background_url.is_none()
-            {
-                for src in &rule.sources {
-                    if let Some(p) = Self::get_or_fetch_provider(
-                        src,
-                        store_native_id,
-                        request,
-                        providers,
-                        enabled,
-                        settings,
-                        &mut cache,
-                    )
-                    .await
-                    {
-                        if let Some(ref bg) = p.background_url {
-                            final_patch.background_url = Some(bg.clone());
-                            break;
-                        }
-                    }
-                }
-            }
-        }
+        Self::resolve_field(
+            MetadataField::BackgroundImage,
+            &field_rules,
+            artwork_pre.should_fetch_background && final_patch.background_url.is_none(),
+            store_native_id,
+            request,
+            providers,
+            enabled,
+            settings,
+            &mut cache,
+            |p| p.background_url.clone(),
+            |val, _| final_patch.background_url = Some(val),
+        )
+        .await;
 
         // 17. Install Size
-        if let Some(rule) = field_rules.get(&MetadataField::InstallSize) {
-            if rule.enabled && final_patch.install_size_bytes.is_none() {
-                for src in &rule.sources {
-                    if let Some(p) = Self::get_or_fetch_provider(
-                        src,
-                        store_native_id,
-                        request,
-                        providers,
-                        enabled,
-                        settings,
-                        &mut cache,
-                    )
-                    .await
-                    {
-                        if let Some(size) = p.install_size_bytes {
-                            final_patch.install_size_bytes = Some(size);
-                            break;
-                        }
-                    }
-                }
-            }
-        }
+        Self::resolve_field(
+            MetadataField::InstallSize,
+            &field_rules,
+            final_patch.install_size_bytes.is_none(),
+            store_native_id,
+            request,
+            providers,
+            enabled,
+            settings,
+            &mut cache,
+            |p| p.install_size_bytes,
+            |val, _| final_patch.install_size_bytes = Some(val),
+        )
+        .await;
 
         // Fallback artwork from remote cache URLs if still unset
         if final_patch.cover_url.is_none() {
@@ -561,6 +413,46 @@ impl MetadataPipelineResolver {
         Self::apply_fallback_if_needed(&mut final_patch, game, &fallback_fn);
 
         final_patch
+    }
+
+    async fn resolve_field<T, F, V>(
+        field: MetadataField,
+        field_rules: &HashMap<MetadataField, FieldPipelineRule>,
+        should_resolve: bool,
+        store_native_id: Option<&str>,
+        request: &MetadataSearchRequest,
+        providers: &HashMap<String, Box<dyn MetadataProvider>>,
+        enabled: &HashMap<String, bool>,
+        settings: &HashMap<String, Map<String, Value>>,
+        cache: &mut HashMap<String, Option<GameMetadataPatch>>,
+        extract: F,
+        mut apply: V,
+    ) where
+        F: Fn(&GameMetadataPatch) -> Option<T>,
+        V: FnMut(T, &GameMetadataPatch),
+    {
+        if let Some(rule) = field_rules.get(&field) {
+            if rule.enabled && should_resolve {
+                for src in &rule.sources {
+                    if let Some(p) = Self::get_or_fetch_provider(
+                        src,
+                        store_native_id,
+                        request,
+                        providers,
+                        enabled,
+                        settings,
+                        cache,
+                    )
+                    .await
+                    {
+                        if let Some(val) = extract(&p) {
+                            apply(val, &p);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
     }
 
     async fn get_or_fetch_provider(

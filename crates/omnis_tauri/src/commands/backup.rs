@@ -225,9 +225,6 @@ pub async fn restore_backup(
     .await
     .map_err(|e| e.to_string())??;
 
-    // Clear memory image cache so restored artwork updates immediately
-    state.image_cache.clear();
-
     // Broadcast library updated event across the app
     let _ = app_handle.emit(events::LIBRARY_UPDATED, ());
 

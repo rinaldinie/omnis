@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useTranslation } from "../i18n";
 import { GameDto, GroupBy, FILTER_ORDER } from "../types";
-import { sortGames, GameSortMode } from "../utils/sortGames";
+import { sortGames, GameSortMode, readSavedSortMode, saveSortMode } from "../utils/sortGames";
 import { toCategoryId } from "../utils/consoleCategories";
 import { getRecentSettings, RecentSettings } from "../utils/recentSettings";
 
@@ -51,7 +51,12 @@ export function useLibraryFilters(games: GameDto[]) {
   const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
 
   // Dimension 6: Sort Mode
-  const [sortMode, setSortMode] = useState<GameSortMode>("default");
+  const [sortMode, setSortModeState] = useState<GameSortMode>(readSavedSortMode);
+
+  const setSortMode = (mode: GameSortMode) => {
+    setSortModeState(mode);
+    saveSortMode(mode);
+  };
 
   const [recentSettings, setRecentSettings] = useState<RecentSettings>(getRecentSettings);
 

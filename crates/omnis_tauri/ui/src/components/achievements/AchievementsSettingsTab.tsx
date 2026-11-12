@@ -345,7 +345,6 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                       </span>
                     </div>
                     <div className="flex items-center gap-4">
-                      <span className="text-xs font-mono text-slate-400">315/366</span>
                       <button
                         type="button"
                         onClick={() =>
@@ -374,7 +373,6 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                       </span>
                     </div>
                     <div className="flex items-center gap-4">
-                      <span className="text-xs font-mono text-slate-400">67/78</span>
                       <button
                         type="button"
                         onClick={() =>
@@ -401,7 +399,6 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                       </span>
                     </div>
                     <div className="flex items-center gap-4">
-                      <span className="text-xs font-mono text-slate-400">24/45</span>
                       <button
                         type="button"
                         onClick={() =>
@@ -428,7 +425,6 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                       </span>
                     </div>
                     <div className="flex items-center gap-4">
-                      <span className="text-xs font-mono text-slate-400">7/7</span>
                       <button
                         type="button"
                         onClick={() =>

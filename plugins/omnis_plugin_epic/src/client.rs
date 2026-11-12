@@ -37,6 +37,24 @@ pub struct EpicOAuthTokenResponse {
     pub display_name: Option<String>,
 }
 
+impl From<EpicOAuthTokenResponse> for StoreAccountSession {
+    fn from(token_resp: EpicOAuthTokenResponse) -> Self {
+        let now = Utc::now().timestamp();
+        let expires_at = token_resp.expires_in.map(|exp| now + exp);
+        Self {
+            store_id: "epic".to_string(),
+            user_id: token_resp.account_id,
+            username: token_resp
+                .display_name
+                .unwrap_or_else(|| "Epic Player".to_string()),
+            avatar_url: None,
+            access_token: token_resp.access_token,
+            refresh_token: token_resp.refresh_token,
+            expires_at,
+        }
+    }
+}
+
 /// Entitlement metadata item returned by Epic Games entitlement service
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct EpicEntitlement {
@@ -238,11 +256,12 @@ pub fn normalize_epic_entitlement(entitlement: &EpicEntitlement) -> DiscoveredGa
 
 /// Extracts exchangeCode, authorizationCode, sid or code from the query parameters or URL fragment
 pub fn extract_exchange_code(url_str: &str) -> Option<String> {
+    const KEYS: [&str; 4] = ["exchangeCode", "code", "authorizationCode", "sid"];
+
     if let Ok(parsed) = url::Url::parse(url_str) {
         // 1. Check query parameters
         for (key, val) in parsed.query_pairs() {
-            if key == "exchangeCode" || key == "code" || key == "authorizationCode" || key == "sid"
-            {
+            if KEYS.contains(&key.as_ref()) {
                 return Some(val.into_owned());
             }
         }
@@ -250,37 +269,27 @@ pub fn extract_exchange_code(url_str: &str) -> Option<String> {
         // 2. Check fragment
         if let Some(fragment) = parsed.fragment() {
             for (key, val) in url::form_urlencoded::parse(fragment.as_bytes()) {
-                if key == "exchangeCode"
-                    || key == "code"
-                    || key == "authorizationCode"
-                    || key == "sid"
-                {
+                if KEYS.contains(&key.as_ref()) {
                     return Some(val.into_owned());
                 }
             }
         }
     }
 
-    // Fallback: search string directly (checking authorizationCode and exchangeCode before code/sid)
-    if let Some(pos) = url_str.find("authorizationCode=") {
-        let after = &url_str[pos + 18..];
-        let end = after.find(['&', '#', ' ']).unwrap_or(after.len());
-        return Some(after[..end].to_string());
-    }
-    if let Some(pos) = url_str.find("exchangeCode=") {
-        let after = &url_str[pos + 13..];
-        let end = after.find(['&', '#', ' ']).unwrap_or(after.len());
-        return Some(after[..end].to_string());
-    }
-    if let Some(pos) = url_str.find("sid=") {
-        let after = &url_str[pos + 4..];
-        let end = after.find(['&', '#', ' ']).unwrap_or(after.len());
-        return Some(after[..end].to_string());
-    }
-    if let Some(pos) = url_str.find("code=") {
-        let after = &url_str[pos + 5..];
-        let end = after.find(['&', '#', ' ']).unwrap_or(after.len());
-        return Some(after[..end].to_string());
+    // Fallback: search string directly (checking prefixes in order of precedence)
+    const SEARCH_PREFIXES: [&str; 4] = [
+        "authorizationCode=",
+        "exchangeCode=",
+        "sid=",
+        "code=",
+    ];
+
+    for prefix in SEARCH_PREFIXES {
+        if let Some(pos) = url_str.find(prefix) {
+            let after = &url_str[pos + prefix.len()..];
+            let end = after.find(['&', '#', ' ']).unwrap_or(after.len());
+            return Some(after[..end].to_string());
+        }
     }
 
     None
@@ -342,20 +351,7 @@ pub async fn exchange_code(
         })?
     };
 
-    let now = Utc::now().timestamp();
-    let expires_at = token_resp.expires_in.map(|exp| now + exp);
-
-    Ok(StoreAccountSession {
-        store_id: "epic".to_string(),
-        user_id: token_resp.account_id,
-        username: token_resp
-            .display_name
-            .unwrap_or_else(|| "Epic Player".to_string()),
-        avatar_url: None,
-        access_token: token_resp.access_token,
-        refresh_token: token_resp.refresh_token,
-        expires_at,
-    })
+    Ok(StoreAccountSession::from(token_resp))
 }
 
 /// Refreshes an expired session using a refresh_token
@@ -393,20 +389,7 @@ pub async fn refresh_token(
         ))
     })?;
 
-    let now = Utc::now().timestamp();
-    let expires_at = token_resp.expires_in.map(|exp| now + exp);
-
-    Ok(StoreAccountSession {
-        store_id: "epic".to_string(),
-        user_id: token_resp.account_id,
-        username: token_resp
-            .display_name
-            .unwrap_or_else(|| "Epic Player".to_string()),
-        avatar_url: None,
-        access_token: token_resp.access_token,
-        refresh_token: token_resp.refresh_token,
-        expires_at,
-    })
+    Ok(StoreAccountSession::from(token_resp))
 }
 
 /// Discovers candidate games owned by the user from library-service, launcher assets, or entitlements
@@ -625,6 +608,11 @@ pub async fn fetch_catalog_items_batch(
         })?;
 
     if !resp.status().is_success() {
+        if resp.status() == reqwest::StatusCode::UNAUTHORIZED {
+            return Err(PluginError::SessionExpired(
+                "Epic session expired during catalog sync".to_string(),
+            ));
+        }
         return Err(PluginError::Other(format!(
             "Catalog request for namespace {} failed: HTTP {}",
             namespace,
