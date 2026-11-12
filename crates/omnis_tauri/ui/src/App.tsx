@@ -668,9 +668,6 @@ export default function App() {
             setConsolePage={setConsolePage}
             themes={themes}
             onSelectTheme={selectTheme}
-            handleToggleHidden={handleToggleHidden}
-            handleToggleFavorite={handleToggleFavorite}
-            handlePromoteCopy={handlePromoteCopy}
           />
         ) : (
           <DesktopView
