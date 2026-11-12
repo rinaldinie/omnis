@@ -11,6 +11,76 @@ struct ArtworkPrerequisites {
     remote_bg_to_cache: Option<String>,
 }
 
+struct ResolutionContext<'a> {
+    field_rules: &'a HashMap<MetadataField, FieldPipelineRule>,
+    store_native_id: Option<&'a str>,
+    request: &'a MetadataSearchRequest,
+    providers: &'a HashMap<String, Box<dyn MetadataProvider>>,
+    enabled: &'a HashMap<String, bool>,
+    settings: &'a HashMap<String, Map<String, Value>>,
+    cache: HashMap<String, Option<GameMetadataPatch>>,
+}
+
+impl<'a> ResolutionContext<'a> {
+    async fn resolve_field<T, F, V>(
+        &mut self,
+        field: MetadataField,
+        should_resolve: bool,
+        extract: F,
+        mut apply: V,
+    ) where
+        F: Fn(&GameMetadataPatch) -> Option<T>,
+        V: FnMut(T, &GameMetadataPatch),
+    {
+        if let Some(rule) = self.field_rules.get(&field) {
+            if rule.enabled && should_resolve {
+                for src in &rule.sources {
+                    if let Some(p) = self.get_or_fetch_provider(src).await {
+                        if let Some(val) = extract(&p) {
+                            apply(val, &p);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    async fn get_or_fetch_provider(&mut self, source_id: &str) -> Option<GameMetadataPatch> {
+        let eff_id = match MetadataPipelineResolver::resolve_source_id(source_id, self.store_native_id) {
+            Some(id) => id,
+            None => return None,
+        };
+        if let Some(cached) = self.cache.get(eff_id) {
+            return cached.clone();
+        }
+
+        if !self.enabled.get(eff_id).copied().unwrap_or(true)
+            || !MetadataPipelineResolver::provider_applies_to(eff_id, &self.request.library_id)
+        {
+            self.cache.insert(eff_id.to_string(), None);
+            return None;
+        }
+
+        if let Some(prov) = self.providers.get(eff_id) {
+            let s = self.settings.get(eff_id).cloned().unwrap_or_default();
+            match prov.fetch_metadata(self.request, &s).await {
+                Ok(patch) => {
+                    self.cache.insert(eff_id.to_string(), Some(patch.clone()));
+                    Some(patch)
+                }
+                Err(_) => {
+                    self.cache.insert(eff_id.to_string(), None);
+                    None
+                }
+            }
+        } else {
+            self.cache.insert(eff_id.to_string(), None);
+            None
+        }
+    }
+}
+
 /// Resolves metadata field priority, queries providers according to pipeline configuration, and applies fallbacks
 pub struct MetadataPipelineResolver;
 
@@ -62,19 +132,20 @@ impl MetadataPipelineResolver {
             rules
         };
 
-        let mut cache: HashMap<String, Option<GameMetadataPatch>> = HashMap::new();
-
-        // 1. Name
-        Self::resolve_field(
-            MetadataField::Name,
-            &field_rules,
-            final_patch.name.is_none(),
+        let mut ctx = ResolutionContext {
+            field_rules: &field_rules,
             store_native_id,
             request,
             providers,
             enabled,
             settings,
-            &mut cache,
+            cache: HashMap::new(),
+        };
+
+        // 1. Name
+        ctx.resolve_field(
+            MetadataField::Name,
+            final_patch.name.is_none(),
             |p| p.name.as_ref().filter(|s| !s.trim().is_empty()).cloned(),
             |val, _| final_patch.name = Some(val),
         )
@@ -88,16 +159,9 @@ impl MetadataPipelineResolver {
                     .as_ref()
                     .map(|d| d.trim().is_empty())
                     .unwrap_or(true));
-        Self::resolve_field(
+        ctx.resolve_field(
             MetadataField::Description,
-            &field_rules,
             needs_desc,
-            store_native_id,
-            request,
-            providers,
-            enabled,
-            settings,
-            &mut cache,
             |p| p.description.as_ref().filter(|s| !s.trim().is_empty()).cloned(),
             |val, _| final_patch.description = Some(val),
         )
@@ -111,16 +175,9 @@ impl MetadataPipelineResolver {
                     .as_ref()
                     .map(|r| r.trim().is_empty())
                     .unwrap_or(true));
-        Self::resolve_field(
+        ctx.resolve_field(
             MetadataField::ReleaseDate,
-            &field_rules,
             needs_rd,
-            store_native_id,
-            request,
-            providers,
-            enabled,
-            settings,
-            &mut cache,
             |p| p.release_date.as_ref().filter(|s| !s.trim().is_empty()).cloned(),
             |val, _| final_patch.release_date = Some(val),
         )
@@ -129,16 +186,9 @@ impl MetadataPipelineResolver {
         // 4. Genres
         let needs_genres = final_patch.genres.is_empty()
             && (!pipeline.preserve_existing_artwork || game.genres.is_empty());
-        Self::resolve_field(
+        ctx.resolve_field(
             MetadataField::Genres,
-            &field_rules,
             needs_genres,
-            store_native_id,
-            request,
-            providers,
-            enabled,
-            settings,
-            &mut cache,
             |p| if !p.genres.is_empty() { Some(p.genres.clone()) } else { None },
             |val, _| final_patch.genres = val,
         )
@@ -147,16 +197,9 @@ impl MetadataPipelineResolver {
         // 5. Developers
         let needs_devs = final_patch.developers.is_empty()
             && (!pipeline.preserve_existing_artwork || game.developers.is_empty());
-        Self::resolve_field(
+        ctx.resolve_field(
             MetadataField::Developers,
-            &field_rules,
             needs_devs,
-            store_native_id,
-            request,
-            providers,
-            enabled,
-            settings,
-            &mut cache,
             |p| if !p.developers.is_empty() { Some(p.developers.clone()) } else { None },
             |val, _| final_patch.developers = val,
         )
@@ -165,16 +208,9 @@ impl MetadataPipelineResolver {
         // 6. Publishers
         let needs_pubs = final_patch.publishers.is_empty()
             && (!pipeline.preserve_existing_artwork || game.publishers.is_empty());
-        Self::resolve_field(
+        ctx.resolve_field(
             MetadataField::Publishers,
-            &field_rules,
             needs_pubs,
-            store_native_id,
-            request,
-            providers,
-            enabled,
-            settings,
-            &mut cache,
             |p| if !p.publishers.is_empty() { Some(p.publishers.clone()) } else { None },
             |val, _| final_patch.publishers = val,
         )
@@ -183,16 +219,9 @@ impl MetadataPipelineResolver {
         // 7. Features
         let needs_feats = final_patch.features.is_empty()
             && (!pipeline.preserve_existing_artwork || game.features.is_empty());
-        Self::resolve_field(
+        ctx.resolve_field(
             MetadataField::Features,
-            &field_rules,
             needs_feats,
-            store_native_id,
-            request,
-            providers,
-            enabled,
-            settings,
-            &mut cache,
             |p| if !p.features.is_empty() { Some(p.features.clone()) } else { None },
             |val, _| final_patch.features = val,
         )
@@ -201,16 +230,9 @@ impl MetadataPipelineResolver {
         // 8. Tags
         let needs_tags = final_patch.tags.is_empty()
             && (!pipeline.preserve_existing_artwork || game.tags.is_empty());
-        Self::resolve_field(
+        ctx.resolve_field(
             MetadataField::Tags,
-            &field_rules,
             needs_tags,
-            store_native_id,
-            request,
-            providers,
-            enabled,
-            settings,
-            &mut cache,
             |p| if !p.tags.is_empty() { Some(p.tags.clone()) } else { None },
             |val, _| final_patch.tags = val,
         )
@@ -220,16 +242,9 @@ impl MetadataPipelineResolver {
         let needs_series = final_patch.series.is_none()
             && (!pipeline.preserve_existing_artwork
                 || game.series.as_deref().unwrap_or("").trim().is_empty());
-        Self::resolve_field(
+        ctx.resolve_field(
             MetadataField::Series,
-            &field_rules,
             needs_series,
-            store_native_id,
-            request,
-            providers,
-            enabled,
-            settings,
-            &mut cache,
             |p| p.series.as_ref().filter(|s| !s.trim().is_empty()).cloned(),
             |val, _| final_patch.series = Some(val),
         )
@@ -244,16 +259,9 @@ impl MetadataPipelineResolver {
                     .unwrap_or("")
                     .trim()
                     .is_empty());
-        Self::resolve_field(
+        ctx.resolve_field(
             MetadataField::AgeRating,
-            &field_rules,
             needs_ar,
-            store_native_id,
-            request,
-            providers,
-            enabled,
-            settings,
-            &mut cache,
             |p| p.age_rating.as_ref().filter(|s| !s.trim().is_empty()).cloned(),
             |val, _| final_patch.age_rating = Some(val),
         )
@@ -262,16 +270,9 @@ impl MetadataPipelineResolver {
         // 11. Links
         let needs_links = final_patch.custom_links.is_empty()
             && (!pipeline.preserve_existing_artwork || game.custom_links.is_empty());
-        Self::resolve_field(
+        ctx.resolve_field(
             MetadataField::Links,
-            &field_rules,
             needs_links,
-            store_native_id,
-            request,
-            providers,
-            enabled,
-            settings,
-            &mut cache,
             |p| if !p.custom_links.is_empty() { Some(p.custom_links.clone()) } else { None },
             |val, _| final_patch.custom_links = val,
         )
@@ -280,16 +281,9 @@ impl MetadataPipelineResolver {
         // 12. Critic Score
         let needs_cs = final_patch.critic_score.is_none()
             && (!pipeline.preserve_existing_artwork || game.critic_score.is_none());
-        Self::resolve_field(
+        ctx.resolve_field(
             MetadataField::CriticScore,
-            &field_rules,
             needs_cs,
-            store_native_id,
-            request,
-            providers,
-            enabled,
-            settings,
-            &mut cache,
             |p| p.critic_score,
             |val, p| {
                 final_patch.critic_score = Some(val);
@@ -303,32 +297,18 @@ impl MetadataPipelineResolver {
         // 13. Community Score
         let needs_comms = final_patch.community_score.is_none()
             && (!pipeline.preserve_existing_artwork || game.community_score.is_none());
-        Self::resolve_field(
+        ctx.resolve_field(
             MetadataField::CommunityScore,
-            &field_rules,
             needs_comms,
-            store_native_id,
-            request,
-            providers,
-            enabled,
-            settings,
-            &mut cache,
             |p| p.community_score,
             |val, _| final_patch.community_score = Some(val),
         )
         .await;
 
         // 14. Cover Image
-        Self::resolve_field(
+        ctx.resolve_field(
             MetadataField::CoverImage,
-            &field_rules,
             artwork_pre.should_fetch_cover && final_patch.cover_url.is_none(),
-            store_native_id,
-            request,
-            providers,
-            enabled,
-            settings,
-            &mut cache,
             |p| p.cover_url.clone(),
             |val, _| final_patch.cover_url = Some(val),
         )
@@ -343,48 +323,27 @@ impl MetadataPipelineResolver {
                     .unwrap_or("")
                     .trim()
                     .is_empty());
-        Self::resolve_field(
+        ctx.resolve_field(
             MetadataField::Icon,
-            &field_rules,
             needs_icon,
-            store_native_id,
-            request,
-            providers,
-            enabled,
-            settings,
-            &mut cache,
             |p| p.icon_url.clone(),
             |val, _| final_patch.icon_url = Some(val),
         )
         .await;
 
         // 16. Background Image
-        Self::resolve_field(
+        ctx.resolve_field(
             MetadataField::BackgroundImage,
-            &field_rules,
             artwork_pre.should_fetch_background && final_patch.background_url.is_none(),
-            store_native_id,
-            request,
-            providers,
-            enabled,
-            settings,
-            &mut cache,
             |p| p.background_url.clone(),
             |val, _| final_patch.background_url = Some(val),
         )
         .await;
 
         // 17. Install Size
-        Self::resolve_field(
+        ctx.resolve_field(
             MetadataField::InstallSize,
-            &field_rules,
             final_patch.install_size_bytes.is_none(),
-            store_native_id,
-            request,
-            providers,
-            enabled,
-            settings,
-            &mut cache,
             |p| p.install_size_bytes,
             |val, _| final_patch.install_size_bytes = Some(val),
         )
@@ -413,88 +372,6 @@ impl MetadataPipelineResolver {
         Self::apply_fallback_if_needed(&mut final_patch, game, &fallback_fn);
 
         final_patch
-    }
-
-    async fn resolve_field<T, F, V>(
-        field: MetadataField,
-        field_rules: &HashMap<MetadataField, FieldPipelineRule>,
-        should_resolve: bool,
-        store_native_id: Option<&str>,
-        request: &MetadataSearchRequest,
-        providers: &HashMap<String, Box<dyn MetadataProvider>>,
-        enabled: &HashMap<String, bool>,
-        settings: &HashMap<String, Map<String, Value>>,
-        cache: &mut HashMap<String, Option<GameMetadataPatch>>,
-        extract: F,
-        mut apply: V,
-    ) where
-        F: Fn(&GameMetadataPatch) -> Option<T>,
-        V: FnMut(T, &GameMetadataPatch),
-    {
-        if let Some(rule) = field_rules.get(&field) {
-            if rule.enabled && should_resolve {
-                for src in &rule.sources {
-                    if let Some(p) = Self::get_or_fetch_provider(
-                        src,
-                        store_native_id,
-                        request,
-                        providers,
-                        enabled,
-                        settings,
-                        cache,
-                    )
-                    .await
-                    {
-                        if let Some(val) = extract(&p) {
-                            apply(val, &p);
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    async fn get_or_fetch_provider(
-        source_id: &str,
-        store_native_id: Option<&str>,
-        request: &MetadataSearchRequest,
-        providers: &HashMap<String, Box<dyn MetadataProvider>>,
-        enabled: &HashMap<String, bool>,
-        settings: &HashMap<String, Map<String, Value>>,
-        cache: &mut HashMap<String, Option<GameMetadataPatch>>,
-    ) -> Option<GameMetadataPatch> {
-        let eff_id = match Self::resolve_source_id(source_id, store_native_id) {
-            Some(id) => id,
-            None => return None,
-        };
-        if let Some(cached) = cache.get(eff_id) {
-            return cached.clone();
-        }
-
-        if !enabled.get(eff_id).copied().unwrap_or(true)
-            || !Self::provider_applies_to(eff_id, &request.library_id)
-        {
-            cache.insert(eff_id.to_string(), None);
-            return None;
-        }
-
-        if let Some(prov) = providers.get(eff_id) {
-            let s = settings.get(eff_id).cloned().unwrap_or_default();
-            match prov.fetch_metadata(request, &s).await {
-                Ok(patch) => {
-                    cache.insert(eff_id.to_string(), Some(patch.clone()));
-                    Some(patch)
-                }
-                Err(_) => {
-                    cache.insert(eff_id.to_string(), None);
-                    None
-                }
-            }
-        } else {
-            cache.insert(eff_id.to_string(), None);
-            None
-        }
     }
 
     /// PC storefront catalogs only list PC games: asked about a console title they answer
