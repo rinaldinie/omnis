@@ -59,7 +59,9 @@ export const OpenCriticSection: React.FC<OpenCriticSectionProps> = ({
 
         <div className="flex items-center gap-4 self-end md:self-center">
           <span className="text-xs font-semibold text-slate-300">
-            {isEnabled ? t("common.enabled", { defaultValue: "Attivo" }) : t("common.disabled", { defaultValue: "Disattivato" })}
+            {isEnabled
+              ? t("common.enabled", { defaultValue: "Enabled" })
+              : t("common.disabled", { defaultValue: "Disabled" })}
           </span>
           <ToggleSwitch checked={isEnabled} onChange={(val) => onToggleEnabled(val)} ariaLabel="Toggle OpenCritic provider" />
         </div>
@@ -67,17 +69,19 @@ export const OpenCriticSection: React.FC<OpenCriticSectionProps> = ({
 
       {/* Info Group */}
       <SettingGroup
-        title={t("metadata_settings.opencritic_info_title", { defaultValue: "Integrazione OpenCritic" })}
+        title={t("metadata_settings.opencritic_info_title", {
+          defaultValue: "OpenCritic Integration",
+        })}
         description={t("metadata_settings.opencritic_info_desc", {
-          defaultValue: "OpenCritic fornisce percentuali di raccomandazione dei recensori e punteggi medi.",
+          defaultValue: "OpenCritic provides critic recommendation percentages and average review scores.",
         })}
       >
         <SettingRow
-          title={t("metadata_settings.public_source", { defaultValue: "Sorgente Pubblica" })}
+          title={t("metadata_settings.public_source", { defaultValue: "Public Source" })}
           description={
             <span>
               {t("metadata_settings.opencritic_public_desc", {
-                defaultValue: "I dati vengono interrogati tramite gli endpoint pubblici di OpenCritic. Nessuna registrazione necessaria.",
+                defaultValue: "Data is queried via OpenCritic public endpoints. No registration or API key required.",
               })}{" "}
               <a
                 href="https://opencritic.com"
@@ -96,7 +100,8 @@ export const OpenCriticSection: React.FC<OpenCriticSectionProps> = ({
           }
         >
           <div className="flex items-center gap-2 text-xs text-emerald-400 font-bold">
-            <CheckCircle2 className="w-4 h-4" /> Pronto all'uso
+            <CheckCircle2 className="w-4 h-4" />{" "}
+            {t("metadata_settings.ready_to_use", { defaultValue: "Ready to use" })}
           </div>
         </SettingRow>
       </SettingGroup>
@@ -106,7 +111,11 @@ export const OpenCriticSection: React.FC<OpenCriticSectionProps> = ({
         className="p-4 rounded-2xl border flex items-center justify-between gap-3 bg-black/20"
         style={{ borderColor: "var(--border-color)" }}
       >
-        <span className="text-xs text-slate-400">Le modifiche hanno effetto immediato sui nuovi scraping</span>
+        <span className="text-xs text-slate-400">
+          {t("metadata_settings.immediate_effect_note", {
+            defaultValue: "Changes take effect immediately on subsequent scrapes.",
+          })}
+        </span>
         <button
           type="button"
           onClick={onSave}
@@ -115,7 +124,7 @@ export const OpenCriticSection: React.FC<OpenCriticSectionProps> = ({
           style={{ backgroundColor: "var(--accent-primary)" }}
         >
           {isSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-          <span>{t("common.save", { defaultValue: "Salva" })}</span>
+          <span>{t("common.save", { defaultValue: "Save" })}</span>
         </button>
       </div>
     </div>

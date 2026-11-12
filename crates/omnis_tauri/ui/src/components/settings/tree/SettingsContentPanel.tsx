@@ -250,11 +250,25 @@ export const SettingsContentPanel: React.FC<SettingsContentPanelProps> = ({
             </div>
 
             <div className="border-t border-white/5 pt-4 text-xs text-slate-400 space-y-2">
-              <p className="font-semibold text-slate-300">Cosa viene importato:</p>
+              <p className="font-semibold text-slate-300">
+                {t('general_settings.playnite_import_what', { defaultValue: 'What will be imported:' })}
+              </p>
               <ul className="list-disc list-inside space-y-1 text-slate-400">
-                <li>Catalogo giochi e categorie personalizzate</li>
-                <li>Ore di gioco accumulate e data ultimo avvio</li>
-                <li>Copertine, loghi e sfondi locali associati ai titoli</li>
+                <li>
+                  {t('general_settings.playnite_import_item_catalog', {
+                    defaultValue: 'Game catalog and custom categories',
+                  })}
+                </li>
+                <li>
+                  {t('general_settings.playnite_import_item_playtime', {
+                    defaultValue: 'Accumulated playtime and last played timestamps',
+                  })}
+                </li>
+                <li>
+                  {t('general_settings.playnite_import_item_media', {
+                    defaultValue: 'Covers, logos, and local backgrounds linked to titles',
+                  })}
+                </li>
               </ul>
             </div>
           </div>

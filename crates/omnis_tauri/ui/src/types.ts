@@ -36,6 +36,18 @@ export interface DuplicateHiderStats {
   hidden_duplicates: number;
 }
 
+export type ProcessTrackingMode =
+  | { type: "KernelJobObject" }
+  | { type: "ProcessName"; target: string }
+  | { type: "WatchDirectory"; target: string };
+
+export interface LaunchConfiguration {
+  executable: string;
+  arguments: string[];
+  working_dir?: string | null;
+  tracking_mode: ProcessTrackingMode;
+}
+
 export interface GameDto {
   id: string;
   external_id?: string;
@@ -61,6 +73,7 @@ export interface GameDto {
   features?: string[];
   tags?: string[];
   custom_links?: Array<{ title: string; url: string }>;
+  play_actions?: LaunchConfiguration[];
   extra_metadata?: string | null;
   genres: string[];
   developers: string[];
@@ -242,6 +255,7 @@ export const normalizeGame = (g: any): GameDto => {
     background_image: formatImageUrl(rawBg),
     icon_image: formatImageUrl(rawIcon),
     playtime_formatted: playtimeFormatted || "0m",
+    play_actions: Array.isArray(g.play_actions) ? g.play_actions : [],
   };
 };
 

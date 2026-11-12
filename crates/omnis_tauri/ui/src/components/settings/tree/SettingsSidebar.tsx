@@ -1,5 +1,6 @@
 import React from 'react';
 import { Search, X, ChevronDown, ChevronRight } from 'lucide-react';
+import { useTranslation } from '../../../i18n/i18nContext';
 import { SettingsTab, TreeGroup } from './settingsTreeConfig';
 
 export interface SettingsSidebarProps {
@@ -23,6 +24,8 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({
   onSelectTab,
   currentVersion = '1.0',
 }) => {
+  const { t } = useTranslation();
+
   return (
     <div
       className="w-64 sm:w-72 shrink-0 border-r flex flex-col bg-black/20"
@@ -42,7 +45,7 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Cerca impostazioni..."
+            placeholder={t('settings_modal.search_placeholder', { defaultValue: 'Search settings...' })}
             className="w-full bg-transparent text-xs text-white placeholder-slate-500 focus:outline-none"
           />
           {searchQuery && (
@@ -50,7 +53,7 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({
               type="button"
               onClick={() => setSearchQuery('')}
               className="text-slate-400 hover:text-white p-0.5"
-              title="Cancella ricerca"
+              title={t('common.clear', { defaultValue: 'Clear' })}
             >
               <X className="w-3 h-3" />
             </button>
@@ -62,14 +65,16 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({
       <div className="flex-1 overflow-y-auto p-2.5 space-y-3 custom-scrollbar">
         {filteredGroups.length === 0 ? (
           <div className="py-8 px-4 text-center">
-            <p className="text-xs text-slate-400">Nessuna opzione trovata</p>
+            <p className="text-xs text-slate-400">
+              {t('settings_modal.no_results', { defaultValue: 'No settings found' })}
+            </p>
             <button
               type="button"
               onClick={() => setSearchQuery('')}
               className="mt-2 text-xs font-semibold hover:underline cursor-pointer"
               style={{ color: 'var(--accent-primary)' }}
             >
-              Azzera filtro
+              {t('settings_modal.reset_filter', { defaultValue: 'Reset filter' })}
             </button>
           </div>
         ) : (

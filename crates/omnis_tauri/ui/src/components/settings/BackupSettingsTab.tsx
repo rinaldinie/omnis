@@ -315,7 +315,7 @@ export const BackupSettingsTab: React.FC<BackupSettingsTabProps> = ({
           className="w-1.5 h-1.5 rounded-full animate-pulse"
           style={{ backgroundColor: 'var(--accent-primary)' }}
         />
-        {t('backup_settings.schedule_status_active') || 'Attivo (in attesa di trigger)'}
+        {t('backup_settings.schedule_status_active', { defaultValue: 'Active (waiting for trigger)' })}
       </span>
     );
   };
@@ -337,7 +337,7 @@ export const BackupSettingsTab: React.FC<BackupSettingsTabProps> = ({
             type="button"
             onClick={() => setToastMessage(null)}
             className="text-emerald-300 hover:text-white text-xs font-bold px-2 py-1 rounded cursor-pointer"
-            aria-label="Chiudi notifica"
+            aria-label={t('common.close', { defaultValue: 'Close notification' })}
           >
             ✕
           </button>

@@ -187,12 +187,16 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
       <div className="flex-1 overflow-y-auto p-6 space-y-5 custom-scrollbar min-h-0">
         <SettingGroup
           title={currentMeta.name}
-          description="Gestisci la connessione e le modalità di importazione dei giochi."
+          description={t("store_accounts.manage_connection_desc", {
+            defaultValue: "Manage connection and game import options.",
+          })}
           icon={currentMeta.icon("w-4 h-4")}
         >
           <SettingRow
             title={t("store_accounts.import_installed")}
-            description="Rileva ed elenca i giochi installati localmente sul computer."
+            description={t("store_accounts.import_installed_desc", {
+              defaultValue: "Detect and list locally installed games on your PC.",
+            })}
           >
             <ToggleSwitch
               checked={currentSettings.import_installed}
@@ -203,7 +207,9 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
 
           <SettingRow
             title={t("store_accounts.connect_account")}
-            description="Collega l'account per sincronizzare libreria cloud, tempi di gioco e dettagli."
+            description={t("store_accounts.connect_account_desc", {
+              defaultValue: "Link account to sync cloud library, playtime, and details.",
+            })}
             badge={
               currentAccount.is_connected ? (
                 <span
@@ -236,12 +242,18 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
         {currentSettings.connect_account && (
           <div className="space-y-4 animate-in fade-in duration-200">
             <SettingGroup
-              title="Filtri & Opzioni Sincronizzazione"
-              description="Personalizza quali contenuti sincronizzare dalla piattaforma."
+              title={t("store_accounts.sync_options_title", {
+                defaultValue: "Sync Options & Filters",
+              })}
+              description={t("store_accounts.sync_options_desc", {
+                defaultValue: "Customize which content to synchronize from this platform.",
+              })}
             >
               <SettingRow
                 title={t("store_accounts.import_uninstalled")}
-                description="Importa nella libreria Omnis anche i titoli posseduti ma non scaricati."
+                description={t("store_accounts.import_uninstalled_desc", {
+                  defaultValue: "Import games owned in cloud library that are not installed locally.",
+                })}
               >
                 <ToggleSwitch
                   checked={currentSettings.import_uninstalled}
@@ -252,7 +264,9 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
 
               <SettingRow
                 title={t("store_accounts.ignore_other_accounts")}
-                description="Ignora i giochi installati da altri account utente rilevati localmente."
+                description={t("store_accounts.ignore_other_accounts_desc", {
+                  defaultValue: "Skip games installed by other user accounts detected locally.",
+                })}
               >
                 <ToggleSwitch
                   checked={currentSettings.ignore_other_accounts}
@@ -265,7 +279,9 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
                 <>
                   <SettingRow
                     title={t("store_accounts.import_free_items")}
-                    description="Include oggetti gratuiti, software e strumenti associati alla licenza Steam."
+                    description={t("store_accounts.import_free_items_desc", {
+                      defaultValue: "Include free games, software, and tools linked to your Steam license.",
+                    })}
                   >
                     <ToggleSwitch
                       checked={currentSettings.import_free_items || false}
@@ -276,7 +292,9 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
 
                   <SettingRow
                     title={t("store_accounts.import_family_sharing")}
-                    description="Importa i titoli condivisi dagli altri membri della famiglia Steam."
+                    description={t("store_accounts.import_family_sharing_desc", {
+                      defaultValue: "Import games shared by other members of your Steam family.",
+                    })}
                   >
                     <ToggleSwitch
                       checked={currentSettings.import_family_sharing || false}
@@ -290,7 +308,9 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
               {selectedStoreId === "xbox" && (
                 <SettingRow
                   title={t("store_accounts.import_game_pass")}
-                  description="Importa l'intero catalogo PC Game Pass collegato alla sottoscrizione attiva."
+                  description={t("store_accounts.import_game_pass_desc", {
+                    defaultValue: "Import the entire PC Game Pass catalog linked to your active subscription.",
+                  })}
                 >
                   <ToggleSwitch
                     checked={currentSettings.import_game_pass || false}

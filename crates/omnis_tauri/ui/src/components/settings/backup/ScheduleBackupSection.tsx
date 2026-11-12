@@ -30,10 +30,10 @@ export const ScheduleBackupSection: React.FC<ScheduleBackupSectionProps> = ({
     key: 'disabled' | 'daily' | 'weekly' | 'monthly';
     label: string;
   }> = [
-    { key: 'disabled', label: t('backup_settings.freq_disabled') || 'Disabilitato' },
-    { key: 'daily', label: t('backup_settings.freq_daily') || 'Ogni Giorno' },
-    { key: 'weekly', label: t('backup_settings.freq_weekly') || 'Ogni Settimana' },
-    { key: 'monthly', label: t('backup_settings.freq_monthly') || 'Ogni Mese' },
+    { key: 'disabled', label: t('backup_settings.freq_disabled', { defaultValue: 'Disabled' }) },
+    { key: 'daily', label: t('backup_settings.freq_daily', { defaultValue: 'Every Day' }) },
+    { key: 'weekly', label: t('backup_settings.freq_weekly', { defaultValue: 'Every Week' }) },
+    { key: 'monthly', label: t('backup_settings.freq_monthly', { defaultValue: 'Every Month' }) },
   ];
 
   return (
@@ -240,8 +240,9 @@ export const ScheduleBackupSection: React.FC<ScheduleBackupSectionProps> = ({
             title={scheduleConfig?.destination_dir || ''}
           >
             {scheduleConfig?.destination_dir ||
-              t('backup_settings.destination_folder_placeholder') ||
-              'Nessuna cartella selezionata (fai clic su Scegli cartella per selezionare dove salvare)...'}
+              t('backup_settings.destination_folder_placeholder', {
+                defaultValue: 'No folder selected (click Choose Folder to select where to save)...',
+              })}
           </div>
           <button
             type="button"
@@ -249,7 +250,9 @@ export const ScheduleBackupSection: React.FC<ScheduleBackupSectionProps> = ({
             className="px-4 py-2.5 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 text-white text-xs font-bold flex items-center gap-2 transition-all cursor-pointer hover:border-white/30 active:scale-95"
           >
             <FolderOpen className="w-4 h-4" style={{ color: 'var(--accent-primary)' }} />
-            <span>{t('backup_settings.btn_choose_folder') || 'Scegli cartella...'}</span>
+            <span>
+              {t('backup_settings.btn_choose_folder', { defaultValue: 'Choose Folder...' })}
+            </span>
           </button>
         </div>
 
@@ -260,8 +263,9 @@ export const ScheduleBackupSection: React.FC<ScheduleBackupSectionProps> = ({
             <div className="p-3.5 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-200 text-xs flex items-center gap-2.5">
               <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
               <span className="font-medium leading-relaxed">
-                {t('backup_settings.auto_destination_warning') ||
-                  'Cartella non impostata: seleziona una cartella di destinazione per attivare il backup automatico.'}
+                {t('backup_settings.auto_destination_warning', {
+                  defaultValue: 'Destination folder not set: select a destination folder to enable automatic backups.',
+                })}
               </span>
             </div>
           )}
@@ -284,16 +288,20 @@ export const ScheduleBackupSection: React.FC<ScheduleBackupSectionProps> = ({
                     }
               );
             }}
-            ariaLabel={t('backup_settings.auto_include_artwork_title') || 'Includi artwork nei backup automatici'}
+            ariaLabel={t('backup_settings.auto_include_artwork_title', {
+              defaultValue: 'Include artwork in automatic backups',
+            })}
           />
           <div className="text-xs text-slate-300 select-none">
             <span className="font-bold text-white block">
-              {t('backup_settings.auto_include_artwork_title') ||
-                'Includi artwork nei backup automatici'}
+              {t('backup_settings.auto_include_artwork_title', {
+                defaultValue: 'Include artwork in automatic backups',
+              })}
             </span>
             <span className="block text-[11px] text-slate-400">
-              {t('backup_settings.auto_include_artwork_desc') ||
-                'Aumenta la dimensione dei file .zip salvando anche cover e sfondi della cache'}
+              {t('backup_settings.auto_include_artwork_desc', {
+                defaultValue: 'Increases zip archive size by including cached covers and backgrounds.',
+              })}
             </span>
           </div>
         </div>
@@ -320,13 +328,15 @@ export const ScheduleBackupSection: React.FC<ScheduleBackupSectionProps> = ({
           {isSavingSchedule ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin text-white" />
-              <span>{t('backup_settings.saving_schedule') || 'Salvataggio...'}</span>
+              <span>{t('backup_settings.saving_schedule', { defaultValue: 'Saving...' })}</span>
             </>
           ) : (
             <>
               <Save className="w-4 h-4" />
               <span>
-                {t('backup_settings.btn_save_schedule') || 'Salva Impostazioni Schedulazione'}
+                {t('backup_settings.btn_save_schedule', {
+                  defaultValue: 'Save Schedule Settings',
+                })}
               </span>
             </>
           )}

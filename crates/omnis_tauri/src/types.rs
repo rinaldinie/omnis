@@ -42,6 +42,8 @@ pub struct GameDto {
     pub tags: Vec<String>,
     pub custom_links: Vec<omnis_sdk::CustomLink>,
     #[serde(default)]
+    pub play_actions: Vec<omnis_sdk::LaunchConfiguration>,
+    #[serde(default)]
     pub extra_metadata: Option<String>,
     #[serde(default)]
     pub last_activity: Option<String>,
@@ -153,6 +155,7 @@ pub fn game_to_dto(g: Game) -> GameDto {
         features: g.features,
         tags: g.tags,
         custom_links: g.custom_links,
+        play_actions: g.play_actions,
         extra_metadata: g.extra_metadata,
         last_activity: g.last_activity.map(|t| t.to_rfc3339()),
         is_hidden: g.is_hidden,

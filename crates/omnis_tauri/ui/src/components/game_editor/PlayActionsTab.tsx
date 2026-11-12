@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Plus, Trash2, FolderOpen, Folder, Terminal } from "lucide-react";
 import { LaunchConfiguration } from "./types";
 import { useTranslation } from "../../i18n";
@@ -11,6 +11,238 @@ interface PlayActionsTabProps {
   onPickExe: (index: number) => void;
   onPickDir: (index: number) => void;
 }
+
+interface PlayActionCardProps {
+  action: LaunchConfiguration;
+  idx: number;
+  onRemoveAction: (index: number) => void;
+  onUpdateAction: (index: number, key: keyof LaunchConfiguration, value: any) => void;
+  onPickExe: (index: number) => void;
+  onPickDir: (index: number) => void;
+}
+
+const PlayActionCard: React.FC<PlayActionCardProps> = ({
+  action,
+  idx,
+  onRemoveAction,
+  onUpdateAction,
+  onPickExe,
+  onPickDir,
+}) => {
+  const { t } = useTranslation();
+  const [argsText, setArgsText] = useState((action.arguments || []).join(" "));
+
+  useEffect(() => {
+    const actionArgs = action.arguments || [];
+    const parsedCurrent = argsText.trim().split(/\s+/).filter(Boolean);
+    if (JSON.stringify(parsedCurrent) !== JSON.stringify(actionArgs)) {
+      setArgsText(actionArgs.join(" "));
+    }
+  }, [action.arguments]);
+
+  const handleArgsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setArgsText(val);
+    const parsed = val.trim().split(/\s+/).filter(Boolean);
+    onUpdateAction(idx, "arguments", parsed);
+  };
+
+  const trackingType = action.tracking_mode?.type || "KernelJobObject";
+  const trackingTarget = (action.tracking_mode as any)?.target || "";
+
+  return (
+    <div
+      className="p-5 rounded-2xl border space-y-4 shadow-sm"
+      style={{
+        backgroundColor: "var(--bg-card)",
+        borderColor: "var(--border-color)",
+      }}
+    >
+      <div
+        className="flex items-center justify-between border-b pb-2"
+        style={{ borderColor: "var(--border-color)" }}
+      >
+        <span className="text-xs font-medium text-indigo-400">
+          {t("play_actions.action_n", { n: idx + 1 })}
+        </span>
+        <button
+          type="button"
+          onClick={() => onRemoveAction(idx)}
+          className="flex items-center gap-1 text-xs text-rose-400 hover:text-rose-300"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+          <span>{t("play_actions.remove")}</span>
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-medium mb-1 text-slate-300">
+            {t("play_actions.executable")} *
+          </label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={action.executable || ""}
+              onChange={(e) => onUpdateAction(idx, "executable", e.target.value)}
+              className="flex-1 px-3 py-2 rounded-xl border text-xs font-mono outline-none"
+              style={{
+                backgroundColor: "var(--bg-surface)",
+                borderColor: "var(--border-color)",
+                color: "var(--text-primary)",
+              }}
+              placeholder={t("play_actions.executable_placeholder")}
+            />
+            <button
+              type="button"
+              onClick={() => onPickExe(idx)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-medium hover:bg-white/10 transition-colors shrink-0"
+              style={{
+                backgroundColor: "var(--bg-surface)",
+                borderColor: "var(--border-color)",
+                color: "var(--text-primary)",
+              }}
+              title={t("custom_game.browse_exe_title")}
+            >
+              <FolderOpen className="w-4 h-4 text-emerald-400" />
+              <span>{t("custom_game.browse")}</span>
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium mb-1 text-slate-300">
+            {t("play_actions.working_dir")}
+          </label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={action.working_dir || ""}
+              onChange={(e) => onUpdateAction(idx, "working_dir", e.target.value || null)}
+              className="flex-1 px-3 py-2 rounded-xl border text-xs font-mono outline-none"
+              style={{
+                backgroundColor: "var(--bg-surface)",
+                borderColor: "var(--border-color)",
+                color: "var(--text-primary)",
+              }}
+              placeholder={t("play_actions.working_dir_placeholder")}
+            />
+            <button
+              type="button"
+              onClick={() => onPickDir(idx)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-medium hover:bg-white/10 transition-colors shrink-0"
+              style={{
+                backgroundColor: "var(--bg-surface)",
+                borderColor: "var(--border-color)",
+                color: "var(--text-primary)",
+              }}
+              title={t("play_actions.pick_folder_title")}
+            >
+              <Folder className="w-4 h-4 text-sky-400" />
+              <span>{t("play_actions.pick_folder")}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-xs font-medium mb-1 text-slate-300">
+          {t("play_actions.arguments")}
+        </label>
+        <input
+          type="text"
+          value={argsText}
+          onChange={handleArgsChange}
+          onBlur={() => setArgsText((action.arguments || []).join(" "))}
+          className="w-full px-3 py-2 rounded-xl border text-xs font-mono outline-none"
+          style={{
+            backgroundColor: "var(--bg-surface)",
+            borderColor: "var(--border-color)",
+            color: "var(--text-primary)",
+          }}
+          placeholder={t("play_actions.arguments_placeholder")}
+        />
+      </div>
+
+      <div>
+        <label className="block text-xs font-medium mb-1 text-slate-300">
+          {t("play_actions.tracking")}
+        </label>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <select
+            value={trackingType}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (val === "KernelJobObject") {
+                onUpdateAction(idx, "tracking_mode", { type: "KernelJobObject" });
+              } else if (val === "ProcessName") {
+                onUpdateAction(idx, "tracking_mode", {
+                  type: "ProcessName",
+                  target: trackingTarget || "game.exe",
+                });
+              } else {
+                onUpdateAction(idx, "tracking_mode", {
+                  type: "WatchDirectory",
+                  target: trackingTarget || ".",
+                });
+              }
+            }}
+            className="px-3 py-2 rounded-xl border text-xs font-medium outline-none cursor-pointer"
+            style={{
+              backgroundColor: "var(--bg-surface)",
+              borderColor: "var(--border-color)",
+              color: "var(--text-primary)",
+            }}
+          >
+            <option value="KernelJobObject">{t("play_actions.tracking_kernel")}</option>
+            <option value="ProcessName">{t("play_actions.tracking_process")}</option>
+            <option value="WatchDirectory">{t("play_actions.tracking_directory")}</option>
+          </select>
+
+          {trackingType === "ProcessName" && (
+            <input
+              type="text"
+              value={trackingTarget}
+              onChange={(e) =>
+                onUpdateAction(idx, "tracking_mode", {
+                  type: "ProcessName",
+                  target: e.target.value,
+                })
+              }
+              placeholder="e.g. game.exe"
+              className="flex-1 px-3 py-2 rounded-xl border text-xs font-mono outline-none"
+              style={{
+                backgroundColor: "var(--bg-surface)",
+                borderColor: "var(--border-color)",
+                color: "var(--text-primary)",
+              }}
+            />
+          )}
+
+          {trackingType === "WatchDirectory" && (
+            <input
+              type="text"
+              value={trackingTarget}
+              onChange={(e) =>
+                onUpdateAction(idx, "tracking_mode", {
+                  type: "WatchDirectory",
+                  target: e.target.value,
+                })
+              }
+              placeholder="e.g. ."
+              className="flex-1 px-3 py-2 rounded-xl border text-xs font-mono outline-none"
+              style={{
+                backgroundColor: "var(--bg-surface)",
+                borderColor: "var(--border-color)",
+                color: "var(--text-primary)",
+              }}
+            />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export const PlayActionsTab: React.FC<PlayActionsTabProps> = ({
   playActions,
@@ -56,160 +288,15 @@ export const PlayActionsTab: React.FC<PlayActionsTabProps> = ({
         </div>
       ) : (
         playActions.map((action, idx) => (
-          <div
+          <PlayActionCard
             key={idx}
-            className="p-5 rounded-2xl border space-y-4 shadow-sm"
-            style={{
-              backgroundColor: "var(--bg-card)",
-              borderColor: "var(--border-color)",
-            }}
-          >
-            <div
-              className="flex items-center justify-between border-b pb-2"
-              style={{ borderColor: "var(--border-color)" }}
-            >
-              <span className="text-xs font-medium text-indigo-400">
-                {t("play_actions.action_n", { n: idx + 1 })}
-              </span>
-              <button
-                type="button"
-                onClick={() => onRemoveAction(idx)}
-                className="flex items-center gap-1 text-xs text-rose-400 hover:text-rose-300"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>{t("play_actions.remove")}</span>
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium mb-1 text-slate-300">
-                  {t("play_actions.executable")} *
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={action.executable}
-                    onChange={(e) => onUpdateAction(idx, "executable", e.target.value)}
-                    className="flex-1 px-3 py-2 rounded-xl border text-xs font-mono outline-none"
-                    style={{
-                      backgroundColor: "var(--bg-surface)",
-                      borderColor: "var(--border-color)",
-                      color: "var(--text-primary)",
-                    }}
-                    placeholder={t("play_actions.executable_placeholder")}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => onPickExe(idx)}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-medium hover:bg-white/10 transition-colors shrink-0"
-                    style={{
-                      backgroundColor: "var(--bg-surface)",
-                      borderColor: "var(--border-color)",
-                      color: "var(--text-primary)",
-                    }}
-                    title={t("custom_game.browse_exe_title")}
-                  >
-                    <FolderOpen className="w-4 h-4 text-emerald-400" />
-                    <span>{t("custom_game.browse")}</span>
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium mb-1 text-slate-300">
-                  {t("play_actions.working_dir")}
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={action.working_dir || ""}
-                    onChange={(e) => onUpdateAction(idx, "working_dir", e.target.value || null)}
-                    className="flex-1 px-3 py-2 rounded-xl border text-xs font-mono outline-none"
-                    style={{
-                      backgroundColor: "var(--bg-surface)",
-                      borderColor: "var(--border-color)",
-                      color: "var(--text-primary)",
-                    }}
-                    placeholder={t("play_actions.working_dir_placeholder")}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => onPickDir(idx)}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-medium hover:bg-white/10 transition-colors shrink-0"
-                    style={{
-                      backgroundColor: "var(--bg-surface)",
-                      borderColor: "var(--border-color)",
-                      color: "var(--text-primary)",
-                    }}
-                    title={t("play_actions.pick_folder_title")}
-                  >
-                    <Folder className="w-4 h-4 text-sky-400" />
-                    <span>{t("play_actions.pick_folder")}</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium mb-1 text-slate-300">
-                {t("play_actions.arguments")}
-              </label>
-              <input
-                type="text"
-                value={action.arguments.join(" ")}
-                onChange={(e) =>
-                  onUpdateAction(
-                    idx,
-                    "arguments",
-                    e.target.value.split(" ").filter((s) => s.length > 0)
-                  )
-                }
-                className="w-full px-3 py-2 rounded-xl border text-xs font-mono outline-none"
-                style={{
-                  backgroundColor: "var(--bg-surface)",
-                  borderColor: "var(--border-color)",
-                  color: "var(--text-primary)",
-                }}
-                placeholder={t("play_actions.arguments_placeholder")}
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium mb-1 text-slate-300">
-                {t("play_actions.tracking")}
-              </label>
-              <select
-                value={action.tracking_mode?.type || "KernelJobObject"}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val === "KernelJobObject") {
-                    onUpdateAction(idx, "tracking_mode", { type: "KernelJobObject" });
-                  } else if (val === "ProcessName") {
-                    onUpdateAction(idx, "tracking_mode", {
-                      type: "ProcessName",
-                      target: "game.exe",
-                    });
-                  } else {
-                    onUpdateAction(idx, "tracking_mode", {
-                      type: "WatchDirectory",
-                      target: ".",
-                    });
-                  }
-                }}
-                className="px-3 py-2 rounded-xl border text-xs font-medium outline-none cursor-pointer"
-                style={{
-                  backgroundColor: "var(--bg-surface)",
-                  borderColor: "var(--border-color)",
-                  color: "var(--text-primary)",
-                }}
-              >
-                <option value="KernelJobObject">{t("play_actions.tracking_kernel")}</option>
-                <option value="ProcessName">{t("play_actions.tracking_process")}</option>
-                <option value="WatchDirectory">{t("play_actions.tracking_directory")}</option>
-              </select>
-            </div>
-          </div>
+            action={action}
+            idx={idx}
+            onRemoveAction={onRemoveAction}
+            onUpdateAction={onUpdateAction}
+            onPickExe={onPickExe}
+            onPickDir={onPickDir}
+          />
         ))
       )}
     </div>

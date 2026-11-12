@@ -63,7 +63,9 @@ export const HltbSection: React.FC<HltbSectionProps> = ({
 
         <div className="flex items-center gap-4 self-end md:self-center">
           <span className="text-xs font-semibold text-slate-300">
-            {isEnabled ? t("common.enabled", { defaultValue: "Attivo" }) : t("common.disabled", { defaultValue: "Disattivato" })}
+            {isEnabled
+              ? t("common.enabled", { defaultValue: "Enabled" })
+              : t("common.disabled", { defaultValue: "Disabled" })}
           </span>
           <ToggleSwitch checked={isEnabled} onChange={(val) => onToggleEnabled(val)} ariaLabel="Toggle HowLongToBeat provider" />
         </div>
@@ -71,17 +73,19 @@ export const HltbSection: React.FC<HltbSectionProps> = ({
 
       {/* Details Group */}
       <SettingGroup
-        title={t("metadata_settings.hltb_integration_title", { defaultValue: "Informazioni Scraper HLTB" })}
+        title={t("metadata_settings.hltb_integration_title", {
+          defaultValue: "HLTB Scraper Information",
+        })}
         description={t("metadata_settings.hltb_integration_desc", {
-          defaultValue: "HLTB arricchisce la schermata dettagli gioco con stime ore per vari stili di completamento.",
+          defaultValue: "HLTB enriches game details with crowd-sourced completion times for various play styles.",
         })}
       >
         <SettingRow
-          title={t("metadata_settings.public_scraper", { defaultValue: "Scraper Pubblico" })}
+          title={t("metadata_settings.public_scraper", { defaultValue: "Public Scraper" })}
           description={
             <span>
               {t("metadata_settings.hltb_scraper_desc", {
-                defaultValue: "I dati sono ottenuti tramite scraping anonimo ottimizzato con rate-limit e caching locale integrato.",
+                defaultValue: "Data is gathered via anonymous scraping optimized with rate-limiting and local caching.",
               })}{" "}
               <a
                 href="https://howlongtobeat.com"
@@ -100,7 +104,8 @@ export const HltbSection: React.FC<HltbSectionProps> = ({
           }
         >
           <div className="flex items-center gap-2 text-xs text-emerald-400 font-bold">
-            <CheckCircle2 className="w-4 h-4" /> Nessuna API Key richiesta
+            <CheckCircle2 className="w-4 h-4" />{" "}
+            {t("metadata_settings.no_api_key_required", { defaultValue: "No API Key required" })}
           </div>
         </SettingRow>
       </SettingGroup>
@@ -113,7 +118,8 @@ export const HltbSection: React.FC<HltbSectionProps> = ({
         <div className="flex items-center gap-2 text-xs">
           {testStatus?.loading ? (
             <span className="flex items-center gap-1.5 text-sky-400">
-              <RefreshCw className="w-4 h-4 animate-spin" /> Verifica endpoint HLTB in corso...
+              <RefreshCw className="w-4 h-4 animate-spin" />{" "}
+              {t("metadata_settings.verifying_hltb", { defaultValue: "Checking HLTB endpoint..." })}
             </span>
           ) : testStatus?.success === true ? (
             <span className="flex items-center gap-1.5 text-emerald-400">
@@ -124,7 +130,11 @@ export const HltbSection: React.FC<HltbSectionProps> = ({
               <AlertCircle className="w-4 h-4" /> {testStatus.message}
             </span>
           ) : (
-            <span className="text-slate-400">Verifica la raggiungibilità del servizio HowLongToBeat</span>
+            <span className="text-slate-400">
+              {t("metadata_settings.verify_service_reachability", {
+                defaultValue: "Check reachability of the HowLongToBeat service",
+              })}
+            </span>
           )}
         </div>
 
@@ -135,7 +145,8 @@ export const HltbSection: React.FC<HltbSectionProps> = ({
             disabled={testStatus?.loading}
             className="px-4 py-2 rounded-xl text-xs font-bold border border-white/20 bg-white/5 hover:bg-white/10 active:scale-95 text-white flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
           >
-            <Key className="w-3.5 h-3.5" /> Test Connessione
+            <Key className="w-3.5 h-3.5" />{" "}
+            <span>{t("metadata_settings.btn_test_connection", { defaultValue: "Test Connection" })}</span>
           </button>
           <button
             type="button"
@@ -145,7 +156,7 @@ export const HltbSection: React.FC<HltbSectionProps> = ({
             style={{ backgroundColor: "var(--accent-primary)" }}
           >
             {isSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-            <span>{t("common.save", { defaultValue: "Salva" })}</span>
+            <span>{t("common.save", { defaultValue: "Save" })}</span>
           </button>
         </div>
       </div>

@@ -72,7 +72,9 @@ export const IgdbSection: React.FC<IgdbSectionProps> = ({
 
         <div className="flex items-center gap-4 self-end md:self-center">
           <span className="text-xs font-semibold text-slate-300">
-            {isEnabled ? t("common.enabled", { defaultValue: "Attivo" }) : t("common.disabled", { defaultValue: "Disattivato" })}
+            {isEnabled
+              ? t("common.enabled", { defaultValue: "Enabled" })
+              : t("common.disabled", { defaultValue: "Disabled" })}
           </span>
           <ToggleSwitch checked={isEnabled} onChange={(val) => onToggleEnabled(val)} ariaLabel="Toggle IGDB provider" />
         </div>
@@ -80,16 +82,20 @@ export const IgdbSection: React.FC<IgdbSectionProps> = ({
 
       {/* Credentials Settings Group */}
       <SettingGroup
-        title={t("metadata_settings.credentials_title", { defaultValue: "Credenziali API Twitch / IGDB" })}
+        title={t("metadata_settings.credentials_title", {
+          defaultValue: "Twitch / IGDB API Credentials",
+        })}
         description={t("metadata_settings.credentials_desc", {
-          defaultValue: "Inserisci Client ID e Client Secret generati dalla Twitch Developer Console per abilitare le query su IGDB.",
+          defaultValue: "Enter Client ID and Client Secret generated in Twitch Developer Console to query IGDB.",
         })}
       >
         <SettingRow
           title="Client ID"
           description={
             <span>
-              {t("metadata_settings.igdb_client_id_desc", { defaultValue: "Identificativo client dell'applicazione Twitch." })}{" "}
+              {t("metadata_settings.igdb_client_id_desc", {
+                defaultValue: "Client ID of the registered Twitch developer application.",
+              })}{" "}
               <a
                 href="https://dev.twitch.tv/console/apps"
                 target="_blank"
@@ -119,9 +125,9 @@ export const IgdbSection: React.FC<IgdbSectionProps> = ({
         </SettingRow>
 
         <SettingRow
-          title="Client Secret"
+          title={t("metadata_settings.client_secret", { defaultValue: "Client Secret" })}
           description={t("metadata_settings.igdb_client_secret_desc", {
-            defaultValue: "Secret generato associato al tuo Client ID. Viene archiviato cifrato nel vault di sistema.",
+            defaultValue: "Generated secret associated with your Client ID. Stored encrypted in the system vault.",
           })}
         >
           <div className="relative w-full max-w-sm flex items-center">
@@ -152,7 +158,8 @@ export const IgdbSection: React.FC<IgdbSectionProps> = ({
         <div className="flex items-center gap-2 text-xs">
           {testStatus?.loading ? (
             <span className="flex items-center gap-1.5 text-sky-400">
-              <RefreshCw className="w-4 h-4 animate-spin" /> Verifica connessione in corso...
+              <RefreshCw className="w-4 h-4 animate-spin" />{" "}
+              {t("metadata_settings.verifying_connection", { defaultValue: "Checking connection..." })}
             </span>
           ) : testStatus?.success === true ? (
             <span className="flex items-center gap-1.5 text-emerald-400">
@@ -163,7 +170,11 @@ export const IgdbSection: React.FC<IgdbSectionProps> = ({
               <AlertCircle className="w-4 h-4" /> {testStatus.message}
             </span>
           ) : (
-            <span className="text-slate-400">Salva e verifica le credenziali con le API ufficiali IGDB</span>
+            <span className="text-slate-400">
+              {t("metadata_settings.save_and_verify_igdb", {
+                defaultValue: "Save and verify credentials with the official IGDB API",
+              })}
+            </span>
           )}
         </div>
 
@@ -174,7 +185,8 @@ export const IgdbSection: React.FC<IgdbSectionProps> = ({
             disabled={testStatus?.loading}
             className="px-4 py-2 rounded-xl text-xs font-bold border border-white/20 bg-white/5 hover:bg-white/10 active:scale-95 text-white flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
           >
-            <Key className="w-3.5 h-3.5" /> Test Connessione
+            <Key className="w-3.5 h-3.5" />{" "}
+            <span>{t("metadata_settings.btn_test_connection", { defaultValue: "Test Connection" })}</span>
           </button>
           <button
             type="button"
@@ -184,7 +196,7 @@ export const IgdbSection: React.FC<IgdbSectionProps> = ({
             style={{ backgroundColor: "var(--accent-primary)" }}
           >
             {isSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-            <span>{t("common.save", { defaultValue: "Salva" })}</span>
+            <span>{t("common.save", { defaultValue: "Save" })}</span>
           </button>
         </div>
       </div>

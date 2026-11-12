@@ -131,13 +131,13 @@ export const PipelineSection: React.FC<PipelineSectionProps> = ({
           <div>
             <h3 className="text-base font-bold text-white">
               {t("metadata_settings.pipeline_title", {
-                defaultValue: "Regole e Priorità Metadati (Parità Playnite)",
+                defaultValue: "Metadata Resolution & Priorities",
               })}
             </h3>
             <p className="text-xs text-slate-400 mt-1 max-w-xl">
               {t("metadata_settings.pipeline_desc_granular", {
                 defaultValue:
-                  "Configura per ciascun singolo campo se scaricarlo automaticamente e la sequenza ordinata di provider da interrogare.",
+                  "Configure whether to automatically download each metadata field and set the source fallback order.",
               })}
             </p>
           </div>
@@ -150,7 +150,9 @@ export const PipelineSection: React.FC<PipelineSectionProps> = ({
               type="button"
               onClick={() => onApplyPreset("official_first")}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-xs font-semibold text-slate-200 transition-colors cursor-pointer"
-              title="Official Store prioritario per tutti i dati"
+              title={t("metadata_settings.preset_official_title", {
+                defaultValue: "Official Store prioritized for all data",
+              })}
             >
               <Zap className="w-3.5 h-3.5 text-amber-400" />
               <span>Official First</span>
@@ -159,7 +161,9 @@ export const PipelineSection: React.FC<PipelineSectionProps> = ({
               type="button"
               onClick={() => onApplyPreset("community_first")}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-xs font-semibold text-slate-200 transition-colors cursor-pointer"
-              title="Priorità a database universali (IGDB, SteamGridDB, OpenCritic)"
+              title={t("metadata_settings.preset_community_title", {
+                defaultValue: "Priority to universal databases (IGDB, SteamGridDB, OpenCritic)",
+              })}
             >
               <Globe className="w-3.5 h-3.5 text-purple-400" />
               <span>Community & DB First</span>
@@ -168,10 +172,12 @@ export const PipelineSection: React.FC<PipelineSectionProps> = ({
               type="button"
               onClick={() => onApplyPreset("reset_defaults")}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-xs font-semibold text-slate-300 transition-colors cursor-pointer"
-              title="Ripristina impostazioni predefinite consigliate"
+              title={t("metadata_settings.preset_reset_title", {
+                defaultValue: "Reset to recommended default settings",
+              })}
             >
               <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
-              <span>Predefiniti</span>
+              <span>{t("common.reset", { defaultValue: "Defaults" })}</span>
             </button>
           </div>
         )}
@@ -180,11 +186,11 @@ export const PipelineSection: React.FC<PipelineSectionProps> = ({
       {/* Playnite-Parity Granular Field Priorities Table */}
       <SettingGroup
         title={t("metadata_settings.granular_fields_title", {
-          defaultValue: "Fonti e Priorità per Singolo Campo",
+          defaultValue: "Preferred Sources per Field",
         })}
         description={t("metadata_settings.granular_fields_desc", {
           defaultValue:
-            "Attiva o disattiva il download di ogni metadato e definisci l'ordine di fallback tra provider per quel campo.",
+            "Enable or disable download for each field and configure the ordered fallback sequence.",
         })}
         icon={<SlidersHorizontal className="w-4 h-4" />}
       >
@@ -216,7 +222,11 @@ export const PipelineSection: React.FC<PipelineSectionProps> = ({
                         onToggleField && onToggleField(fieldDef.id, !rule.enabled)
                       }
                       className="p-0.5 rounded text-slate-400 hover:text-white transition-colors cursor-pointer shrink-0"
-                      title={rule.enabled ? "Disabilita questo metadato" : "Abilita questo metadato"}
+                      title={
+                        rule.enabled
+                          ? t("metadata_settings.disable_field", { defaultValue: "Disable this field" })
+                          : t("metadata_settings.enable_field", { defaultValue: "Enable this field" })
+                      }
                     >
                       {rule.enabled ? (
                         <CheckSquare className="w-3.5 h-3.5 text-emerald-400" />
@@ -252,8 +262,12 @@ export const PipelineSection: React.FC<PipelineSectionProps> = ({
                     }`}
                   >
                     {rule.enabled
-                      ? `${rule.sources.length} ${rule.sources.length === 1 ? "fonte" : "fonti"}`
-                      : "Disattivato"}
+                      ? `${rule.sources.length} ${
+                          rule.sources.length === 1
+                            ? t("metadata_settings.source_singular", { defaultValue: "source" })
+                            : t("metadata_settings.source_plural", { defaultValue: "sources" })
+                        }`
+                      : t("common.disabled", { defaultValue: "Disabled" })}
                   </span>
                 </div>
 
@@ -288,7 +302,11 @@ export const PipelineSection: React.FC<PipelineSectionProps> = ({
                                 ? "bg-amber-400/20 text-amber-300 border border-amber-400/30"
                                 : "bg-white/10 text-slate-300"
                             }`}
-                            title={isFirst ? "1ª scelta (Primario)" : `Priorità #${srcIdx + 1}`}
+                            title={
+                              isFirst
+                                ? t("metadata_settings.primary_choice", { defaultValue: "1st Choice (Primary)" })
+                                : `${t("metadata_settings.priority_prefix", { defaultValue: "Priority" })} #${srcIdx + 1}`
+                            }
                           >
                             {srcIdx + 1}
                           </span>
@@ -312,7 +330,7 @@ export const PipelineSection: React.FC<PipelineSectionProps> = ({
                                     onMoveFieldSource(fieldDef.id, srcIdx, -1)
                                   }
                                   className="p-0.5 rounded hover:bg-white/10 text-slate-400 hover:text-white disabled:opacity-20 transition-colors cursor-pointer"
-                                  title="Aumenta priorità (sposta prima)"
+                                  title={t("metadata_settings.move_up", { defaultValue: "Move up" })}
                                 >
                                   <ArrowLeft className="w-2.5 h-2.5" />
                                 </button>
@@ -323,7 +341,7 @@ export const PipelineSection: React.FC<PipelineSectionProps> = ({
                                     onMoveFieldSource(fieldDef.id, srcIdx, 1)
                                   }
                                   className="p-0.5 rounded hover:bg-white/10 text-slate-400 hover:text-white disabled:opacity-20 transition-colors cursor-pointer"
-                                  title="Riduci priorità (sposta dopo)"
+                                  title={t("metadata_settings.move_down", { defaultValue: "Move down" })}
                                 >
                                   <ArrowRight className="w-2.5 h-2.5" />
                                 </button>
@@ -337,7 +355,7 @@ export const PipelineSection: React.FC<PipelineSectionProps> = ({
                                   onRemoveFieldSource(fieldDef.id, srcIdx)
                                 }
                                 className="p-0.5 rounded hover:bg-rose-500/20 text-slate-400 hover:text-rose-300 transition-colors cursor-pointer ml-0.5"
-                                title="Rimuovi questo provider per questo campo"
+                                title={t("metadata_settings.remove_source", { defaultValue: "Remove this provider" })}
                               >
                                 <X className="w-2.5 h-2.5" />
                               </button>
@@ -370,7 +388,7 @@ export const PipelineSection: React.FC<PipelineSectionProps> = ({
                             className="bg-transparent text-[11px] text-white focus:outline-none cursor-pointer py-0.5"
                           >
                             <option value="" disabled>
-                              Seleziona fonte...
+                              {t("metadata_settings.select_source", { defaultValue: "Select source..." })}
                             </option>
                             {availableToAdd.map((src) => (
                               <option
@@ -395,10 +413,10 @@ export const PipelineSection: React.FC<PipelineSectionProps> = ({
                           type="button"
                           onClick={() => setAddingSourceForField(fieldDef.id)}
                           className="flex items-center gap-1 px-2 py-1 rounded-lg border border-dashed border-white/20 hover:border-white/40 bg-white/[0.02] hover:bg-white/[0.06] text-[11px] font-medium text-slate-400 hover:text-white transition-all cursor-pointer"
-                          title="Aggiungi provider di fallback a questo campo"
+                          title={t("metadata_settings.add_fallback_source", { defaultValue: "Add fallback provider to this field" })}
                         >
                           <Plus className="w-3 h-3" />
-                          <span>Aggiungi</span>
+                          <span>{t("common.add", { defaultValue: "Add" })}</span>
                         </button>
                       )}
                     </div>
@@ -413,30 +431,30 @@ export const PipelineSection: React.FC<PipelineSectionProps> = ({
       {/* Preserve Existing Artwork Protection */}
       <SettingGroup
         title={t("metadata_settings.pipeline_preserve_title", {
-          defaultValue: "Protezione Media & Dati Esistenti",
+          defaultValue: "Preserve Existing Media & Data",
         })}
         description={t("metadata_settings.pipeline_preserve_desc", {
           defaultValue:
-            "Impedisci la sovrascrittura accidentale delle copertine e degli sfondi già scaricati.",
+            "Prevent accidental overwriting of already downloaded covers, backgrounds, and metadata.",
         })}
       >
         <SettingRow
           title={t("metadata_settings.pipeline_preserve_row_title", {
-            defaultValue: "Conserva Copertine e Sfondi Esistenti",
+            defaultValue: "Preserve Existing Artwork",
           })}
           description={t("metadata_settings.pipeline_preserve_row_desc", {
             defaultValue:
-              "Se attivo, la sincronizzazione arricchisce solo i titoli sprovvisti di media o informazioni, proteggendo gli artwork personalizzati.",
+              "When enabled, sync only enriches titles that are missing media, preserving your custom artwork.",
           })}
         >
           <div className="flex items-center gap-2.5">
             <span className="text-xs font-bold text-slate-300">
               {pipelineConfig.preserve_existing_artwork !== false
                 ? t("metadata_settings.pipeline_preserve_protected", {
-                    defaultValue: "Protetto",
+                    defaultValue: "Protected",
                   })
                 : t("metadata_settings.pipeline_preserve_overwrite", {
-                    defaultValue: "Sovrascrivi",
+                    defaultValue: "Overwrite",
                   })}
             </span>
             <ToggleSwitch
@@ -448,7 +466,7 @@ export const PipelineSection: React.FC<PipelineSectionProps> = ({
                 })
               }
               ariaLabel={t("metadata_settings.pipeline_preserve_row_title", {
-                defaultValue: "Conserva Copertine e Sfondi Esistenti",
+                defaultValue: "Preserve Existing Artwork",
               })}
             />
           </div>
@@ -458,11 +476,11 @@ export const PipelineSection: React.FC<PipelineSectionProps> = ({
       {/* Global Provider Priority Fallback ranking */}
       <SettingGroup
         title={t("metadata_settings.ranking_title", {
-          defaultValue: "Ordine Priorità Provider Globale",
+          defaultValue: "Metadata Sources Priority Ranking",
         })}
         description={t("metadata_settings.ranking_desc", {
           defaultValue:
-            "Ordine generale di fallback usato per arricchimenti di sistema e ricerca candidati.",
+            "Order sources from preferred (#1) to lowest priority. Used as fallback for search and metadata resolution.",
         })}
         icon={<SlidersHorizontal className="w-4 h-4" />}
       >
@@ -493,7 +511,7 @@ export const PipelineSection: React.FC<PipelineSectionProps> = ({
                   </span>
                   {!isEnabled && (
                     <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20 font-medium">
-                      Disabilitato
+                      {t("common.disabled", { defaultValue: "Disabled" })}
                     </span>
                   )}
                 </div>
@@ -505,7 +523,7 @@ export const PipelineSection: React.FC<PipelineSectionProps> = ({
                   disabled={isFirst}
                   onClick={() => onMovePriority(index, -1)}
                   className="p-1 rounded-md border border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 disabled:opacity-20 transition-colors cursor-pointer"
-                  title="Sposta su"
+                  title={t("metadata_settings.move_up", { defaultValue: "Move up" })}
                 >
                   <ArrowUp className="w-3 h-3" />
                 </button>
@@ -514,7 +532,7 @@ export const PipelineSection: React.FC<PipelineSectionProps> = ({
                   disabled={isLast}
                   onClick={() => onMovePriority(index, 1)}
                   className="p-1 rounded-md border border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 disabled:opacity-20 transition-colors cursor-pointer"
-                  title="Sposta giù"
+                  title={t("metadata_settings.move_down", { defaultValue: "Move down" })}
                 >
                   <ArrowDown className="w-3 h-3" />
                 </button>
@@ -540,7 +558,7 @@ export const PipelineSection: React.FC<PipelineSectionProps> = ({
           )}
           <span>
             {t("metadata_settings.btn_save_pipeline", {
-              defaultValue: "Salva Configurazione Pipeline",
+              defaultValue: "Save Pipeline Rules",
             })}
           </span>
         </button>

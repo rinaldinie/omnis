@@ -4,10 +4,11 @@ use std::path::PathBuf;
 use uuid::Uuid;
 
 /// Tracking strategy used to monitor game runtime without consuming CPU
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(tag = "type", content = "target")]
 pub enum ProcessTrackingMode {
     /// Zero-cost OS kernel notification (Job Objects on Windows, pidfd on Linux)
+    #[default]
     KernelJobObject,
     /// Monitor process by executable file name
     ProcessName(String),
@@ -16,11 +17,14 @@ pub enum ProcessTrackingMode {
 }
 
 /// Action and parameters required to launch a game
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct LaunchConfiguration {
     pub executable: String,
+    #[serde(default)]
     pub arguments: Vec<String>,
+    #[serde(default)]
     pub working_dir: Option<PathBuf>,
+    #[serde(default)]
     pub tracking_mode: ProcessTrackingMode,
 }
 

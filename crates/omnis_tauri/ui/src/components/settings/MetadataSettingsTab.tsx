@@ -79,7 +79,7 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
             { id: "hltb" as MetadataSubTab, label: "HowLongToBeat", icon: Clock },
             {
               id: "pipeline" as MetadataSubTab,
-              label: t("metadata_settings.tab_pipeline", { defaultValue: "Priorità Pipeline" }),
+              label: t("metadata_settings.tab_pipeline", { defaultValue: "Pipeline & Priorities" }),
               icon: SlidersHorizontal,
             },
           ].map((tab) => {

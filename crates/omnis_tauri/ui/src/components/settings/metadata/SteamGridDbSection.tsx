@@ -72,7 +72,9 @@ export const SteamGridDbSection: React.FC<SteamGridDbSectionProps> = ({
 
         <div className="flex items-center gap-4 self-end md:self-center">
           <span className="text-xs font-semibold text-slate-300">
-            {isEnabled ? t("common.enabled", { defaultValue: "Attivo" }) : t("common.disabled", { defaultValue: "Disattivato" })}
+            {isEnabled
+              ? t("common.enabled", { defaultValue: "Enabled" })
+              : t("common.disabled", { defaultValue: "Disabled" })}
           </span>
           <ToggleSwitch checked={isEnabled} onChange={(val) => onToggleEnabled(val)} ariaLabel="Toggle SteamGridDB provider" />
         </div>
@@ -80,16 +82,20 @@ export const SteamGridDbSection: React.FC<SteamGridDbSectionProps> = ({
 
       {/* Credentials */}
       <SettingGroup
-        title={t("metadata_settings.steamgriddb_auth_title", { defaultValue: "Autenticazione SteamGridDB" })}
+        title={t("metadata_settings.steamgriddb_auth_title", {
+          defaultValue: "SteamGridDB Authentication",
+        })}
         description={t("metadata_settings.steamgriddb_auth_desc", {
-          defaultValue: "La chiave API personale è necessaria per scaricare artwork ad alta risoluzione direttamente da SteamGridDB.",
+          defaultValue: "A personal API key is required to download high-resolution artwork directly from SteamGridDB.",
         })}
       >
         <SettingRow
           title={t("metadata_settings.api_key_label", { defaultValue: "API Key" })}
           description={
             <span>
-              {t("metadata_settings.steamgriddb_key_desc", { defaultValue: "Genera la tua chiave gratuita dalle preferenze profilo di SteamGridDB." })}{" "}
+              {t("metadata_settings.steamgriddb_key_desc", {
+                defaultValue: "Generate your free key from your SteamGridDB profile preferences.",
+              })}{" "}
               <a
                 href="https://www.steamgriddb.com/profile/preferences/api"
                 target="_blank"
@@ -134,7 +140,8 @@ export const SteamGridDbSection: React.FC<SteamGridDbSectionProps> = ({
         <div className="flex items-center gap-2 text-xs">
           {testStatus?.loading ? (
             <span className="flex items-center gap-1.5 text-sky-400">
-              <RefreshCw className="w-4 h-4 animate-spin" /> Verifica connessione in corso...
+              <RefreshCw className="w-4 h-4 animate-spin" />{" "}
+              {t("metadata_settings.verifying_connection", { defaultValue: "Checking connection..." })}
             </span>
           ) : testStatus?.success === true ? (
             <span className="flex items-center gap-1.5 text-emerald-400">
@@ -145,7 +152,11 @@ export const SteamGridDbSection: React.FC<SteamGridDbSectionProps> = ({
               <AlertCircle className="w-4 h-4" /> {testStatus.message}
             </span>
           ) : (
-            <span className="text-slate-400">Salva e verifica la chiave API con SteamGridDB</span>
+            <span className="text-slate-400">
+              {t("metadata_settings.save_and_verify_sgdb", {
+                defaultValue: "Save and verify API key with SteamGridDB",
+              })}
+            </span>
           )}
         </div>
 
@@ -156,7 +167,8 @@ export const SteamGridDbSection: React.FC<SteamGridDbSectionProps> = ({
             disabled={testStatus?.loading}
             className="px-4 py-2 rounded-xl text-xs font-bold border border-white/20 bg-white/5 hover:bg-white/10 active:scale-95 text-white flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
           >
-            <Key className="w-3.5 h-3.5" /> Test Connessione
+            <Key className="w-3.5 h-3.5" />{" "}
+            <span>{t("metadata_settings.btn_test_connection", { defaultValue: "Test Connection" })}</span>
           </button>
           <button
             type="button"
@@ -166,7 +178,7 @@ export const SteamGridDbSection: React.FC<SteamGridDbSectionProps> = ({
             style={{ backgroundColor: "var(--accent-primary)" }}
           >
             {isSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-            <span>{t("common.save", { defaultValue: "Salva" })}</span>
+            <span>{t("common.save", { defaultValue: "Save" })}</span>
           </button>
         </div>
       </div>

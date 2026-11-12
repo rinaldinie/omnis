@@ -134,7 +134,14 @@ export default function GameEditorModal({
         cover_image_path: coverPath,
         background_image_path: bgPath,
         icon_image_path: iconPath,
-        play_actions: Array.isArray(g.play_actions) ? g.play_actions : [],
+        play_actions: Array.isArray(g.play_actions)
+          ? g.play_actions.map((a: any) => ({
+              executable: a.executable || "",
+              arguments: Array.isArray(a.arguments) ? a.arguments : [],
+              working_dir: a.working_dir || "",
+              tracking_mode: a.tracking_mode || { type: "KernelJobObject" },
+            }))
+          : [],
         custom_links: Array.isArray(g.custom_links) ? g.custom_links : [],
       });
 
@@ -181,6 +188,15 @@ export default function GameEditorModal({
 
       const extraMetadataStr = game.extra_metadata || null;
 
+      const cleanedPlayActions: LaunchConfiguration[] = formData.play_actions
+        .filter((a) => a.executable && a.executable.trim().length > 0)
+        .map((a) => ({
+          executable: a.executable.trim(),
+          arguments: Array.isArray(a.arguments) ? a.arguments : [],
+          working_dir: a.working_dir && a.working_dir.trim().length > 0 ? a.working_dir.trim() : null,
+          tracking_mode: a.tracking_mode || { type: "KernelJobObject" },
+        }));
+
       const gameUpdate = {
         id: game.id,
         title: formData.title.trim(),
@@ -212,12 +228,20 @@ export default function GameEditorModal({
         cover_image_path: formData.cover_image_path.trim() || null,
         background_image_path: formData.background_image_path.trim() || null,
         icon_image_path: formData.icon_image_path.trim() || null,
-        play_actions: formData.play_actions,
+        play_actions: cleanedPlayActions,
         custom_links: formData.custom_links,
       };
 
       const result = await api.games.updateGameMetadata(gameUpdate);
-      const updated = result || { ...game, ...gameUpdate };
+      const updated = result
+        ? {
+            ...result,
+            play_actions:
+              Array.isArray(result.play_actions) && result.play_actions.length > 0
+                ? result.play_actions
+                : cleanedPlayActions,
+          }
+        : { ...game, ...gameUpdate };
 
       setSaveSuccess(true);
       setTimeout(() => {

@@ -92,7 +92,7 @@ export const DuplicateHiderSettingsTab: React.FC<DuplicateHiderSettingsTabProps>
       if (s === 'epic') return 'Epic Games Store';
       if (s === 'xbox') return 'Xbox / PC Game Pass';
       if (s === 'custom') {
-        return t('duplicate_hider.store_custom', { defaultValue: 'Giochi Personalizzati (Custom)' });
+        return t('duplicate_hider.store_custom', { defaultValue: 'Custom Games (Local)' });
       }
       return storeId.toUpperCase();
     },
@@ -264,19 +264,19 @@ export const DuplicateHiderSettingsTab: React.FC<DuplicateHiderSettingsTabProps>
               {
                 id: 'priorities' as const,
                 label: t('duplicate_hider.tab_priorities', {
-                  defaultValue: 'Priorità Store & Stato',
+                  defaultValue: 'Store Priority & Status',
                 }),
               },
               {
                 id: 'rules' as const,
                 label: t('duplicate_hider.tab_rules', {
-                  defaultValue: 'Regole & Visualizzazione',
+                  defaultValue: 'Detection & Display Rules',
                 }),
               },
               {
                 id: 'ignored' as const,
                 label: t('duplicate_hider.tab_ignored', {
-                  defaultValue: 'Giochi Esclusi',
+                  defaultValue: 'Excluded Games',
                 }),
               },
             ]
@@ -316,11 +316,11 @@ export const DuplicateHiderSettingsTab: React.FC<DuplicateHiderSettingsTabProps>
           <div className="space-y-5">
             <SettingGroup
               title={t('duplicate_hider.status_group_title', {
-                defaultValue: 'Stato Duplicate Hider',
+                defaultValue: 'Duplicate Hider Status',
               })}
               description={t('duplicate_hider.status_group_desc', {
                 defaultValue:
-                  'Raggruppa automaticamente le copie multiple dello stesso gioco su store diversi e mostra solo la copia principale.',
+                  'Automatically group multiple copies of the same game across different stores and display only the primary copy.',
               })}
               icon={<Layers className="w-4 h-4" />}
               action={
@@ -339,7 +339,7 @@ export const DuplicateHiderSettingsTab: React.FC<DuplicateHiderSettingsTabProps>
                         {t('duplicate_hider.stats_badge', {
                           groups: stats.total_groups,
                           hidden: stats.hidden_duplicates,
-                          defaultValue: `${stats.total_groups} gruppi · ${stats.hidden_duplicates} copie nascoste`,
+                          defaultValue: `${stats.total_groups} groups · ${stats.hidden_duplicates} hidden copies`,
                         })}
                       </span>
                     </span>
@@ -350,11 +350,11 @@ export const DuplicateHiderSettingsTab: React.FC<DuplicateHiderSettingsTabProps>
               <SettingRow
                 icon={<Sparkles className="w-4 h-4" />}
                 title={t('duplicate_hider.enable_auto', {
-                  defaultValue: 'Abilita Duplicate Hider automatico',
+                  defaultValue: 'Enable automatic Duplicate Hider',
                 })}
                 description={t('duplicate_hider.enable_auto_desc', {
                   defaultValue:
-                    'Nasconde automaticamente le copie secondarie durante la sincronizzazione della libreria.',
+                    'Automatically hide secondary copies during library synchronization.',
                 })}
               >
                 <ToggleSwitch
@@ -364,7 +364,7 @@ export const DuplicateHiderSettingsTab: React.FC<DuplicateHiderSettingsTabProps>
                     persistConfig({ ...config, enabled: next });
                   }}
                   ariaLabel={t('duplicate_hider.enable_auto', {
-                    defaultValue: 'Abilita Duplicate Hider automatico',
+                    defaultValue: 'Enable automatic Duplicate Hider',
                   })}
                 />
               </SettingRow>
@@ -372,11 +372,11 @@ export const DuplicateHiderSettingsTab: React.FC<DuplicateHiderSettingsTabProps>
               <SettingRow
                 icon={<HardDrive className="w-4 h-4" />}
                 title={t('duplicate_hider.prefer_installed', {
-                  defaultValue: 'Dai priorità alle copie installate rispetto alla classifica store',
+                  defaultValue: 'Prioritize installed copies over store ranking',
                 })}
                 description={t('duplicate_hider.prefer_installed_desc', {
                   defaultValue:
-                    'Se una copia è installata localmente, verrà scelta come principale anche se appartiene a uno store con priorità inferiore.',
+                    'If a copy is installed locally, it will be selected as primary even if its store has a lower priority.',
                 })}
               >
                 <ToggleSwitch
@@ -386,7 +386,7 @@ export const DuplicateHiderSettingsTab: React.FC<DuplicateHiderSettingsTabProps>
                     persistConfig({ ...config, prefer_installed: next });
                   }}
                   ariaLabel={t('duplicate_hider.prefer_installed', {
-                    defaultValue: 'Dai priorità alle copie installate rispetto alla classifica store',
+                    defaultValue: 'Prioritize installed copies over store ranking',
                   })}
                 />
               </SettingRow>
@@ -394,11 +394,11 @@ export const DuplicateHiderSettingsTab: React.FC<DuplicateHiderSettingsTabProps>
               <SettingRow
                 icon={<RefreshCw className={`w-4 h-4 ${applying ? 'animate-spin' : ''}`} />}
                 title={t('duplicate_hider.apply_now_title', {
-                  defaultValue: 'Ricalcola duplicati della libreria',
+                  defaultValue: 'Recompute library duplicates',
                 })}
                 description={t('duplicate_hider.apply_now_desc', {
                   defaultValue:
-                    'Applica immediatamente le regole di priorità attuali a tutti i titoli presenti nel catalogo.',
+                    'Immediately apply current priority rules across all games in your catalog.',
                 })}
               >
                 <button
@@ -414,8 +414,8 @@ export const DuplicateHiderSettingsTab: React.FC<DuplicateHiderSettingsTabProps>
                   <RefreshCw className={`w-3.5 h-3.5 ${applying ? 'animate-spin' : ''}`} />
                   <span>
                     {applying
-                      ? t('duplicate_hider.applying', { defaultValue: 'Applicazione...' })
-                      : t('duplicate_hider.apply_now', { defaultValue: 'Applica ora' })}
+                      ? t('duplicate_hider.applying', { defaultValue: 'Applying...' })
+                      : t('duplicate_hider.apply_now', { defaultValue: 'Apply Now' })}
                   </span>
                 </button>
               </SettingRow>
@@ -424,11 +424,11 @@ export const DuplicateHiderSettingsTab: React.FC<DuplicateHiderSettingsTabProps>
             {/* Reorderable Store Priority List */}
             <SettingGroup
               title={t('duplicate_hider.store_priority_title', {
-                defaultValue: 'Classifica Priorità Store',
+                defaultValue: 'Store Priority Ranking',
               })}
               description={t('duplicate_hider.store_priority_desc', {
                 defaultValue:
-                  'Ordina le piattaforme dalla preferita (#1) alla meno prioritaria. A parità di stato di installazione, verrà mostrata la copia dello store più in alto.',
+                  'Order platforms from highest (#1) to lowest priority. When installation status is equal, the highest-ranked store copy is shown.',
               })}
               icon={<SlidersHorizontal className="w-4 h-4" />}
             >
@@ -482,7 +482,7 @@ export const DuplicateHiderSettingsTab: React.FC<DuplicateHiderSettingsTabProps>
                             }}
                           >
                             {t('duplicate_hider.top_priority', {
-                              defaultValue: 'Priorità Massima',
+                              defaultValue: 'Top Priority',
                             })}
                           </span>
                         )}
@@ -495,7 +495,7 @@ export const DuplicateHiderSettingsTab: React.FC<DuplicateHiderSettingsTabProps>
                         disabled={isFirst}
                         onClick={() => handleMoveStore(idx, -1)}
                         className="p-1 rounded-md border border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white disabled:opacity-25 disabled:pointer-events-none transition-colors cursor-pointer"
-                        title={t('plugin_manager.move_up', { defaultValue: 'Sposta su' })}
+                        title={t('plugin_manager.move_up', { defaultValue: 'Move up' })}
                       >
                         <ArrowUp className="w-3.5 h-3.5" />
                       </button>
@@ -504,7 +504,7 @@ export const DuplicateHiderSettingsTab: React.FC<DuplicateHiderSettingsTabProps>
                         disabled={isLast}
                         onClick={() => handleMoveStore(idx, 1)}
                         className="p-1 rounded-md border border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white disabled:opacity-25 disabled:pointer-events-none transition-colors cursor-pointer"
-                        title={t('plugin_manager.move_down', { defaultValue: 'Sposta giù' })}
+                        title={t('plugin_manager.move_down', { defaultValue: 'Move down' })}
                       >
                         <ArrowDown className="w-3.5 h-3.5" />
                       </button>
@@ -521,11 +521,11 @@ export const DuplicateHiderSettingsTab: React.FC<DuplicateHiderSettingsTabProps>
           <div className="space-y-5">
             <SettingGroup
               title={t('duplicate_hider.rules_group_title', {
-                defaultValue: 'Regole di Rilevamento & Normalizzazione',
+                defaultValue: 'Detection & Normalization Rules',
               })}
               description={t('duplicate_hider.rules_group_desc', {
                 defaultValue:
-                  'Configura come Omnis confronta i titoli tra negozi diversi per individuare le copie duplicate.',
+                  'Configure how Omnis compares titles across stores to detect duplicate copies.',
               })}
               icon={<SlidersHorizontal className="w-4 h-4" />}
             >
@@ -533,11 +533,11 @@ export const DuplicateHiderSettingsTab: React.FC<DuplicateHiderSettingsTabProps>
                 icon={<Sparkles className="w-4 h-4" />}
                 title={t('duplicate_hider.ignore_edition_suffixes', {
                   defaultValue:
-                    'Ignora suffissi di edizione nei titoli (es. GOTY, Definitive, Ultimate Edition)',
+                    'Ignore edition suffixes in titles (e.g. GOTY, Definitive, Ultimate Edition)',
                 })}
                 description={t('duplicate_hider.ignore_edition_suffixes_desc', {
                   defaultValue:
-                    'Unisce titoli come "The Witcher 3" e "The Witcher 3: Game of the Year Edition" nello stesso gruppo di duplicati.',
+                    'Merges titles such as "The Witcher 3" and "The Witcher 3: Game of the Year Edition" into the same duplicate group.',
                 })}
               >
                 <ToggleSwitch
@@ -556,11 +556,11 @@ export const DuplicateHiderSettingsTab: React.FC<DuplicateHiderSettingsTabProps>
 
             <SettingGroup
               title={t('duplicate_hider.ui_group_title', {
-                defaultValue: 'Integrazione Interfaccia & Libreria',
+                defaultValue: 'UI & Library Integration',
               })}
               description={t('duplicate_hider.ui_group_desc', {
                 defaultValue:
-                  'Scegli come mostrare le copie alternative sulle card della griglia e nei menu contestuali.',
+                  'Choose how alternate copies are displayed on library cards and context menus.',
               })}
               icon={<Layers className="w-4 h-4" />}
             >
@@ -568,11 +568,11 @@ export const DuplicateHiderSettingsTab: React.FC<DuplicateHiderSettingsTabProps>
                 icon={<Layers className="w-4 h-4" />}
                 title={t('duplicate_hider.show_store_badges_on_card', {
                   defaultValue:
-                    'Mostra i badge degli store alternativi sulle card della libreria',
+                    'Show alternate store badges on library cards',
                 })}
                 description={t('duplicate_hider.show_store_badges_on_card_desc', {
                   defaultValue:
-                    'Visualizza le icone di tutti gli store posseduti direttamente sulla locandina del gioco principale.',
+                    'Displays icons for all owned stores directly on the primary game cover card.',
                 })}
               >
                 <ToggleSwitch
@@ -591,11 +591,11 @@ export const DuplicateHiderSettingsTab: React.FC<DuplicateHiderSettingsTabProps>
               <SettingRow
                 icon={<SlidersHorizontal className="w-4 h-4" />}
                 title={t('duplicate_hider.show_other_copies_in_menu', {
-                  defaultValue: "Mostra il sottomenu 'Altre copie' nel menu contestuale",
+                  defaultValue: "Show 'Other copies' submenu in context menu",
                 })}
                 description={t('duplicate_hider.show_other_copies_in_menu_desc', {
                   defaultValue:
-                    'Permette di avviare una copia secondaria o promuoverla a principale con il tasto destro.',
+                    'Allows launching a secondary copy or promoting it to primary via right-click.',
                 })}
               >
                 <ToggleSwitch
@@ -605,7 +605,7 @@ export const DuplicateHiderSettingsTab: React.FC<DuplicateHiderSettingsTabProps>
                     persistConfig({ ...config, show_other_copies_in_menu: next });
                   }}
                   ariaLabel={t('duplicate_hider.show_other_copies_in_menu', {
-                    defaultValue: "Mostra il sottomenu 'Altre copie' nel menu contestuale",
+                    defaultValue: "Show 'Other copies' submenu in context menu",
                   })}
                 />
               </SettingRow>
@@ -626,7 +626,7 @@ export const DuplicateHiderSettingsTab: React.FC<DuplicateHiderSettingsTabProps>
               <div className="leading-relaxed text-slate-300">
                 {t('duplicate_hider.rules_info_note', {
                   defaultValue:
-                    'Le statistiche della vista Dettagli e i conteggi della libreria continuano a preservare tutte le tue copie; puoi visualizzare i giochi nascosti in qualsiasi momento dal filtro "Nascosti".',
+                    'Detailed stats and library counts continue to preserve all your copies; you can view hidden games anytime using the "Hidden" filter.',
                 })}
               </div>
             </div>
@@ -639,11 +639,11 @@ export const DuplicateHiderSettingsTab: React.FC<DuplicateHiderSettingsTabProps>
             {/* Search & Add Game to Exclude */}
             <SettingGroup
               title={t('duplicate_hider.ignored_add_title', {
-                defaultValue: 'Aggiungi Gioco alle Esclusioni',
+                defaultValue: 'Add Game to Exclusions',
               })}
               description={t('duplicate_hider.ignored_add_desc', {
                 defaultValue:
-                  'I giochi esclusi non verranno mai nascosti né accorpati dal Duplicate Hider automatico.',
+                  'Excluded games will never be hidden or merged by automatic Duplicate Hider.',
               })}
               icon={<Plus className="w-4 h-4" />}
             >
@@ -661,7 +661,7 @@ export const DuplicateHiderSettingsTab: React.FC<DuplicateHiderSettingsTabProps>
                     value={ignoreSearchQuery}
                     onChange={(e) => setIgnoreSearchQuery(e.target.value)}
                     placeholder={t('duplicate_hider.ignored_search_placeholder', {
-                      defaultValue: 'Cerca un gioco nella libreria da escludere...',
+                      defaultValue: 'Search a game in your library to exclude...',
                     })}
                     className="w-full bg-transparent text-xs text-white placeholder-slate-500 focus:outline-none"
                   />
@@ -690,7 +690,7 @@ export const DuplicateHiderSettingsTab: React.FC<DuplicateHiderSettingsTabProps>
                         >
                           <Plus className="w-3 h-3" style={{ color: 'var(--accent-primary)' }} />
                           <span>
-                            {t('duplicate_hider.exclude_btn', { defaultValue: 'Escludi' })}
+                            {t('duplicate_hider.exclude_btn', { defaultValue: 'Exclude' })}
                           </span>
                         </button>
                       </div>
@@ -703,11 +703,11 @@ export const DuplicateHiderSettingsTab: React.FC<DuplicateHiderSettingsTabProps>
             {/* Currently Excluded Games List */}
             <SettingGroup
               title={t('duplicate_hider.ignored_list_title', {
-                defaultValue: 'Giochi Attualmente Esclusi',
+                defaultValue: 'Currently Excluded Games',
               })}
               description={t('duplicate_hider.ignored_list_desc', {
                 defaultValue:
-                  'Elenco delle copie che rimangono sempre visibili indipendentemente dalle regole dei duplicati.',
+                  'List of copies that always remain visible regardless of duplicate rules.',
               })}
               icon={<EyeOff className="w-4 h-4" />}
             >
@@ -715,13 +715,13 @@ export const DuplicateHiderSettingsTab: React.FC<DuplicateHiderSettingsTabProps>
                 <div className="p-8 text-center space-y-1">
                   <p className="text-xs font-semibold text-slate-300">
                     {t('duplicate_hider.ignored_empty', {
-                      defaultValue: 'Nessun gioco escluso dal Duplicate Hider.',
+                      defaultValue: 'No games excluded from Duplicate Hider.',
                     })}
                   </p>
                   <p className="text-[11px] text-slate-500">
                     {t('duplicate_hider.ignored_empty_hint', {
                       defaultValue:
-                        'Usa la barra di ricerca qui sopra per aggiungere un titolo alla lista di esclusione.',
+                        'Use the search bar above to add a title to the exclusion list.',
                     })}
                   </p>
                 </div>
@@ -741,7 +741,7 @@ export const DuplicateHiderSettingsTab: React.FC<DuplicateHiderSettingsTabProps>
                       <Trash2 className="w-3.5 h-3.5" />
                       <span>
                         {t('duplicate_hider.remove_exclusion', {
-                          defaultValue: 'Rimuovi esclusione',
+                          defaultValue: 'Remove exclusion',
                         })}
                       </span>
                     </button>
@@ -764,7 +764,7 @@ export const DuplicateHiderSettingsTab: React.FC<DuplicateHiderSettingsTabProps>
           className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
         >
           <RotateCcw className="w-3.5 h-3.5" />
-          <span>{t('general_settings.reset_defaults', { defaultValue: 'Ripristina predefiniti' })}</span>
+          <span>{t('general_settings.reset_defaults', { defaultValue: 'Reset defaults' })}</span>
         </button>
 
         <div className="flex items-center gap-3">
@@ -774,7 +774,7 @@ export const DuplicateHiderSettingsTab: React.FC<DuplicateHiderSettingsTabProps>
               style={{ color: 'var(--accent-primary)' }}
             >
               <Check className="w-3.5 h-3.5" />
-              <span>{t('general_settings.saved', { defaultValue: 'Salvato!' })}</span>
+              <span>{t('general_settings.saved', { defaultValue: 'Saved!' })}</span>
             </span>
           )}
 
@@ -791,7 +791,7 @@ export const DuplicateHiderSettingsTab: React.FC<DuplicateHiderSettingsTabProps>
             }}
           >
             <Save className="w-3.5 h-3.5" />
-            <span>{t('common.save', { defaultValue: 'Salva' })}</span>
+            <span>{t('common.save', { defaultValue: 'Save' })}</span>
           </button>
 
           {onClose && (
@@ -805,7 +805,7 @@ export const DuplicateHiderSettingsTab: React.FC<DuplicateHiderSettingsTabProps>
                 color: 'var(--text-primary)',
               }}
             >
-              {t('common.cancel', { defaultValue: 'Annulla' })}
+              {t('common.cancel', { defaultValue: 'Cancel' })}
             </button>
           )}
         </div>

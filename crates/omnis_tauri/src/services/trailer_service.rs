@@ -204,15 +204,30 @@ mod tests {
         game.is_installed = true;
         game.playtime_seconds = 7200;
         game.critic_score = Some(86);
+        game.play_actions = vec![omnis_sdk::LaunchConfiguration {
+            executable: "C:\\Games\\CP2077\\bin\\x64\\Cyberpunk2077.exe".to_string(),
+            arguments: vec!["-novid".to_string()],
+            working_dir: Some(std::path::PathBuf::from("C:\\Games\\CP2077")),
+            tracking_mode: omnis_sdk::ProcessTrackingMode::KernelJobObject,
+        }];
 
         let dto = game_to_dto(game);
         assert_eq!(dto.external_id, "1091500");
         assert_eq!(dto.library, "steam");
+        assert_eq!(dto.play_actions.len(), 1);
+        assert_eq!(
+            dto.play_actions[0].executable,
+            "C:\\Games\\CP2077\\bin\\x64\\Cyberpunk2077.exe"
+        );
 
         let json = serde_json::to_string(&dto).expect("GameDto serialization failed");
         assert!(
             json.contains("\"external_id\":\"1091500\""),
             "Serialized JSON must contain external_id"
+        );
+        assert!(
+            json.contains("play_actions"),
+            "Serialized JSON must contain play_actions"
         );
     }
 

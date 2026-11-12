@@ -112,7 +112,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               borderColor: 'var(--border-color)',
               color: 'var(--text-muted)',
             }}
-            title="Chiudi (Esc)"
+            title={t('common.close', { defaultValue: 'Close (Esc)' })}
           >
             ✕
           </button>

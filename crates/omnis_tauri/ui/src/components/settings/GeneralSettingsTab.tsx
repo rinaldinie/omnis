@@ -478,13 +478,19 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
           <div className="space-y-6">
             <SettingGroup
               title={t('sidebar.recent')}
-              description="Configura il comportamento del filtro e della sezione giochi recenti"
+              description={t('general_settings.recent_group_desc', {
+                defaultValue: 'Configure the recent games shelf and filter behavior.',
+              })}
               icon={<Clock className="w-4 h-4" />}
             >
               <SettingRow
                 icon={<Clock className="w-4 h-4" />}
-                title="Numero massimo giochi recenti"
-                description="Limita quanti titoli recenti visualizzare nella libreria e nello scaffale"
+                title={t('general_settings.recent_max_title', {
+                  defaultValue: 'Maximum Recent Games',
+                })}
+                description={t('general_settings.recent_max_desc', {
+                  defaultValue: 'Limit the number of recent titles displayed in your library shelf.',
+                })}
               >
                 <div className="flex items-center gap-3">
                   <input
@@ -504,20 +510,36 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
 
               <SettingRow
                 icon={<Clock className="w-4 h-4" />}
-                title="Finestra temporale attività"
-                description="Considera recenti solo i giochi avviati in questo intervallo temporale"
+                title={t('general_settings.recent_window_title', {
+                  defaultValue: 'Activity Time Window',
+                })}
+                description={t('general_settings.recent_window_desc', {
+                  defaultValue: 'Only consider games played within this timeframe as recent.',
+                })}
               >
                 <select
                   value={recentSettings.timeWindowDays}
                   onChange={(e) => handleTimeWindowChange(Number(e.target.value))}
                   className="bg-white/5 border border-white/10 rounded-lg px-2.5 py-1 text-xs text-slate-200 focus:outline-none focus:border-[var(--accent-primary)] cursor-pointer"
                 >
-                  <option value={0} className="bg-slate-900 text-white">Sempre (tutti i giocati)</option>
-                  <option value={7} className="bg-slate-900 text-white">Ultimi 7 giorni</option>
-                  <option value={14} className="bg-slate-900 text-white">Ultime 2 settimane</option>
-                  <option value={30} className="bg-slate-900 text-white">Ultimi 30 giorni</option>
-                  <option value={60} className="bg-slate-900 text-white">Ultimi 60 giorni</option>
-                  <option value={90} className="bg-slate-900 text-white">Ultimi 90 giorni</option>
+                  <option value={0} className="bg-slate-900 text-white">
+                    {t('general_settings.recent_window_always', { defaultValue: 'Always (all played titles)' })}
+                  </option>
+                  <option value={7} className="bg-slate-900 text-white">
+                    {t('general_settings.recent_window_7d', { defaultValue: 'Past 7 days' })}
+                  </option>
+                  <option value={14} className="bg-slate-900 text-white">
+                    {t('general_settings.recent_window_14d', { defaultValue: 'Past 2 weeks' })}
+                  </option>
+                  <option value={30} className="bg-slate-900 text-white">
+                    {t('general_settings.recent_window_30d', { defaultValue: 'Past 30 days' })}
+                  </option>
+                  <option value={60} className="bg-slate-900 text-white">
+                    {t('general_settings.recent_window_60d', { defaultValue: 'Past 60 days' })}
+                  </option>
+                  <option value={90} className="bg-slate-900 text-white">
+                    {t('general_settings.recent_window_90d', { defaultValue: 'Past 90 days' })}
+                  </option>
                 </select>
               </SettingRow>
             </SettingGroup>

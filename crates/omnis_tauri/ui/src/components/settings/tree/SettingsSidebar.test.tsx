@@ -1,8 +1,16 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import React from "react";
-import { SettingsSidebar } from "./SettingsSidebar";
+import { I18nProvider } from "../../../i18n/i18nContext";
+import { SettingsSidebar, SettingsSidebarProps } from "./SettingsSidebar";
 import { TreeGroup } from "./settingsTreeConfig";
+
+const renderSidebar = (ui: React.ReactElement) =>
+  render(
+    <I18nProvider initialLocale="it">
+      {ui}
+    </I18nProvider>
+  );
 
 const mockGroups: TreeGroup[] = [
   {
@@ -45,7 +53,7 @@ describe("SettingsSidebar component", () => {
     const toggleGroup = vi.fn();
     const onSelectTab = vi.fn();
 
-    render(
+    renderSidebar(
       <SettingsSidebar
         searchQuery=""
         setSearchQuery={setSearchQuery}
@@ -71,7 +79,7 @@ describe("SettingsSidebar component", () => {
     const toggleGroup = vi.fn();
     const onSelectTab = vi.fn();
 
-    render(
+    renderSidebar(
       <SettingsSidebar
         searchQuery=""
         setSearchQuery={setSearchQuery}
@@ -94,7 +102,7 @@ describe("SettingsSidebar component", () => {
     const toggleGroup = vi.fn();
     const onSelectTab = vi.fn();
 
-    render(
+    renderSidebar(
       <SettingsSidebar
         searchQuery=""
         setSearchQuery={setSearchQuery}
@@ -117,7 +125,7 @@ describe("SettingsSidebar component", () => {
     const toggleGroup = vi.fn();
     const onSelectTab = vi.fn();
 
-    render(
+    renderSidebar(
       <SettingsSidebar
         searchQuery="non-existent-query"
         setSearchQuery={setSearchQuery}

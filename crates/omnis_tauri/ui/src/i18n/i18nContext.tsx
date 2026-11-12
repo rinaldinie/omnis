@@ -57,8 +57,14 @@ function resolveNestedKey(obj: any, path: string): string | undefined {
   return typeof current === 'string' ? current : undefined;
 }
 
-export function I18nProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocaleState] = useState<LocaleCode>(detectInitialLocale);
+export function I18nProvider({
+  children,
+  initialLocale,
+}: {
+  children: ReactNode;
+  initialLocale?: LocaleCode;
+}) {
+  const [locale, setLocaleState] = useState<LocaleCode>(() => initialLocale || detectInitialLocale());
 
   const setLocale = (newLocale: LocaleCode) => {
     if (translations[newLocale]) {
@@ -78,12 +84,13 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   const t = (keyPath: string, params?: Record<string, string | number>): string => {
     // 1. Try current locale
     let text = resolveNestedKey(translations[locale], keyPath);
-    // 2. Fallback to Italian or English if missing
-    if (!text && locale !== 'it') {
-      text = resolveNestedKey(translations.it, keyPath);
-    }
+    // 2. Fallback to English if missing
     if (!text && locale !== 'en') {
       text = resolveNestedKey(translations.en, keyPath);
+    }
+    // 3. Fallback to Italian if still missing (legacy)
+    if (!text && locale !== 'it') {
+      text = resolveNestedKey(translations.it, keyPath);
     }
     if (!text) {
       if (params && typeof params.defaultValue === 'string') {
@@ -119,7 +126,29 @@ export function I18nProvider({ children }: { children: ReactNode }) {
 export function useTranslation() {
   const context = useContext(I18nContext);
   if (!context) {
-    throw new Error('useTranslation must be used within an I18nProvider');
+    const fallbackT = (path: string, options?: { defaultValue?: string } & Record<string, any>) => {
+      let text = resolveNestedKey(translations.en, path) ?? resolveNestedKey(translations.it, path);
+      if (!text) {
+        if (options && typeof options.defaultValue === 'string') {
+          text = options.defaultValue;
+        } else {
+          return path;
+        }
+      }
+      if (options) {
+        for (const [k, v] of Object.entries(options)) {
+          text = text.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v));
+        }
+      }
+      return text;
+    };
+    return {
+      locale: 'en' as LocaleCode,
+      setLocale: () => {},
+      t: fallbackT,
+      currentLocaleInfo: SUPPORTED_LOCALES[1],
+      availableLocales: SUPPORTED_LOCALES,
+    };
   }
   return context;
 }

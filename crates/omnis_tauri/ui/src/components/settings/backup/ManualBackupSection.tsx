@@ -75,8 +75,9 @@ export const ManualBackupSection: React.FC<ManualBackupSectionProps> = ({
             title={selectedDestination || ''}
           >
             {selectedDestination ||
-              t('backup_settings.destination_folder_placeholder') ||
-              'Nessuna cartella selezionata (fai clic su Scegli cartella per selezionare dove salvare)...'}
+              t('backup_settings.destination_folder_placeholder', {
+                defaultValue: 'No folder selected (click Choose Folder to select where to save)...',
+              })}
           </div>
           <button
             type="button"
