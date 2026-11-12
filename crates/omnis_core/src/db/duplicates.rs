@@ -105,6 +105,9 @@ pub trait DuplicateHiderRepository: Send + Sync {
 
     /// Promote a specific duplicate copy to be the visible primary copy for its group
     fn promote_duplicate_copy(&self, game_id: Uuid) -> Result<Vec<Game>>;
+
+    /// Retrieve all games belonging to a specific duplicate group
+    fn get_games_by_duplicate_group(&self, group_id: &str) -> Result<Vec<Game>>;
 }
 
 impl DuplicateHiderRepository for Database {
@@ -461,6 +464,21 @@ impl DuplicateHiderRepository for Database {
             Ok(vec![updated])
         }
     }
+
+    fn get_games_by_duplicate_group(&self, group_id: &str) -> Result<Vec<Game>> {
+        let conn = self.reader();
+        let query = format!(
+            "SELECT {} FROM games WHERE duplicate_group_id = ?1 ORDER BY sorting_title ASC;",
+            GAME_COLUMNS
+        );
+        let mut stmt = conn.prepare(&query)?;
+        let rows = stmt.query_map(params![group_id], map_row_to_game)?;
+        let mut games = Vec::new();
+        for r in rows {
+            games.push(r?);
+        }
+        Ok(games)
+    }
 }
 
 // Inherent forwarders on Database
@@ -488,6 +506,11 @@ impl Database {
     #[inline]
     pub fn promote_duplicate_copy(&self, game_id: Uuid) -> Result<Vec<Game>> {
         DuplicateHiderRepository::promote_duplicate_copy(self, game_id)
+    }
+
+    #[inline]
+    pub fn get_games_by_duplicate_group(&self, group_id: &str) -> Result<Vec<Game>> {
+        DuplicateHiderRepository::get_games_by_duplicate_group(self, group_id)
     }
 }
 

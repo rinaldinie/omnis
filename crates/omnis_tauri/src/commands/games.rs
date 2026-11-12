@@ -3,11 +3,31 @@ use crate::types::{game_to_dto, AppState, GameDto};
 use omnis_core::LibraryCounts;
 use omnis_plugin_epic::EpicLibraryPlugin;
 use omnis_sdk::constants::events;
-use omnis_sdk::{LaunchConfiguration, PluginEvent, ProcessTrackingMode};
+use omnis_sdk::{Game, LaunchConfiguration, PluginEvent, ProcessTrackingMode};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tauri::State;
 use uuid::Uuid;
+
+/// Helper to convert a `Game` into an enriched `GameDto`, resolving `other_copies`
+/// in $O(1)$ via the duplicate group index rather than scanning the entire database.
+pub fn game_to_enriched_dto(state: &AppState, game: Game) -> GameDto {
+    state.media_scope.allow_game_media(&game);
+    let mut dto = game_to_dto(game.clone());
+    if let Some(ref group_id) = game.duplicate_group_id {
+        if let Ok(group_games) = state.db.get_games_by_duplicate_group(group_id) {
+            let mut group_dtos: Vec<GameDto> = group_games
+                .into_iter()
+                .map(game_to_dto)
+                .collect();
+            crate::types::populate_other_copies(&mut group_dtos);
+            if let Some(populated) = group_dtos.into_iter().find(|d| d.id == dto.id) {
+                dto.other_copies = populated.other_copies;
+            }
+        }
+    }
+    dto
+}
 
 #[derive(Debug, Deserialize)]
 pub struct AddCustomGamePayload {
@@ -61,19 +81,7 @@ pub async fn get_game(game_id: String, state: State<'_, AppState>) -> Result<Gam
         .get_game_by_id(id)
         .map_err(|e| e.to_string())?
         .ok_or_else(|| "Gioco non trovato".to_string())?;
-    state.media_scope.allow_game_media(&game);
-    let mut dto = game_to_dto(game);
-    if let Ok(all_games) = state.db.get_all_games() {
-        let mut dtos: Vec<GameDto> = all_games
-            .into_iter()
-            .map(game_to_dto)
-            .collect();
-        crate::types::populate_other_copies(&mut dtos);
-        if let Some(populated) = dtos.into_iter().find(|d| d.id == dto.id) {
-            dto.other_copies = populated.other_copies;
-        }
-    }
-    Ok(dto)
+    Ok(game_to_enriched_dto(&state, game))
 }
 
 #[tauri::command]
@@ -416,19 +424,7 @@ pub async fn update_game_metadata(
         .db
         .update_game(&game_update)
         .map_err(|e| e.to_string())?;
-    state.media_scope.allow_game_media(&updated);
-    let mut dto = game_to_dto(updated);
-    if let Ok(all_games) = state.db.get_all_games() {
-        let mut dtos: Vec<GameDto> = all_games
-            .into_iter()
-            .map(game_to_dto)
-            .collect();
-        crate::types::populate_other_copies(&mut dtos);
-        if let Some(populated) = dtos.into_iter().find(|d| d.id == dto.id) {
-            dto.other_copies = populated.other_copies;
-        }
-    }
-    Ok(dto)
+    Ok(game_to_enriched_dto(&state, updated))
 }
 
 #[tauri::command]
@@ -446,18 +442,7 @@ pub async fn update_game_completion_status(
         .db
         .set_game_completion_status(id, &status_val)
         .map_err(|e| e.to_string())?;
-    let mut dto = game_to_dto(game);
-    if let Ok(all_games) = state.db.get_all_games() {
-        let mut dtos: Vec<GameDto> = all_games
-            .into_iter()
-            .map(game_to_dto)
-            .collect();
-        crate::types::populate_other_copies(&mut dtos);
-        if let Some(populated) = dtos.into_iter().find(|d| d.id == dto.id) {
-            dto.other_copies = populated.other_copies;
-        }
-    }
-    Ok(dto)
+    Ok(game_to_enriched_dto(&state, game))
 }
 
 #[tauri::command]
@@ -628,8 +613,7 @@ pub async fn set_game_hidden(
         .db
         .set_game_hidden(id, is_hidden)
         .map_err(|e| e.to_string())?;
-    state.media_scope.allow_game_media(&updated);
-    Ok(game_to_dto(updated))
+    Ok(game_to_enriched_dto(&state, updated))
 }
 
 #[tauri::command]
@@ -643,8 +627,7 @@ pub async fn set_game_favorite(
         .db
         .set_game_favorite(id, is_favorite)
         .map_err(|e| e.to_string())?;
-    state.media_scope.allow_game_media(&updated);
-    Ok(game_to_dto(updated))
+    Ok(game_to_enriched_dto(&state, updated))
 }
 
 #[tauri::command]

@@ -575,16 +575,21 @@ impl PlayniteImporter {
             for s in sessions {
                 if let (Some(date_str), Some(dur)) = (&s.date, s.elapsed_seconds) {
                     if dur > 0 && !date_str.trim().is_empty() {
+                        let trimmed_date = date_str.trim();
+                        let ended_at_str = chrono::DateTime::parse_from_rfc3339(trimmed_date)
+                            .map(|dt| (dt + chrono::Duration::seconds(dur as i64)).to_rfc3339())
+                            .unwrap_or_else(|_| trimmed_date.to_string());
+
                         let session_id = Uuid::new_v4().to_string();
                         let inserted = conn.execute(
                             "INSERT INTO game_sessions (id, game_id, started_at, ended_at, duration_seconds)
-                             SELECT ?1, ?2, ?3, ?3, ?4
+                             SELECT ?1, ?2, ?3, ?4, ?5
                              WHERE NOT EXISTS (
                                  SELECT 1 FROM game_sessions
                                  WHERE game_id = ?2
-                                   AND (started_at = ?3 OR (ABS(duration_seconds - ?4) <= 5 AND SUBSTR(started_at, 1, 16) = SUBSTR(?3, 1, 16)))
+                                   AND (started_at = ?3 OR (ABS(duration_seconds - ?5) <= 5 AND SUBSTR(started_at, 1, 16) = SUBSTR(?3, 1, 16)))
                              );",
-                            params![session_id, game_id, date_str.trim(), dur as i64],
+                            params![session_id, game_id, trimmed_date, ended_at_str, dur as i64],
                         );
                         if let Ok(n) = inserted {
                             if n > 0 {

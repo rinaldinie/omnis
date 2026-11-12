@@ -107,6 +107,58 @@ const MAX_GAMES_DB_SIZE: u64 = 256 * 1024 * 1024;
 const MAX_IMAGE_ASSET_SIZE: u64 = 50 * 1024 * 1024;
 
 /// Helper to read `library/games.db` or `library\games.db` directly from the ZIP into memory.
+struct ExistingGamesLookup {
+    by_store_ext: HashMap<(String, String), String>,
+    by_title: HashMap<String, String>,
+    all: HashMap<String, ExistingGameRecord>,
+}
+
+fn load_existing_games_lookup(
+    conn: &rusqlite::Connection,
+) -> Result<ExistingGamesLookup, rusqlite::Error> {
+    let mut stmt = conn.prepare(
+        "SELECT id, library_id, external_id, title, playtime_seconds, play_count, is_favorite, last_activity, cover_image_path, background_image_path, completion_status FROM games;",
+    )?;
+
+    let mut by_store_ext = HashMap::new();
+    let mut by_title = HashMap::new();
+    let mut all: HashMap<String, ExistingGameRecord> = HashMap::new();
+
+    let rows = stmt.query_map([], |row| {
+        Ok(ExistingGameRecord {
+            id: row.get(0)?,
+            library_id: row.get(1)?,
+            external_id: row.get(2)?,
+            title: row.get(3)?,
+            playtime_seconds: row.get::<_, i64>(4)? as u64,
+            play_count: row.get::<_, i32>(5)?,
+            is_favorite: row.get::<_, i32>(6)?,
+            last_activity: row.get(7)?,
+            cover_image_path: row.get(8)?,
+            background_image_path: row.get(9)?,
+            completion_status: row.get(10)?,
+        })
+    })?;
+
+    for row in rows {
+        let game = row?;
+        by_store_ext.insert(
+            (game.library_id.clone(), game.external_id.clone()),
+            game.id.clone(),
+        );
+        if game.library_id == stores::MANUAL {
+            by_title.insert(normalize_title(&game.title), game.id.clone());
+        }
+        all.insert(game.id.clone(), game);
+    }
+
+    Ok(ExistingGamesLookup {
+        by_store_ext,
+        by_title,
+        all,
+    })
+}
+
 fn extract_games_db<R: Read + Seek>(
     archive: &mut ZipArchive<R>,
 ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
@@ -261,41 +313,10 @@ pub fn inspect_playnite_backup(
 
     // Query existing games in Omnis (single pass)
     let conn = db.reader();
-    let mut stmt = conn.prepare(
-        "SELECT id, library_id, external_id, title, playtime_seconds, play_count, is_favorite, last_activity, cover_image_path, background_image_path, completion_status FROM games;"
-    )?;
-
-    let mut existing_by_store_ext = HashMap::new();
-    let mut existing_by_title = HashMap::new();
-    let mut all_existing: HashMap<String, ExistingGameRecord> = HashMap::new();
-
-    let rows = stmt.query_map([], |row| {
-        Ok(ExistingGameRecord {
-            id: row.get(0)?,
-            library_id: row.get(1)?,
-            external_id: row.get(2)?,
-            title: row.get(3)?,
-            playtime_seconds: row.get::<_, i64>(4)? as u64,
-            play_count: row.get::<_, i32>(5)?,
-            is_favorite: row.get::<_, i32>(6)?,
-            last_activity: row.get(7)?,
-            cover_image_path: row.get(8)?,
-            background_image_path: row.get(9)?,
-            completion_status: row.get(10)?,
-        })
-    })?;
-
-    for row in rows {
-        let game = row?;
-        existing_by_store_ext.insert(
-            (game.library_id.clone(), game.external_id.clone()),
-            game.id.clone(),
-        );
-        if game.library_id == stores::MANUAL {
-            existing_by_title.insert(normalize_title(&game.title), game.id.clone());
-        }
-        all_existing.insert(game.id.clone(), game);
-    }
+    let lookup = load_existing_games_lookup(&conn)?;
+    let existing_by_store_ext = lookup.by_store_ext;
+    let existing_by_title = lookup.by_title;
+    let all_existing = lookup.all;
 
     let mut matching_games_in_library = 0;
     let mut non_matching_games = 0;
@@ -474,42 +495,10 @@ where
     let mut conn = db.writer();
 
     // Query existing games map (single pass)
-    let mut stmt = conn.prepare(
-        "SELECT id, library_id, external_id, title, playtime_seconds, play_count, is_favorite, last_activity, cover_image_path, background_image_path, completion_status FROM games;"
-    )?;
-
-    let mut existing_by_store_ext = HashMap::new();
-    let mut existing_by_title = HashMap::new();
-    let mut all_existing = HashMap::new();
-
-    let rows = stmt.query_map([], |row| {
-        Ok(ExistingGameRecord {
-            id: row.get(0)?,
-            library_id: row.get(1)?,
-            external_id: row.get(2)?,
-            title: row.get(3)?,
-            playtime_seconds: row.get::<_, i64>(4)? as u64,
-            play_count: row.get::<_, i32>(5)?,
-            is_favorite: row.get::<_, i32>(6)?,
-            last_activity: row.get(7)?,
-            cover_image_path: row.get(8)?,
-            background_image_path: row.get(9)?,
-            completion_status: row.get(10)?,
-        })
-    })?;
-
-    for row in rows {
-        let game = row?;
-        existing_by_store_ext.insert(
-            (game.library_id.clone(), game.external_id.clone()),
-            game.id.clone(),
-        );
-        if game.library_id == stores::MANUAL {
-            existing_by_title.insert(normalize_title(&game.title), game.id.clone());
-        }
-        all_existing.insert(game.id.clone(), game);
-    }
-    drop(stmt);
+    let lookup = load_existing_games_lookup(&conn)?;
+    let existing_by_store_ext = lookup.by_store_ext;
+    let existing_by_title = lookup.by_title;
+    let mut all_existing = lookup.all;
 
     let tx = conn.transaction()?;
 
@@ -671,15 +660,20 @@ where
                     if let Some(sessions) = found_sessions {
                         for (date_str, dur) in sessions {
                             let session_id = Uuid::new_v4().to_string();
+                            let trimmed_date = date_str.trim();
+                            let ended_at_str = chrono::DateTime::parse_from_rfc3339(trimmed_date)
+                                .map(|dt| (dt + chrono::Duration::seconds(*dur as i64)).to_rfc3339())
+                                .unwrap_or_else(|_| trimmed_date.to_string());
+
                             let inserted = tx.execute(
                                 "INSERT INTO game_sessions (id, game_id, started_at, ended_at, duration_seconds)
-                                 SELECT ?1, ?2, ?3, ?3, ?4
+                                 SELECT ?1, ?2, ?3, ?4, ?5
                                  WHERE NOT EXISTS (
                                      SELECT 1 FROM game_sessions
                                      WHERE game_id = ?2
-                                       AND (started_at = ?3 OR (ABS(duration_seconds - ?4) <= 5 AND SUBSTR(started_at, 1, 16) = SUBSTR(?3, 1, 16)))
+                                       AND (started_at = ?3 OR (ABS(duration_seconds - ?5) <= 5 AND SUBSTR(started_at, 1, 16) = SUBSTR(?3, 1, 16)))
                                  );",
-                                params![session_id, existing.id, date_str, *dur as i64],
+                                params![session_id, existing.id, trimmed_date, ended_at_str, *dur as i64],
                             );
                             if let Ok(n) = inserted {
                                 if n > 0 {
@@ -694,15 +688,20 @@ where
                             if let (Some(date_str), Some(dur)) = (&s.date, s.elapsed_seconds) {
                                 if dur > 0 && !date_str.trim().is_empty() {
                                     let session_id = Uuid::new_v4().to_string();
+                                    let trimmed_date = date_str.trim();
+                                    let ended_at_str = chrono::DateTime::parse_from_rfc3339(trimmed_date)
+                                        .map(|dt| (dt + chrono::Duration::seconds(dur as i64)).to_rfc3339())
+                                        .unwrap_or_else(|_| trimmed_date.to_string());
+
                                     let inserted = tx.execute(
                                         "INSERT INTO game_sessions (id, game_id, started_at, ended_at, duration_seconds)
-                                         SELECT ?1, ?2, ?3, ?3, ?4
+                                         SELECT ?1, ?2, ?3, ?4, ?5
                                          WHERE NOT EXISTS (
                                              SELECT 1 FROM game_sessions
                                              WHERE game_id = ?2
-                                               AND (started_at = ?3 OR (ABS(duration_seconds - ?4) <= 5 AND SUBSTR(started_at, 1, 16) = SUBSTR(?3, 1, 16)))
+                                               AND (started_at = ?3 OR (ABS(duration_seconds - ?5) <= 5 AND SUBSTR(started_at, 1, 16) = SUBSTR(?3, 1, 16)))
                                          );",
-                                        params![session_id, existing.id, date_str.trim(), dur as i64],
+                                        params![session_id, existing.id, trimmed_date, ended_at_str, dur as i64],
                                     );
                                     if let Ok(n) = inserted {
                                         if n > 0 {
