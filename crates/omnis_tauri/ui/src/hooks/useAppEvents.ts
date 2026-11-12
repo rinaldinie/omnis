@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { ActiveGameSession, AchievementSyncProgress, GameDto, TAURI_EVENTS } from "../types";
 import { api } from "../api";
 import { listenTauri } from "../api/client";
@@ -6,47 +6,61 @@ import soundEffects from "../utils/soundEffects";
 import { shouldAutoScanOnStartup, shouldShowOnboarding } from "../components/modals/OnboardingModal";
 import { loadOnboardingState } from "../components/modals/onboardingState";
 import { loadAchievementsConfig, saveAchievementsConfig } from "../components/achievements";
-import { SessionToastInfo, SyncBannerInfo } from "../components/common/AppToasts";
+import { useLibraryStore, useUiStore } from "../stores";
 
 /** How long the session-ended toast stays on screen */
 export const SESSION_TOAST_MS = 6000;
 
 export interface UseAppEventsOptions {
   loadGames: () => Promise<void>;
-  refreshLibrary: () => Promise<void>;
+  refreshLibrary?: () => Promise<void>;
   loadThemes: () => Promise<void>;
   loadProvidersAndConfig: () => Promise<void>;
   handleLaunch: (gameId: string) => void;
-  handleOpenSettings: (tab?: any) => void;
+  handleOpenSettings?: (tab?: any) => void;
   statusText: (key: string, params?: Record<string, any>) => string;
   setPipelineProgress: (progress: string | null) => void;
-  gamesRef: React.MutableRefObject<GameDto[]>;
+  gamesRef?: React.MutableRefObject<GameDto[]>;
 }
 
 export function useAppEvents({
   loadGames,
-  refreshLibrary,
+  refreshLibrary: propRefreshLibrary,
   loadThemes,
   loadProvidersAndConfig,
   handleLaunch,
-  handleOpenSettings,
+  handleOpenSettings: propHandleOpenSettings,
   statusText,
   setPipelineProgress,
   gamesRef,
 }: UseAppEventsOptions) {
-  const [isSyncing, setIsSyncing] = useState<boolean>(false);
-  const [statusMessage, setStatusMessage] = useState<string>("");
-  const [isGameRunning, setIsGameRunning] = useState<boolean>(false);
-  const [activeGame, setActiveGame] = useState<ActiveGameSession | null>(null);
-  const [sessionToast, setSessionToast] = useState<SessionToastInfo | null>(null);
-  const [syncBanner, setSyncBanner] = useState<SyncBannerInfo | null>(null);
-  const [achievementSync, setAchievementSync] = useState<AchievementSyncProgress | null>(null);
+  const storeRefreshLibrary = useLibraryStore((s) => s.refreshLibrary);
+  const refreshLibrary = propRefreshLibrary ?? storeRefreshLibrary;
+
+  const isSyncing = useUiStore((s) => s.isSyncing);
+  const setIsSyncing = useUiStore((s) => s.setIsSyncing);
+  const statusMessage = useUiStore((s) => s.statusMessage);
+  const setStatusMessage = useUiStore((s) => s.setStatusMessage);
+  const isGameRunning = useUiStore((s) => s.isGameRunning);
+  const setIsGameRunning = useUiStore((s) => s.setIsGameRunning);
+  const activeGame = useUiStore((s) => s.activeGame);
+  const setActiveGame = useUiStore((s) => s.setActiveGame);
+  const sessionToast = useUiStore((s) => s.sessionToast);
+  const setSessionToast = useUiStore((s) => s.setSessionToast);
+  const syncBanner = useUiStore((s) => s.syncBanner);
+  const setSyncBanner = useUiStore((s) => s.setSyncBanner);
+  const achievementSync = useUiStore((s) => s.achievementSync);
+  const setAchievementSync = useUiStore((s) => s.setAchievementSync);
+  const storeOpenSettings = useUiStore((s) => s.openSettings);
+  const handleOpenSettings = propHandleOpenSettings ?? storeOpenSettings;
 
   const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const syncBannerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const achievementSyncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeGameRef = useRef<ActiveGameSession | null>(null);
   activeGameRef.current = activeGame;
+  const handleLaunchCallbackRef = useRef(handleLaunch);
+  handleLaunchCallbackRef.current = handleLaunch;
 
   useEffect(() => {
     // The first-run state comes from the backend: load it before the library so an empty
@@ -265,7 +279,8 @@ export function useAppEvents({
           const stoppedGameId = payload.game_id;
           const durationSec = payload.duration_seconds;
 
-          const found = gamesRef.current.find((g) => g.id === stoppedGameId);
+          const currentGames = gamesRef?.current ?? useLibraryStore.getState().games;
+          const found = currentGames.find((g) => g.id === stoppedGameId);
           const stoppedTitle = found?.title || activeGameRef.current?.title || "Gioco";
           const mins = Math.max(1, Math.round(durationSec / 60));
 
@@ -300,7 +315,7 @@ export function useAppEvents({
 
         const uTrayLaunch = await listenTauri<string>(TAURI_EVENTS.TRAY_LAUNCH_GAME, (payload) => {
           if (payload) {
-            handleLaunch(payload);
+            handleLaunchCallbackRef.current(payload);
           }
         });
         if (uTrayLaunch) unlistenFns.push(uTrayLaunch);

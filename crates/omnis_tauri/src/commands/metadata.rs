@@ -1,4 +1,5 @@
-use crate::types::{game_to_dto, AppState, GameDto};
+use crate::commands::games::game_to_enriched_dto;
+use crate::types::{AppState, GameDto};
 use omnis_core::{MetadataCandidateDto, MetadataPipelineConfig, ProviderInfo};
 use omnis_sdk::constants::events;
 use tauri::{Emitter, State};
@@ -122,8 +123,7 @@ pub async fn enrich_single_game(
     let _ = app_handle.emit(events::GAME_UPDATED, &game_id);
     let _ = app_handle.emit(events::LIBRARY_UPDATED, ());
 
-    state.media_scope.allow_game_media(&game);
-    Ok(game_to_dto(game))
+    Ok(game_to_enriched_dto(&state, game))
 }
 
 #[tauri::command]
@@ -167,8 +167,7 @@ pub async fn refresh_game_howlongtobeat(
     let _ = app_handle.emit(events::GAME_UPDATED, &game_id);
     let _ = app_handle.emit(events::LIBRARY_UPDATED, ());
 
-    state.media_scope.allow_game_media(&updated_game);
-    Ok(game_to_dto(updated_game))
+    Ok(game_to_enriched_dto(&state, updated_game))
 }
 
 #[tauri::command]

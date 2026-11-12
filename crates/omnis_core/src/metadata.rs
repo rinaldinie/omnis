@@ -1,7 +1,7 @@
 use crate::db::Database;
-use omnis_sdk::{GameMetadataPatch, MetadataProvider, MetadataSearchRequest};
-use serde_json::{Map, Value};
-use std::path::{Path, PathBuf};
+use omnis_sdk::{GameMetadataPatch, MetadataSearchRequest};
+use std::ops::Deref;
+use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tracing::{info, warn};
@@ -55,6 +55,15 @@ impl Default for MetadataDownloader {
     }
 }
 
+impl Deref for MetadataDownloader {
+    type Target = ProviderRegistry;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        &self.registry
+    }
+}
+
 impl MetadataDownloader {
     pub fn new() -> Self {
         let client = reqwest::Client::builder()
@@ -86,81 +95,6 @@ impl MetadataDownloader {
             media,
             cancel_requested: Arc::new(AtomicBool::new(false)),
         }
-    }
-
-    // Inherent forwarders to registry for zero-breaking-change compatibility
-    #[inline]
-    pub async fn set_plugins_dir(&self, dir: PathBuf) {
-        self.registry.set_plugins_dir(dir).await;
-    }
-
-    #[inline]
-    pub async fn get_plugins_dir(&self) -> Option<PathBuf> {
-        self.registry.get_plugins_dir().await
-    }
-
-    #[inline]
-    pub async fn unregister_provider(&self, provider_id: &str) -> Result<(), String> {
-        self.registry.unregister_provider(provider_id).await
-    }
-
-    #[inline]
-    pub async fn register_provider(&self, provider: Box<dyn MetadataProvider>) {
-        self.registry.register_provider(provider).await;
-    }
-
-    #[inline]
-    pub async fn refresh_external_plugins(&self) -> Result<Vec<ProviderInfo>, String> {
-        self.registry.refresh_external_plugins().await
-    }
-
-    #[inline]
-    pub async fn fetch_hltb_times(&self, title: &str) -> (String, String, String) {
-        self.registry.fetch_hltb_times(title).await
-    }
-
-    #[inline]
-    pub async fn load_and_register_dynamic_plugin(
-        &self,
-        path: &Path,
-    ) -> Result<ProviderInfo, String> {
-        self.registry.load_and_register_dynamic_plugin(path).await
-    }
-
-    #[inline]
-    pub async fn get_providers_info(&self) -> Vec<ProviderInfo> {
-        self.registry.get_providers_info().await
-    }
-
-    #[inline]
-    pub async fn save_provider_settings(
-        &self,
-        provider_id: &str,
-        settings: Map<String, Value>,
-    ) -> Result<(), String> {
-        self.registry
-            .save_provider_settings(provider_id, settings)
-            .await
-    }
-
-    #[inline]
-    pub async fn toggle_provider(&self, provider_id: &str, enabled: bool) -> Result<(), String> {
-        self.registry.toggle_provider(provider_id, enabled).await
-    }
-
-    #[inline]
-    pub async fn test_provider_connection(&self, provider_id: &str) -> Result<String, String> {
-        self.registry.test_provider_connection(provider_id).await
-    }
-
-    #[inline]
-    pub async fn get_pipeline_config(&self) -> MetadataPipelineConfig {
-        self.registry.get_pipeline_config().await
-    }
-
-    #[inline]
-    pub async fn save_pipeline_config(&self, config: MetadataPipelineConfig) -> Result<(), String> {
-        self.registry.save_pipeline_config(config).await
     }
 
     // Inherent forwarders to media downloader

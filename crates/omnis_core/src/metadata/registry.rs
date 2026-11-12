@@ -60,7 +60,7 @@ impl ProviderRegistry {
 
         let mut providers: HashMap<String, Box<dyn MetadataProvider>> = HashMap::new();
         providers.insert("steam".to_string(), steam);
-        providers.insert("gog".to_string(), Box::new(GogMetadataProvider::new(client.clone())));
+        providers.insert("gog".to_string(), Box::new((*gog).clone()));
         providers.insert("igdb".to_string(), Box::new((*igdb).clone()));
         providers.insert("steamgriddb".to_string(), steamgriddb);
         providers.insert("opencritic".to_string(), opencritic);

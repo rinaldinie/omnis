@@ -22,6 +22,7 @@ pub use client::{
 };
 
 /// Plugin instance for Xbox Live / PC Game Pass
+#[derive(Debug, Clone)]
 pub struct XboxCloudPlugin {
     client: reqwest::Client,
 }

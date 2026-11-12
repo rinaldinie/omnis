@@ -2,10 +2,9 @@ import React from "react";
 import {
   GameDto,
   ThemeConfig,
-  ViewMode,
-  ActiveGameSession,
   normalizeGame,
 } from "../../types";
+import { useLibraryStore, useUiStore, ContextMenuState } from "../../stores";
 import ThemeModal from "./ThemeModal";
 import PluginManagerModal from "./PluginManagerModal";
 import GlobalContextMenu from "../GlobalContextMenu";
@@ -15,21 +14,15 @@ import BatchEnrichModal from "./BatchEnrichModal";
 import VirtualKeyboard from "../VirtualKeyboard";
 import CustomGameModal from "./CustomGameModal";
 import { UninstallModal } from "./UninstallModal";
-import { SettingsModal, SettingsTab } from "../settings";
+import { SettingsModal } from "../settings";
 import PlayniteImportModal from "./PlayniteImportModal";
 import { KillGameConfirmModal } from "./KillGameConfirmModal";
 import type { usePluginManager } from "../../hooks/usePluginManager";
 
-export interface ContextMenuState {
-  x: number;
-  y: number;
-  game: GameDto;
-}
+export type { ContextMenuState };
 
 export interface AppModalsProps {
   // Theme Modal
-  showThemeModal: boolean;
-  setShowThemeModal: (open: boolean) => void;
   themes: ThemeConfig[];
   currentTheme: ThemeConfig;
   selectTheme: (theme: ThemeConfig) => void;
@@ -37,22 +30,10 @@ export interface AppModalsProps {
   handleOpenFolder: (folder: string) => void;
 
   // Plugin Manager Modal
-  showPluginModal: boolean;
-  setShowPluginModal: (open: boolean) => void;
   pluginManager: ReturnType<typeof usePluginManager>;
-  games: GameDto[];
-  refreshLibrary: () => Promise<void>;
 
-  // Context Menu
-  contextMenu: ContextMenuState | null;
-  setContextMenu: (menu: ContextMenuState | null) => void;
+  // Context Menu & Game Actions
   handleLaunch: (gameId: string) => void;
-  setGameToEdit: (game: GameDto | null) => void;
-  setShowEditorModal: (open: boolean) => void;
-  setGameToResolve: (game: GameDto | null) => void;
-  setShowResolutionModal: (open: boolean) => void;
-  setSelectedGame: React.Dispatch<React.SetStateAction<GameDto | null>>;
-  setViewMode: (mode: ViewMode) => void;
   handleUpdateCompletionStatus: (game: GameDto, status: string) => void;
   handleOpenInstallDir: (gameId: string) => void;
   handleCreateShortcut: (gameId: string) => void;
@@ -63,57 +44,25 @@ export interface AppModalsProps {
   onToggleFavorite?: (game: GameDto) => void;
   onPromoteCopy?: (copyId: string) => void;
 
-  // Editor Modal
-  showEditorModal: boolean;
-  gameToEdit: GameDto | null;
-  selectedGame: GameDto | null;
-  setGames: React.Dispatch<React.SetStateAction<GameDto[]>>;
-  setStatusMessage: (msg: string) => void;
+  // Editor & Resolution Modals
   statusText: (key: string, params?: Record<string, any>) => string;
 
-  // Metadata Resolution Modal
-  showResolutionModal: boolean;
-  gameToResolve: GameDto | null;
-
   // Batch Enrich Modal
-  showBatchEnrichModal: boolean;
-  setShowBatchEnrichModal: (open: boolean) => void;
   filteredGames: GameDto[];
 
   // Virtual Keyboard
-  showVirtualKeyboard: boolean;
-  setShowVirtualKeyboard: (open: boolean) => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   setFocusedIndex: (index: number) => void;
   fullscreenGamesCount: number;
 
-  // Custom Game Modal
-  showAddCustomModal: boolean;
-  setShowAddCustomModal: (open: boolean) => void;
-
   // Uninstall Modal
-  showUninstallModal: boolean;
-  setShowUninstallModal: (open: boolean) => void;
-  gameToUninstall: GameDto | null;
-  setGameToUninstall: (game: GameDto | null) => void;
   handleConfirmUninstall: (gameId: string) => Promise<void>;
 
   // Settings Modal
-  showSettingsModal: boolean;
-  setShowSettingsModal: (open: boolean) => void;
-  soundEnabled: boolean;
   handleToggleSound: () => void;
-  settingsInitialTab: SettingsTab;
-
-  // Playnite Import Modal
-  isPlayniteImportOpen: boolean;
-  setIsPlayniteImportOpen: (open: boolean) => void;
 
   // Kill Confirm Modal
-  showKillConfirmModal: boolean;
-  setShowKillConfirmModal: (open: boolean) => void;
-  activeGame: ActiveGameSession | null;
   confirmKillRunningGame: () => void;
 
   // Translation
@@ -121,29 +70,15 @@ export interface AppModalsProps {
 }
 
 export const AppModals: React.FC<AppModalsProps> = ({
-  showThemeModal,
-  setShowThemeModal,
   themes,
   currentTheme,
   selectTheme,
   handleSaveCustomTheme,
   handleOpenFolder,
 
-  showPluginModal,
-  setShowPluginModal,
   pluginManager,
-  games,
-  refreshLibrary,
 
-  contextMenu,
-  setContextMenu,
   handleLaunch,
-  setGameToEdit,
-  setShowEditorModal,
-  setGameToResolve,
-  setShowResolutionModal,
-  setSelectedGame,
-  setViewMode,
   handleUpdateCompletionStatus,
   handleOpenInstallDir,
   handleCreateShortcut,
@@ -154,52 +89,68 @@ export const AppModals: React.FC<AppModalsProps> = ({
   onToggleFavorite,
   onPromoteCopy,
 
-  showEditorModal,
-  gameToEdit,
-  selectedGame,
-  setGames,
-  setStatusMessage,
   statusText,
 
-  showResolutionModal,
-  gameToResolve,
-
-  showBatchEnrichModal,
-  setShowBatchEnrichModal,
   filteredGames,
 
-  showVirtualKeyboard,
-  setShowVirtualKeyboard,
   searchQuery,
   setSearchQuery,
   setFocusedIndex,
   fullscreenGamesCount,
 
-  showAddCustomModal,
-  setShowAddCustomModal,
-
-  showUninstallModal,
-  setShowUninstallModal,
-  gameToUninstall,
-  setGameToUninstall,
   handleConfirmUninstall,
 
-  showSettingsModal,
-  setShowSettingsModal,
-  soundEnabled,
   handleToggleSound,
-  settingsInitialTab,
 
-  isPlayniteImportOpen,
-  setIsPlayniteImportOpen,
-
-  showKillConfirmModal,
-  setShowKillConfirmModal,
-  activeGame,
   confirmKillRunningGame,
 
   t,
 }) => {
+  const {
+    games,
+    setGames,
+    selectedGame,
+    setSelectedGame,
+    refreshLibrary,
+  } = useLibraryStore();
+
+  const {
+    setViewMode,
+    soundEnabled,
+    showThemeModal,
+    setShowThemeModal,
+    showPluginModal,
+    setShowPluginModal,
+    contextMenu,
+    setContextMenu,
+    showEditorModal,
+    setShowEditorModal,
+    gameToEdit,
+    setGameToEdit,
+    showResolutionModal,
+    setShowResolutionModal,
+    gameToResolve,
+    setGameToResolve,
+    showBatchEnrichModal,
+    setShowBatchEnrichModal,
+    showVirtualKeyboard,
+    setShowVirtualKeyboard,
+    showAddCustomModal,
+    setShowAddCustomModal,
+    showUninstallModal,
+    setShowUninstallModal,
+    gameToUninstall,
+    setGameToUninstall,
+    showSettingsModal,
+    setShowSettingsModal,
+    settingsInitialTab,
+    isPlayniteImportOpen,
+    setIsPlayniteImportOpen,
+    showKillConfirmModal,
+    setShowKillConfirmModal,
+    activeGame,
+    setStatusMessage,
+  } = useUiStore();
   return (
     <>
       {/* THEME MANAGER MODAL */}

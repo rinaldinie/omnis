@@ -1,12 +1,10 @@
 import React, { useState, useRef, useEffect } from "react";
 import {
-  ActiveGameSession,
   GameDto,
   GroupBy,
-  LibraryCounts,
   ThemeConfig,
-  ViewMode,
 } from "../../types";
+import { useLibraryStore, useUiStore } from "../../stores";
 import TopBar from "../navigation/TopBar";
 import Sidebar from "../navigation/Sidebar";
 import VideoBackdrop from "../common/VideoBackdrop";
@@ -17,47 +15,29 @@ import ListViewTable from "../ListViewTable";
 import StatisticsDashboardView from "./StatisticsDashboardView";
 import EmptyGamesView from "../common/EmptyGamesView";
 import { StatusBar } from "../navigation/StatusBar";
-import type { SettingsTab } from "../settings";
 
 export interface DesktopViewProps {
   currentTheme: ThemeConfig;
-  viewMode: ViewMode;
-  setViewMode: (mode: ViewMode) => void;
   searchQuery: string;
   setSearchQuery: (q: string) => void;
   toggleFullscreen: () => void;
   handleToggleSound: () => void;
-  soundEnabled: boolean;
-  setShowSettingsModal: (open: boolean) => void;
-  onOpenSettings?: (tab?: SettingsTab) => void;
-  setShowThemeModal: (open: boolean) => void;
   loadProvidersAndConfig: () => void;
-  setShowPluginModal: (open: boolean) => void;
   providers: any[];
-  setShowAddCustomModal: (open: boolean) => void;
-  setShowBatchEnrichModal: (open: boolean) => void;
-  onOpenPlayniteImport: () => void;
   handleSync: () => void;
-  isSyncing: boolean;
   handleMinimize: () => void;
   handleToggleMaximize: () => void;
   handleClose: () => void;
   handleStartDragging: (e: React.MouseEvent) => void;
   t: (key: string, params?: Record<string, any>) => string;
-  activeGame: ActiveGameSession | null;
   formatDuration: (s: number) => string;
   handleKillRunningGame: () => void;
-  counts: LibraryCounts;
   activeFilter: string;
   setActiveFilter: (filter: string) => void;
   isFilterActive: (filter: string) => boolean;
   gamepadConnected: boolean;
   gamepadName: string;
   handleOpenFolder: (folder: string) => void;
-  handleOpenSettings: (tab: any) => void;
-  isGameRunning: boolean;
-  selectedGame: GameDto | null;
-  setSelectedGame: React.Dispatch<React.SetStateAction<GameDto | null>>;
   sortMode: any;
   setSortMode: (mode: any) => void;
   selectedFlags: string[];
@@ -89,10 +69,6 @@ export interface DesktopViewProps {
   detailsFilteredGames: GameDto[];
   handleOpenContextMenu: (e: React.MouseEvent, game: GameDto) => void;
   handleLaunch: (gameId: string) => void;
-  setGameToEdit: (game: GameDto | null) => void;
-  setShowEditorModal: (open: boolean) => void;
-  setGameToResolve: (game: GameDto | null) => void;
-  setShowResolutionModal: (open: boolean) => void;
   handleEnrichSingleGame: (gameId: string) => void;
   handleRefreshHltb: (gameId: string) => void;
   isEnrichingSingle: boolean;
@@ -104,50 +80,30 @@ export interface DesktopViewProps {
   handleToggleHidden?: (game: GameDto) => void;
   handleToggleFavorite?: (game: GameDto) => void;
   handlePromoteCopy?: (copyId: string) => void;
-  statusMessage: string;
-  achievementSync: any;
-  totalGamesCount: number;
 }
 
 export const DesktopView: React.FC<DesktopViewProps> = ({
   currentTheme,
-  viewMode,
-  setViewMode,
   searchQuery,
   setSearchQuery,
   toggleFullscreen,
   handleToggleSound,
-  soundEnabled,
-  setShowSettingsModal,
-  onOpenSettings,
-  setShowThemeModal,
   loadProvidersAndConfig,
-  setShowPluginModal,
   providers,
-  setShowAddCustomModal,
-  setShowBatchEnrichModal,
-  onOpenPlayniteImport,
   handleSync,
-  isSyncing,
   handleMinimize,
   handleToggleMaximize,
   handleClose,
   handleStartDragging,
   t,
-  activeGame,
   formatDuration,
   handleKillRunningGame,
-  counts,
   activeFilter,
   setActiveFilter,
   isFilterActive,
   gamepadConnected,
   gamepadName,
   handleOpenFolder,
-  handleOpenSettings,
-  isGameRunning,
-  selectedGame,
-  setSelectedGame,
   sortMode,
   setSortMode,
   selectedFlags,
@@ -179,10 +135,6 @@ export const DesktopView: React.FC<DesktopViewProps> = ({
   detailsFilteredGames,
   handleOpenContextMenu,
   handleLaunch,
-  setGameToEdit,
-  setShowEditorModal,
-  setGameToResolve,
-  setShowResolutionModal,
   handleEnrichSingleGame,
   handleRefreshHltb,
   isEnrichingSingle,
@@ -194,10 +146,32 @@ export const DesktopView: React.FC<DesktopViewProps> = ({
   handleToggleHidden,
   handleToggleFavorite,
   handlePromoteCopy,
-  statusMessage,
-  achievementSync,
-  totalGamesCount,
 }) => {
+  const { games, counts, selectedGame, setSelectedGame } = useLibraryStore();
+  const {
+    viewMode,
+    setViewMode,
+    soundEnabled,
+    setShowSettingsModal,
+    openSettings: handleOpenSettings,
+    setShowThemeModal,
+    setShowPluginModal,
+    setShowAddCustomModal,
+    setShowBatchEnrichModal,
+    setIsPlayniteImportOpen,
+    isSyncing,
+    activeGame,
+    isGameRunning,
+    setGameToEdit,
+    setShowEditorModal,
+    setGameToResolve,
+    setShowResolutionModal,
+    statusMessage,
+    achievementSync,
+  } = useUiStore();
+  const totalGamesCount = games.length;
+  const onOpenSettings = handleOpenSettings;
+  const onOpenPlayniteImport = () => setIsPlayniteImportOpen(true);
   const [gridCardWidth, setGridCardWidth] = useState<number>(180);
   const [detailsSidebarOpen, setDetailsSidebarOpen] = useState<boolean>(true);
 

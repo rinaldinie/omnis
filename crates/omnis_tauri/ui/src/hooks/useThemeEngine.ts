@@ -1,16 +1,24 @@
 import { useState, useEffect, useCallback } from "react";
 import { ThemeConfig, BUILTIN_THEMES } from "../types";
 import { api } from "../api";
+import { useUiStore } from "../stores";
 
 export interface UseThemeEngineOptions {
-  setStatusMessage: (msg: string) => void;
+  setStatusMessage?: (msg: string) => void;
   statusText: (key: string, params?: Record<string, string | number>) => string;
 }
 
-export function useThemeEngine({ setStatusMessage, statusText }: UseThemeEngineOptions) {
+export function useThemeEngine({
+  setStatusMessage: propSetStatusMessage,
+  statusText,
+}: UseThemeEngineOptions) {
+  const storeSetStatusMessage = useUiStore((s) => s.setStatusMessage);
+  const showThemeModal = useUiStore((s) => s.showThemeModal);
+  const setShowThemeModal = useUiStore((s) => s.setShowThemeModal);
+  const setStatusMessage = propSetStatusMessage ?? storeSetStatusMessage;
+
   const [themes, setThemes] = useState<ThemeConfig[]>(BUILTIN_THEMES);
   const [currentTheme, setCurrentTheme] = useState<ThemeConfig>(BUILTIN_THEMES[0]);
-  const [showThemeModal, setShowThemeModal] = useState<boolean>(false);
 
   const loadThemes = useCallback(async () => {
     try {

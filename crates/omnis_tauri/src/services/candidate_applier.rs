@@ -75,7 +75,18 @@ impl<'a> CandidateMetadataApplier<'a> {
             .map_err(|e| e.to_string())?
             .ok_or_else(|| "Gioco non trovato".to_string())?;
 
-        Ok(game_to_dto(updated_game))
+        let mut dto = game_to_dto(updated_game.clone());
+        if let Some(ref group_id) = updated_game.duplicate_group_id {
+            if let Ok(group_games) = self.db.get_games_by_duplicate_group(group_id) {
+                let mut group_dtos: Vec<GameDto> =
+                    group_games.into_iter().map(game_to_dto).collect();
+                crate::types::populate_other_copies(&mut group_dtos);
+                if let Some(populated) = group_dtos.into_iter().find(|d| d.id == dto.id) {
+                    dto.other_copies = populated.other_copies;
+                }
+            }
+        }
+        Ok(dto)
     }
 
     pub fn resolve_appid_hint(

@@ -12,6 +12,7 @@ import {
   LibraryCounts,
   ThemeConfig,
 } from "../../types";
+import { useLibraryStore, useUiStore } from "../../stores";
 import { categoryCount, getVisibleCategories, toCategoryId } from "../../utils/consoleCategories";
 import { StoreIcon } from "../StoreBadge";
 import soundEffects from "../../utils/soundEffects";
@@ -60,29 +61,23 @@ interface FullscreenViewProps {
   allGames?: GameDto[];
   focusedIndex: number;
   setFocusedIndex: (idx: number) => void;
-  setSelectedGame: (game: GameDto) => void;
-  counts: LibraryCounts;
+  counts?: LibraryCounts;
   activeFilter: string;
   setActiveFilter: (filter: string) => void;
   cycleFilter?: (direction: number, onCycle?: (nextFilter: string) => void) => void;
   gamepadConnected: boolean;
-  gamepadName: string;
   searchQuery: string;
-  setShowVirtualKeyboard: (show: boolean) => void;
-  soundEnabled: boolean;
+  setShowVirtualKeyboard?: (show: boolean) => void;
+  soundEnabled?: boolean;
   handleToggleSound: () => void;
   currentTheme: ThemeConfig;
-  setShowThemeModal: (show: boolean) => void;
   loadProvidersAndConfig: () => void;
-  setShowPluginModal: (show: boolean) => void;
   toggleFullscreen: () => void;
   handleMinimize: () => void;
   handleClose: () => void;
-  handleToggleMaximize: () => void;
-  handleStartDragging: (e: React.MouseEvent) => void;
   handleLaunch: (gameId: string) => void;
   handleSync: () => void;
-  isSyncing: boolean;
+  isSyncing?: boolean;
   showFullscreenDetails: boolean;
   setShowFullscreenDetails: React.Dispatch<React.SetStateAction<boolean>>;
   carouselRef: React.RefObject<HTMLDivElement>;
@@ -141,17 +136,17 @@ function readSavedLayout(): LibraryLayout {
 export default function FullscreenView({
   focusedGame,
   filteredGames,
-  allGames,
+  allGames: propAllGames,
   focusedIndex,
   setFocusedIndex,
-  counts,
+  counts: propCounts,
   activeFilter,
   setActiveFilter,
   cycleFilter: propCycleFilter,
   gamepadConnected,
   searchQuery,
-  setShowVirtualKeyboard,
-  soundEnabled,
+  setShowVirtualKeyboard: propSetShowVirtualKeyboard,
+  soundEnabled: propSoundEnabled,
   handleToggleSound,
   currentTheme,
   loadProvidersAndConfig,
@@ -160,7 +155,7 @@ export default function FullscreenView({
   handleClose,
   handleLaunch,
   handleSync,
-  isSyncing,
+  isSyncing: propIsSyncing,
   showFullscreenDetails,
   setShowFullscreenDetails,
   carouselRef,
@@ -171,13 +166,13 @@ export default function FullscreenView({
   onRecentRowChange,
   onGameAction,
   t,
-  isGameRunning = false,
-  activeGame,
+  isGameRunning: propIsGameRunning,
+  activeGame: propActiveGame,
   elapsedSeconds,
   formatDuration,
   handleKillRunningGame,
-  sessionToast,
-  onDismissToast,
+  sessionToast: propSessionToast,
+  onDismissToast: propOnDismissToast,
   homeFocusZone = "carousel",
   setHomeFocusZone,
   isMenuOpen = false,
@@ -187,6 +182,25 @@ export default function FullscreenView({
   themes = [],
   onSelectTheme,
 }: FullscreenViewProps) {
+  const storeGames = useLibraryStore((s) => s.games);
+  const storeCounts = useLibraryStore((s) => s.counts);
+  const storeSetShowVirtualKeyboard = useUiStore((s) => s.setShowVirtualKeyboard);
+  const storeSoundEnabled = useUiStore((s) => s.soundEnabled);
+  const storeIsSyncing = useUiStore((s) => s.isSyncing);
+  const storeIsGameRunning = useUiStore((s) => s.isGameRunning);
+  const storeActiveGame = useUiStore((s) => s.activeGame);
+  const storeSessionToast = useUiStore((s) => s.sessionToast);
+  const storeSetSessionToast = useUiStore((s) => s.setSessionToast);
+
+  const allGames = propAllGames ?? storeGames;
+  const counts = propCounts ?? storeCounts;
+  const setShowVirtualKeyboard = propSetShowVirtualKeyboard ?? storeSetShowVirtualKeyboard;
+  const soundEnabled = propSoundEnabled ?? storeSoundEnabled;
+  const isSyncing = propIsSyncing ?? storeIsSyncing;
+  const isGameRunning = propIsGameRunning ?? storeIsGameRunning;
+  const activeGame = propActiveGame !== undefined ? propActiveGame : storeActiveGame;
+  const sessionToast = propSessionToast !== undefined ? propSessionToast : storeSessionToast;
+  const onDismissToast = propOnDismissToast ?? (() => storeSetSessionToast(null));
   const { locale, setLocale } = useTranslation();
   const timerContextSeconds = useActiveGameTimer();
   const actualElapsed = elapsedSeconds ?? timerContextSeconds;

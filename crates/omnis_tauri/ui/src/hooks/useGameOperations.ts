@@ -2,39 +2,69 @@ import { useState, useCallback } from "react";
 import { GameDto, ActiveGameSession, normalizeGame } from "../types";
 import { api } from "../api";
 import soundEffects from "../utils/soundEffects";
+import { useLibraryStore, useUiStore } from "../stores";
 
 export interface UseGameOperationsOptions {
-  games: GameDto[];
-  setGames: React.Dispatch<React.SetStateAction<GameDto[]>>;
-  selectedGame: GameDto | null;
-  setSelectedGame: React.Dispatch<React.SetStateAction<GameDto | null>>;
-  refreshLibrary: () => Promise<void>;
-  setStatusMessage: (msg: string) => void;
+  games?: GameDto[];
+  setGames?: (games: GameDto[] | ((prev: GameDto[]) => GameDto[])) => void;
+  selectedGame?: GameDto | null;
+  setSelectedGame?: (game: GameDto | null | ((prev: GameDto | null) => GameDto | null)) => void;
+  refreshLibrary?: () => Promise<void>;
+  setStatusMessage?: (msg: string) => void;
   statusText: (key: string, params?: Record<string, any>) => string;
-  setIsSyncing: (syncing: boolean) => void;
-  setIsGameRunning: (running: boolean) => void;
-  setActiveGame: React.Dispatch<React.SetStateAction<ActiveGameSession | null>>;
+  setIsSyncing?: (syncing: boolean) => void;
+  setIsGameRunning?: (running: boolean) => void;
+  setActiveGame?: (
+    updater:
+      | ActiveGameSession
+      | null
+      | ((prev: ActiveGameSession | null) => ActiveGameSession | null)
+  ) => void;
   t: (key: string, params?: Record<string, any>) => string;
 }
 
 export function useGameOperations({
-  games,
-  setGames,
-  selectedGame,
-  setSelectedGame,
-  refreshLibrary,
-  setStatusMessage,
+  games: propGames,
+  setGames: propSetGames,
+  selectedGame: propSelectedGame,
+  setSelectedGame: propSetSelectedGame,
+  refreshLibrary: propRefreshLibrary,
+  setStatusMessage: propSetStatusMessage,
   statusText,
-  setIsSyncing,
-  setIsGameRunning,
-  setActiveGame,
+  setIsSyncing: propSetIsSyncing,
+  setIsGameRunning: propSetIsGameRunning,
+  setActiveGame: propSetActiveGame,
   t,
 }: UseGameOperationsOptions) {
+  const storeGames = useLibraryStore((s) => s.games);
+  const storeSetGames = useLibraryStore((s) => s.setGames);
+  const storeSelectedGame = useLibraryStore((s) => s.selectedGame);
+  const storeSetSelectedGame = useLibraryStore((s) => s.setSelectedGame);
+  const storeRefreshLibrary = useLibraryStore((s) => s.refreshLibrary);
+
+  const storeSetStatusMessage = useUiStore((s) => s.setStatusMessage);
+  const storeSetIsSyncing = useUiStore((s) => s.setIsSyncing);
+  const storeSetIsGameRunning = useUiStore((s) => s.setIsGameRunning);
+  const storeSetActiveGame = useUiStore((s) => s.setActiveGame);
+  const showKillConfirmModal = useUiStore((s) => s.showKillConfirmModal);
+  const setShowKillConfirmModal = useUiStore((s) => s.setShowKillConfirmModal);
+  const gameToUninstall = useUiStore((s) => s.gameToUninstall);
+  const setGameToUninstall = useUiStore((s) => s.setGameToUninstall);
+  const showUninstallModal = useUiStore((s) => s.showUninstallModal);
+  const setShowUninstallModal = useUiStore((s) => s.setShowUninstallModal);
+
+  const games = propGames ?? storeGames;
+  const setGames = propSetGames ?? storeSetGames;
+  const selectedGame = propSelectedGame !== undefined ? propSelectedGame : storeSelectedGame;
+  const setSelectedGame = propSetSelectedGame ?? storeSetSelectedGame;
+  const refreshLibrary = propRefreshLibrary ?? storeRefreshLibrary;
+  const setStatusMessage = propSetStatusMessage ?? storeSetStatusMessage;
+  const setIsSyncing = propSetIsSyncing ?? storeSetIsSyncing;
+  const setIsGameRunning = propSetIsGameRunning ?? storeSetIsGameRunning;
+  const setActiveGame = propSetActiveGame ?? storeSetActiveGame;
+
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
   const [isEnrichingSingle, setIsEnrichingSingle] = useState<boolean>(false);
-  const [showKillConfirmModal, setShowKillConfirmModal] = useState<boolean>(false);
-  const [gameToUninstall, setGameToUninstall] = useState<GameDto | null>(null);
-  const [showUninstallModal, setShowUninstallModal] = useState<boolean>(false);
 
   const handleSync = useCallback(async () => {
     try {

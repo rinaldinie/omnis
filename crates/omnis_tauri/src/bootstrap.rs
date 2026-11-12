@@ -30,6 +30,33 @@ pub struct AppPaths {
     pub themes_dir: PathBuf,
 }
 
+/// Shared instances of built-in store plugins so `PluginHost` and `StoreAccountManager`
+/// reuse the same underlying HTTP client pools and configuration.
+#[derive(Clone)]
+pub struct BuiltinStorePlugins {
+    pub steam: SteamPlugin,
+    pub epic: EpicLibraryPlugin,
+    pub gog: GogCloudPlugin,
+    pub xbox: XboxCloudPlugin,
+}
+
+impl Default for BuiltinStorePlugins {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl BuiltinStorePlugins {
+    pub fn new() -> Self {
+        Self {
+            steam: SteamPlugin::new(),
+            epic: EpicLibraryPlugin::new(),
+            gog: GogCloudPlugin::new(),
+            xbox: XboxCloudPlugin::new(),
+        }
+    }
+}
+
 pub struct AppBootstrap;
 
 impl AppBootstrap {
@@ -77,20 +104,21 @@ impl AppBootstrap {
         db
     }
 
-    /// Initializes metadata downloader and core subsystems
+    /// Initializes metadata downloader and core subsystems using shared store plugin instances
     pub fn init_plugins(
         plugins_dir: &Path,
         db: Arc<Database>,
+        store_plugins: &BuiltinStorePlugins,
     ) -> (
         Arc<PluginHost>,
         Arc<MetadataDownloader>,
     ) {
         let event_bus = EventBus::new(256);
         let mut host = PluginHost::new(event_bus.clone(), db);
-        host.register_plugin(Box::new(SteamPlugin::new()));
-        host.register_plugin(Box::new(EpicLibraryPlugin::new()));
-        host.register_plugin(Box::new(GogCloudPlugin::new()));
-        host.register_plugin(Box::new(XboxCloudPlugin::new()));
+        host.register_plugin(Box::new(store_plugins.steam.clone()));
+        host.register_plugin(Box::new(store_plugins.epic.clone()));
+        host.register_plugin(Box::new(store_plugins.gog.clone()));
+        host.register_plugin(Box::new(store_plugins.xbox.clone()));
         host.register_plugin(Box::new(
             EmulatorsPlugin::new()
                 .with_data_dir(plugins_dir.join(omnis_plugin_emulators::PLUGIN_ID)),
@@ -110,8 +138,12 @@ impl AppBootstrap {
         (Arc::new(host), downloader)
     }
 
-    /// Initializes secure vault and cloud store account manager with built-in integrations
-    pub fn init_store_accounts(app_dir: &Path, db: Arc<Database>) -> Arc<StoreAccountManager> {
+    /// Initializes secure vault and cloud store account manager with shared built-in integrations
+    pub fn init_store_accounts(
+        app_dir: &Path,
+        db: Arc<Database>,
+        store_plugins: &BuiltinStorePlugins,
+    ) -> Arc<StoreAccountManager> {
         let vault = Arc::new(SecretVault::new(app_dir).unwrap_or_else(|e| {
             tracing::error!(
                 "SecretVault initialization failed: {}. Using ephemeral in-memory key.",
@@ -121,10 +153,10 @@ impl AppBootstrap {
         }));
 
         let store_account_manager = Arc::new(StoreAccountManager::new(db, vault));
-        store_account_manager.register_plugin(Arc::new(GogCloudPlugin::new()));
-        store_account_manager.register_plugin(Arc::new(XboxCloudPlugin::new()));
-        store_account_manager.register_plugin(Arc::new(SteamPlugin::new()));
-        store_account_manager.register_plugin(Arc::new(EpicLibraryPlugin::new()));
+        store_account_manager.register_plugin(Arc::new(store_plugins.gog.clone()));
+        store_account_manager.register_plugin(Arc::new(store_plugins.xbox.clone()));
+        store_account_manager.register_plugin(Arc::new(store_plugins.steam.clone()));
+        store_account_manager.register_plugin(Arc::new(store_plugins.epic.clone()));
 
         store_account_manager
     }
@@ -134,8 +166,11 @@ impl AppBootstrap {
         let tauri_fallback = app.path().app_data_dir().ok();
         let paths = Self::init_directories(tauri_fallback);
         let db = Self::init_database(&paths.app_dir);
-        let (host, downloader) = Self::init_plugins(&paths.plugins_dir, db.clone());
-        let store_account_manager = Self::init_store_accounts(&paths.app_dir, db.clone());
+        let store_plugins = BuiltinStorePlugins::new();
+        let (host, downloader) =
+            Self::init_plugins(&paths.plugins_dir, db.clone(), &store_plugins);
+        let store_account_manager =
+            Self::init_store_accounts(&paths.app_dir, db.clone(), &store_plugins);
 
         let media_scope = Arc::new(MediaScope::new(app.asset_protocol_scope()));
         let cache_dir = paths.app_dir.join(storage::CACHE_DIR);

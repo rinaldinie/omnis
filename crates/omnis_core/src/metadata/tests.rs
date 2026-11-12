@@ -1,4 +1,5 @@
 use super::*;
+use serde_json::{Map, Value};
 
 #[tokio::test]
 async fn test_steam_metadata_download() {

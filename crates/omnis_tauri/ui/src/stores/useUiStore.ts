@@ -1,6 +1,12 @@
 import { create } from "zustand";
-import { ViewMode, GameDto } from "../types";
+import {
+  ViewMode,
+  GameDto,
+  ActiveGameSession,
+  AchievementSyncProgress,
+} from "../types";
 import { SettingsTab } from "../components/settings";
+import type { SessionToastInfo, SyncBannerInfo } from "../components/common/AppToasts";
 import soundEffects from "../utils/soundEffects";
 
 export interface ContextMenuState {
@@ -23,13 +29,29 @@ export interface UiState {
   showResolutionModal: boolean;
   showAddCustomModal: boolean;
   showVirtualKeyboard: boolean;
+  showThemeModal: boolean;
+  showPluginModal: boolean;
+  showBatchEnrichModal: boolean;
+  isPlayniteImportOpen: boolean;
+  showKillConfirmModal: boolean;
+  showUninstallModal: boolean;
 
   // Modal payload targets
   gameToEdit: GameDto | null;
   gameToResolve: GameDto | null;
+  gameToUninstall: GameDto | null;
 
   // Context Menu
   contextMenu: ContextMenuState | null;
+
+  // Runtime status & active session / sync state
+  isSyncing: boolean;
+  statusMessage: string;
+  isGameRunning: boolean;
+  activeGame: ActiveGameSession | null;
+  sessionToast: SessionToastInfo | null;
+  syncBanner: SyncBannerInfo | null;
+  achievementSync: AchievementSyncProgress | null;
 
   // Actions
   setViewMode: (mode: ViewMode) => void;
@@ -49,8 +71,34 @@ export interface UiState {
   closeResolutionModal: () => void;
   setShowAddCustomModal: (show: boolean) => void;
   setShowVirtualKeyboard: (show: boolean) => void;
+  setShowThemeModal: (show: boolean) => void;
+  setShowPluginModal: (show: boolean) => void;
+  setShowBatchEnrichModal: (show: boolean) => void;
+  setIsPlayniteImportOpen: (open: boolean) => void;
+  setShowKillConfirmModal: (show: boolean) => void;
+  setShowUninstallModal: (show: boolean) => void;
+  setGameToUninstall: (game: GameDto | null) => void;
+  openUninstallModal: (game: GameDto) => void;
+  closeUninstallModal: () => void;
   setContextMenu: (menu: ContextMenuState | null) => void;
   closeContextMenu: () => void;
+  setIsSyncing: (isSyncing: boolean) => void;
+  setStatusMessage: (statusMessage: string) => void;
+  setIsGameRunning: (isGameRunning: boolean) => void;
+  setActiveGame: (
+    updater:
+      | ActiveGameSession
+      | null
+      | ((prev: ActiveGameSession | null) => ActiveGameSession | null)
+  ) => void;
+  setSessionToast: (toast: SessionToastInfo | null) => void;
+  setSyncBanner: (banner: SyncBannerInfo | null) => void;
+  setAchievementSync: (
+    updater:
+      | AchievementSyncProgress
+      | null
+      | ((prev: AchievementSyncProgress | null) => AchievementSyncProgress | null)
+  ) => void;
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -70,10 +118,25 @@ export const useUiStore = create<UiState>((set) => ({
   showResolutionModal: false,
   showAddCustomModal: false,
   showVirtualKeyboard: false,
+  showThemeModal: false,
+  showPluginModal: false,
+  showBatchEnrichModal: false,
+  isPlayniteImportOpen: false,
+  showKillConfirmModal: false,
+  showUninstallModal: false,
 
   gameToEdit: null,
   gameToResolve: null,
+  gameToUninstall: null,
   contextMenu: null,
+
+  isSyncing: false,
+  statusMessage: "",
+  isGameRunning: false,
+  activeGame: null,
+  sessionToast: null,
+  syncBanner: null,
+  achievementSync: null,
 
   setViewMode: (viewMode) => set({ viewMode }),
   setIsFullscreen: (isFullscreen) => set({ isFullscreen }),
@@ -85,7 +148,11 @@ export const useUiStore = create<UiState>((set) => ({
   openSettings: (tab = "general") =>
     set({ showSettingsModal: true, settingsInitialTab: tab }),
   closeSettings: () => set({ showSettingsModal: false }),
-  setShowSettingsModal: (showSettingsModal) => set({ showSettingsModal }),
+  setShowSettingsModal: (showSettingsModal) =>
+    set((state) => ({
+      showSettingsModal,
+      settingsInitialTab: showSettingsModal ? state.settingsInitialTab : "general",
+    })),
 
   setShowOnboarding: (showOnboarding) => set({ showOnboarding }),
 
@@ -105,7 +172,33 @@ export const useUiStore = create<UiState>((set) => ({
 
   setShowAddCustomModal: (showAddCustomModal) => set({ showAddCustomModal }),
   setShowVirtualKeyboard: (showVirtualKeyboard) => set({ showVirtualKeyboard }),
+  setShowThemeModal: (showThemeModal) => set({ showThemeModal }),
+  setShowPluginModal: (showPluginModal) => set({ showPluginModal }),
+  setShowBatchEnrichModal: (showBatchEnrichModal) => set({ showBatchEnrichModal }),
+  setIsPlayniteImportOpen: (isPlayniteImportOpen) => set({ isPlayniteImportOpen }),
+  setShowKillConfirmModal: (showKillConfirmModal) => set({ showKillConfirmModal }),
+  setShowUninstallModal: (showUninstallModal) => set({ showUninstallModal }),
+  setGameToUninstall: (gameToUninstall) => set({ gameToUninstall }),
+  openUninstallModal: (game) =>
+    set({ showUninstallModal: true, gameToUninstall: game }),
+  closeUninstallModal: () =>
+    set({ showUninstallModal: false, gameToUninstall: null }),
 
   setContextMenu: (contextMenu) => set({ contextMenu }),
   closeContextMenu: () => set({ contextMenu: null }),
+
+  setIsSyncing: (isSyncing) => set({ isSyncing }),
+  setStatusMessage: (statusMessage) => set({ statusMessage }),
+  setIsGameRunning: (isGameRunning) => set({ isGameRunning }),
+  setActiveGame: (updater) =>
+    set((state) => ({
+      activeGame: typeof updater === "function" ? updater(state.activeGame) : updater,
+    })),
+  setSessionToast: (sessionToast) => set({ sessionToast }),
+  setSyncBanner: (syncBanner) => set({ syncBanner }),
+  setAchievementSync: (updater) =>
+    set((state) => ({
+      achievementSync:
+        typeof updater === "function" ? updater(state.achievementSync) : updater,
+    })),
 }));

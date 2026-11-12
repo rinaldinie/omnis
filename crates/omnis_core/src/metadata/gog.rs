@@ -141,6 +141,7 @@ impl GogCatalogProductDto {
 // GOG Metadata Provider (External / Built-in Plugin)
 // ============================================================================
 
+#[derive(Clone)]
 pub struct GogMetadataProvider {
     client: reqwest::Client,
     plugin_dir: Option<PathBuf>,

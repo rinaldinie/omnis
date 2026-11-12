@@ -7,7 +7,6 @@
 
 use chrono::{DateTime, Utc};
 use omnis_core::{Database, SecretVault};
-use omnis_sdk::models::StoreAccountDto;
 use omnis_sdk::plugin::{CloudStorePlugin, StoreAccountSession};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -15,8 +14,6 @@ use std::sync::{Arc, RwLock};
 use tauri::{AppHandle, Emitter};
 
 use super::oauth::{OAuthLoginService, OAuthSessionHandler};
-use super::session::StoreSessionVault;
-use super::sync::StoreCatalogSyncEngine;
 
 /// Integration settings DTO matching Playnite store configuration options
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -70,52 +67,6 @@ impl StoreAccountManager {
         mgr
     }
 
-    #[inline]
-    pub fn mark_syncing(&self, store_id: &str) -> bool {
-        StoreSessionVault::mark_syncing(self, store_id)
-    }
-
-    #[inline]
-    pub fn unmark_syncing(&self, store_id: &str) {
-        StoreSessionVault::unmark_syncing(self, store_id)
-    }
-
-    #[inline]
-    pub fn is_store_syncing(&self, store_id: &str) -> bool {
-        StoreSessionVault::is_store_syncing(self, store_id)
-    }
-
-    #[inline]
-    pub fn set_api_key(&self, store_id: &str, api_key: &str) -> Result<(), String> {
-        StoreSessionVault::set_api_key(self, store_id, api_key)
-    }
-
-    #[inline]
-    pub fn save_integration_settings(
-        &self,
-        settings: &StoreIntegrationSettingsDto,
-    ) -> Result<(), String> {
-        StoreSessionVault::save_integration_settings(self, settings)
-    }
-
-    #[inline]
-    pub fn get_integration_settings(
-        &self,
-        store_id: &str,
-    ) -> Result<StoreIntegrationSettingsDto, String> {
-        StoreSessionVault::get_integration_settings(self, store_id)
-    }
-
-    #[inline]
-    pub fn is_fallback(&self) -> bool {
-        StoreSessionVault::is_fallback(self)
-    }
-
-    #[inline]
-    pub fn migrate_legacy_keyring(&self) {
-        StoreSessionVault::migrate_legacy_keyring(self)
-    }
-
     pub fn register_plugin(&self, plugin: Arc<dyn CloudStorePlugin>) {
         let mut plugins = self.plugins.write().unwrap();
         plugins.insert(plugin.id().to_string(), plugin);
@@ -129,20 +80,6 @@ impl StoreAccountManager {
     pub fn get_plugin_sync(&self, store_id: &str) -> Option<Arc<dyn CloudStorePlugin>> {
         let plugins = self.plugins.read().unwrap();
         plugins.get(store_id).cloned()
-    }
-
-    #[inline]
-    pub fn save_session(
-        &self,
-        store_id: &str,
-        session: &StoreAccountSession,
-    ) -> Result<(), String> {
-        StoreSessionVault::save_session(self, store_id, session)
-    }
-
-    #[inline]
-    pub fn load_session(&self, store_id: &str) -> Result<Option<StoreAccountSession>, String> {
-        StoreSessionVault::load_session(self, store_id)
     }
 
     /// Loads a store session, automatically renewing the token if expired and a refresh token is present.
@@ -208,44 +145,11 @@ impl StoreAccountManager {
         Ok(new_session)
     }
 
-    #[inline]
-    pub fn delete_session(&self, store_id: &str) -> Result<(), String> {
-        StoreSessionVault::delete_session(self, store_id)
-    }
-
-    #[inline]
-    pub fn disconnect_account(
-        &self,
-        store_id: &str,
-        cleanup_mode: Option<&str>,
-    ) -> Result<usize, String> {
-        StoreSessionVault::disconnect_account(self, store_id, cleanup_mode)
-    }
-
-    #[inline]
-    pub async fn get_store_accounts(&self) -> Result<Vec<StoreAccountDto>, String> {
-        StoreSessionVault::get_store_accounts(self).await
-    }
-
     pub fn start_login(&self, app_handle: &AppHandle, store_id: &str) -> Result<(), String> {
         let plugin = self
             .get_plugin_sync(store_id)
             .ok_or_else(|| format!("Plugin non trovato per lo store {}", store_id))?;
         OAuthLoginService::start_login(app_handle, plugin, store_id, Arc::new(self.clone()))
-    }
-
-    #[inline]
-    pub async fn sync_store(
-        &self,
-        app_handle: &AppHandle,
-        store_id: &str,
-    ) -> Result<usize, String> {
-        StoreCatalogSyncEngine::sync_store(self, app_handle, store_id).await
-    }
-
-    #[inline]
-    pub async fn sync_all_connected(&self, app_handle: &AppHandle) -> Result<usize, String> {
-        StoreCatalogSyncEngine::sync_all_connected(self, app_handle).await
     }
 }
 

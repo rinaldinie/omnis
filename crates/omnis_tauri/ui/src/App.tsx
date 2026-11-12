@@ -83,48 +83,22 @@ export default function App() {
     games,
     counts,
     selectedGame,
-    setGames,
     setSelectedGame,
     loadGames: storeLoadGames,
-    refreshLibrary: storeRefreshLibrary,
+    refreshLibrary,
   } = useLibraryStore();
 
   const {
-    viewMode,
-    setViewMode,
     isFullscreen,
     setIsFullscreen,
-    soundEnabled,
     setSoundEnabled,
-    showSettingsModal,
-    settingsInitialTab,
     openSettings: handleOpenSettings,
-    closeSettings,
     showOnboarding,
     setShowOnboarding,
-    showEditorModal,
-    setShowEditorModal,
-    showResolutionModal,
-    setShowResolutionModal,
-    showAddCustomModal,
-    setShowAddCustomModal,
     showVirtualKeyboard,
     setShowVirtualKeyboard,
-    gameToEdit,
-    setGameToEdit,
-    gameToResolve,
-    setGameToResolve,
-    contextMenu,
     setContextMenu,
   } = useUiStore();
-
-  const setShowSettingsModal = useCallback(
-    (open: boolean) => {
-      if (open) handleOpenSettings();
-      else closeSettings();
-    },
-    [handleOpenSettings, closeSettings]
-  );
 
   // I18N
   const { t } = useTranslation();
@@ -155,109 +129,37 @@ export default function App() {
       onShowOnboarding: () => setShowOnboarding(true),
     });
   }, [storeLoadGames, setShowOnboarding]);
-  const refreshLibrary = storeRefreshLibrary;
-
-  // REFS & DEFERRED INTEGRATION
-  const gamesRef = useRef<GameDto[]>([]);
-  gamesRef.current = games;
-
-  const pluginManagerRef = useRef<any>(null);
-  const handleLaunchRef = useRef<((id: string) => void) | null>(null);
-
-  // TAURI EVENTS & BACKGROUND NOTIFICATIONS HOOK
-  const {
-    isSyncing,
-    setIsSyncing,
-    statusMessage,
-    setStatusMessage,
-    isGameRunning,
-    setIsGameRunning,
-    activeGame,
-    setActiveGame,
-    sessionToast,
-    setSessionToast,
-    syncBanner,
-    setSyncBanner,
-    achievementSync,
-    setAchievementSync,
-    syncBannerTimeoutRef,
-  } = useAppEvents({
-    loadGames,
-    refreshLibrary,
-    loadThemes: async () => {
-      await themeEngineRef.current?.loadThemes();
-    },
-    loadProvidersAndConfig: async () => {
-      await pluginManagerRef.current?.loadProvidersAndConfig();
-    },
-    handleLaunch: (id: string) => {
-      handleLaunchRef.current?.(id);
-    },
-    handleOpenSettings,
-    statusText,
-    setPipelineProgress: (p) => {
-      pluginManagerRef.current?.setPipelineProgress(p);
-    },
-    gamesRef,
-  });
 
   // THEME ENGINE HOOK
-  const themeEngine = useThemeEngine({ setStatusMessage, statusText });
-  const themeEngineRef = useRef(themeEngine);
-  themeEngineRef.current = themeEngine;
-
   const {
     themes,
     currentTheme,
-    showThemeModal,
     setShowThemeModal,
+    loadThemes,
     selectTheme,
     handleSaveCustomTheme,
-  } = themeEngine;
+  } = useThemeEngine({ statusText });
 
   // METADATA PLUGIN & PIPELINE MANAGER HOOK
   const pluginManager = usePluginManager({
-    setStatusMessage,
     statusText,
-    refreshLibrary,
     t,
   });
-  pluginManagerRef.current = pluginManager;
 
   const {
     providers,
-    showPluginModal,
-    setShowPluginModal,
-    showBatchEnrichModal,
-    setShowBatchEnrichModal,
-    isPlayniteImportOpen,
-    setIsPlayniteImportOpen,
     loadProvidersAndConfig,
+    setPipelineProgress,
   } = pluginManager;
 
   // GAME ACTIONS & OPERATIONS HOOK
   const gameOps = useGameOperations({
-    games,
-    setGames,
-    selectedGame,
-    setSelectedGame,
-    refreshLibrary,
-    setStatusMessage,
     statusText,
-    setIsSyncing,
-    setIsGameRunning,
-    setActiveGame,
     t,
   });
 
   const {
     isEnrichingSingle,
-    showKillConfirmModal,
-    setShowKillConfirmModal,
-    gameToUninstall,
-    setGameToUninstall,
-    showUninstallModal,
-    setShowUninstallModal,
     handleSync,
     handleLaunch,
     handleKillRunningGame,
@@ -277,7 +179,27 @@ export default function App() {
     handlePromoteCopy,
   } = gameOps;
 
-  handleLaunchRef.current = handleLaunch;
+  // TAURI EVENTS & BACKGROUND NOTIFICATIONS HOOK
+  const {
+    setIsSyncing,
+    isGameRunning,
+    activeGame,
+    sessionToast,
+    setSessionToast,
+    syncBanner,
+    setSyncBanner,
+    achievementSync,
+    syncBannerTimeoutRef,
+  } = useAppEvents({
+    loadGames,
+    refreshLibrary,
+    loadThemes,
+    loadProvidersAndConfig,
+    handleLaunch,
+    handleOpenSettings,
+    statusText,
+    setPipelineProgress,
+  });
 
   // FULLSCREEN MODE REFS & SIZING
   const carouselRef = useRef<HTMLDivElement>(null);
@@ -608,32 +530,21 @@ export default function App() {
           <FullscreenView
             focusedGame={focusedGame}
             filteredGames={fullscreenGames}
-            allGames={games}
             focusedIndex={focusedIndex}
             setFocusedIndex={setFocusedIndex}
-            setSelectedGame={setSelectedGame}
-            counts={counts}
             activeFilter={activeFilter}
             setActiveFilter={selectFilter}
             cycleFilter={cycleCategory}
             gamepadConnected={gamepadConnected}
-            gamepadName={gamepadName}
             searchQuery={searchQuery}
-            setShowVirtualKeyboard={setShowVirtualKeyboard}
-            soundEnabled={soundEnabled}
             handleToggleSound={handleToggleSound}
             currentTheme={currentTheme}
-            setShowThemeModal={setShowThemeModal}
             loadProvidersAndConfig={loadProvidersAndConfig}
-            setShowPluginModal={setShowPluginModal}
             toggleFullscreen={toggleFullscreen}
             handleMinimize={handleMinimize}
             handleClose={handleExit}
-            handleToggleMaximize={handleToggleMaximize}
-            handleStartDragging={handleStartDragging}
             handleLaunch={handleLaunch}
             handleSync={handleSync}
-            isSyncing={isSyncing}
             showFullscreenDetails={showFullscreenDetails}
             setShowFullscreenDetails={setShowFullscreenDetails}
             carouselRef={carouselRef}
@@ -655,11 +566,7 @@ export default function App() {
               setFocusedIndex(0);
             }}
             t={t}
-            isGameRunning={isGameRunning}
-            activeGame={activeGame}
             handleKillRunningGame={handleKillRunningGame}
-            sessionToast={sessionToast}
-            onDismissToast={() => setSessionToast(null)}
             homeFocusZone={homeFocusZone}
             setHomeFocusZone={setHomeFocusZone}
             isMenuOpen={isMenuOpen}
@@ -672,43 +579,26 @@ export default function App() {
         ) : (
           <DesktopView
             currentTheme={currentTheme}
-            viewMode={viewMode}
-            setViewMode={setViewMode}
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
             toggleFullscreen={toggleFullscreen}
             handleToggleSound={handleToggleSound}
-            soundEnabled={soundEnabled}
-            setShowSettingsModal={setShowSettingsModal}
-            onOpenSettings={handleOpenSettings}
-            setShowThemeModal={setShowThemeModal}
             loadProvidersAndConfig={loadProvidersAndConfig}
-            setShowPluginModal={setShowPluginModal}
             providers={providers}
-            setShowAddCustomModal={setShowAddCustomModal}
-            setShowBatchEnrichModal={setShowBatchEnrichModal}
-            onOpenPlayniteImport={() => setIsPlayniteImportOpen(true)}
             handleSync={handleSync}
-            isSyncing={isSyncing}
             handleMinimize={handleMinimize}
             handleToggleMaximize={handleToggleMaximize}
             handleClose={handleClose}
             handleStartDragging={handleStartDragging}
             t={t}
-            activeGame={activeGame}
             formatDuration={formatDuration}
             handleKillRunningGame={handleKillRunningGame}
-            counts={counts}
             activeFilter={activeFilter}
             setActiveFilter={setActiveFilter}
             isFilterActive={isFilterActive}
             gamepadConnected={gamepadConnected}
             gamepadName={gamepadName}
             handleOpenFolder={handleOpenFolder}
-            handleOpenSettings={handleOpenSettings}
-            isGameRunning={isGameRunning}
-            selectedGame={selectedGame}
-            setSelectedGame={setSelectedGame}
             sortMode={sortMode}
             setSortMode={setSortMode}
             selectedFlags={selectedFlags}
@@ -740,10 +630,6 @@ export default function App() {
             detailsFilteredGames={detailsFilteredGames}
             handleOpenContextMenu={handleOpenContextMenu}
             handleLaunch={handleLaunch}
-            setGameToEdit={setGameToEdit}
-            setShowEditorModal={setShowEditorModal}
-            setGameToResolve={setGameToResolve}
-            setShowResolutionModal={setShowResolutionModal}
             handleEnrichSingleGame={handleEnrichSingleGame}
             handleRefreshHltb={handleRefreshHltb}
             isEnrichingSingle={isEnrichingSingle}
@@ -755,37 +641,18 @@ export default function App() {
             handleToggleHidden={handleToggleHidden}
             handleToggleFavorite={handleToggleFavorite}
             handlePromoteCopy={handlePromoteCopy}
-            statusMessage={statusMessage}
-            achievementSync={achievementSync}
-            totalGamesCount={games.length}
           />
         )}
 
         {/* GLOBAL MODALS */}
         <AppModals
-          showThemeModal={showThemeModal}
-          setShowThemeModal={setShowThemeModal}
           themes={themes}
           currentTheme={currentTheme}
           selectTheme={selectTheme}
           handleSaveCustomTheme={handleSaveCustomTheme}
           handleOpenFolder={handleOpenFolder}
-
-          showPluginModal={showPluginModal}
-          setShowPluginModal={setShowPluginModal}
           pluginManager={pluginManager}
-          games={games}
-          refreshLibrary={refreshLibrary}
-
-          contextMenu={contextMenu}
-          setContextMenu={setContextMenu}
           handleLaunch={handleLaunch}
-          setGameToEdit={setGameToEdit}
-          setShowEditorModal={setShowEditorModal}
-          setGameToResolve={setGameToResolve}
-          setShowResolutionModal={setShowResolutionModal}
-          setSelectedGame={setSelectedGame}
-          setViewMode={setViewMode}
           handleUpdateCompletionStatus={handleUpdateCompletionStatus}
           handleOpenInstallDir={handleOpenInstallDir}
           handleCreateShortcut={handleCreateShortcut}
@@ -795,51 +662,15 @@ export default function App() {
           onToggleHidden={handleToggleHidden}
           onToggleFavorite={handleToggleFavorite}
           onPromoteCopy={handlePromoteCopy}
-
-          showEditorModal={showEditorModal}
-          gameToEdit={gameToEdit}
-          selectedGame={selectedGame}
-          setGames={setGames}
-          setStatusMessage={setStatusMessage}
           statusText={statusText}
-
-          showResolutionModal={showResolutionModal}
-          gameToResolve={gameToResolve}
-
-          showBatchEnrichModal={showBatchEnrichModal}
-          setShowBatchEnrichModal={setShowBatchEnrichModal}
           filteredGames={filteredGames}
-
-          showVirtualKeyboard={showVirtualKeyboard}
-          setShowVirtualKeyboard={setShowVirtualKeyboard}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
           setFocusedIndex={setFocusedIndex}
           fullscreenGamesCount={fullscreenGames.length}
-
-          showAddCustomModal={showAddCustomModal}
-          setShowAddCustomModal={setShowAddCustomModal}
-
-          showUninstallModal={showUninstallModal}
-          setShowUninstallModal={setShowUninstallModal}
-          gameToUninstall={gameToUninstall}
-          setGameToUninstall={setGameToUninstall}
           handleConfirmUninstall={handleConfirmUninstall}
-
-          showSettingsModal={showSettingsModal}
-          setShowSettingsModal={setShowSettingsModal}
-          soundEnabled={soundEnabled}
           handleToggleSound={handleToggleSound}
-          settingsInitialTab={settingsInitialTab}
-
-          isPlayniteImportOpen={isPlayniteImportOpen}
-          setIsPlayniteImportOpen={setIsPlayniteImportOpen}
-
-          showKillConfirmModal={showKillConfirmModal}
-          setShowKillConfirmModal={setShowKillConfirmModal}
-          activeGame={activeGame}
           confirmKillRunningGame={confirmKillRunningGame}
-
           t={t}
         />
 

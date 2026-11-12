@@ -89,4 +89,44 @@ describe("useUiStore", () => {
     setViewMode("details");
     expect(useUiStore.getState().viewMode).toBe("details");
   });
+
+  it("should manage runtime sync status, status messages, and active game session", () => {
+    const {
+      setIsSyncing,
+      setStatusMessage,
+      setIsGameRunning,
+      setActiveGame,
+      openUninstallModal,
+      closeUninstallModal,
+    } = useUiStore.getState();
+
+    setIsSyncing(true);
+    setStatusMessage("Sincronizzazione in corso...");
+    expect(useUiStore.getState().isSyncing).toBe(true);
+    expect(useUiStore.getState().statusMessage).toBe("Sincronizzazione in corso...");
+
+    setIsGameRunning(true);
+    setActiveGame({
+      session_id: "sess-1",
+      game_id: mockGame.id,
+      title: mockGame.title,
+      state: "launching",
+      started_at: "2026-01-01T00:00:00Z",
+      process_detected_at: null,
+    });
+    expect(useUiStore.getState().isGameRunning).toBe(true);
+    expect(useUiStore.getState().activeGame?.state).toBe("launching");
+
+    setActiveGame((prev) => (prev ? { ...prev, state: "running", pid: 4321 } : null));
+    expect(useUiStore.getState().activeGame?.state).toBe("running");
+    expect(useUiStore.getState().activeGame?.pid).toBe(4321);
+
+    openUninstallModal(mockGame);
+    expect(useUiStore.getState().showUninstallModal).toBe(true);
+    expect(useUiStore.getState().gameToUninstall?.id).toBe(mockGame.id);
+
+    closeUninstallModal();
+    expect(useUiStore.getState().showUninstallModal).toBe(false);
+    expect(useUiStore.getState().gameToUninstall).toBeNull();
+  });
 });

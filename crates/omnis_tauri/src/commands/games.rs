@@ -246,9 +246,8 @@ pub async fn detect_stores(
         icon: "steam".to_string(),
     });
 
-    // Epic Games Store: detect via default manifests directory
-    let epic_plugin = EpicLibraryPlugin::new();
-    let epic_detected = epic_plugin.detect_manifests_dir().exists();
+    // Epic Games Store: detect via default manifests directory without allocating HTTP client
+    let epic_detected = EpicLibraryPlugin::default_manifests_dir().exists();
     results.push(StoreDetectionResult {
         id: "epic".to_string(),
         name: "Epic Games Store".to_string(),

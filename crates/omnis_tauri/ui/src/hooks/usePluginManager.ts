@@ -1,23 +1,33 @@
 import { useState, useCallback } from "react";
 import { ProviderInfo, MetadataPipelineConfig } from "../types";
 import { api } from "../api";
+import { useLibraryStore, useUiStore } from "../stores";
 
 export interface UsePluginManagerOptions {
-  setStatusMessage: (msg: string) => void;
+  setStatusMessage?: (msg: string) => void;
   statusText: (key: string, params?: Record<string, any>) => string;
-  refreshLibrary: () => Promise<void>;
+  refreshLibrary?: () => Promise<void>;
   t: (key: string, params?: Record<string, any>) => string;
 }
 
 export function usePluginManager({
-  setStatusMessage,
+  setStatusMessage: propSetStatusMessage,
   statusText,
-  refreshLibrary,
+  refreshLibrary: propRefreshLibrary,
   t,
 }: UsePluginManagerOptions) {
-  const [showPluginModal, setShowPluginModal] = useState<boolean>(false);
-  const [showBatchEnrichModal, setShowBatchEnrichModal] = useState<boolean>(false);
-  const [isPlayniteImportOpen, setIsPlayniteImportOpen] = useState<boolean>(false);
+  const storeSetStatusMessage = useUiStore((s) => s.setStatusMessage);
+  const showPluginModal = useUiStore((s) => s.showPluginModal);
+  const setShowPluginModal = useUiStore((s) => s.setShowPluginModal);
+  const showBatchEnrichModal = useUiStore((s) => s.showBatchEnrichModal);
+  const setShowBatchEnrichModal = useUiStore((s) => s.setShowBatchEnrichModal);
+  const isPlayniteImportOpen = useUiStore((s) => s.isPlayniteImportOpen);
+  const setIsPlayniteImportOpen = useUiStore((s) => s.setIsPlayniteImportOpen);
+  const storeRefreshLibrary = useLibraryStore((s) => s.refreshLibrary);
+
+  const setStatusMessage = propSetStatusMessage ?? storeSetStatusMessage;
+  const refreshLibrary = propRefreshLibrary ?? storeRefreshLibrary;
+
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
   const [pipelineConfig, setPipelineConfig] = useState<MetadataPipelineConfig>({
     cover_source: "steamgriddb",

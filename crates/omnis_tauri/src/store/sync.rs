@@ -1,3 +1,5 @@
+//! Library synchronization from connected cloud store accounts, progress reporting, and catalog batch updates
+
 use chrono::Utc;
 use omnis_sdk::constants::events;
 use omnis_sdk::models::{DiscoveredGame, StoreSyncProgressPayload};
@@ -7,17 +9,14 @@ use tauri::{AppHandle, Emitter};
 
 use super::manager::StoreAccountManager;
 
-/// Handles library synchronization from connected cloud store accounts, progress reporting, and catalog batch updates
-pub struct StoreCatalogSyncEngine;
-
-impl StoreCatalogSyncEngine {
+impl StoreAccountManager {
     /// Synchronize owned game library from a connected cloud store
     pub async fn sync_store(
-        mgr: &StoreAccountManager,
+        &self,
         app_handle: &AppHandle,
         store_id: &str,
     ) -> Result<usize, String> {
-        if !mgr.mark_syncing(store_id) {
+        if !self.mark_syncing(store_id) {
             tracing::info!("Store {} is already synchronizing", store_id);
             return Ok(0);
         }
@@ -27,19 +26,19 @@ impl StoreCatalogSyncEngine {
                 self.0.unmark_syncing(self.1);
             }
         }
-        let _guard = SyncGuard(mgr, store_id);
+        let _guard = SyncGuard(self, store_id);
 
-        let mut session = mgr
+        let mut session = self
             .load_session(store_id)?
             .ok_or_else(|| format!("Nessun account connesso per {}", store_id))?;
 
-        let plugin = mgr
+        let plugin = self
             .get_plugin(store_id)
             .await
             .ok_or_else(|| format!("Plugin non trovato per {}", store_id))?;
 
         // 1. Refresh OAuth session if expired
-        Self::ensure_fresh_session(mgr, app_handle, store_id, plugin.as_ref(), &mut session)
+        self.ensure_fresh_session(app_handle, store_id, plugin.as_ref(), &mut session)
             .await?;
 
         // 2. Report initial sync progress
@@ -64,7 +63,7 @@ impl StoreCatalogSyncEngine {
                     store_id,
                     msg
                 );
-                match mgr.refresh_session(store_id).await {
+                match self.refresh_session(store_id).await {
                     Ok(new_session) => {
                         session = new_session;
                         match plugin.sync_games(&session).await {
@@ -127,7 +126,7 @@ impl StoreCatalogSyncEngine {
             }
         }
 
-        let count = match mgr.db.ingest_discovered_batch(&games) {
+        let count = match self.db.ingest_discovered_batch(&games) {
             Ok(c) => c,
             Err(e) => {
                 let err_msg = format!("Errore salvataggio giochi per {}: {}", plugin.name(), e);
@@ -144,7 +143,7 @@ impl StoreCatalogSyncEngine {
         };
 
         // 6. Update last sync timestamp and emit completion
-        mgr.last_syncs
+        self.last_syncs
             .write()
             .await
             .insert(store_id.to_string(), Utc::now());
@@ -183,15 +182,15 @@ impl StoreCatalogSyncEngine {
 
     /// Synchronize all connected cloud stores sequentially
     pub async fn sync_all_connected(
-        mgr: &StoreAccountManager,
+        &self,
         app_handle: &AppHandle,
     ) -> Result<usize, String> {
-        let accounts = mgr.get_store_accounts().await?;
+        let accounts = self.get_store_accounts().await?;
         let mut total = 0;
 
         for account in accounts {
             if account.is_connected {
-                match Self::sync_store(mgr, app_handle, &account.store_id).await {
+                match self.sync_store(app_handle, &account.store_id).await {
                     Ok(count) => total += count,
                     Err(e) => {
                         tracing::warn!("Sync failed for {}: {}", account.store_id, e);
@@ -205,7 +204,7 @@ impl StoreCatalogSyncEngine {
 
     /// Refreshes OAuth access token if expired, persisting updated session
     async fn ensure_fresh_session(
-        mgr: &StoreAccountManager,
+        &self,
         app_handle: &AppHandle,
         store_id: &str,
         _plugin: &dyn CloudStorePlugin,
@@ -215,7 +214,7 @@ impl StoreCatalogSyncEngine {
             return Ok(());
         }
 
-        match mgr.refresh_session(store_id).await {
+        match self.refresh_session(store_id).await {
             Ok(new_session) => {
                 *session = new_session;
                 Ok(())

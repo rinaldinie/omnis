@@ -74,13 +74,8 @@ impl EpicLibraryPlugin {
         }
     }
 
-    /// Resolve the Epic Games manifests directory
-    /// Defaults to `%PROGRAMDATA%\Epic\EpicGamesLauncher\Data\Manifests` with fallback to `C:\ProgramData\...`
-    pub fn detect_manifests_dir(&self) -> PathBuf {
-        if let Some(ref custom) = self.custom_manifests_path {
-            return custom.clone();
-        }
-
+    /// Default Epic Games Launcher manifests directory (`%PROGRAMDATA%\Epic\EpicGamesLauncher\Data\Manifests`)
+    pub fn default_manifests_dir() -> PathBuf {
         let program_data =
             std::env::var("PROGRAMDATA").unwrap_or_else(|_| "C:\\ProgramData".to_string());
         PathBuf::from(program_data)
@@ -88,6 +83,15 @@ impl EpicLibraryPlugin {
             .join("EpicGamesLauncher")
             .join("Data")
             .join("Manifests")
+    }
+
+    /// Resolve the Epic Games manifests directory
+    /// Defaults to `%PROGRAMDATA%\Epic\EpicGamesLauncher\Data\Manifests` with fallback to `C:\ProgramData\...`
+    pub fn detect_manifests_dir(&self) -> PathBuf {
+        if let Some(ref custom) = self.custom_manifests_path {
+            return custom.clone();
+        }
+        Self::default_manifests_dir()
     }
 }
 
