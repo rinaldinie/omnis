@@ -115,6 +115,103 @@ pub async fn sync_library(
     state.db.count_games().map_err(|e| e.to_string())
 }
 
+/// Library sources the first-run wizard can import from.
+const IMPORTABLE_LIBRARIES: &[&str] = &["steam", "epic", "gog", "xbox", "switch"];
+
+/// Keeps known library ids only, lower-cased and without duplicates, in input order.
+pub(crate) fn normalize_library_ids(ids: &[String]) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for id in ids {
+        let id = id.trim().to_lowercase();
+        if IMPORTABLE_LIBRARIES.contains(&id.as_str()) && !out.contains(&id) {
+            out.push(id);
+        }
+    }
+    out
+}
+
+/// Synchronizes only the given libraries (local scan, plus the store account when one is
+/// connected). Used by the first-run wizard so unticked sources are not imported.
+#[tauri::command]
+pub async fn sync_selected_libraries(
+    library_ids: Vec<String>,
+    app_handle: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<usize, String> {
+    let ids = normalize_library_ids(&library_ids);
+    let connected: Vec<String> = state
+        .store_account_manager
+        .get_store_accounts()
+        .await
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|a| a.is_connected)
+        .map(|a| a.store_id)
+        .collect();
+
+    for id in &ids {
+        state
+            .host
+            .dispatch_event_and_wait(
+                None,
+                PluginEvent::SyncRequested {
+                    library_id: id.clone(),
+                    force_full: false,
+                },
+            )
+            .await;
+        if connected.iter().any(|c| c == id) {
+            if let Err(e) = state
+                .store_account_manager
+                .sync_store(&app_handle, id)
+                .await
+            {
+                tracing::warn!("Cloud sync failed for {}: {}", id, e);
+            }
+        }
+    }
+
+    let _ = state.db.recompute_duplicates();
+    state.db.count_games().map_err(|e| e.to_string())
+}
+
+/// File in the app data folder recording that the first-run wizard was completed or
+/// skipped. Kept next to the library database (not in WebView storage) so every data
+/// folder, portable ones included, has its own first-run state.
+const ONBOARDING_FILE: &str = "onboarding.json";
+
+pub(crate) fn read_onboarding_completed(app_dir: &std::path::Path) -> bool {
+    std::fs::read_to_string(app_dir.join(ONBOARDING_FILE))
+        .ok()
+        .and_then(|c| serde_json::from_str::<serde_json::Value>(&c).ok())
+        .and_then(|v| v.get("completed").and_then(|c| c.as_bool()))
+        .unwrap_or(false)
+}
+
+pub(crate) fn write_onboarding_completed(
+    app_dir: &std::path::Path,
+    completed: bool,
+) -> std::io::Result<()> {
+    std::fs::create_dir_all(app_dir)?;
+    std::fs::write(
+        app_dir.join(ONBOARDING_FILE),
+        serde_json::json!({ "completed": completed }).to_string(),
+    )
+}
+
+#[tauri::command]
+pub async fn get_onboarding_completed(state: State<'_, AppState>) -> Result<bool, String> {
+    Ok(read_onboarding_completed(&state.app_dir))
+}
+
+#[tauri::command]
+pub async fn set_onboarding_completed(
+    completed: bool,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    write_onboarding_completed(&state.app_dir, completed).map_err(|e| e.to_string())
+}
+
 /// Result of a per-store installation detection check, used by the onboarding wizard.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StoreDetectionResult {
@@ -128,7 +225,9 @@ pub struct StoreDetectionResult {
 /// Detect which game stores are installed on the system without performing any import.
 /// Used by the first-launch onboarding wizard to pre-populate the store selection list.
 #[tauri::command]
-pub async fn detect_stores() -> Vec<StoreDetectionResult> {
+pub async fn detect_stores(
+    state: State<'_, AppState>,
+) -> Result<Vec<StoreDetectionResult>, String> {
     let mut results = Vec::new();
 
     // Steam: detect via VDF library folders scan
@@ -191,7 +290,20 @@ pub async fn detect_stores() -> Vec<StoreDetectionResult> {
         icon: "xbox".to_string(),
     });
 
-    results
+    // Nintendo Switch: any supported emulator found (installed, portable or picked by hand)
+    let switch_detected = !omnis_plugin_emulators::EmulatorsPlugin::new()
+        .with_data_dir(emulators_data_dir(&state))
+        .detect_switch_emulators()
+        .is_empty();
+    results.push(StoreDetectionResult {
+        id: omnis_plugin_emulators::SWITCH_LIBRARY_ID.to_string(),
+        name: "Nintendo Switch".to_string(),
+        detected: switch_detected,
+        requires_login: false,
+        icon: "switch".to_string(),
+    });
+
+    Ok(results)
 }
 
 /// Folder owned by Omnis for the emulator integration (settings and extracted icons).
@@ -569,4 +681,40 @@ pub async fn promote_duplicate_copy(
 pub async fn allow_media_file(path: String, state: State<'_, AppState>) -> Result<bool, String> {
     state.media_scope.allow_media_file(&path);
     Ok(true)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn library_ids_are_filtered_lowercased_and_deduplicated() {
+        let ids = vec![
+            "Steam".to_string(),
+            " switch ".to_string(),
+            "steam".to_string(),
+            "amazon".to_string(),
+            "".to_string(),
+            "EPIC".to_string(),
+        ];
+        assert_eq!(normalize_library_ids(&ids), vec!["steam", "switch", "epic"]);
+        assert!(normalize_library_ids(&["all".to_string()]).is_empty());
+    }
+
+    #[test]
+    fn onboarding_flag_lives_in_the_data_folder() {
+        let dir = std::env::temp_dir().join(format!("omnis_onboarding_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+
+        assert!(!read_onboarding_completed(&dir));
+        write_onboarding_completed(&dir, true).unwrap();
+        assert!(read_onboarding_completed(&dir));
+        write_onboarding_completed(&dir, false).unwrap();
+        assert!(!read_onboarding_completed(&dir));
+
+        std::fs::write(dir.join(ONBOARDING_FILE), "not json").unwrap();
+        assert!(!read_onboarding_completed(&dir));
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }

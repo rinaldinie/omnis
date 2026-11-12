@@ -4,6 +4,7 @@ import { api } from "../api";
 import { listenTauri } from "../api/client";
 import soundEffects from "../utils/soundEffects";
 import { shouldAutoScanOnStartup, shouldShowOnboarding } from "../components/modals/OnboardingModal";
+import { loadOnboardingState } from "../components/modals/onboardingState";
 import { loadAchievementsConfig, saveAchievementsConfig } from "../components/achievements";
 import { SessionToastInfo, SyncBannerInfo } from "../components/common/AppToasts";
 
@@ -48,18 +49,23 @@ export function useAppEvents({
   activeGameRef.current = activeGame;
 
   useEffect(() => {
-    refreshLibrary();
+    // The first-run state comes from the backend: load it before the library so an empty
+    // library in a fresh data folder opens the wizard
+    loadOnboardingState().finally(() => {
+      // loadGames (not refreshLibrary) also opens the wizard when the library is empty
+      loadGames();
+
+      // Auto-scan on startup: silently sync library if user opted in and the wizard is done
+      if (shouldAutoScanOnStartup() && !shouldShowOnboarding()) {
+        api.games.syncLibrary()
+          .then(() => refreshLibrary())
+          .catch((err) => {
+            console.warn("Auto-scan on startup failed:", err);
+          });
+      }
+    });
     loadThemes();
     loadProvidersAndConfig();
-
-    // Auto-scan on startup: silently sync library if user opted in and library is not empty
-    if (shouldAutoScanOnStartup() && !shouldShowOnboarding()) {
-      api.games.syncLibrary()
-        .then(() => refreshLibrary())
-        .catch((err) => {
-          console.warn("Auto-scan on startup failed:", err);
-        });
-    }
 
     // Check if a game is already running on mount
     (async () => {
