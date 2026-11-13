@@ -44,7 +44,6 @@ export function usePluginManager({
   >({});
   const [isPipelineEnriching, setIsPipelineEnriching] = useState<boolean>(false);
   const [pipelineProgress, setPipelineProgress] = useState<string | null>(null);
-  const [isRefreshingPlugins, setIsRefreshingPlugins] = useState<boolean>(false);
 
   const loadProvidersAndConfig = useCallback(async () => {
     try {
@@ -99,27 +98,6 @@ export function usePluginManager({
     await loadProvidersAndConfig();
   };
 
-  const handleRefreshPlugins = async () => {
-    setIsRefreshingPlugins(true);
-    setStatusMessage(statusText("plugins_scanning"));
-    try {
-      const updated = await api.metadata.refreshProviders();
-      if (updated) {
-        setProviders(updated);
-        const settingsMap: Record<string, PluginSettingsMap> = {};
-        updated.forEach((p) => {
-          settingsMap[p.id] = { ...(p.settings_values || {}) };
-        });
-        setEditingSettings(settingsMap);
-        setStatusMessage(statusText("plugins_scanned", { count: updated.length }));
-      }
-    } catch (err: unknown) {
-      setStatusMessage(statusText("plugins_scan_error", { error: getErrorMessage(err) }));
-    } finally {
-      setIsRefreshingPlugins(false);
-    }
-  };
-
   const handleSavePipelineConfig = async () => {
     await api.metadata.savePipelineConfig(pipelineConfig);
     setStatusMessage(statusText("pipeline_saved"));
@@ -167,7 +145,6 @@ export function usePluginManager({
     setShowApiKey,
     testStatus,
     setTestStatus,
-    isRefreshingPlugins,
     isPipelineEnriching,
     pipelineProgress,
     setPipelineProgress,
@@ -175,7 +152,6 @@ export function usePluginManager({
     handleSaveProviderSettings,
     handleToggleProvider,
     handleTestConnection,
-    handleRefreshPlugins,
     handleSavePipelineConfig,
     handleRunMassivePipeline,
     handleCancelPipeline,

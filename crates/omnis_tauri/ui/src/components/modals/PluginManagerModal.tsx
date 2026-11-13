@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import {
   Puzzle,
-  RefreshCw,
   Folder,
   Sliders,
   Sparkles,
@@ -44,8 +43,6 @@ interface PluginManagerModalProps {
     string,
     { loading: boolean; success?: boolean; message?: string }
   >;
-  isRefreshingPlugins: boolean;
-  handleRefreshPlugins: () => void;
   handleOpenFolder: (folderType: string) => void;
   handleToggleProvider: (providerId: string, enabled: boolean) => void;
   handleTestConnection: (providerId: string) => void;
@@ -72,8 +69,6 @@ export default function PluginManagerModal({
   showApiKey,
   setShowApiKey,
   testStatus,
-  isRefreshingPlugins,
-  handleRefreshPlugins,
   handleOpenFolder,
   handleToggleProvider,
   handleTestConnection,
@@ -312,27 +307,6 @@ export default function PluginManagerModal({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <ActionTooltip label={t("plugin_manager.scan_title")}>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleRefreshPlugins}
-                disabled={isRefreshingPlugins}
-                className="gap-1.5 px-3 py-1.5 h-auto rounded-lg text-xs font-bold"
-                style={{
-                  color: isRefreshingPlugins ? "var(--accent-primary)" : "var(--text-muted)",
-                }}
-                aria-label={t("plugin_manager.scan_title")}
-              >
-                <RefreshCw
-                  className={`w-3.5 h-3.5 ${
-                    isRefreshingPlugins ? "animate-spin text-cyan-400" : ""
-                  }`}
-                />
-                <span className="hidden sm:inline">{t("plugins_modal.refresh_plugins")}</span>
-              </Button>
-            </ActionTooltip>
             <ActionTooltip label={t("plugin_manager.open_folder_title")}>
               <Button
                 type="button"
