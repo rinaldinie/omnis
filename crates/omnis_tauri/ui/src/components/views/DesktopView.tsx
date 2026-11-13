@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState } from "react";
 import {
   GameDto,
   GroupBy,
@@ -15,6 +15,7 @@ import ListViewTable from "../ListViewTable";
 import StatisticsDashboardView from "./StatisticsDashboardView";
 import EmptyGamesView from "../common/EmptyGamesView";
 import { StatusBar } from "../navigation/StatusBar";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 export interface DesktopViewProps {
   currentTheme: ThemeConfig;
@@ -175,43 +176,12 @@ export const DesktopView: React.FC<DesktopViewProps> = ({
   const [gridCardWidth, setGridCardWidth] = useState<number>(180);
   const [detailsSidebarOpen, setDetailsSidebarOpen] = useState<boolean>(true);
 
-  // Filter Popover
+  // Filter & Group By Popovers (Radix handles click-outside, Escape, and focus)
   const [showFilterMenu, setShowFilterMenu] = useState(false);
-  const filterMenuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (filterMenuRef.current && !filterMenuRef.current.contains(e.target as Node)) {
-        setShowFilterMenu(false);
-      }
-    };
-    if (showFilterMenu) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [showFilterMenu]);
-
-  // Group By Popover
   const [showGroupByMenu, setShowGroupByMenu] = useState(false);
-  const groupByMenuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (groupByMenuRef.current && !groupByMenuRef.current.contains(e.target as Node)) {
-        setShowGroupByMenu(false);
-      }
-    };
-    if (showGroupByMenu) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [showGroupByMenu]);
 
   return (
+    <TooltipProvider delayDuration={300}>
     <div className="flex flex-col h-screen w-screen overflow-hidden">
       {/* TOP NAVIGATION & TITLEBAR */}
       <TopBar
@@ -282,7 +252,6 @@ export const DesktopView: React.FC<DesktopViewProps> = ({
             viewMode={viewMode}
             showFilterMenu={showFilterMenu}
             setShowFilterMenu={setShowFilterMenu}
-            filterMenuRef={filterMenuRef}
             sortMode={sortMode}
             setSortMode={setSortMode}
             selectedFlags={selectedFlags}
@@ -307,7 +276,6 @@ export const DesktopView: React.FC<DesktopViewProps> = ({
             totalGamesCount={totalGamesCount}
             showGroupByMenu={showGroupByMenu}
             setShowGroupByMenu={setShowGroupByMenu}
-            groupByMenuRef={groupByMenuRef}
             groupBy={groupBy}
             setGroupBy={setGroupBy}
             currentGroupLabel={currentGroupLabel}
@@ -442,5 +410,6 @@ export const DesktopView: React.FC<DesktopViewProps> = ({
         t={t}
       />
     </div>
+    </TooltipProvider>
   );
 };

@@ -1,7 +1,10 @@
-import React from 'react';
-import { Search, X, ChevronDown, ChevronRight } from 'lucide-react';
-import { useTranslation } from '../../../i18n/i18nContext';
-import { SettingsTab, TreeGroup } from './settingsTreeConfig';
+import React from "react";
+import { Search, X, ChevronDown, ChevronRight } from "lucide-react";
+import { useTranslation } from "../../../i18n/i18nContext";
+import { SettingsTab, TreeGroup } from "./settingsTreeConfig";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export interface SettingsSidebarProps {
   searchQuery: string;
@@ -22,65 +25,67 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({
   toggleGroup,
   activeTab,
   onSelectTab,
-  currentVersion = '1.0',
+  currentVersion = "1.0",
 }) => {
   const { t } = useTranslation();
 
   return (
-    <div
-      className="w-64 sm:w-72 shrink-0 border-r flex flex-col bg-black/20"
-      style={{ borderColor: 'var(--border-color)' }}
-    >
+    <div className="w-64 sm:w-72 shrink-0 border-r border-border flex flex-col bg-black/20">
       {/* Quick Search Input */}
       <div className="p-3 border-b border-white/5 shrink-0">
-        <div
-          className="relative flex items-center rounded-xl border px-2.5 py-1.5 transition-all focus-within:border-[var(--accent-primary)] focus-within:ring-1 focus-within:ring-[var(--accent-primary)]"
-          style={{
-            backgroundColor: 'var(--bg-card)',
-            borderColor: 'var(--border-color)',
-          }}
-        >
-          <Search className="w-3.5 h-3.5 text-slate-400 shrink-0 mr-2" />
-          <input
+        <div className="relative flex items-center">
+          <Search className="w-3.5 h-3.5 text-slate-400 shrink-0 absolute left-3 pointer-events-none" />
+          <Input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={t('settings_modal.search_placeholder', { defaultValue: 'Search settings...' })}
-            className="w-full bg-transparent text-xs text-white placeholder-slate-500 focus:outline-none"
+            placeholder={t("settings_modal.search_placeholder", {
+              defaultValue: "Search settings...",
+            })}
+            className="h-8 pl-8 pr-7 text-xs bg-card"
           />
           {searchQuery && (
-            <button
+            <Button
               type="button"
-              onClick={() => setSearchQuery('')}
-              className="text-slate-400 hover:text-white p-0.5"
-              title={t('common.clear', { defaultValue: 'Clear' })}
+              variant="ghost"
+              size="icon"
+              onClick={() => setSearchQuery("")}
+              className="absolute right-1 h-6 w-6 text-slate-400 hover:text-white"
+              title={t("common.clear", { defaultValue: "Clear" })}
+              aria-label={t("common.clear", { defaultValue: "Clear" })}
             >
               <X className="w-3 h-3" />
-            </button>
+            </Button>
           )}
         </div>
       </div>
 
       {/* Tree Navigation List */}
-      <div className="flex-1 overflow-y-auto p-2.5 space-y-3 custom-scrollbar">
+      <ScrollArea className="flex-1" viewportClassName="p-2.5 space-y-3">
         {filteredGroups.length === 0 ? (
           <div className="py-8 px-4 text-center">
             <p className="text-xs text-slate-400">
-              {t('settings_modal.no_results', { defaultValue: 'No settings found' })}
+              {t("settings_modal.no_results", {
+                defaultValue: "No settings found",
+              })}
             </p>
-            <button
+            <Button
               type="button"
-              onClick={() => setSearchQuery('')}
-              className="mt-2 text-xs font-semibold hover:underline cursor-pointer"
-              style={{ color: 'var(--accent-primary)' }}
+              variant="link"
+              size="xs"
+              onClick={() => setSearchQuery("")}
+              className="mt-2 font-semibold"
             >
-              {t('settings_modal.reset_filter', { defaultValue: 'Reset filter' })}
-            </button>
+              {t("settings_modal.reset_filter", {
+                defaultValue: "Reset filter",
+              })}
+            </Button>
           </div>
         ) : (
           filteredGroups.map((group) => {
             const isExpanded =
-              searchQuery.trim().length > 0 || expandedGroups[group.id] !== false;
+              searchQuery.trim().length > 0 ||
+              expandedGroups[group.id] !== false;
 
             return (
               <div key={group.id} className="space-y-1">
@@ -91,7 +96,7 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({
                   className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-colors cursor-pointer select-none"
                 >
                   <div className="flex items-center gap-2">
-                    {group.icon('w-3.5 h-3.5 text-slate-400')}
+                    {group.icon("w-3.5 h-3.5 text-slate-400")}
                     <span>{group.label}</span>
                   </div>
                   {isExpanded ? (
@@ -114,24 +119,26 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({
                           onClick={() => onSelectTab(item.id)}
                           className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer select-none text-left ${
                             isSelected
-                              ? 'text-white shadow-sm font-bold'
-                              : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                              ? "text-white shadow-sm font-bold"
+                              : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
                           }`}
                           style={{
                             backgroundColor: isSelected
-                              ? 'var(--accent-primary)'
-                              : 'transparent',
+                              ? "var(--accent-primary)"
+                              : "transparent",
                           }}
                         >
                           <div className="flex items-center gap-2.5 truncate">
                             {item.icon(
                               `w-3.5 h-3.5 shrink-0 ${
-                                isSelected ? 'text-white' : 'text-slate-400'
+                                isSelected ? "text-white" : "text-slate-400"
                               }`
                             )}
                             <span className="truncate">{item.label}</span>
                           </div>
-                          {item.badge && <div className="ml-2 shrink-0">{item.badge}</div>}
+                          {item.badge && (
+                            <div className="ml-2 shrink-0">{item.badge}</div>
+                          )}
                         </button>
                       );
                     })}
@@ -141,13 +148,10 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({
             );
           })
         )}
-      </div>
+      </ScrollArea>
 
       {/* Sidebar Footer info */}
-      <div
-        className="p-3 border-t text-[11px] text-slate-500 flex items-center justify-between bg-black/10 shrink-0"
-        style={{ borderColor: 'var(--border-color)' }}
-      >
+      <div className="p-3 border-t border-border text-[11px] text-slate-500 flex items-center justify-between bg-black/10 shrink-0">
         <span>Omnis Settings Engine</span>
         <span>v{currentVersion}</span>
       </div>

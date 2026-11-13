@@ -12,6 +12,7 @@ import { ManualBackupSection } from './backup/ManualBackupSection';
 import { ScheduleBackupSection } from './backup/ScheduleBackupSection';
 import { RestoreBackupSection } from './backup/RestoreBackupSection';
 import { RestoreConfirmModal } from './backup/RestoreConfirmModal';
+import { Button } from '@/components/ui/button';
 
 export type BackupSubSection = 'manual' | 'schedule' | 'restore' | 'all';
 
@@ -333,14 +334,16 @@ export const BackupSettingsTab: React.FC<BackupSettingsTabProps> = ({
             <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
             <span className="font-semibold">{toastMessage}</span>
           </div>
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="sm"
             onClick={() => setToastMessage(null)}
-            className="text-emerald-300 hover:text-white text-xs font-bold px-2 py-1 rounded cursor-pointer"
+            className="text-emerald-300 hover:text-white h-auto px-2 py-1 text-xs font-bold"
             aria-label={t('common.close', { defaultValue: 'Close notification' })}
           >
             ✕
-          </button>
+          </Button>
         </div>
       )}
 

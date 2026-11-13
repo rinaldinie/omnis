@@ -2,6 +2,7 @@ import React from "react";
 import { Calendar, Star } from "lucide-react";
 import { GameEditorFormData, COMPLETION_STATUSES } from "./types";
 import { useTranslation } from "../../i18n";
+import { Input } from "@/components/ui/input";
 
 interface GeneralTabProps {
   formData: GameEditorFormData;
@@ -17,16 +18,11 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({ formData, onChange }) =>
           <label className="block text-xs font-medium mb-1.5 text-slate-300">
             {t("editor_general.title")} *
           </label>
-          <input
+          <Input
             type="text"
             value={formData.title}
             onChange={(e) => onChange({ title: e.target.value })}
-            className="w-full px-3.5 py-2.5 rounded-xl border text-sm font-normal text-slate-100 placeholder:text-slate-500 outline-none transition-all focus:border-indigo-500"
-            style={{
-              backgroundColor: "var(--bg-card)",
-              borderColor: "var(--border-color)",
-              color: "var(--text-primary)",
-            }}
+            className="h-10 px-3.5 py-2.5"
             placeholder={t("editor_general.title_placeholder")}
           />
         </div>
@@ -35,16 +31,11 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({ formData, onChange }) =>
           <label className="block text-xs font-medium mb-1.5 text-slate-300">
             {t("editor_general.sorting_title")}
           </label>
-          <input
+          <Input
             type="text"
             value={formData.sorting_title}
             onChange={(e) => onChange({ sorting_title: e.target.value })}
-            className="w-full px-3.5 py-2.5 rounded-xl border text-sm font-normal text-slate-100 placeholder:text-slate-500 outline-none transition-all focus:border-indigo-500"
-            style={{
-              backgroundColor: "var(--bg-card)",
-              borderColor: "var(--border-color)",
-              color: "var(--text-primary)",
-            }}
+            className="h-10 px-3.5 py-2.5"
             placeholder={t("editor_general.sorting_title_placeholder")}
           />
         </div>
@@ -55,16 +46,11 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({ formData, onChange }) =>
           <label className="block text-xs font-medium mb-1.5 text-slate-300">
             {t("editor_general.series")}
           </label>
-          <input
+          <Input
             type="text"
             value={formData.series}
             onChange={(e) => onChange({ series: e.target.value })}
-            className="w-full px-3.5 py-2.5 rounded-xl border text-sm font-normal text-slate-100 placeholder:text-slate-500 outline-none transition-all focus:border-indigo-500"
-            style={{
-              backgroundColor: "var(--bg-card)",
-              borderColor: "var(--border-color)",
-              color: "var(--text-primary)",
-            }}
+            className="h-10 px-3.5 py-2.5"
             placeholder={t("editor_general.series_placeholder")}
           />
         </div>
@@ -73,16 +59,11 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({ formData, onChange }) =>
           <label className="block text-xs font-medium mb-1.5 text-slate-300">
             {t("editor_general.age_rating")}
           </label>
-          <input
+          <Input
             type="text"
             value={formData.age_rating}
             onChange={(e) => onChange({ age_rating: e.target.value })}
-            className="w-full px-3.5 py-2.5 rounded-xl border text-sm font-normal text-slate-100 placeholder:text-slate-500 outline-none transition-all focus:border-indigo-500"
-            style={{
-              backgroundColor: "var(--bg-card)",
-              borderColor: "var(--border-color)",
-              color: "var(--text-primary)",
-            }}
+            className="h-10 px-3.5 py-2.5"
             placeholder={t("editor_general.age_rating_placeholder")}
           />
         </div>
@@ -94,12 +75,7 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({ formData, onChange }) =>
           <select
             value={formData.completion_status}
             onChange={(e) => onChange({ completion_status: e.target.value })}
-            className="w-full px-3.5 py-2.5 rounded-xl border text-sm font-normal text-slate-100 outline-none cursor-pointer"
-            style={{
-              backgroundColor: "var(--bg-card)",
-              borderColor: "var(--border-color)",
-              color: "var(--text-primary)",
-            }}
+            className="w-full h-10 px-3.5 py-2.5 rounded-xl border border-input bg-card text-sm font-normal text-foreground outline-none cursor-pointer focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
           >
             {COMPLETION_STATUSES.map((status) => (
               <option key={status.value} value={status.value}>
@@ -116,19 +92,14 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({ formData, onChange }) =>
             {t("editor_general.release_date")}
           </label>
           <div className="relative">
-            <input
+            <Input
               type="text"
               value={formData.release_date}
               onChange={(e) => onChange({ release_date: e.target.value })}
-              className="w-full px-3.5 py-2.5 pl-9 rounded-xl border text-sm font-normal text-slate-100 placeholder:text-slate-500 outline-none"
-              style={{
-                backgroundColor: "var(--bg-card)",
-                borderColor: "var(--border-color)",
-                color: "var(--text-primary)",
-              }}
+              className="h-10 px-3.5 py-2.5 pl-9"
               placeholder={t("editor_general.release_date_placeholder")}
             />
-            <Calendar className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+            <Calendar className="w-4 h-4 absolute left-3 top-3 text-slate-400 pointer-events-none" />
           </div>
         </div>
 
@@ -137,24 +108,21 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({ formData, onChange }) =>
             {t("editor_general.user_score")}
           </label>
           <div className="relative">
-            <input
+            <Input
               type="number"
               min="0"
               max="100"
               value={formData.user_score ?? ""}
               onChange={(e) =>
                 onChange({
-                  user_score: e.target.value === "" ? null : Number(e.target.value),
+                  user_score:
+                    e.target.value === "" ? null : Number(e.target.value),
                 })
               }
-              className="w-full px-3.5 py-2.5 pl-9 rounded-xl border text-sm font-medium text-emerald-400 outline-none"
-              style={{
-                backgroundColor: "var(--bg-card)",
-                borderColor: "var(--border-color)",
-              }}
+              className="h-10 px-3.5 py-2.5 pl-9 font-medium text-emerald-400"
               placeholder={t("editor_general.none")}
             />
-            <Star className="w-4 h-4 absolute left-3 top-3 text-emerald-400" />
+            <Star className="w-4 h-4 absolute left-3 top-3 text-emerald-400 pointer-events-none" />
           </div>
         </div>
 
@@ -162,21 +130,18 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({ formData, onChange }) =>
           <label className="block text-xs font-medium mb-1.5 text-slate-300">
             {t("editor_general.critic_score")}
           </label>
-          <input
+          <Input
             type="number"
             min="0"
             max="100"
             value={formData.critic_score ?? ""}
             onChange={(e) =>
               onChange({
-                critic_score: e.target.value === "" ? null : Number(e.target.value),
+                critic_score:
+                  e.target.value === "" ? null : Number(e.target.value),
               })
             }
-            className="w-full px-3.5 py-2.5 rounded-xl border text-sm font-medium text-amber-300 outline-none"
-            style={{
-              backgroundColor: "var(--bg-card)",
-              borderColor: "var(--border-color)",
-            }}
+            className="h-10 px-3.5 py-2.5 font-medium text-amber-300"
             placeholder={t("editor_general.critic_placeholder")}
           />
         </div>
@@ -185,21 +150,18 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({ formData, onChange }) =>
           <label className="block text-xs font-medium mb-1.5 text-slate-300">
             {t("editor_general.community_score")}
           </label>
-          <input
+          <Input
             type="number"
             min="0"
             max="100"
             value={formData.community_score ?? ""}
             onChange={(e) =>
               onChange({
-                community_score: e.target.value === "" ? null : Number(e.target.value),
+                community_score:
+                  e.target.value === "" ? null : Number(e.target.value),
               })
             }
-            className="w-full px-3.5 py-2.5 rounded-xl border text-sm font-medium text-sky-400 outline-none"
-            style={{
-              backgroundColor: "var(--bg-card)",
-              borderColor: "var(--border-color)",
-            }}
+            className="h-10 px-3.5 py-2.5 font-medium text-sky-400"
             placeholder={t("editor_general.community_placeholder")}
           />
         </div>
@@ -211,16 +173,11 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({ formData, onChange }) =>
           <label className="block text-xs font-medium mb-1.5 text-slate-300">
             {t("editor_general.genres")}
           </label>
-          <input
+          <Input
             type="text"
             value={formData.genresText}
             onChange={(e) => onChange({ genresText: e.target.value })}
-            className="w-full px-3.5 py-2.5 rounded-xl border text-sm font-normal text-slate-100 placeholder:text-slate-500 outline-none"
-            style={{
-              backgroundColor: "var(--bg-card)",
-              borderColor: "var(--border-color)",
-              color: "var(--text-primary)",
-            }}
+            className="h-10 px-3.5 py-2.5"
             placeholder={t("editor_general.genres_placeholder")}
           />
         </div>
@@ -230,16 +187,11 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({ formData, onChange }) =>
             <label className="block text-xs font-medium mb-1.5 text-slate-300">
               {t("editor_general.developers")}
             </label>
-            <input
+            <Input
               type="text"
               value={formData.developersText}
               onChange={(e) => onChange({ developersText: e.target.value })}
-              className="w-full px-3.5 py-2.5 rounded-xl border text-sm font-normal text-slate-100 placeholder:text-slate-500 outline-none"
-              style={{
-                backgroundColor: "var(--bg-card)",
-                borderColor: "var(--border-color)",
-                color: "var(--text-primary)",
-              }}
+              className="h-10 px-3.5 py-2.5"
               placeholder={t("editor_general.company_placeholder")}
             />
           </div>
@@ -248,16 +200,11 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({ formData, onChange }) =>
             <label className="block text-xs font-medium mb-1.5 text-slate-300">
               {t("editor_general.publishers")}
             </label>
-            <input
+            <Input
               type="text"
               value={formData.publishersText}
               onChange={(e) => onChange({ publishersText: e.target.value })}
-              className="w-full px-3.5 py-2.5 rounded-xl border text-sm font-normal text-slate-100 placeholder:text-slate-500 outline-none"
-              style={{
-                backgroundColor: "var(--bg-card)",
-                borderColor: "var(--border-color)",
-                color: "var(--text-primary)",
-              }}
+              className="h-10 px-3.5 py-2.5"
               placeholder={t("editor_general.company_placeholder")}
             />
           </div>
@@ -267,16 +214,11 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({ formData, onChange }) =>
           <label className="block text-xs font-medium mb-1.5 text-slate-300">
             {t("editor_general.tags")}
           </label>
-          <input
+          <Input
             type="text"
             value={formData.tagsText}
             onChange={(e) => onChange({ tagsText: e.target.value })}
-            className="w-full px-3.5 py-2.5 rounded-xl border text-sm font-normal text-slate-100 placeholder:text-slate-500 outline-none"
-            style={{
-              backgroundColor: "var(--bg-card)",
-              borderColor: "var(--border-color)",
-              color: "var(--text-primary)",
-            }}
+            className="h-10 px-3.5 py-2.5"
             placeholder={t("editor_general.tags_placeholder")}
           />
         </div>

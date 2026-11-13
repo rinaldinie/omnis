@@ -12,6 +12,8 @@ import { GameEditorFormData } from "./types";
 import { useTranslation } from "../../i18n";
 import { formatImageUrl } from "../../types";
 import { api } from "../../api";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 interface MediaTabProps {
   formData: GameEditorFormData;
@@ -213,32 +215,24 @@ export const MediaTab: React.FC<MediaTabProps> = ({
               {t("editor_media.path_label")}
             </label>
             <div className="flex gap-2">
-              <input
+              <Input
                 type="text"
                 value={formData.cover_image_path}
                 onChange={(e) => handleTextChange("cover_image_path", e.target.value)}
-                className="flex-1 px-3.5 py-2 rounded-xl border text-xs font-mono outline-none"
-                style={{
-                  backgroundColor: "var(--bg-surface)",
-                  borderColor: "var(--border-color)",
-                  color: "var(--text-primary)",
-                }}
+                className="flex-1 h-9 px-3.5 py-2 bg-popover text-xs font-mono"
                 placeholder={t("editor_media.cover_placeholder")}
               />
-              <button
+              <Button
                 type="button"
+                variant="outline"
+                size="sm"
                 onClick={() => onPickImage("cover_image_path")}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-medium hover:bg-white/10 transition-colors shrink-0"
-                style={{
-                  backgroundColor: "var(--bg-surface)",
-                  borderColor: "var(--border-color)",
-                  color: "var(--text-primary)",
-                }}
+                className="h-9 bg-popover font-medium shrink-0"
                 title={t("editor_media.pick_cover_title")}
               >
                 <FolderOpen className="w-4 h-4 text-indigo-400" />
                 <span>{t("custom_game.browse")}</span>
-              </button>
+              </Button>
             </div>
             <p className="text-[11px] text-slate-400">
               {t("editor_media.path_hint")}
@@ -303,32 +297,24 @@ export const MediaTab: React.FC<MediaTabProps> = ({
           />
 
           <div className="flex gap-2">
-            <input
+            <Input
               type="text"
               value={formData.background_image_path}
               onChange={(e) => handleTextChange("background_image_path", e.target.value)}
-              className="flex-1 px-3.5 py-2 rounded-xl border text-xs font-mono outline-none"
-              style={{
-                backgroundColor: "var(--bg-surface)",
-                borderColor: "var(--border-color)",
-                color: "var(--text-primary)",
-              }}
+              className="flex-1 h-9 px-3.5 py-2 bg-popover text-xs font-mono"
               placeholder={t("editor_media.background_placeholder")}
             />
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={() => onPickImage("background_image_path")}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-medium hover:bg-white/10 transition-colors shrink-0"
-              style={{
-                backgroundColor: "var(--bg-surface)",
-                borderColor: "var(--border-color)",
-                color: "var(--text-primary)",
-              }}
+              className="h-9 bg-popover font-medium shrink-0"
               title={t("editor_media.pick_background_title")}
             >
               <FolderOpen className="w-4 h-4 text-indigo-400" />
               <span>{t("custom_game.browse")}</span>
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -389,32 +375,24 @@ export const MediaTab: React.FC<MediaTabProps> = ({
           />
 
           <div className="flex-1 flex gap-2">
-            <input
+            <Input
               type="text"
               value={formData.icon_image_path}
               onChange={(e) => handleTextChange("icon_image_path", e.target.value)}
-              className="flex-1 px-3.5 py-2 rounded-xl border text-xs font-mono outline-none"
-              style={{
-                backgroundColor: "var(--bg-surface)",
-                borderColor: "var(--border-color)",
-                color: "var(--text-primary)",
-              }}
+              className="flex-1 h-9 px-3.5 py-2 bg-popover text-xs font-mono"
               placeholder={t("editor_media.icon_placeholder")}
             />
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={() => onPickImage("icon_image_path")}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-medium hover:bg-white/10 transition-colors shrink-0"
-              style={{
-                backgroundColor: "var(--bg-surface)",
-                borderColor: "var(--border-color)",
-                color: "var(--text-primary)",
-              }}
+              className="h-9 bg-popover font-medium shrink-0"
               title={t("editor_media.pick_icon_title")}
             >
               <FolderOpen className="w-4 h-4 text-indigo-400" />
               <span>{t("custom_game.browse")}</span>
-            </button>
+            </Button>
           </div>
         </div>
       </div>

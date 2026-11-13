@@ -3,12 +3,14 @@ import { Filter, ChevronDown, X, Layers, ZoomOut, ZoomIn } from "lucide-react";
 import { GroupBy, ViewMode } from "../../types";
 import FilterAndSortPopover from "./FilterAndSortPopover";
 import GroupByPopover from "./GroupByPopover";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export interface CatalogToolbarProps {
   viewMode: ViewMode;
   showFilterMenu: boolean;
   setShowFilterMenu: React.Dispatch<React.SetStateAction<boolean>>;
-  filterMenuRef: React.RefObject<HTMLDivElement>;
   sortMode: any;
   setSortMode: (mode: any) => void;
   selectedFlags: string[];
@@ -33,7 +35,6 @@ export interface CatalogToolbarProps {
   totalGamesCount: number;
   showGroupByMenu: boolean;
   setShowGroupByMenu: React.Dispatch<React.SetStateAction<boolean>>;
-  groupByMenuRef: React.RefObject<HTMLDivElement>;
   groupBy: GroupBy;
   setGroupBy: (mode: GroupBy) => void;
   currentGroupLabel: string;
@@ -46,7 +47,6 @@ export const CatalogToolbar: React.FC<CatalogToolbarProps> = ({
   viewMode,
   showFilterMenu,
   setShowFilterMenu,
-  filterMenuRef,
   sortMode,
   setSortMode,
   selectedFlags,
@@ -71,7 +71,6 @@ export const CatalogToolbar: React.FC<CatalogToolbarProps> = ({
   totalGamesCount,
   showGroupByMenu,
   setShowGroupByMenu,
-  groupByMenuRef,
   groupBy,
   setGroupBy,
   currentGroupLabel,
@@ -80,6 +79,58 @@ export const CatalogToolbar: React.FC<CatalogToolbarProps> = ({
   t,
 }) => {
   if (viewMode === "stats") return null;
+
+  const filterTrigger = (
+    <Button
+      type="button"
+      variant="outline"
+      size="xs"
+      className={`h-7 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 select-none ${
+        totalActiveFilters > 0
+          ? "bg-sky-600/30 border-sky-500 text-sky-200 hover:bg-sky-600/40"
+          : "bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white border-white/[0.08]"
+      }`}
+      title={t("filter_modal.title") || "Filtra e ordina"}
+    >
+      <Filter className="w-3.5 h-3.5 text-sky-400" />
+      <span>{t("filter_modal.title") || "Filtra e ordina"}</span>
+      {totalActiveFilters > 0 && (
+        <Badge className="w-4 h-4 p-0 justify-center bg-sky-500 border-sky-500 text-slate-950 text-[10px] font-black">
+          {totalActiveFilters}
+        </Badge>
+      )}
+      <ChevronDown className="w-3 h-3 text-slate-400" />
+    </Button>
+  );
+
+  const groupByTrigger = (
+    <Button
+      type="button"
+      variant="outline"
+      size="xs"
+      className={`h-7 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 select-none ${
+        groupBy !== "none"
+          ? "bg-sky-600/30 border-sky-500 text-sky-200 hover:bg-sky-600/40"
+          : "bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white border-white/[0.08]"
+      }`}
+      title={t("groups.group_by") || "Raggruppa per"}
+    >
+      <Layers className="w-3.5 h-3.5 text-sky-400" />
+      <span>
+        {t("views.group_by")}:{" "}
+        <strong
+          className={
+            groupBy !== "none"
+              ? "text-white font-bold"
+              : "text-slate-400 font-medium"
+          }
+        >
+          {currentGroupLabel}
+        </strong>
+      </span>
+      <ChevronDown className="w-3 h-3 text-slate-400" />
+    </Button>
+  );
 
   return (
     <div
@@ -91,31 +142,11 @@ export const CatalogToolbar: React.FC<CatalogToolbarProps> = ({
     >
       {/* Left: Filter & Sort Popover and Active Filter Chips */}
       <div className="flex-1 min-w-0 flex items-center gap-2.5 mr-4">
-        {/* Filter & Sort Popover (Epic Games style) */}
-        <div className="relative shrink-0" ref={filterMenuRef}>
-          <button
-            type="button"
-            onClick={() => setShowFilterMenu((v) => !v)}
-            className={`h-7 px-2.5 rounded-lg text-xs font-semibold border flex items-center gap-1.5 transition-all cursor-pointer select-none ${
-              totalActiveFilters > 0
-                ? "bg-sky-600/30 border-sky-500 text-sky-200"
-                : "bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white border-white/[0.08]"
-            }`}
-            title={t("filter_modal.title") || "Filtra e ordina"}
-          >
-            <Filter className="w-3.5 h-3.5 text-sky-400" />
-            <span>{t("filter_modal.title") || "Filtra e ordina"}</span>
-            {totalActiveFilters > 0 && (
-              <span className="w-4 h-4 rounded-full bg-sky-500 text-slate-950 text-[10px] font-black flex items-center justify-center">
-                {totalActiveFilters}
-              </span>
-            )}
-            <ChevronDown className="w-3 h-3 text-slate-400" />
-          </button>
-
+        <div className="relative shrink-0">
           <FilterAndSortPopover
+            trigger={filterTrigger}
             isOpen={showFilterMenu}
-            onClose={() => setShowFilterMenu(false)}
+            onOpenChange={setShowFilterMenu}
             sortMode={sortMode}
             onSortChange={setSortMode}
             selectedFlags={selectedFlags}
@@ -136,7 +167,7 @@ export const CatalogToolbar: React.FC<CatalogToolbarProps> = ({
           />
         </div>
 
-        {/* Active filter chips (horizontally scrollable, cannot push or collide with counter/controls) */}
+        {/* Active filter chips */}
         {activeChips.length > 0 && (
           <div className="flex-1 min-w-0 flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
             {activeChips.map((chip) => (
@@ -157,14 +188,16 @@ export const CatalogToolbar: React.FC<CatalogToolbarProps> = ({
             ))}
 
             {totalActiveFilters > 1 && (
-              <button
+              <Button
                 type="button"
+                variant="link"
+                size="xs"
                 onClick={clearAllFilters}
-                className="text-[11px] font-semibold text-rose-300 hover:text-rose-200 underline transition-colors cursor-pointer shrink-0 ml-1 whitespace-nowrap"
+                className="text-[11px] font-semibold text-rose-300 hover:text-rose-200 underline shrink-0 ml-1 whitespace-nowrap h-auto p-0"
                 title={t("app_misc.clear_filters")}
               >
                 {t("app_misc.clear_all")}
-              </button>
+              </Button>
             )}
           </div>
         )}
@@ -176,12 +209,22 @@ export const CatalogToolbar: React.FC<CatalogToolbarProps> = ({
         <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium shrink-0">
           {totalActiveFilters > 0 || searchQuery.trim().length > 0 ? (
             <>
-              <span className="font-semibold text-sky-400">{filteredGamesCount}</span>
-              <span className="text-slate-500 font-normal">/ {totalGamesCount} {t("sidebar.all_games")?.toLowerCase() || "giochi"}</span>
+              <span className="font-semibold text-sky-400">
+                {filteredGamesCount}
+              </span>
+              <span className="text-slate-500 font-normal">
+                / {totalGamesCount}{" "}
+                {t("sidebar.all_games")?.toLowerCase() || "giochi"}
+              </span>
             </>
           ) : (
             <span>
-              {t(filteredGamesCount === 1 ? "app_status.games_count_one" : "app_status.games_count_other", { count: filteredGamesCount })}
+              {t(
+                filteredGamesCount === 1
+                  ? "app_status.games_count_one"
+                  : "app_status.games_count_other",
+                { count: filteredGamesCount }
+              )}
             </span>
           )}
         </div>
@@ -189,30 +232,11 @@ export const CatalogToolbar: React.FC<CatalogToolbarProps> = ({
         <div className="h-4 w-[1px] bg-white/[0.08] shrink-0" />
 
         {/* Group By Popover */}
-        <div className="relative shrink-0" ref={groupByMenuRef}>
-          <button
-            type="button"
-            onClick={() => setShowGroupByMenu((v) => !v)}
-            className={`h-7 px-2.5 rounded-lg text-xs font-semibold border flex items-center gap-1.5 transition-all cursor-pointer select-none ${
-              groupBy !== "none"
-                ? "bg-sky-600/30 border-sky-500 text-sky-200"
-                : "bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white border-white/[0.08]"
-            }`}
-            title={t("groups.group_by") || "Raggruppa per"}
-          >
-            <Layers className="w-3.5 h-3.5 text-sky-400" />
-            <span>
-              {t("views.group_by")}:{" "}
-              <strong className={groupBy !== "none" ? "text-white font-bold" : "text-slate-400 font-medium"}>
-                {currentGroupLabel}
-              </strong>
-            </span>
-            <ChevronDown className="w-3 h-3 text-slate-400" />
-          </button>
-
+        <div className="relative shrink-0">
           <GroupByPopover
+            trigger={groupByTrigger}
             isOpen={showGroupByMenu}
-            onClose={() => setShowGroupByMenu(false)}
+            onOpenChange={setShowGroupByMenu}
             groupBy={groupBy}
             onSelectGroup={(mode) => setGroupBy(mode)}
           />
@@ -221,14 +245,22 @@ export const CatalogToolbar: React.FC<CatalogToolbarProps> = ({
         {/* Zoom Slider for Grid View */}
         {viewMode === "grid" && (
           <div className="flex items-center gap-2 pl-2 border-l border-white/[0.08]">
-            <button
-              onClick={() => setGridCardWidth((w) => Math.max(140, w - 20))}
-              className="p-1 hover:text-white transition-colors"
-              style={{ color: "var(--text-muted)" }}
-              title={t("tooltips.poster_smaller")}
-            >
-              <ZoomOut className="w-3.5 h-3.5" />
-            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setGridCardWidth((w) => Math.max(140, w - 20))
+                  }
+                  className="p-1 hover:text-white transition-colors cursor-pointer"
+                  style={{ color: "var(--text-muted)" }}
+                  aria-label={t("tooltips.poster_smaller")}
+                >
+                  <ZoomOut className="w-3.5 h-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>{t("tooltips.poster_smaller")}</TooltipContent>
+            </Tooltip>
             <input
               type="range"
               min="140"
@@ -240,14 +272,22 @@ export const CatalogToolbar: React.FC<CatalogToolbarProps> = ({
               style={{ backgroundColor: "var(--bg-card)" }}
               title={t("tooltips.poster_width", { width: gridCardWidth })}
             />
-            <button
-              onClick={() => setGridCardWidth((w) => Math.min(320, w + 20))}
-              className="p-1 hover:text-white transition-colors"
-              style={{ color: "var(--text-muted)" }}
-              title={t("tooltips.poster_larger")}
-            >
-              <ZoomIn className="w-3.5 h-3.5" />
-            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setGridCardWidth((w) => Math.min(320, w + 20))
+                  }
+                  className="p-1 hover:text-white transition-colors cursor-pointer"
+                  style={{ color: "var(--text-muted)" }}
+                  aria-label={t("tooltips.poster_larger")}
+                >
+                  <ZoomIn className="w-3.5 h-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>{t("tooltips.poster_larger")}</TooltipContent>
+            </Tooltip>
             <span
               className="text-[10px] font-mono w-10 text-right"
               style={{ color: "var(--text-muted)" }}

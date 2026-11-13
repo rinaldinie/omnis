@@ -1,4 +1,6 @@
-import React from 'react';
+import React from "react";
+import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
 
 export interface ToggleSwitchProps {
   checked: boolean;
@@ -6,52 +8,28 @@ export interface ToggleSwitchProps {
   disabled?: boolean;
   id?: string;
   ariaLabel?: string;
-  size?: 'sm' | 'md';
+  size?: "sm" | "md";
 }
 
+/** Backwards-compatible wrapper around the Radix-backed Switch primitive. */
 export const ToggleSwitch: React.FC<ToggleSwitchProps> = ({
   checked,
   onChange,
   disabled = false,
   id,
   ariaLabel,
-  size = 'md',
+  size = "md",
 }) => {
-  const isSm = size === 'sm';
-
   return (
-    <button
+    <Switch
       id={id}
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={ariaLabel}
+      checked={checked}
+      onCheckedChange={onChange}
+      onClick={(e) => e.stopPropagation()}
       disabled={disabled}
-      onClick={(e) => {
-        e.stopPropagation();
-        onChange(!checked);
-      }}
-      className={`relative inline-flex items-center shrink-0 cursor-pointer rounded-full p-0.5 transition-colors duration-200 ease-in-out focus:outline-hidden disabled:opacity-40 disabled:cursor-not-allowed ${
-        isSm ? 'h-4 w-7' : 'h-5 w-9'
-      } ${!checked ? 'bg-white/15 hover:bg-white/20' : ''}`}
-      style={
-        checked
-          ? {
-              backgroundColor: 'var(--accent-primary)',
-              boxShadow: '0 0 10px var(--accent-glow)',
-            }
-          : undefined
-      }
-    >
-      <span
-        aria-hidden="true"
-        className={`pointer-events-none inline-block rounded-full bg-white shadow-sm ring-0 transition-transform duration-200 ease-in-out ${
-          isSm
-            ? `h-3 w-3 ${checked ? 'translate-x-3' : 'translate-x-0'}`
-            : `h-4 w-4 ${checked ? 'translate-x-4' : 'translate-x-0'}`
-        }`}
-      />
-    </button>
+      aria-label={ariaLabel}
+      size={size}
+    />
   );
 };
 
@@ -70,7 +48,7 @@ export const SettingGroup: React.FC<SettingGroupProps> = ({
   icon,
   action,
   children,
-  className = '',
+  className = "",
 }) => {
   return (
     <div className={`space-y-2.5 ${className}`}>
@@ -79,12 +57,16 @@ export const SettingGroup: React.FC<SettingGroupProps> = ({
           <div className="space-y-0.5">
             {title && (
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-300">
-                {icon && <span style={{ color: 'var(--accent-primary)' }}>{icon}</span>}
+                {icon && (
+                  <span style={{ color: "var(--accent-primary)" }}>{icon}</span>
+                )}
                 <span>{title}</span>
               </div>
             )}
             {description && (
-              <p className="text-[11px] text-slate-400 leading-relaxed max-w-xl">{description}</p>
+              <p className="text-[11px] text-slate-400 leading-relaxed max-w-xl">
+                {description}
+              </p>
             )}
           </div>
           {action && <div className="shrink-0 ml-3">{action}</div>}
@@ -114,13 +96,13 @@ export const SettingRow: React.FC<SettingRowProps> = ({
   badge,
   children,
   onClick,
-  className = '',
+  className = "",
 }) => {
   return (
     <div
       onClick={onClick}
       className={`flex items-center justify-between p-3.5 transition-colors ${
-        onClick ? 'cursor-pointer hover:bg-white/[0.02]' : ''
+        onClick ? "cursor-pointer hover:bg-white/[0.02]" : ""
       } ${className}`}
     >
       <div className="flex items-center gap-3 min-w-0 pr-4">
@@ -128,8 +110,9 @@ export const SettingRow: React.FC<SettingRowProps> = ({
           <div
             className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border border-white/[0.06]"
             style={{
-              backgroundColor: 'color-mix(in srgb, var(--accent-primary) 10%, transparent)',
-              color: 'var(--accent-primary)',
+              backgroundColor:
+                "color-mix(in srgb, var(--accent-primary) 10%, transparent)",
+              color: "var(--accent-primary)",
             }}
           >
             {icon}
@@ -137,11 +120,15 @@ export const SettingRow: React.FC<SettingRowProps> = ({
         )}
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-slate-100">{title}</span>
+            <span className="text-xs font-semibold text-slate-100">
+              {title}
+            </span>
             {badge}
           </div>
           {description && (
-            <div className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">{description}</div>
+            <div className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
+              {description}
+            </div>
           )}
         </div>
       </div>
@@ -168,26 +155,29 @@ export const SettingRadioOption: React.FC<SettingRadioOptionProps> = ({
   badge,
 }) => {
   return (
-    <button
+    <Button
       type="button"
+      variant="ghost"
       onClick={onSelect}
-      className={`w-full flex items-center justify-between p-3 transition-colors text-left group cursor-pointer ${
-        selected ? 'bg-white/[0.03]' : 'hover:bg-white/[0.015]'
+      className={`w-full h-auto justify-between p-3 rounded-none text-left group ${
+        selected
+          ? "bg-white/[0.03] hover:bg-white/[0.04]"
+          : "hover:bg-white/[0.015]"
       }`}
     >
       <div className="flex items-center gap-3 min-w-0">
         <div
           className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 transition-all ${
             selected
-              ? 'border-[var(--accent-primary)] bg-[var(--accent-primary)]/10'
-              : 'border-slate-500 group-hover:border-slate-400'
+              ? "border-[var(--accent-primary)] bg-[var(--accent-primary)]/10"
+              : "border-slate-500 group-hover:border-slate-400"
           }`}
-          style={selected ? { borderColor: 'var(--accent-primary)' } : undefined}
+          style={selected ? { borderColor: "var(--accent-primary)" } : undefined}
         >
           {selected && (
             <div
               className="w-2 h-2 rounded-full"
-              style={{ backgroundColor: 'var(--accent-primary)' }}
+              style={{ backgroundColor: "var(--accent-primary)" }}
             />
           )}
         </div>
@@ -195,17 +185,21 @@ export const SettingRadioOption: React.FC<SettingRadioOptionProps> = ({
         <div className="min-w-0">
           <span
             className={`text-xs block truncate ${
-              selected ? 'text-white font-semibold' : 'text-slate-300 group-hover:text-white'
+              selected
+                ? "text-white font-semibold"
+                : "text-slate-300 group-hover:text-white"
             }`}
           >
             {title}
           </span>
           {subtitle && (
-            <span className="text-[10px] text-slate-400 block truncate">{subtitle}</span>
+            <span className="text-[10px] text-slate-400 block truncate">
+              {subtitle}
+            </span>
           )}
         </div>
       </div>
       {badge && <div className="shrink-0 ml-2">{badge}</div>}
-    </button>
+    </Button>
   );
 };
