@@ -3,8 +3,7 @@ import { api, TAURI_EVENTS, listenTauri } from '../../../api';
 import { useUpdater } from '../../../hooks/useAppUpdater';
 import { useTranslation } from '../../../i18n';
 import { soundEffects } from '../../../utils/soundEffects';
-import type { StoreAccount } from '../../store_accounts/types';
-import type { ProviderInfo } from '../../../types';
+import type { ProviderInfo, StoreAccount } from '../../../types';
 import {
   SettingsTab,
   TreeGroup,

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Plus, Trash2, FolderOpen, Folder, Terminal } from "lucide-react";
 import { LaunchConfiguration } from "./types";
-import { useTranslation } from "../../i18n";
+import { useTranslation } from "../../../i18n";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ActionTooltip } from "@/components/ui/tooltip";

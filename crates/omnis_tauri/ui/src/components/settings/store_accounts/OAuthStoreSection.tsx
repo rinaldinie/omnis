@@ -1,7 +1,8 @@
 import React from "react";
 import { LogIn, LogOut } from "lucide-react";
 import { useTranslation } from "../../../i18n/i18nContext";
-import { StoreAccount, formatLastSync } from "../../store_accounts/types";
+import type { StoreAccount } from "../../../types";
+import { formatLastSync } from "./helpers";
 import { Button } from "@/components/ui/button";
 
 export interface OAuthStoreSectionProps {

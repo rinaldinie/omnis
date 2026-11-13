@@ -1,7 +1,7 @@
 import React from "react";
 import { Plus, Trash2, ExternalLink, Link as LinkIcon } from "lucide-react";
 import { CustomLink } from "./types";
-import { useTranslation } from "../../i18n";
+import { useTranslation } from "../../../i18n";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ActionTooltip } from "@/components/ui/tooltip";

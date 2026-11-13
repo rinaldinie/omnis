@@ -14,7 +14,7 @@ import {
   BatteryFull,
 } from "lucide-react";
 import { ActiveGameSession, TranslateFn } from "../../types";
-import { StoreIcon } from "../StoreBadge";
+import { StoreIcon } from "../common/StoreBadge";
 import soundEffects from "../../utils/soundEffects";
 import { Glyph } from "./ConsoleChrome";
 import type { HomeFocusZone } from "../../hooks/useGamepadNavigation";

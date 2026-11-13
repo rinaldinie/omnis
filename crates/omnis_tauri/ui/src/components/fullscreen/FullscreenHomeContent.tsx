@@ -1,7 +1,7 @@
 import React from "react";
 import { Search, Play, CheckCircle2, Trophy } from "lucide-react";
 import { GameDto, ActiveGameSession, TranslateFn } from "../../types";
-import { StoreIcon } from "../StoreBadge";
+import { StoreIcon } from "../common/StoreBadge";
 import soundEffects from "../../utils/soundEffects";
 import { Slot } from "../common/Slot";
 import { Glyph } from "./ConsoleChrome";

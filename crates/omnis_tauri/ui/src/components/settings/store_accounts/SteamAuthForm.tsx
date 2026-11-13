@@ -2,7 +2,7 @@ import React from "react";
 import { ExternalLink } from "lucide-react";
 import { openExternalUrl } from "../../../utils/openUrl";
 import { useTranslation } from "../../../i18n/i18nContext";
-import { StoreIntegrationSettings } from "../../store_accounts/types";
+import type { StoreIntegrationSettings } from "../../../types";
 import { Input } from "@/components/ui/input";
 
 export interface SteamAuthFormProps {

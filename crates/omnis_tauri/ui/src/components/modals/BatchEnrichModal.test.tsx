@@ -182,4 +182,23 @@ describe("BatchEnrichModal IPC flow", () => {
       expect(onComplete).toHaveBeenCalledTimes(1);
     });
   });
+
+  it("renders Radix Checkbox controls and toggles game selection", () => {
+    render(
+      <I18nProvider initialLocale="en">
+        <BatchEnrichModal
+          isOpen={true}
+          onClose={vi.fn()}
+          allGames={[games[0]]}
+          filteredGames={[games[0]]}
+          onComplete={vi.fn(async () => {})}
+        />
+      </I18nProvider>
+    );
+
+    const checkbox = screen.getByRole("checkbox", { name: "Hollow Knight" });
+    expect(checkbox.getAttribute("data-state")).toBe("checked");
+    fireEvent.click(checkbox);
+    expect(checkbox.getAttribute("data-state")).toBe("unchecked");
+  });
 });

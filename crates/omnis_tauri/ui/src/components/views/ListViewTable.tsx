@@ -9,10 +9,10 @@ import {
   Download,
   EyeOff,
 } from "lucide-react";
-import { StoreBadge, StoreIcon } from "./StoreBadge";
-import { useTranslation } from "../i18n";
-import { Button } from "./ui/button";
-import { Badge } from "./ui/badge";
+import { StoreBadge, StoreIcon } from "../common/StoreBadge";
+import { useTranslation } from "../../i18n";
+import { Button } from "../ui/button";
+import { Badge } from "../ui/badge";
 import {
   Table,
   TableBody,
@@ -20,8 +20,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "./ui/table";
-import { ActionTooltip } from "./ui/tooltip";
+} from "../ui/table";
+import { ActionTooltip } from "../ui/tooltip";
 
 export interface GameItem {
   id: string;

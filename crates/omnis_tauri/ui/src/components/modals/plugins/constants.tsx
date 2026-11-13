@@ -1,7 +1,7 @@
 import React from "react";
 import { Puzzle, Database, Award, Image } from "lucide-react";
 import { ProviderInfo } from "../../../types";
-import { SteamIcon, EpicIcon, GogIcon, XboxIcon } from "../../StoreBadge";
+import { SteamIcon, EpicIcon, GogIcon, XboxIcon } from "../../common/StoreBadge";
 
 export type PluginCategory = "all" | "libraries" | "metadata" | "generic";
 

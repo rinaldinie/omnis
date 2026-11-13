@@ -17,7 +17,7 @@ import {
   ItchIcon,
   StoreIcon,
   StoreBadge,
-} from "./components/StoreBadge";
+} from "./components/common/StoreBadge";
 import {
   GameDto,
   ViewMode,

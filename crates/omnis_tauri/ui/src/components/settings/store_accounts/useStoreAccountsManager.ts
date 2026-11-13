@@ -2,21 +2,18 @@ import { useState, useEffect, useRef } from "react";
 import soundEffects from "../../../utils/soundEffects";
 import { getErrorMessage } from "../../../utils/errors";
 import { useTranslation } from "../../../i18n/i18nContext";
-import { api, TAURI_EVENTS } from "../../../api";
-import {
+import { api, TAURI_EVENTS, listenTauri } from "../../../api";
+import type {
   StoreAccount,
   StoreSyncProgress,
   StoreIntegrationSettings,
-  DEFAULT_ACCOUNTS,
-  listenTauri,
-} from "../../store_accounts/types";
+  VaultStatus,
+} from "../../../types";
+import { DEFAULT_ACCOUNTS } from "./helpers";
 import { StoreCleanupMode } from "../../modals/DisconnectStoreModal";
 import { STORE_LIST } from "./storeListConfig";
 
-export interface VaultStatus {
-  is_fallback: boolean;
-  warning?: string | null;
-}
+export type { VaultStatus };
 
 export function useStoreAccountsManager(onSyncComplete?: () => void) {
   const { t } = useTranslation();

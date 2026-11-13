@@ -9,9 +9,9 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { GameEditorFormData } from "./types";
-import { useTranslation } from "../../i18n";
-import { formatImageUrl } from "../../types";
-import { api } from "../../api";
+import { useTranslation } from "../../../i18n";
+import { formatImageUrl } from "../../../types";
+import { api } from "../../../api";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ActionTooltip } from "@/components/ui/tooltip";

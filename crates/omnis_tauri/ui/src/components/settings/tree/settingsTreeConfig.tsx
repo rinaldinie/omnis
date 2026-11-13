@@ -24,8 +24,7 @@ import {
 } from 'lucide-react';
 import { STORE_LIST } from '../StoreAccountsTab';
 import { ActionTooltip } from '@/components/ui/tooltip';
-import type { StoreAccount } from '../../store_accounts/types';
-import type { ProviderInfo, TranslateFn } from '../../../types';
+import type { ProviderInfo, StoreAccount, TranslateFn } from '../../../types';
 
 export type SettingsTab =
   | 'general'

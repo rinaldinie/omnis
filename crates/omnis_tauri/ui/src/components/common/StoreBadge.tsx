@@ -1,6 +1,6 @@
 import React from "react";
 import { Gamepad2 } from "lucide-react";
-import { useTranslation } from "../i18n";
+import { useTranslation } from "../../i18n";
 import { ActionTooltip } from "@/components/ui/tooltip";
 
 export function SteamIcon({ className = "w-4 h-4" }: { className?: string }) {

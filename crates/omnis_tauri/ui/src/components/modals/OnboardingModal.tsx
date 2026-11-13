@@ -14,7 +14,7 @@ import {
 import { useTranslation } from "../../i18n";
 import soundEffects from "../../utils/soundEffects";
 import { api, TAURI_EVENTS, listenTauri } from "../../api";
-import { SteamIcon, EpicIcon, GogIcon, XboxIcon, SwitchIcon } from "../StoreBadge";
+import { SteamIcon, EpicIcon, GogIcon, XboxIcon, SwitchIcon } from "../common/StoreBadge";
 import type { SettingsTab } from "../settings";
 import {
   AUTO_SCAN_KEY,

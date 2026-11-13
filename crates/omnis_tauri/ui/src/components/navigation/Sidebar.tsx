@@ -12,7 +12,7 @@ import {
   Settings2,
 } from "lucide-react";
 import { LibraryCounts, ViewMode } from "../../types";
-import { SteamIcon, EpicIcon, GogIcon, XboxIcon, SwitchIcon } from "../StoreBadge";
+import { SteamIcon, EpicIcon, GogIcon, XboxIcon, SwitchIcon } from "../common/StoreBadge";
 import { useTranslation } from "../../i18n";
 import { Button } from "../ui/button";
 import { Progress } from "../ui/progress";

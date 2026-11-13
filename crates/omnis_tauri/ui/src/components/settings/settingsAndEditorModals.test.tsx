@@ -4,7 +4,7 @@ import React from "react";
 import { I18nProvider } from "@/i18n";
 import { ToggleSwitch } from "./SettingsControls";
 import { SettingsModal } from "./SettingsModal";
-import GameEditorModal from "../GameEditorModal";
+import GameEditorModal from "../modals/GameEditorModal";
 import type { GameDto } from "@/types";
 
 const mockGetGame = vi.fn();

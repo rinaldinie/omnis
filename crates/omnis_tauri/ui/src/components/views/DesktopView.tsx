@@ -21,7 +21,7 @@ import { StatusBar } from "../navigation/StatusBar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 const DetailsSplitView = lazy(() => import("./DetailsSplitView"));
-const ListViewTable = lazy(() => import("../ListViewTable"));
+const ListViewTable = lazy(() => import("./ListViewTable"));
 const StatisticsDashboardView = lazy(() => import("./StatisticsDashboardView"));
 
 export interface DesktopViewProps {
