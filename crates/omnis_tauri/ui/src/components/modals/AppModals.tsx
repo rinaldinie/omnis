@@ -1,4 +1,4 @@
-import React from "react";
+import React, { lazy, Suspense } from "react";
 import {
   GameDto,
   ThemeConfig,
@@ -6,19 +6,20 @@ import {
   normalizeGame,
 } from "../../types";
 import { useLibraryStore, useUiStore, ContextMenuState } from "../../stores";
-import ThemeModal from "./ThemeModal";
-import PluginManagerModal from "./PluginManagerModal";
 import GlobalContextMenu from "../GlobalContextMenu";
-import GameEditorModal from "./GameEditorModal";
-import MetadataResolutionModal from "./MetadataResolutionModal";
-import BatchEnrichModal from "./BatchEnrichModal";
 import VirtualKeyboard from "../VirtualKeyboard";
-import CustomGameModal from "./CustomGameModal";
 import { UninstallModal } from "./UninstallModal";
-import { SettingsModal } from "../settings";
-import PlayniteImportModal from "./PlayniteImportModal";
 import { KillGameConfirmModal } from "./KillGameConfirmModal";
 import type { usePluginManager } from "../../hooks/usePluginManager";
+
+const ThemeModal = lazy(() => import("./ThemeModal"));
+const PluginManagerModal = lazy(() => import("./PluginManagerModal"));
+const GameEditorModal = lazy(() => import("./GameEditorModal"));
+const MetadataResolutionModal = lazy(() => import("./MetadataResolutionModal"));
+const BatchEnrichModal = lazy(() => import("./BatchEnrichModal"));
+const CustomGameModal = lazy(() => import("./CustomGameModal"));
+const SettingsModal = lazy(() => import("../settings/SettingsModal"));
+const PlayniteImportModal = lazy(() => import("./PlayniteImportModal"));
 
 export type { ContextMenuState };
 
@@ -155,44 +156,52 @@ export const AppModals: React.FC<AppModalsProps> = ({
   return (
     <>
       {/* THEME MANAGER MODAL */}
-      <ThemeModal
-        isOpen={showThemeModal}
-        onClose={() => setShowThemeModal(false)}
-        themes={themes}
-        currentTheme={currentTheme}
-        onSelectTheme={selectTheme}
-        onSaveCustomTheme={handleSaveCustomTheme}
-        onOpenThemesFolder={() => handleOpenFolder("themes")}
-      />
+      {showThemeModal && (
+        <Suspense fallback={null}>
+          <ThemeModal
+            isOpen={showThemeModal}
+            onClose={() => setShowThemeModal(false)}
+            themes={themes}
+            currentTheme={currentTheme}
+            onSelectTheme={selectTheme}
+            onSaveCustomTheme={handleSaveCustomTheme}
+            onOpenThemesFolder={() => handleOpenFolder("themes")}
+          />
+        </Suspense>
+      )}
 
       {/* METADATA PLUGIN & PIPELINE MODAL */}
-      <PluginManagerModal
-        isOpen={showPluginModal}
-        onClose={() => setShowPluginModal(false)}
-        providers={pluginManager.providers}
-        pipelineConfig={pluginManager.pipelineConfig}
-        setPipelineConfig={pluginManager.setPipelineConfig}
-        editingSettings={pluginManager.editingSettings}
-        setEditingSettings={pluginManager.setEditingSettings}
-        showApiKey={pluginManager.showApiKey}
-        setShowApiKey={pluginManager.setShowApiKey}
-        testStatus={pluginManager.testStatus}
-        isRefreshingPlugins={pluginManager.isRefreshingPlugins}
-        handleRefreshPlugins={pluginManager.handleRefreshPlugins}
-        handleOpenFolder={handleOpenFolder}
-        handleToggleProvider={pluginManager.handleToggleProvider}
-        handleTestConnection={pluginManager.handleTestConnection}
-        handleSaveProviderSettings={pluginManager.handleSaveProviderSettings}
-        handleSavePipelineConfig={pluginManager.handleSavePipelineConfig}
-        gamesCount={games.length}
-        gamesWithCoverCount={games.filter((g) => g.cover_image).length}
-        gamesWithScoreCount={games.filter((g) => g.critic_score).length}
-        pipelineProgress={pluginManager.pipelineProgress}
-        isPipelineEnriching={pluginManager.isPipelineEnriching}
-        handleRunMassivePipeline={pluginManager.handleRunMassivePipeline}
-        handleCancelPipeline={pluginManager.handleCancelPipeline}
-        onPluginInstalled={() => pluginManager.loadProvidersAndConfig()}
-      />
+      {showPluginModal && (
+        <Suspense fallback={null}>
+          <PluginManagerModal
+            isOpen={showPluginModal}
+            onClose={() => setShowPluginModal(false)}
+            providers={pluginManager.providers}
+            pipelineConfig={pluginManager.pipelineConfig}
+            setPipelineConfig={pluginManager.setPipelineConfig}
+            editingSettings={pluginManager.editingSettings}
+            setEditingSettings={pluginManager.setEditingSettings}
+            showApiKey={pluginManager.showApiKey}
+            setShowApiKey={pluginManager.setShowApiKey}
+            testStatus={pluginManager.testStatus}
+            isRefreshingPlugins={pluginManager.isRefreshingPlugins}
+            handleRefreshPlugins={pluginManager.handleRefreshPlugins}
+            handleOpenFolder={handleOpenFolder}
+            handleToggleProvider={pluginManager.handleToggleProvider}
+            handleTestConnection={pluginManager.handleTestConnection}
+            handleSaveProviderSettings={pluginManager.handleSaveProviderSettings}
+            handleSavePipelineConfig={pluginManager.handleSavePipelineConfig}
+            gamesCount={games.length}
+            gamesWithCoverCount={games.filter((g) => g.cover_image).length}
+            gamesWithScoreCount={games.filter((g) => g.critic_score).length}
+            pipelineProgress={pluginManager.pipelineProgress}
+            isPipelineEnriching={pluginManager.isPipelineEnriching}
+            handleRunMassivePipeline={pluginManager.handleRunMassivePipeline}
+            handleCancelPipeline={pluginManager.handleCancelPipeline}
+            onPluginInstalled={() => pluginManager.loadProvidersAndConfig()}
+          />
+        </Suspense>
+      )}
 
       {/* GLOBAL RIGHT-CLICK CONTEXT MENU */}
       <GlobalContextMenu
@@ -223,57 +232,65 @@ export const AppModals: React.FC<AppModalsProps> = ({
       />
 
       {/* METADATA EDITOR MODAL */}
-      {(gameToEdit || selectedGame) && (
-        <GameEditorModal
-          isOpen={showEditorModal}
-          onClose={() => {
-            setShowEditorModal(false);
-            setGameToEdit(null);
-          }}
-          game={(gameToEdit || selectedGame)!}
-          onSave={(updated) => {
-            const normalized = normalizeGame(updated);
-            if (selectedGame && selectedGame.id === normalized.id) {
-              setSelectedGame(normalized);
-            }
-            setGames((prev) => prev.map((g) => (g.id === normalized.id ? normalized : g)));
-            setStatusMessage(statusText("edits_saved", { title: normalized.title }));
-            setShowEditorModal(false);
-            setGameToEdit(null);
-          }}
-        />
+      {showEditorModal && (gameToEdit || selectedGame) && (
+        <Suspense fallback={null}>
+          <GameEditorModal
+            isOpen={showEditorModal}
+            onClose={() => {
+              setShowEditorModal(false);
+              setGameToEdit(null);
+            }}
+            game={(gameToEdit || selectedGame)!}
+            onSave={(updated) => {
+              const normalized = normalizeGame(updated);
+              if (selectedGame && selectedGame.id === normalized.id) {
+                setSelectedGame(normalized);
+              }
+              setGames((prev) => prev.map((g) => (g.id === normalized.id ? normalized : g)));
+              setStatusMessage(statusText("edits_saved", { title: normalized.title }));
+              setShowEditorModal(false);
+              setGameToEdit(null);
+            }}
+          />
+        </Suspense>
       )}
 
       {/* METADATA RESOLUTION MODAL */}
-      {gameToResolve && (
-        <MetadataResolutionModal
-          isOpen={showResolutionModal}
-          onClose={() => {
-            setShowResolutionModal(false);
-            setGameToResolve(null);
-          }}
-          game={gameToResolve}
-          onApply={(updated) => {
-            const normalized = normalizeGame(updated);
-            if (selectedGame && selectedGame.id === normalized.id) {
-              setSelectedGame(normalized);
-            }
-            setGames((prev) => prev.map((g) => (g.id === normalized.id ? normalized : g)));
-            setStatusMessage(statusText("metadata_updated_game", { title: normalized.title }));
-            setShowResolutionModal(false);
-            setGameToResolve(null);
-          }}
-        />
+      {showResolutionModal && gameToResolve && (
+        <Suspense fallback={null}>
+          <MetadataResolutionModal
+            isOpen={showResolutionModal}
+            onClose={() => {
+              setShowResolutionModal(false);
+              setGameToResolve(null);
+            }}
+            game={gameToResolve}
+            onApply={(updated) => {
+              const normalized = normalizeGame(updated);
+              if (selectedGame && selectedGame.id === normalized.id) {
+                setSelectedGame(normalized);
+              }
+              setGames((prev) => prev.map((g) => (g.id === normalized.id ? normalized : g)));
+              setStatusMessage(statusText("metadata_updated_game", { title: normalized.title }));
+              setShowResolutionModal(false);
+              setGameToResolve(null);
+            }}
+          />
+        </Suspense>
       )}
 
       {/* BATCH METADATA ENRICHMENT MODAL */}
-      <BatchEnrichModal
-        isOpen={showBatchEnrichModal}
-        onClose={() => setShowBatchEnrichModal(false)}
-        allGames={games}
-        filteredGames={filteredGames}
-        onComplete={refreshLibrary}
-      />
+      {showBatchEnrichModal && (
+        <Suspense fallback={null}>
+          <BatchEnrichModal
+            isOpen={showBatchEnrichModal}
+            onClose={() => setShowBatchEnrichModal(false)}
+            allGames={games}
+            filteredGames={filteredGames}
+            onComplete={refreshLibrary}
+          />
+        </Suspense>
+      )}
 
       {/* FULLSCREEN VIRTUAL KEYBOARD */}
       <VirtualKeyboard
@@ -294,15 +311,19 @@ export const AppModals: React.FC<AppModalsProps> = ({
       />
 
       {/* CUSTOM GAME IMPORT MODAL */}
-      <CustomGameModal
-        isOpen={showAddCustomModal}
-        onClose={() => setShowAddCustomModal(false)}
-        onSuccess={(title) => {
-          refreshLibrary();
-          setShowAddCustomModal(false);
-          setStatusMessage(statusText("custom_game_added", { title }));
-        }}
-      />
+      {showAddCustomModal && (
+        <Suspense fallback={null}>
+          <CustomGameModal
+            isOpen={showAddCustomModal}
+            onClose={() => setShowAddCustomModal(false)}
+            onSuccess={(title) => {
+              refreshLibrary();
+              setShowAddCustomModal(false);
+              setStatusMessage(statusText("custom_game_added", { title }));
+            }}
+          />
+        </Suspense>
+      )}
 
       {/* UNINSTALL CONFIRMATION MODAL */}
       <UninstallModal
@@ -316,26 +337,34 @@ export const AppModals: React.FC<AppModalsProps> = ({
       />
 
       {/* SETTINGS & OPTIONS MODAL */}
-      <SettingsModal
-        isOpen={showSettingsModal}
-        onClose={() => setShowSettingsModal(false)}
-        soundEnabled={soundEnabled}
-        onToggleSound={handleToggleSound}
-        onOpenThemes={() => setShowThemeModal(true)}
-        currentThemeName={currentTheme.name}
-        initialTab={settingsInitialTab}
-        onSyncComplete={refreshLibrary}
-        onOpenPlayniteImport={() => setIsPlayniteImportOpen(true)}
-      />
+      {showSettingsModal && (
+        <Suspense fallback={null}>
+          <SettingsModal
+            isOpen={showSettingsModal}
+            onClose={() => setShowSettingsModal(false)}
+            soundEnabled={soundEnabled}
+            onToggleSound={handleToggleSound}
+            onOpenThemes={() => setShowThemeModal(true)}
+            currentThemeName={currentTheme.name}
+            initialTab={settingsInitialTab}
+            onSyncComplete={refreshLibrary}
+            onOpenPlayniteImport={() => setIsPlayniteImportOpen(true)}
+          />
+        </Suspense>
+      )}
 
       {/* PLAYNITE BACKUP IMPORT MODAL */}
-      <PlayniteImportModal
-        isOpen={isPlayniteImportOpen}
-        onClose={() => setIsPlayniteImportOpen(false)}
-        onSuccess={() => {
-          refreshLibrary();
-        }}
-      />
+      {isPlayniteImportOpen && (
+        <Suspense fallback={null}>
+          <PlayniteImportModal
+            isOpen={isPlayniteImportOpen}
+            onClose={() => setIsPlayniteImportOpen(false)}
+            onSuccess={() => {
+              refreshLibrary();
+            }}
+          />
+        </Suspense>
+      )}
 
       {/* KILL RUNNING GAME CONFIRMATION MODAL */}
       <KillGameConfirmModal

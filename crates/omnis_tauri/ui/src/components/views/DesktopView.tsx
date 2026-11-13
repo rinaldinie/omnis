@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, lazy, Suspense } from "react";
 import {
   GameDto,
   GroupBy,
@@ -15,13 +15,14 @@ import Sidebar from "../navigation/Sidebar";
 import VideoBackdrop from "../common/VideoBackdrop";
 import { CatalogToolbar } from "../navigation/CatalogToolbar";
 import GridView from "./GridView";
-import DetailsSplitView from "./DetailsSplitView";
-import ListViewTable from "../ListViewTable";
-import StatisticsDashboardView from "./StatisticsDashboardView";
 import EmptyGamesView from "../common/EmptyGamesView";
 import { ErrorBoundary } from "../common/ErrorBoundary";
 import { StatusBar } from "../navigation/StatusBar";
 import { TooltipProvider } from "@/components/ui/tooltip";
+
+const DetailsSplitView = lazy(() => import("./DetailsSplitView"));
+const ListViewTable = lazy(() => import("../ListViewTable"));
+const StatisticsDashboardView = lazy(() => import("./StatisticsDashboardView"));
 
 export interface DesktopViewProps {
   currentTheme: ThemeConfig;
@@ -331,88 +332,94 @@ export const DesktopView: React.FC<DesktopViewProps> = ({
             />
           )}
 
-          {/* VIEW 2: DETAILS SPLIT-PANEL VIEW */}
-          {viewMode === "details" && (
-            filteredGames.length === 0 ? (
-              <EmptyGamesView
-                onClearFilters={clearAllFilters}
-                hasActiveFilters={totalActiveFilters > 0 || searchQuery.trim() !== ""}
-              />
-            ) : selectedGame ? (
-              <DetailsSplitView
-                currentTheme={currentTheme}
-                selectedGame={selectedGame}
-                setSelectedGame={setSelectedGame}
-                detailsSidebarOpen={detailsSidebarOpen}
-                setDetailsSidebarOpen={setDetailsSidebarOpen}
-                detailsSearchQuery={detailsSearchQuery}
-                setDetailsSearchQuery={setDetailsSearchQuery}
-                detailsFilteredGames={detailsFilteredGames}
-                setViewMode={setViewMode}
-                handleOpenContextMenu={handleOpenContextMenu}
-                handleLaunch={handleLaunch}
-                handleEnrichSingleGame={handleEnrichSingleGame}
-                handleRefreshHltb={handleRefreshHltb}
-                isEnrichingSingle={isEnrichingSingle}
-                setGameToEdit={setGameToEdit}
-                setShowEditorModal={setShowEditorModal}
-                setGameToResolve={setGameToResolve}
-                setShowResolutionModal={setShowResolutionModal}
-                t={t}
-                isGameRunning={isGameRunning}
-                activeGame={activeGame}
-                formatDuration={formatDuration}
-                handleKillRunningGame={handleKillRunningGame}
-                activeFilter={activeFilter}
-                setActiveFilter={setActiveFilter}
-                isFilterActive={isFilterActive}
-                handleOpenInstallDir={handleOpenInstallDir}
-                handleCreateShortcut={handleCreateShortcut}
-                handleVerifyFiles={handleVerifyFiles}
-                handleOpenUninstallModal={handleOpenUninstallModal}
-                handleRemoveFromLibrary={handleRemoveFromLibrary}
-                handlePromoteCopy={handlePromoteCopy}
-                handleToggleHidden={handleToggleHidden}
-                handleToggleFavorite={handleToggleFavorite}
-              />
-            ) : (
-              <EmptyGamesView
-                onClearFilters={clearAllFilters}
-                hasActiveFilters={totalActiveFilters > 0 || searchQuery.trim() !== ""}
-              />
-            )
-          )}
+            {/* VIEW 2: DETAILS SPLIT-PANEL VIEW */}
+            {viewMode === "details" && (
+              filteredGames.length === 0 ? (
+                <EmptyGamesView
+                  onClearFilters={clearAllFilters}
+                  hasActiveFilters={totalActiveFilters > 0 || searchQuery.trim() !== ""}
+                />
+              ) : selectedGame ? (
+                <Suspense fallback={<div className="flex-1 min-h-0" />}>
+                  <DetailsSplitView
+                    currentTheme={currentTheme}
+                    selectedGame={selectedGame}
+                    setSelectedGame={setSelectedGame}
+                    detailsSidebarOpen={detailsSidebarOpen}
+                    setDetailsSidebarOpen={setDetailsSidebarOpen}
+                    detailsSearchQuery={detailsSearchQuery}
+                    setDetailsSearchQuery={setDetailsSearchQuery}
+                    detailsFilteredGames={detailsFilteredGames}
+                    setViewMode={setViewMode}
+                    handleOpenContextMenu={handleOpenContextMenu}
+                    handleLaunch={handleLaunch}
+                    handleEnrichSingleGame={handleEnrichSingleGame}
+                    handleRefreshHltb={handleRefreshHltb}
+                    isEnrichingSingle={isEnrichingSingle}
+                    setGameToEdit={setGameToEdit}
+                    setShowEditorModal={setShowEditorModal}
+                    setGameToResolve={setGameToResolve}
+                    setShowResolutionModal={setShowResolutionModal}
+                    t={t}
+                    isGameRunning={isGameRunning}
+                    activeGame={activeGame}
+                    formatDuration={formatDuration}
+                    handleKillRunningGame={handleKillRunningGame}
+                    activeFilter={activeFilter}
+                    setActiveFilter={setActiveFilter}
+                    isFilterActive={isFilterActive}
+                    handleOpenInstallDir={handleOpenInstallDir}
+                    handleCreateShortcut={handleCreateShortcut}
+                    handleVerifyFiles={handleVerifyFiles}
+                    handleOpenUninstallModal={handleOpenUninstallModal}
+                    handleRemoveFromLibrary={handleRemoveFromLibrary}
+                    handlePromoteCopy={handlePromoteCopy}
+                    handleToggleHidden={handleToggleHidden}
+                    handleToggleFavorite={handleToggleFavorite}
+                  />
+                </Suspense>
+              ) : (
+                <EmptyGamesView
+                  onClearFilters={clearAllFilters}
+                  hasActiveFilters={totalActiveFilters > 0 || searchQuery.trim() !== ""}
+                />
+              )
+            )}
 
-          {/* VIEW 3: COMPACT DATA TABLE VIEW */}
-          {viewMode === "list" && (
-            <ListViewTable
-              games={filteredGames}
-              selectedGameId={selectedGame?.id || null}
-              onSelectGame={(g) => setSelectedGame(g)}
-              onOpenDetails={(g) => {
-                setSelectedGame(g);
-                setViewMode("details");
-              }}
-              onLaunchGame={handleLaunch}
-              onEditGame={(g) => {
-                setGameToEdit(g);
-                setShowEditorModal(true);
-              }}
-              onContextMenu={handleOpenContextMenu}
-            />
-          )}
+            {/* VIEW 3: COMPACT DATA TABLE VIEW */}
+            {viewMode === "list" && (
+              <Suspense fallback={<div className="flex-1 min-h-0" />}>
+                <ListViewTable
+                  games={filteredGames}
+                  selectedGameId={selectedGame?.id || null}
+                  onSelectGame={(g) => setSelectedGame(g)}
+                  onOpenDetails={(g) => {
+                    setSelectedGame(g);
+                    setViewMode("details");
+                  }}
+                  onLaunchGame={handleLaunch}
+                  onEditGame={(g) => {
+                    setGameToEdit(g);
+                    setShowEditorModal(true);
+                  }}
+                  onContextMenu={handleOpenContextMenu}
+                />
+              </Suspense>
+            )}
 
-          {/* VIEW 4: DETAILED STATS DASHBOARD */}
-          {viewMode === "stats" && (
-            <StatisticsDashboardView
-              onSelectGame={(gameId) => {
-                const target = filteredGames.find((g) => g.id === gameId);
-                if (target) {
-                  setSelectedGame(target);
-                  setViewMode("details");
-                }
-              }}
-            />
+            {/* VIEW 4: DETAILED STATS DASHBOARD */}
+            {viewMode === "stats" && (
+              <Suspense fallback={<div className="flex-1 min-h-0" />}>
+                <StatisticsDashboardView
+                  onSelectGame={(gameId) => {
+                    const target = filteredGames.find((g) => g.id === gameId);
+                    if (target) {
+                      setSelectedGame(target);
+                      setViewMode("details");
+                    }
+                  }}
+                />
+              </Suspense>
             )}
           </ErrorBoundary>
         </main>

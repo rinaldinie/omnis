@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { SettingsTab } from "./components/settings";
+import React, { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from "react";
+import type { SettingsTab } from "./components/settings";
+import { listen } from "@tauri-apps/api/event";
 import { api } from "./api";
 import { useTranslation } from "./i18n";
 import soundEffects from "./utils/soundEffects";
@@ -32,14 +33,16 @@ import { useLibraryFilters } from "./hooks/useLibraryFilters";
 import { useGamepadNavigation, ControllerType } from "./hooks/useGamepadNavigation";
 import { ActiveGameTimerProvider } from "./context/ActiveGameTimerContext";
 import { useAppUpdater, UpdaterContext } from "./hooks/useAppUpdater";
-import FullscreenView from "./components/views/FullscreenView";
 import { DesktopView } from "./components/views/DesktopView";
 import {
   ControllerTypeContext,
   InputPromptContext,
   ControllerStyleSetting,
 } from "./components/fullscreen/ConsoleChrome";
-import OnboardingModal, { shouldShowOnboarding } from "./components/modals/OnboardingModal";
+import { shouldShowOnboarding } from "./components/modals/onboardingState";
+
+const FullscreenView = lazy(() => import("./components/views/FullscreenView"));
+const OnboardingModal = lazy(() => import("./components/modals/OnboardingModal"));
 import { ErrorBoundary } from "./components/common/ErrorBoundary";
 import { AppToasts, SessionToastInfo, SyncBannerInfo } from "./components/common/AppToasts";
 import { AppModals } from "./components/modals/AppModals";
@@ -237,21 +240,27 @@ export default function App() {
     };
     checkFullscreenLaunch();
 
+    let mounted = true;
     let unlistenEvent: (() => void) | undefined;
-    import("@tauri-apps/api/event").then(({ listen }) => {
-      listen<boolean>(TAURI_EVENTS.APP_SET_FULLSCREEN, async (event) => {
-        const shouldBeFs = event.payload ?? true;
-        setIsFullscreen(shouldBeFs);
-        if (shouldBeFs) {
-          fullscreenNavCallbacksRef.current.setFocusedIndex(0);
-          fullscreenNavCallbacksRef.current.setShowFullscreenDetails(false);
+    listen<boolean>(TAURI_EVENTS.APP_SET_FULLSCREEN, async (event) => {
+      const shouldBeFs = event.payload ?? true;
+      setIsFullscreen(shouldBeFs);
+      if (shouldBeFs) {
+        fullscreenNavCallbacksRef.current.setFocusedIndex(0);
+        fullscreenNavCallbacksRef.current.setShowFullscreenDetails(false);
+      }
+    })
+      .then((fn) => {
+        if (mounted) {
+          unlistenEvent = fn;
+        } else {
+          fn();
         }
-      }).then((fn) => {
-        unlistenEvent = fn;
-      });
-    }).catch(() => {});
+      })
+      .catch(() => {});
 
     return () => {
+      mounted = false;
       if (unlistenEvent) unlistenEvent();
     };
   }, [setIsFullscreen]);
@@ -524,16 +533,18 @@ export default function App() {
           className="fixed bottom-4 left-4 right-4 z-[400] max-w-xl mx-auto shadow-xl"
           onReset={() => setShowOnboarding(false)}
         >
-          <OnboardingModal
-            onComplete={() => {
-              setShowOnboarding(false);
-              refreshLibrary();
-            }}
-            onSkip={() => setShowOnboarding(false)}
-            onLibraryImported={refreshLibrary}
-            onStartMetadataDownload={gameOps.handleDownloadAll}
-            onOpenSettings={handleOpenSettings}
-          />
+          <Suspense fallback={null}>
+            <OnboardingModal
+              onComplete={() => {
+                setShowOnboarding(false);
+                refreshLibrary();
+              }}
+              onSkip={() => setShowOnboarding(false)}
+              onLibraryImported={refreshLibrary}
+              onStartMetadataDownload={gameOps.handleDownloadAll}
+              onOpenSettings={handleOpenSettings}
+            />
+          </Suspense>
         </ErrorBoundary>
       )}
 
@@ -556,55 +567,64 @@ export default function App() {
               },
             }}
           >
-            <FullscreenView
-            focusedGame={focusedGame}
-            filteredGames={fullscreenGames}
-            focusedIndex={focusedIndex}
-            setFocusedIndex={setFocusedIndex}
-            activeFilter={activeFilter}
-            setActiveFilter={selectFilter}
-            cycleFilter={cycleCategory}
-            gamepadConnected={gamepadConnected}
-            searchQuery={searchQuery}
-            handleToggleSound={handleToggleSound}
-            currentTheme={currentTheme}
-            loadProvidersAndConfig={loadProvidersAndConfig}
-            toggleFullscreen={toggleFullscreen}
-            handleMinimize={handleMinimize}
-            handleClose={handleExit}
-            handleLaunch={handleLaunch}
-            handleSync={handleSync}
-            showFullscreenDetails={showFullscreenDetails}
-            setShowFullscreenDetails={setShowFullscreenDetails}
-            carouselRef={carouselRef}
-            onGridColumnsChange={setFullscreenGridColumns}
-            onRecentRowChange={setFullscreenHasRecentRow}
-            onGameAction={(action, gameId) => {
-              if (action === "folder") handleOpenInstallDir(gameId);
-              else if (action === "verify") handleVerifyFiles(gameId);
-              else if (action === "shortcut") handleCreateShortcut(gameId);
-              else if (action === "uninstall") handleConfirmUninstall(gameId);
-            }}
-            sortMode={sortMode}
-            onSortModeChange={(mode) => {
-              setSortMode(mode);
-              setFocusedIndex(0);
-            }}
-            onClearSearch={() => {
-              setSearchQuery("");
-              setFocusedIndex(0);
-            }}
-            t={t}
-            handleKillRunningGame={handleKillRunningGame}
-            homeFocusZone={homeFocusZone}
-            setHomeFocusZone={setHomeFocusZone}
-            isMenuOpen={isMenuOpen}
-            setIsMenuOpen={setIsMenuOpen}
-            consolePage={consolePage}
-            setConsolePage={setConsolePage}
-            themes={themes}
-            onSelectTheme={selectTheme}
-          />
+            <Suspense
+              fallback={
+                <div
+                  className="h-screen w-screen"
+                  style={{ backgroundColor: "var(--bg-base)" }}
+                />
+              }
+            >
+              <FullscreenView
+                focusedGame={focusedGame}
+                filteredGames={fullscreenGames}
+                focusedIndex={focusedIndex}
+                setFocusedIndex={setFocusedIndex}
+                activeFilter={activeFilter}
+                setActiveFilter={selectFilter}
+                cycleFilter={cycleCategory}
+                gamepadConnected={gamepadConnected}
+                searchQuery={searchQuery}
+                handleToggleSound={handleToggleSound}
+                currentTheme={currentTheme}
+                loadProvidersAndConfig={loadProvidersAndConfig}
+                toggleFullscreen={toggleFullscreen}
+                handleMinimize={handleMinimize}
+                handleClose={handleExit}
+                handleLaunch={handleLaunch}
+                handleSync={handleSync}
+                showFullscreenDetails={showFullscreenDetails}
+                setShowFullscreenDetails={setShowFullscreenDetails}
+                carouselRef={carouselRef}
+                onGridColumnsChange={setFullscreenGridColumns}
+                onRecentRowChange={setFullscreenHasRecentRow}
+                onGameAction={(action, gameId) => {
+                  if (action === "folder") handleOpenInstallDir(gameId);
+                  else if (action === "verify") handleVerifyFiles(gameId);
+                  else if (action === "shortcut") handleCreateShortcut(gameId);
+                  else if (action === "uninstall") handleConfirmUninstall(gameId);
+                }}
+                sortMode={sortMode}
+                onSortModeChange={(mode) => {
+                  setSortMode(mode);
+                  setFocusedIndex(0);
+                }}
+                onClearSearch={() => {
+                  setSearchQuery("");
+                  setFocusedIndex(0);
+                }}
+                t={t}
+                handleKillRunningGame={handleKillRunningGame}
+                homeFocusZone={homeFocusZone}
+                setHomeFocusZone={setHomeFocusZone}
+                isMenuOpen={isMenuOpen}
+                setIsMenuOpen={setIsMenuOpen}
+                consolePage={consolePage}
+                setConsolePage={setConsolePage}
+                themes={themes}
+                onSelectTheme={selectTheme}
+              />
+            </Suspense>
           </ErrorBoundary>
         ) : (
           <ErrorBoundary
