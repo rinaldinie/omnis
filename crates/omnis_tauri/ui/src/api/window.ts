@@ -30,6 +30,15 @@ export const windowApi = {
   /** Terminate application process unconditionally */
   exitApp: (): Promise<void> => invokeIpc<void>("exit_app"),
 
+  /** Suspend/sleep the host system */
+  systemSleep: (): Promise<void> => invokeIpc<void>("system_sleep"),
+
+  /** Shutdown/power off the host system */
+  systemShutdown: (): Promise<void> => invokeIpc<void>("system_shutdown"),
+
+  /** Restart/reboot the host system */
+  systemRestart: (): Promise<void> => invokeIpc<void>("system_restart"),
+
   /** Open system folder (cache, logs, covers, etc.) */
   openFolder: (folderType: string): Promise<void> =>
     invokeIpc<void>("open_folder", { folderType }),

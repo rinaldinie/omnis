@@ -142,6 +142,124 @@ pub fn exit_app(app_handle: tauri::AppHandle) {
 }
 
 #[tauri::command]
+pub async fn system_sleep() -> Result<(), String> {
+    tokio::task::spawn_blocking(|| {
+        #[cfg(windows)]
+        {
+            #[link(name = "powrprof")]
+            extern "system" {
+                fn SetSuspendState(
+                    b_hibernate: u8,
+                    b_force: u8,
+                    b_wakeup_events_disabled: u8,
+                ) -> u8;
+            }
+            let res = unsafe { SetSuspendState(0, 0, 0) };
+            if res != 0 {
+                Ok(())
+            } else {
+                let _ = std::process::Command::new("rundll32.exe")
+                    .args(["powrprof.dll,SetSuspendState", "0,1,0"])
+                    .spawn();
+                Ok(())
+            }
+        }
+        #[cfg(target_os = "macos")]
+        {
+            std::process::Command::new("pmset")
+                .arg("sleepnow")
+                .spawn()
+                .map_err(|e| e.to_string())?;
+            Ok(())
+        }
+        #[cfg(all(not(windows), not(target_os = "macos")))]
+        {
+            let res = std::process::Command::new("systemctl")
+                .arg("suspend")
+                .spawn();
+            if res.is_err() {
+                let _ = std::process::Command::new("loginctl")
+                    .arg("suspend")
+                    .spawn();
+            }
+            Ok(())
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn system_shutdown() -> Result<(), String> {
+    tokio::task::spawn_blocking(|| {
+        #[cfg(windows)]
+        {
+            std::process::Command::new("shutdown.exe")
+                .args(["/s", "/t", "0"])
+                .spawn()
+                .map_err(|e| e.to_string())?;
+            Ok(())
+        }
+        #[cfg(target_os = "macos")]
+        {
+            std::process::Command::new("osascript")
+                .args(["-e", "tell app \"System Events\" to shut down"])
+                .spawn()
+                .map_err(|e| e.to_string())?;
+            Ok(())
+        }
+        #[cfg(all(not(windows), not(target_os = "macos")))]
+        {
+            let res = std::process::Command::new("systemctl")
+                .arg("poweroff")
+                .spawn();
+            if res.is_err() {
+                let _ = std::process::Command::new("shutdown")
+                    .args(["-h", "now"])
+                    .spawn();
+            }
+            Ok(())
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn system_restart() -> Result<(), String> {
+    tokio::task::spawn_blocking(|| {
+        #[cfg(windows)]
+        {
+            std::process::Command::new("shutdown.exe")
+                .args(["/r", "/t", "0"])
+                .spawn()
+                .map_err(|e| e.to_string())?;
+            Ok(())
+        }
+        #[cfg(target_os = "macos")]
+        {
+            std::process::Command::new("osascript")
+                .args(["-e", "tell app \"System Events\" to restart"])
+                .spawn()
+                .map_err(|e| e.to_string())?;
+            Ok(())
+        }
+        #[cfg(all(not(windows), not(target_os = "macos")))]
+        {
+            let res = std::process::Command::new("systemctl")
+                .arg("reboot")
+                .spawn();
+            if res.is_err() {
+                let _ = std::process::Command::new("reboot").spawn();
+            }
+            Ok(())
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
 pub async fn pick_executable_file() -> Result<Option<String>, String> {
     tokio::task::spawn_blocking(|| {
         let file = rfd::FileDialog::new()

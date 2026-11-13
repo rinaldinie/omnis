@@ -62,8 +62,7 @@ export interface UseFullscreenMenuOptions {
   styleSetting: ControllerStyleSetting;
   effectiveFamily: ControllerType;
   cycleControllerStyle: (delta: 1 | -1) => void;
-  handleMinimize: () => void;
-  openConfirm: (kind: "exit" | "desktop" | "uninstall") => void;
+  onOpenPowerMenu: () => void;
   confirm: any;
   /** Opens the console statistics page */
   onOpenStatistics?: () => void;
@@ -100,8 +99,7 @@ export function useFullscreenMenu({
   styleSetting,
   effectiveFamily,
   cycleControllerStyle,
-  handleMinimize,
-  openConfirm,
+  onOpenPowerMenu,
   confirm,
   onOpenStatistics,
   t,
@@ -379,33 +377,17 @@ export function useFullscreenMenu({
       },
     });
   }
-  menuItems.push(
-    {
-      id: "minimize",
-      icon: Minimize2,
-      section: "system",
-      label: t("console_ui.minimize"),
-      onActivate: () => {
-        setIsMenuOpen?.(false);
-        handleMinimize();
-      },
+  menuItems.push({
+    id: "power",
+    icon: Power,
+    tone: "danger",
+    section: "system",
+    label: t("console_ui.power_options"),
+    onActivate: () => {
+      setIsMenuOpen?.(false);
+      onOpenPowerMenu();
     },
-    {
-      id: "desktop",
-      icon: Monitor,
-      section: "system",
-      label: t("console_ui.desktop_mode"),
-      onActivate: () => openConfirm("desktop"),
-    },
-    {
-      id: "exit",
-      icon: Power,
-      tone: "danger",
-      section: "system",
-      label: t("console_ui.exit"),
-      onActivate: () => openConfirm("exit"),
-    }
-  );
+  });
 
   const [menuFocusedIndex, setMenuFocusedIndex] = useState<number>(0);
   const safeMenuIndex = Math.min(menuFocusedIndex, menuItems.length - 1);

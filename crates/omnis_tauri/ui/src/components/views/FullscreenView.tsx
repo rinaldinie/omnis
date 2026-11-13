@@ -12,6 +12,7 @@ import {
   LibraryCounts,
   ThemeConfig,
 } from "../../types";
+import { api } from "../../api";
 import { useLibraryStore, useUiStore } from "../../stores";
 import { categoryCount, getVisibleCategories, toCategoryId } from "../../utils/consoleCategories";
 import { StoreIcon } from "../StoreBadge";
@@ -37,7 +38,8 @@ import {
   RECENT_ROW_MIN_VIEWPORT_REM,
 } from "../fullscreen/FullscreenCards";
 import { FullscreenQuickMenu } from "../fullscreen/FullscreenQuickMenu";
-import { FullscreenConfirmDialog } from "../fullscreen/FullscreenConfirmDialog";
+import { FullscreenPowerDialog } from "../fullscreen/FullscreenPowerDialog";
+import { FullscreenConfirmDialog, ConfirmKind } from "../fullscreen/FullscreenConfirmDialog";
 import { FullscreenDetailsOverlay } from "../fullscreen/FullscreenDetailsOverlay";
 import { FullscreenTopBar } from "../fullscreen/FullscreenTopBar";
 import { FullscreenHomeContent } from "../fullscreen/FullscreenHomeContent";
@@ -113,7 +115,6 @@ interface FullscreenViewProps {
 
 export type GameAction = "folder" | "verify" | "shortcut" | "uninstall";
 type HeroButton = "launch" | GameAction | "back";
-type ConfirmKind = "exit" | "desktop" | "uninstall";
 
 const HERO_ACTIONS: Record<GameAction, { icon: LucideIcon; labelKey: string; danger?: boolean }> = {
   folder: { icon: FolderOpen, labelKey: "console_ui.action_folder" },
@@ -365,7 +366,8 @@ export default function FullscreenView({
       : focusedGame;
   const isInfoGameRunning = !!infoGame && activeGame?.game_id === infoGame.id;
 
-  // Confirmation dialog state
+  // Power and Confirmation dialog states
+  const [isPowerDialogOpen, setIsPowerDialogOpen] = React.useState(false);
   const [confirm, setConfirm] = React.useState<{ kind: ConfirmKind; game?: GameDto } | null>(null);
   const [confirmFocus, setConfirmFocus] = React.useState<"cancel" | "confirm">("cancel");
   const confirmRef = React.useRef(confirm);
@@ -416,8 +418,7 @@ export default function FullscreenView({
     styleSetting,
     effectiveFamily,
     cycleControllerStyle,
-    handleMinimize,
-    openConfirm,
+    onOpenPowerMenu: () => setIsPowerDialogOpen(true),
     confirm,
     onOpenStatistics: setConsolePage ? () => setConsolePage("stats") : undefined,
     t,
@@ -737,6 +738,15 @@ export default function FullscreenView({
       } else if (currentConfirm.kind === "desktop") {
         setIsMenuOpen?.(false);
         toggleFullscreen();
+      } else if (currentConfirm.kind === "sleep") {
+        setIsMenuOpen?.(false);
+        api.window.systemSleep().catch((e) => setNotice(String(e)));
+      } else if (currentConfirm.kind === "restart") {
+        setIsMenuOpen?.(false);
+        api.window.systemRestart().catch((e) => setNotice(String(e)));
+      } else if (currentConfirm.kind === "shutdown") {
+        setIsMenuOpen?.(false);
+        api.window.systemShutdown().catch((e) => setNotice(String(e)));
       } else if (currentConfirm.game && onGameAction) {
         onGameAction("uninstall", currentConfirm.game.id);
         setNotice(t("console_ui.notice_uninstall"));
@@ -806,7 +816,7 @@ export default function FullscreenView({
       { kind: "bumpers" as const, label: t("console_ui.year") },
       { kind: "b" as const, label: t("console_ui.back") },
     ];
-  } else if (confirm) {
+  } else if (confirm || isPowerDialogOpen) {
     legendRight = [
       { kind: "a" as const, label: t("console_ui.select") },
       { kind: "b" as const, label: t("common.cancel") },
@@ -1021,21 +1031,47 @@ export default function FullscreenView({
         menuItemRefs={menuItemRefs}
       />
 
+      {/* POWER MENU DIALOG */}
+      <FullscreenPowerDialog
+        isOpen={isPowerDialogOpen}
+        onClose={() => {
+          setIsPowerDialogOpen(false);
+          setIsMenuOpen?.(true);
+        }}
+        onSelectAction={(actionId) => {
+          setIsPowerDialogOpen(false);
+          openConfirm(actionId);
+        }}
+        soundEffects={soundEffects}
+        t={t}
+      />
+
       {/* CONFIRMATION DIALOG */}
       <FullscreenConfirmDialog
         confirm={confirm}
         confirmFocus={confirmFocus}
         onSelectButton={(button) => {
+          const kind = confirm?.kind;
+          const game = confirm?.game;
           setConfirm(null);
           if (button === "cancel") return;
-          if (confirm?.kind === "exit") {
+          if (kind === "exit") {
             setIsMenuOpen?.(false);
             handleClose();
-          } else if (confirm?.kind === "desktop") {
+          } else if (kind === "desktop") {
             setIsMenuOpen?.(false);
             toggleFullscreen();
-          } else if (confirm?.game && onGameAction) {
-            onGameAction("uninstall", confirm.game.id);
+          } else if (kind === "sleep") {
+            setIsMenuOpen?.(false);
+            api.window.systemSleep().catch((e) => setNotice(String(e)));
+          } else if (kind === "restart") {
+            setIsMenuOpen?.(false);
+            api.window.systemRestart().catch((e) => setNotice(String(e)));
+          } else if (kind === "shutdown") {
+            setIsMenuOpen?.(false);
+            api.window.systemShutdown().catch((e) => setNotice(String(e)));
+          } else if (game && onGameAction) {
+            onGameAction("uninstall", game.id);
             setNotice(t("console_ui.notice_uninstall"));
           }
         }}
