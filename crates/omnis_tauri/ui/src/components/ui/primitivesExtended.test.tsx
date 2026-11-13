@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import React from "react";
 import { I18nProvider } from "@/i18n";
 import {
@@ -40,6 +40,12 @@ import BatchEnrichModal from "@/components/modals/BatchEnrichModal";
 import StatisticsDashboardView from "@/components/views/StatisticsDashboardView";
 import { api } from "@/api";
 import type { GameDto, GlobalStatsDto } from "@/types";
+
+vi.mock("@/api/slots", () => ({
+  slotsApi: {
+    getSlotWidgets: vi.fn().mockResolvedValue([]),
+  },
+}));
 
 if (typeof globalThis.ResizeObserver === "undefined") {
   globalThis.ResizeObserver = class ResizeObserver {
@@ -203,7 +209,7 @@ describe("Extended UI primitives & migrated views", () => {
     expect(onClose).toHaveBeenCalledTimes(2);
   });
 
-  it("renders DetailsHeroHeader with DropdownMenu Manage button and action buttons", () => {
+  it("renders DetailsHeroHeader with DropdownMenu Manage button and action buttons", async () => {
     const handleLaunch = vi.fn();
     const handleToggleFavorite = vi.fn();
 
@@ -236,6 +242,10 @@ describe("Extended UI primitives & migrated views", () => {
     const favBtn = screen.getByRole("button", { name: "sidebar.add_favorite" });
     fireEvent.click(favBtn);
     expect(handleToggleFavorite).toHaveBeenCalledWith(sampleGame);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
   });
 
   it("renders StatisticsDashboardView with Select year combobox and KPI cards", async () => {
@@ -256,7 +266,7 @@ describe("Extended UI primitives & migrated views", () => {
     expect(screen.getByText("30.0%")).toBeTruthy();
   });
 
-  it("does not keep a persistent accent selection ring on GridView game cards for selectedGame", () => {
+  it("does not keep a persistent accent selection ring on GridView game cards for selectedGame", async () => {
     render(
       <I18nProvider initialLocale="en">
         <GridView
@@ -280,6 +290,10 @@ describe("Extended UI primitives & migrated views", () => {
     const card = screen.getByRole("button", { name: "Hollow Knight" });
     expect(card.className).not.toContain("border-[var(--accent-primary)]");
     expect(card.className).not.toContain("ring-2 ring-[var(--accent-primary)]");
+
+    await act(async () => {
+      await Promise.resolve();
+    });
   });
 
   it("renders Checkbox, Table, Skeleton, and standalone ActionTooltip primitives", () => {

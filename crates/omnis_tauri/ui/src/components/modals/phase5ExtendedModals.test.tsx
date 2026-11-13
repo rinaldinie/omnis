@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import React from "react";
 import { I18nProvider } from "@/i18n";
+import { api } from "../../api";
 import { DisconnectStoreModal } from "./DisconnectStoreModal";
 import ResetStatisticsModal from "../stats/ResetStatisticsModal";
 import ThemeModal from "./ThemeModal";
@@ -33,7 +34,8 @@ vi.mock("../../api", async (importOriginal) => {
       ...actual.api,
       metadata: {
         ...actual.api?.metadata,
-        searchCandidates: vi.fn().mockResolvedValue([]),
+        getProviders: vi.fn().mockResolvedValue([]),
+        searchMetadataCandidates: vi.fn().mockResolvedValue([]),
       },
     },
   };
@@ -235,7 +237,7 @@ describe("Phase 5 Extended Modals Migration", () => {
     expect(onSkip).toHaveBeenCalledTimes(1);
   });
 
-  it("renders MetadataResolutionModal with dialog role and closes on Escape", () => {
+  it("renders MetadataResolutionModal with dialog role and closes on Escape", async () => {
     const onClose = vi.fn();
     render(
       <I18nProvider initialLocale="en">
@@ -250,6 +252,9 @@ describe("Phase 5 Extended Modals Migration", () => {
 
     const dialog = screen.getByRole("dialog");
     expect(screen.getByText(/Cyberpunk 2077/)).toBeTruthy();
+    await waitFor(() => {
+      expect(api.metadata.searchMetadataCandidates).toHaveBeenCalled();
+    });
     fireEvent.keyDown(dialog, { key: "Escape" });
     expect(onClose).toHaveBeenCalledTimes(1);
   });
