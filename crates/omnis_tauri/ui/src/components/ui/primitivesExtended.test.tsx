@@ -21,9 +21,22 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { ActionTooltip } from "@/components/ui/tooltip";
 import GlobalContextMenu from "@/components/GlobalContextMenu";
 import { DetailsHeroHeader } from "@/components/views/details/DetailsHeroHeader";
 import GridView from "@/components/views/GridView";
+import ListViewTable from "@/components/ListViewTable";
+import BatchEnrichModal from "@/components/modals/BatchEnrichModal";
 import StatisticsDashboardView from "@/components/views/StatisticsDashboardView";
 import { api } from "@/api";
 import type { GameDto, GlobalStatsDto } from "@/types";
@@ -220,7 +233,7 @@ describe("Extended UI primitives & migrated views", () => {
     fireEvent.click(launchBtn);
     expect(handleLaunch).toHaveBeenCalledWith("g1");
 
-    const favBtn = screen.getByTitle("sidebar.add_favorite");
+    const favBtn = screen.getByRole("button", { name: "sidebar.add_favorite" });
     fireEvent.click(favBtn);
     expect(handleToggleFavorite).toHaveBeenCalledWith(sampleGame);
   });
@@ -267,5 +280,81 @@ describe("Extended UI primitives & migrated views", () => {
     const card = screen.getByRole("button", { name: "Hollow Knight" });
     expect(card.className).not.toContain("border-[var(--accent-primary)]");
     expect(card.className).not.toContain("ring-2 ring-[var(--accent-primary)]");
+  });
+
+  it("renders Checkbox, Table, Skeleton, and standalone ActionTooltip primitives", () => {
+    const onCheckedChange = vi.fn();
+    render(
+      <div>
+        <Checkbox aria-label="Select game" checked={false} onCheckedChange={onCheckedChange} />
+        <Skeleton data-testid="skel" className="h-4 w-20" />
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Title</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TableRow>
+              <TableCell>Silksong</TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+        <ActionTooltip label="Standalone hint">
+          <button type="button">Hover me</button>
+        </ActionTooltip>
+      </div>
+    );
+
+    const checkbox = screen.getByRole("checkbox", { name: "Select game" });
+    expect(checkbox.getAttribute("data-state")).toBe("unchecked");
+    fireEvent.click(checkbox);
+    expect(onCheckedChange).toHaveBeenCalledWith(true);
+
+    expect(screen.getByTestId("skel").className).toContain("animate-pulse");
+    expect(screen.getByRole("table")).toBeTruthy();
+    expect(screen.getByText("Silksong")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Hover me" })).toBeTruthy();
+  });
+
+  it("renders ListViewTable using shadcn Table and triggers launch action", () => {
+    const onLaunchGame = vi.fn();
+    render(
+      <I18nProvider initialLocale="en">
+        <ListViewTable
+          games={[sampleGame as any]}
+          selectedGameId={null}
+          onSelectGame={vi.fn()}
+          onOpenDetails={vi.fn()}
+          onLaunchGame={onLaunchGame}
+          onEditGame={vi.fn()}
+        />
+      </I18nProvider>
+    );
+
+    expect(screen.getByRole("table")).toBeTruthy();
+    expect(screen.getByText("Hollow Knight")).toBeTruthy();
+    const launchBtn = screen.getByRole("button", { name: /common\.play|Avvia|Play/i });
+    fireEvent.click(launchBtn);
+    expect(onLaunchGame).toHaveBeenCalledWith("g1");
+  });
+
+  it("renders BatchEnrichModal with Radix Checkbox controls and toggles selection", () => {
+    render(
+      <I18nProvider initialLocale="en">
+        <BatchEnrichModal
+          isOpen={true}
+          onClose={vi.fn()}
+          allGames={[sampleGame]}
+          filteredGames={[sampleGame]}
+          onComplete={vi.fn(async () => {})}
+        />
+      </I18nProvider>
+    );
+
+    const checkbox = screen.getByRole("checkbox", { name: "Hollow Knight" });
+    expect(checkbox.getAttribute("data-state")).toBe("checked");
+    fireEvent.click(checkbox);
+    expect(checkbox.getAttribute("data-state")).toBe("unchecked");
   });
 });

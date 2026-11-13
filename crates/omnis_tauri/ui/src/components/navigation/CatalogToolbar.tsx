@@ -6,7 +6,7 @@ import GroupByPopover from "./GroupByPopover";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger, ActionTooltip } from "@/components/ui/tooltip";
 
 export interface CatalogToolbarProps {
   viewMode: ViewMode;
@@ -177,28 +177,34 @@ export const CatalogToolbar: React.FC<CatalogToolbarProps> = ({
                 className="h-7 px-2.5 rounded-lg bg-sky-500/15 border border-sky-500/30 text-sky-300 text-xs font-medium flex items-center gap-1.5 shrink-0 animate-in fade-in zoom-in-95 duration-100"
               >
                 <span className="max-w-[140px] truncate">{chip.label}</span>
-                <button
-                  type="button"
-                  onClick={() => removeFilterChip(chip.id)}
-                  className="hover:text-white transition-colors p-0.5 rounded cursor-pointer"
-                  title={t("filter_chips.remove", { label: chip.label })}
-                >
-                  <X className="w-3 h-3" />
-                </button>
+                <ActionTooltip label={t("filter_chips.remove", { label: chip.label })}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-xs"
+                    onClick={() => removeFilterChip(chip.id)}
+                    className="h-4 w-4 p-0.5 hover:text-white hover:bg-white/10 rounded"
+                    aria-label={t("filter_chips.remove", { label: chip.label })}
+                  >
+                    <X className="w-3 h-3" />
+                  </Button>
+                </ActionTooltip>
               </div>
             ))}
 
             {totalActiveFilters > 1 && (
-              <Button
-                type="button"
-                variant="link"
-                size="xs"
-                onClick={clearAllFilters}
-                className="text-[11px] font-semibold text-rose-300 hover:text-rose-200 underline shrink-0 ml-1 whitespace-nowrap h-auto p-0"
-                title={t("app_misc.clear_filters")}
-              >
-                {t("app_misc.clear_all")}
-              </Button>
+              <ActionTooltip label={t("app_misc.clear_filters")}>
+                <Button
+                  type="button"
+                  variant="link"
+                  size="xs"
+                  onClick={clearAllFilters}
+                  className="text-[11px] font-semibold text-rose-300 hover:text-rose-200 underline shrink-0 ml-1 whitespace-nowrap h-auto p-0"
+                  aria-label={t("app_misc.clear_filters")}
+                >
+                  {t("app_misc.clear_all")}
+                </Button>
+              </ActionTooltip>
             )}
           </div>
         )}

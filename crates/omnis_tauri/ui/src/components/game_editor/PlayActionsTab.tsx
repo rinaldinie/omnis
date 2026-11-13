@@ -4,6 +4,7 @@ import { LaunchConfiguration } from "./types";
 import { useTranslation } from "../../i18n";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { ActionTooltip } from "@/components/ui/tooltip";
 import {
   Select,
   SelectContent,
@@ -90,17 +91,19 @@ const PlayActionCard: React.FC<PlayActionCardProps> = ({
               className="flex-1 h-9 bg-popover text-xs font-mono"
               placeholder={t("play_actions.executable_placeholder")}
             />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => onPickExe(idx)}
-              className="h-9 bg-popover font-medium shrink-0"
-              title={t("custom_game.browse_exe_title")}
-            >
-              <FolderOpen className="w-4 h-4 text-emerald-400" />
-              <span>{t("custom_game.browse")}</span>
-            </Button>
+            <ActionTooltip label={t("custom_game.browse_exe_title")}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => onPickExe(idx)}
+                className="h-9 bg-popover font-medium shrink-0"
+                aria-label={t("custom_game.browse_exe_title")}
+              >
+                <FolderOpen className="w-4 h-4 text-emerald-400" />
+                <span>{t("custom_game.browse")}</span>
+              </Button>
+            </ActionTooltip>
           </div>
         </div>
 
@@ -118,17 +121,19 @@ const PlayActionCard: React.FC<PlayActionCardProps> = ({
               className="flex-1 h-9 bg-popover text-xs font-mono"
               placeholder={t("play_actions.working_dir_placeholder")}
             />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => onPickDir(idx)}
-              className="h-9 bg-popover font-medium shrink-0"
-              title={t("play_actions.pick_folder_title")}
-            >
-              <Folder className="w-4 h-4 text-sky-400" />
-              <span>{t("play_actions.pick_folder")}</span>
-            </Button>
+            <ActionTooltip label={t("play_actions.pick_folder_title")}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => onPickDir(idx)}
+                className="h-9 bg-popover font-medium shrink-0"
+                aria-label={t("play_actions.pick_folder_title")}
+              >
+                <Folder className="w-4 h-4 text-sky-400" />
+                <span>{t("play_actions.pick_folder")}</span>
+              </Button>
+            </ActionTooltip>
           </div>
         </div>
       </div>

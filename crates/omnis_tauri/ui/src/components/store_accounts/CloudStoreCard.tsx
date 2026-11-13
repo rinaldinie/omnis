@@ -5,6 +5,7 @@ import { useTranslation } from "../../i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { ActionTooltip } from "@/components/ui/tooltip";
 
 interface CloudStoreCardProps {
   account: StoreAccount;
@@ -303,17 +304,19 @@ export const CloudStoreCard: React.FC<CloudStoreCardProps> = ({
               <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? "animate-spin" : ""}`} />
               <span>{isSyncing ? t("store_accounts.syncing_short") : t("store_accounts.sync_now")}</span>
             </Button>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={actionLoading || isSyncing}
-              onClick={() => onDisconnect(account.store_id)}
-              className="h-auto gap-1 py-1.5 px-3 rounded-xl text-xs font-medium text-rose-400 hover:bg-rose-500/20 hover:text-rose-300 border-rose-500/30 bg-transparent"
-              title={t("store_accounts.disconnect_title")}
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{t("store_accounts.disconnect")}</span>
-            </Button>
+            <ActionTooltip label={t("store_accounts.disconnect_title")}>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={actionLoading || isSyncing}
+                onClick={() => onDisconnect(account.store_id)}
+                className="h-auto gap-1 py-1.5 px-3 rounded-xl text-xs font-medium text-rose-400 hover:bg-rose-500/20 hover:text-rose-300 border-rose-500/30 bg-transparent"
+                aria-label={t("store_accounts.disconnect_title")}
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">{t("store_accounts.disconnect")}</span>
+              </Button>
+            </ActionTooltip>
           </>
         ) : (
           <Button

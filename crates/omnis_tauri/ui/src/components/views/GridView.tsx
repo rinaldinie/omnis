@@ -11,6 +11,7 @@ import { getRecentSettings } from "../../utils/recentSettings";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { ScrollArea } from "../ui/scroll-area";
+import { ActionTooltip } from "../ui/tooltip";
 
 const COMPLETION_STATUS_CONFIG: Record<string, { dot: string; labelKey: string }> = {
   Playing: { dot: "bg-sky-400", labelKey: "playing" },
@@ -159,68 +160,76 @@ const GameCardItem = React.memo(
             {isRunning ? (
               <>
                 {onKill && (
+                  <ActionTooltip label={t("status.kill_game_title")}>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onKill();
+                      }}
+                      className="h-auto bg-rose-600 hover:bg-rose-500 active:scale-95 text-white font-bold rounded-xl px-4 py-2 shadow-lg text-xs"
+                      aria-label={t("status.kill_game_title")}
+                    >
+                      <Square className="w-3.5 h-3.5 fill-white" />
+                      <span>{t("status.kill_game")}</span>
+                    </Button>
+                  </ActionTooltip>
+                )}
+                <ActionTooltip label={t("game_details.manage")}>
                   <Button
                     type="button"
-                    variant="destructive"
-                    size="sm"
+                    variant="ghost"
+                    size="icon"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onKill();
+                      onContextMenu(e);
                     }}
-                    className="h-auto bg-rose-600 hover:bg-rose-500 active:scale-95 text-white font-bold rounded-xl px-4 py-2 shadow-lg text-xs"
-                    title={t("status.kill_game_title")}
+                    className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/10"
+                    aria-label={t("game_details.manage")}
                   >
-                    <Square className="w-3.5 h-3.5 fill-white" />
-                    <span>{t("status.kill_game")}</span>
+                    <MoreHorizontal className="w-4 h-4" />
                   </Button>
-                )}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onContextMenu(e);
-                  }}
-                  className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/10"
-                  title={t("game_details.manage")}
-                >
-                  <MoreHorizontal className="w-4 h-4" />
-                </Button>
+                </ActionTooltip>
               </>
             ) : (
               <>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onLaunch();
-                  }}
-                  className="h-auto bg-[var(--accent-primary)] hover:brightness-110 active:scale-95 text-white font-bold rounded-xl px-4 py-2 shadow-lg text-xs"
-                  title={game.is_installed ? t("common.play") : t("common.install")}
-                >
-                  {game.is_installed ? (
-                    <Play className="w-3.5 h-3.5 fill-white" />
-                  ) : (
-                    <Download className="w-3.5 h-3.5 text-white" />
-                  )}
-                  <span>{game.is_installed ? t("common.play") : t("common.install")}</span>
-                </Button>
+                <ActionTooltip label={game.is_installed ? t("common.play") : t("common.install")}>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onLaunch();
+                    }}
+                    className="h-auto bg-[var(--accent-primary)] hover:brightness-110 active:scale-95 text-white font-bold rounded-xl px-4 py-2 shadow-lg text-xs"
+                    aria-label={game.is_installed ? t("common.play") : t("common.install")}
+                  >
+                    {game.is_installed ? (
+                      <Play className="w-3.5 h-3.5 fill-white" />
+                    ) : (
+                      <Download className="w-3.5 h-3.5 text-white" />
+                    )}
+                    <span>{game.is_installed ? t("common.play") : t("common.install")}</span>
+                  </Button>
+                </ActionTooltip>
 
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onContextMenu(e);
-                  }}
-                  className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/10"
-                  title={t("game_details.manage")}
-                >
-                  <MoreHorizontal className="w-4 h-4" />
-                </Button>
+                <ActionTooltip label={t("game_details.manage")}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onContextMenu(e);
+                    }}
+                    className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/10"
+                    aria-label={t("game_details.manage")}
+                  >
+                    <MoreHorizontal className="w-4 h-4" />
+                  </Button>
+                </ActionTooltip>
               </>
             )}
           </div>
@@ -342,22 +351,24 @@ const DesktopRecentCard = React.memo(function DesktopRecentCard({
 
       {/* Play Button on Hover */}
       <div className="absolute inset-0 z-10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-        <Button
-          type="button"
-          size="icon"
-          onClick={(e) => {
-            e.stopPropagation();
-            onLaunch();
-          }}
-          className="w-10 h-10 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white shadow-xl transform transition-transform hover:scale-110 active:scale-95"
-          title={game.is_installed ? t("common.play") : t("common.install")}
-        >
-          {game.is_installed ? (
-            <Play className="w-4 h-4 fill-white ml-0.5" />
-          ) : (
-            <Download className="w-4 h-4 text-white" />
-          )}
-        </Button>
+        <ActionTooltip label={game.is_installed ? t("common.play") : t("common.install")}>
+          <Button
+            type="button"
+            size="icon"
+            onClick={(e) => {
+              e.stopPropagation();
+              onLaunch();
+            }}
+            className="w-10 h-10 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white shadow-xl transform transition-transform hover:scale-110 active:scale-95"
+            aria-label={game.is_installed ? t("common.play") : t("common.install")}
+          >
+            {game.is_installed ? (
+              <Play className="w-4 h-4 fill-white ml-0.5" />
+            ) : (
+              <Download className="w-4 h-4 text-white" />
+            )}
+          </Button>
+        </ActionTooltip>
       </div>
 
       {/* Bottom Game Title & Info */}

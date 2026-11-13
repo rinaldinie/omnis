@@ -26,6 +26,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { ActionTooltip } from '@/components/ui/tooltip';
 
 export type DuplicateHiderSubTab = 'priorities' | 'rules' | 'ignored';
 
@@ -498,28 +499,32 @@ export const DuplicateHiderSettingsTab: React.FC<DuplicateHiderSettingsTabProps>
                     </div>
 
                     <div className="flex items-center gap-1.5 shrink-0">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon-xs"
-                        disabled={isFirst}
-                        onClick={() => handleMoveStore(idx, -1)}
-                        className="h-auto w-auto p-1 rounded-md border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white disabled:opacity-25 disabled:pointer-events-none"
-                        title={t('plugin_manager.move_up', { defaultValue: 'Move up' })}
-                      >
-                        <ArrowUp className="w-3.5 h-3.5" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon-xs"
-                        disabled={isLast}
-                        onClick={() => handleMoveStore(idx, 1)}
-                        className="h-auto w-auto p-1 rounded-md border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white disabled:opacity-25 disabled:pointer-events-none"
-                        title={t('plugin_manager.move_down', { defaultValue: 'Move down' })}
-                      >
-                        <ArrowDown className="w-3.5 h-3.5" />
-                      </Button>
+                      <ActionTooltip label={t('plugin_manager.move_up', { defaultValue: 'Move up' })}>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon-xs"
+                          disabled={isFirst}
+                          onClick={() => handleMoveStore(idx, -1)}
+                          className="h-auto w-auto p-1 rounded-md border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white disabled:opacity-25 disabled:pointer-events-none"
+                          aria-label={t('plugin_manager.move_up', { defaultValue: 'Move up' })}
+                        >
+                          <ArrowUp className="w-3.5 h-3.5" />
+                        </Button>
+                      </ActionTooltip>
+                      <ActionTooltip label={t('plugin_manager.move_down', { defaultValue: 'Move down' })}>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon-xs"
+                          disabled={isLast}
+                          onClick={() => handleMoveStore(idx, 1)}
+                          className="h-auto w-auto p-1 rounded-md border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white disabled:opacity-25 disabled:pointer-events-none"
+                          aria-label={t('plugin_manager.move_down', { defaultValue: 'Move down' })}
+                        >
+                          <ArrowDown className="w-3.5 h-3.5" />
+                        </Button>
+                      </ActionTooltip>
                     </div>
                   </div>
                 );
@@ -678,39 +683,41 @@ export const DuplicateHiderSettingsTab: React.FC<DuplicateHiderSettingsTabProps>
                 </div>
 
                 {candidateGamesForIgnore.length > 0 && (
-                  <div className="rounded-xl border border-white/[0.06] bg-black/20 divide-y divide-white/[0.04] max-h-48 overflow-y-auto custom-scrollbar">
-                    {candidateGamesForIgnore.map((g) => (
-                      <div
-                        key={g.id}
-                        className="flex items-center justify-between px-3 py-2 hover:bg-white/[0.03] transition-colors"
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <StoreIcon library={g.library} className="w-3.5 h-3.5 text-slate-300 shrink-0" />
-                          <span className="text-xs font-medium text-slate-200 truncate">
-                            {g.title}
-                          </span>
-                          <Badge
-                            variant="secondary"
-                            className="text-[10px] font-mono uppercase px-1.5 py-0 rounded bg-white/5 text-slate-400 border-0 shrink-0"
-                          >
-                            {g.library}
-                          </Badge>
-                        </div>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="xs"
-                          onClick={() => handleAddIgnoredGame(g.id)}
-                          className="h-auto px-2.5 py-1 rounded-lg text-[11px] font-bold border-white/10 bg-white/5 hover:bg-white/10 text-slate-200 gap-1 shrink-0"
+                  <ScrollArea className="rounded-xl border border-white/[0.06] bg-black/20 max-h-48">
+                    <div className="divide-y divide-white/[0.04]">
+                      {candidateGamesForIgnore.map((g) => (
+                        <div
+                          key={g.id}
+                          className="flex items-center justify-between px-3 py-2 hover:bg-white/[0.03] transition-colors"
                         >
-                          <Plus className="w-3 h-3" style={{ color: 'var(--accent-primary)' }} />
-                          <span>
-                            {t('duplicate_hider.exclude_btn', { defaultValue: 'Exclude' })}
-                          </span>
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <StoreIcon library={g.library} className="w-3.5 h-3.5 text-slate-300 shrink-0" />
+                            <span className="text-xs font-medium text-slate-200 truncate">
+                              {g.title}
+                            </span>
+                            <Badge
+                              variant="secondary"
+                              className="text-[10px] font-mono uppercase px-1.5 py-0 rounded bg-white/5 text-slate-400 border-0 shrink-0"
+                            >
+                              {g.library}
+                            </Badge>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="xs"
+                            onClick={() => handleAddIgnoredGame(g.id)}
+                            className="h-auto px-2.5 py-1 rounded-lg text-[11px] font-bold border-white/10 bg-white/5 hover:bg-white/10 text-slate-200 gap-1 shrink-0"
+                          >
+                            <Plus className="w-3 h-3" style={{ color: 'var(--accent-primary)' }} />
+                            <span>
+                              {t('duplicate_hider.exclude_btn', { defaultValue: 'Exclude' })}
+                            </span>
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
                 )}
               </div>
             </SettingGroup>

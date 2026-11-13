@@ -1,6 +1,7 @@
 import React from "react";
 import { Gamepad2 } from "lucide-react";
 import { useTranslation } from "../../i18n";
+import { Button } from "@/components/ui/button";
 
 export interface EmptyGamesViewProps {
   title?: string;
@@ -31,13 +32,15 @@ export default function EmptyGamesView({
       <h3 className="text-base font-bold text-white mb-1.5">{displayTitle}</h3>
       <p className="text-xs text-slate-400 max-w-sm leading-relaxed mb-4">{displayHint}</p>
       {hasActiveFilters && onClearFilters && (
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="sm"
           onClick={onClearFilters}
-          className="h-8 px-4 rounded-lg text-xs font-semibold bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 text-sky-300 hover:text-white transition-all cursor-pointer shadow-sm"
+          className="h-8 px-4 rounded-lg text-xs font-semibold bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 text-sky-300 hover:text-white shadow-sm"
         >
           {t("filter_modal.clear_all") || "Cancella filtri"}
-        </button>
+        </Button>
       )}
     </div>
   );

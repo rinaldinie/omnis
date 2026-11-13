@@ -16,6 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { ActionTooltip } from "@/components/ui/tooltip";
 
 export type { SettingsTab };
 
@@ -99,17 +100,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </DialogDescription>
             </div>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            onClick={handleClose}
-            className="rounded-full text-muted-foreground hover:text-foreground shrink-0"
-            title={t("common.close", { defaultValue: "Close (Esc)" })}
-            aria-label={t("common.close", { defaultValue: "Close" })}
-          >
-            <X className="w-4 h-4" />
-          </Button>
+          <ActionTooltip label={t("common.close", { defaultValue: "Close (Esc)" })}>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={handleClose}
+              className="rounded-full text-muted-foreground hover:text-foreground shrink-0"
+              aria-label={t("common.close", { defaultValue: "Close" })}
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </ActionTooltip>
         </DialogHeader>
 
         {/* MASTER-DETAIL BODY */}

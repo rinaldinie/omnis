@@ -43,6 +43,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { ActionTooltip } from "@/components/ui/tooltip";
 
 export type PlayniteImportStep =
   | "idle"
@@ -307,22 +308,87 @@ export default function PlayniteImportModal({
         </p>
 
         {/* LIST CONTAINER */}
-        <div className="rounded-xl border border-white/5 bg-slate-900/60 p-2 max-h-56 overflow-y-auto custom-scrollbar divide-y divide-white/5 space-y-1">
-          {previewTab === "matched" ? (
-            filteredMatched.length > 0 ? (
-              filteredMatched.map((item, idx) => {
-                const store = item.library_id || "manual";
-                const existingSec = item.existing_playtime_seconds || 0;
-                const backupSec = item.backup_playtime_seconds || 0;
-                const hasPlaytimeUpdate = item.has_playtime_update;
+        <ScrollArea className="rounded-xl border border-white/5 bg-slate-900/60 max-h-56" viewportClassName="p-2">
+          <div className="divide-y divide-white/5 space-y-1">
+            {previewTab === "matched" ? (
+              filteredMatched.length > 0 ? (
+                filteredMatched.map((item, idx) => {
+                  const store = item.library_id || "manual";
+                  const existingSec = item.existing_playtime_seconds || 0;
+                  const backupSec = item.backup_playtime_seconds || 0;
+                  const hasPlaytimeUpdate = item.has_playtime_update;
 
+                  return (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between py-2 px-2.5 rounded-lg hover:bg-white/5 transition-colors text-xs gap-3"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                        <span className="font-semibold text-slate-200 truncate" title={item.title}>
+                          {item.title}
+                        </span>
+                        <span
+                          className={`px-1.5 py-0.5 rounded text-[10px] uppercase font-bold border shrink-0 ${getStoreBadge(
+                            store
+                          )}`}
+                        >
+                          {store}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        {/* Playtime info */}
+                        {hasPlaytimeUpdate ? (
+                          <span className="text-[11px] text-emerald-400 flex items-center gap-1 font-mono">
+                            <Clock className="w-3 h-3" />
+                            <span>{formatPlaytime(existingSec)}</span>
+                            <span className="text-slate-500">→</span>
+                            <span className="font-bold">{formatPlaytime(backupSec)}</span>
+                          </span>
+                        ) : backupSec > 0 ? (
+                          <span className="text-[11px] text-slate-400 flex items-center gap-1 font-mono">
+                            <Clock className="w-3 h-3 text-slate-500" />
+                            <span>{formatPlaytime(backupSec)}</span>
+                          </span>
+                        ) : null}
+
+                        {/* Image availability badges */}
+                        {item.cover_available && (
+                          <ActionTooltip label="Cover disponibile nel backup">
+                            <span className="px-1.5 py-0.5 rounded bg-purple-500/10 border border-purple-500/20 text-[10px] text-purple-300 flex items-center gap-1">
+                              <ImageIcon className="w-2.5 h-2.5" />
+                              <span>Cover</span>
+                            </span>
+                          </ActionTooltip>
+                        )}
+                        {item.background_available && (
+                          <ActionTooltip label="Sfondo disponibile nel backup">
+                            <span className="px-1.5 py-0.5 rounded bg-purple-500/10 border border-purple-500/20 text-[10px] text-purple-300 flex items-center gap-1">
+                              <ImageIcon className="w-2.5 h-2.5" />
+                              <span>Sfondo</span>
+                            </span>
+                          </ActionTooltip>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="py-6 text-center text-xs text-slate-500">
+                  {t("playnite_import.no_games_found")}
+                </div>
+              )
+            ) : filteredUnmatched.length > 0 ? (
+              filteredUnmatched.map((item, idx) => {
+                const store = item.library_id || "manual";
                 return (
                   <div
                     key={idx}
                     className="flex items-center justify-between py-2 px-2.5 rounded-lg hover:bg-white/5 transition-colors text-xs gap-3"
                   >
                     <div className="flex items-center gap-2 min-w-0">
-                      <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      <AlertCircle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                       <span className="font-semibold text-slate-200 truncate" title={item.title}>
                         {item.title}
                       </span>
@@ -334,43 +400,9 @@ export default function PlayniteImportModal({
                         {store}
                       </span>
                     </div>
-
-                    <div className="flex items-center gap-2 shrink-0">
-                      {/* Playtime info */}
-                      {hasPlaytimeUpdate ? (
-                        <span className="text-[11px] text-emerald-400 flex items-center gap-1 font-mono">
-                          <Clock className="w-3 h-3" />
-                          <span>{formatPlaytime(existingSec)}</span>
-                          <span className="text-slate-500">→</span>
-                          <span className="font-bold">{formatPlaytime(backupSec)}</span>
-                        </span>
-                      ) : backupSec > 0 ? (
-                        <span className="text-[11px] text-slate-400 flex items-center gap-1 font-mono">
-                          <Clock className="w-3 h-3 text-slate-500" />
-                          <span>{formatPlaytime(backupSec)}</span>
-                        </span>
-                      ) : null}
-
-                      {/* Image availability badges */}
-                      {item.cover_available && (
-                        <span
-                          className="px-1.5 py-0.5 rounded bg-purple-500/10 border border-purple-500/20 text-[10px] text-purple-300 flex items-center gap-1"
-                          title="Cover disponibile nel backup"
-                        >
-                          <ImageIcon className="w-2.5 h-2.5" />
-                          <span>Cover</span>
-                        </span>
-                      )}
-                      {item.background_available && (
-                        <span
-                          className="px-1.5 py-0.5 rounded bg-purple-500/10 border border-purple-500/20 text-[10px] text-purple-300 flex items-center gap-1"
-                          title="Sfondo disponibile nel backup"
-                        >
-                          <ImageIcon className="w-2.5 h-2.5" />
-                          <span>Sfondo</span>
-                        </span>
-                      )}
-                    </div>
+                    <span className="text-[11px] text-slate-500 shrink-0 font-mono">
+                      ID: {item.external_id}
+                    </span>
                   </div>
                 );
               })
@@ -378,40 +410,9 @@ export default function PlayniteImportModal({
               <div className="py-6 text-center text-xs text-slate-500">
                 {t("playnite_import.no_games_found")}
               </div>
-            )
-          ) : filteredUnmatched.length > 0 ? (
-            filteredUnmatched.map((item, idx) => {
-              const store = item.library_id || "manual";
-              return (
-                <div
-                  key={idx}
-                  className="flex items-center justify-between py-2 px-2.5 rounded-lg hover:bg-white/5 transition-colors text-xs gap-3"
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <AlertCircle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                    <span className="font-semibold text-slate-200 truncate" title={item.title}>
-                      {item.title}
-                    </span>
-                    <span
-                      className={`px-1.5 py-0.5 rounded text-[10px] uppercase font-bold border shrink-0 ${getStoreBadge(
-                        store
-                      )}`}
-                    >
-                      {store}
-                    </span>
-                  </div>
-                  <span className="text-[11px] text-slate-500 shrink-0 font-mono">
-                    ID: {item.external_id}
-                  </span>
-                </div>
-              );
-            })
-          ) : (
-            <div className="py-6 text-center text-xs text-slate-500">
-              {t("playnite_import.no_games_found")}
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        </ScrollArea>
       </div>
     );
   };

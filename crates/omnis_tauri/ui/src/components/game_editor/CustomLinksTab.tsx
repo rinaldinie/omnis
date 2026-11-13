@@ -4,6 +4,7 @@ import { CustomLink } from "./types";
 import { useTranslation } from "../../i18n";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { ActionTooltip } from "@/components/ui/tooltip";
 
 interface CustomLinksTabProps {
   customLinks: CustomLink[];
@@ -68,30 +69,33 @@ export const CustomLinksTab: React.FC<CustomLinksTabProps> = ({
             </div>
 
             {link.url && link.url.startsWith("http") && (
-              <Button
-                asChild
-                variant="ghost"
-                size="icon"
-                className="rounded-xl"
-                title={t("editor_links.open_title")}
-              >
-                <a href={link.url} target="_blank" rel="noreferrer">
-                  <ExternalLink className="w-4 h-4" />
-                </a>
-              </Button>
+              <ActionTooltip label={t("editor_links.open_title")}>
+                <Button
+                  asChild
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-xl"
+                  aria-label={t("editor_links.open_title")}
+                >
+                  <a href={link.url} target="_blank" rel="noreferrer">
+                    <ExternalLink className="w-4 h-4" />
+                  </a>
+                </Button>
+              </ActionTooltip>
             )}
 
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => onRemoveLink(idx)}
-              className="rounded-xl text-rose-400 hover:text-rose-300 hover:bg-rose-500/10"
-              title={t("editor_links.remove_title")}
-              aria-label={t("editor_links.remove_title")}
-            >
-              <Trash2 className="w-4 h-4" />
-            </Button>
+            <ActionTooltip label={t("editor_links.remove_title")}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => onRemoveLink(idx)}
+                className="rounded-xl text-rose-400 hover:text-rose-300 hover:bg-rose-500/10"
+                aria-label={t("editor_links.remove_title")}
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </ActionTooltip>
           </div>
         ))
       )}

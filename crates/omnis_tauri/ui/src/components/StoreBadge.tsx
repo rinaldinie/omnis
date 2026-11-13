@@ -1,6 +1,7 @@
 import React from "react";
 import { Gamepad2 } from "lucide-react";
 import { useTranslation } from "../i18n";
+import { ActionTooltip } from "@/components/ui/tooltip";
 
 export function SteamIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
@@ -208,14 +209,15 @@ export function StoreBadge({
       ? brandStyles
       : "bg-slate-900/80 border-white/20 backdrop-blur-md hover:bg-slate-800 text-white shadow-md";
 
-  return (
+  const badgeNode = (
     <span
       className={`inline-flex items-center justify-center p-1 rounded-full border transition-colors ${badgeStyle} ${className}`}
-      title={title}
     >
       {icon}
     </span>
   );
+
+  return title ? <ActionTooltip label={title}>{badgeNode}</ActionTooltip> : badgeNode;
 }
 
 export interface MultiStoreBadgeGroupProps {
@@ -255,21 +257,29 @@ export function MultiStoreBadgeGroup({
     <div className={`inline-flex items-center gap-1 ${className}`}>
       <StoreBadge library={primaryLibrary} variant="subtle" />
       <div className="flex items-center gap-1">
-        {secondaryCopies.map((copy) => (
-          <span
-            key={copy.library}
-            className={`inline-flex items-center justify-center p-1 rounded-full border bg-slate-900/80 border-white/20 backdrop-blur-md text-white shadow-md transition-colors ${
-              copy.is_installed ? "border-emerald-400/70 text-emerald-300 ring-1 ring-emerald-400/30" : "hover:bg-slate-800"
-            }`}
-            title={
-              showTooltips
-                ? t("store_badge.available_on", { store: copy.library.toUpperCase() })
-                : undefined
-            }
-          >
-            <StoreIcon library={copy.library} className="w-3.5 h-3.5 shrink-0" />
-          </span>
-        ))}
+        {secondaryCopies.map((copy) => {
+          const copyBadge = (
+            <span
+              key={copy.library}
+              className={`inline-flex items-center justify-center p-1 rounded-full border bg-slate-900/80 border-white/20 backdrop-blur-md text-white shadow-md transition-colors ${
+                copy.is_installed ? "border-emerald-400/70 text-emerald-300 ring-1 ring-emerald-400/30" : "hover:bg-slate-800"
+              }`}
+            >
+              <StoreIcon library={copy.library} className="w-3.5 h-3.5 shrink-0" />
+            </span>
+          );
+
+          return showTooltips ? (
+            <ActionTooltip
+              key={copy.library}
+              label={t("store_badge.available_on", { store: copy.library.toUpperCase() })}
+            >
+              {copyBadge}
+            </ActionTooltip>
+          ) : (
+            copyBadge
+          );
+        })}
       </div>
     </div>
   );

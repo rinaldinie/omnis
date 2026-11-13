@@ -5,6 +5,7 @@ import { SettingsTab, TreeGroup } from "./settingsTreeConfig";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { ActionTooltip } from "@/components/ui/tooltip";
 
 export interface SettingsSidebarProps {
   searchQuery: string;
@@ -45,17 +46,18 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({
             className="h-8 pl-8 pr-7 text-xs bg-card"
           />
           {searchQuery && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => setSearchQuery("")}
-              className="absolute right-1 h-6 w-6 text-slate-400 hover:text-white"
-              title={t("common.clear", { defaultValue: "Clear" })}
-              aria-label={t("common.clear", { defaultValue: "Clear" })}
-            >
-              <X className="w-3 h-3" />
-            </Button>
+            <ActionTooltip label={t("common.clear", { defaultValue: "Clear" })}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-1 h-6 w-6 text-slate-400 hover:text-white"
+                aria-label={t("common.clear", { defaultValue: "Clear" })}
+              >
+                <X className="w-3 h-3" />
+              </Button>
+            </ActionTooltip>
           )}
         </div>
       </div>
@@ -90,10 +92,11 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({
             return (
               <div key={group.id} className="space-y-1">
                 {/* Category Header */}
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
                   onClick={() => toggleGroup(group.id)}
-                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-colors cursor-pointer select-none"
+                  className="h-auto w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider text-slate-400 hover:text-slate-200 hover:bg-white/5 select-none"
                 >
                   <div className="flex items-center gap-2">
                     {group.icon("w-3.5 h-3.5 text-slate-400")}
@@ -104,7 +107,7 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({
                   ) : (
                     <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
                   )}
-                </button>
+                </Button>
 
                 {/* Sub-items (Tree Leaves) */}
                 {isExpanded && (
@@ -113,13 +116,14 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({
                       const isSelected = activeTab === item.id;
 
                       return (
-                        <button
+                        <Button
                           key={item.id}
                           type="button"
+                          variant="ghost"
                           onClick={() => onSelectTab(item.id)}
-                          className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer select-none text-left ${
+                          className={`h-auto w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold select-none text-left ${
                             isSelected
-                              ? "text-white shadow-sm font-bold"
+                              ? "text-white shadow-sm font-bold hover:text-white"
                               : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
                           }`}
                           style={{
@@ -139,7 +143,7 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({
                           {item.badge && (
                             <div className="ml-2 shrink-0">{item.badge}</div>
                           )}
-                        </button>
+                        </Button>
                       );
                     })}
                   </div>

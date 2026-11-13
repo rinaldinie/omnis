@@ -31,6 +31,9 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import { ActionTooltip } from "@/components/ui/tooltip";
 
 export type BatchPresetMode =
   | "all"
@@ -388,14 +391,15 @@ export default function BatchEnrichModal({
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               {/* Type 1: Metadata & Artwork */}
-              <button
+              <Button
                 type="button"
+                variant="ghost"
                 disabled={isRunning}
                 onClick={() => setFetchMetadata(!fetchMetadata)}
-                className={`p-3 rounded-2xl border flex items-center gap-3 transition-all cursor-pointer text-left ${
+                className={`h-auto w-full justify-start p-3 rounded-2xl border flex items-center gap-3 transition-all text-left whitespace-normal ${
                   fetchMetadata
-                    ? "border-sky-500/80 bg-sky-500/10 shadow-sm"
-                    : "border-white/10 hover:border-white/20 bg-white/[0.02] opacity-60"
+                    ? "border-sky-500/80 bg-sky-500/10 hover:bg-sky-500/15 shadow-sm"
+                    : "border-white/10 hover:border-white/20 bg-white/[0.02] hover:bg-white/[0.04] opacity-60"
                 }`}
               >
                 <div
@@ -418,17 +422,18 @@ export default function BatchEnrichModal({
                     {t("batch_enrich.type_metadata_desc")}
                   </div>
                 </div>
-              </button>
+              </Button>
 
               {/* Type 2: HowLongToBeat */}
-              <button
+              <Button
                 type="button"
+                variant="ghost"
                 disabled={isRunning}
                 onClick={() => setFetchHltb(!fetchHltb)}
-                className={`p-3 rounded-2xl border flex items-center gap-3 transition-all cursor-pointer text-left ${
+                className={`h-auto w-full justify-start p-3 rounded-2xl border flex items-center gap-3 transition-all text-left whitespace-normal ${
                   fetchHltb
-                    ? "border-amber-500/80 bg-amber-500/10 shadow-sm"
-                    : "border-white/10 hover:border-white/20 bg-white/[0.02] opacity-60"
+                    ? "border-amber-500/80 bg-amber-500/10 hover:bg-amber-500/15 shadow-sm"
+                    : "border-white/10 hover:border-white/20 bg-white/[0.02] hover:bg-white/[0.04] opacity-60"
                 }`}
               >
                 <div
@@ -451,17 +456,18 @@ export default function BatchEnrichModal({
                     {t("batch_enrich.type_hltb_desc")}
                   </div>
                 </div>
-              </button>
+              </Button>
 
               {/* Type 3: Store Achievements */}
-              <button
+              <Button
                 type="button"
+                variant="ghost"
                 disabled={isRunning}
                 onClick={() => setFetchAchievements(!fetchAchievements)}
-                className={`p-3 rounded-2xl border flex items-center gap-3 transition-all cursor-pointer text-left ${
+                className={`h-auto w-full justify-start p-3 rounded-2xl border flex items-center gap-3 transition-all text-left whitespace-normal ${
                   fetchAchievements
-                    ? "border-indigo-500/80 bg-indigo-500/10 shadow-sm"
-                    : "border-white/10 hover:border-white/20 bg-white/[0.02] opacity-60"
+                    ? "border-indigo-500/80 bg-indigo-500/10 hover:bg-indigo-500/15 shadow-sm"
+                    : "border-white/10 hover:border-white/20 bg-white/[0.02] hover:bg-white/[0.04] opacity-60"
                 }`}
               >
                 <div
@@ -484,7 +490,7 @@ export default function BatchEnrichModal({
                     {t("batch_enrich.type_achievements_desc")}
                   </div>
                 </div>
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -496,94 +502,104 @@ export default function BatchEnrichModal({
 
             <div className="flex flex-wrap gap-2">
               {/* Preset 1: Missing Covers */}
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="sm"
                 disabled={isRunning}
                 onClick={() => setPresetMode("missing_artwork")}
-                className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
+                className={`h-auto px-3 py-1.5 rounded-xl border text-xs font-bold transition-all flex items-center gap-2 ${
                   presetMode === "missing_artwork"
-                    ? "bg-sky-500/20 border-sky-500 text-sky-300 shadow-sm"
+                    ? "bg-sky-500/20 hover:bg-sky-500/25 border-sky-500 text-sky-300 hover:text-sky-200 shadow-sm"
                     : "bg-white/[0.02] border-white/10 text-slate-400 hover:text-white hover:bg-white/5"
                 }`}
               >
                 <ImageIcon className="w-3.5 h-3.5" />
                 <span>{t("batch_enrich.missing_artwork")}</span>
-                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-sky-500/30 text-sky-200">
+                <Badge className="px-1.5 py-0 border-0 text-[10px] bg-sky-500/30 text-sky-200">
                   {missingArtworkGames.length}
-                </span>
-              </button>
+                </Badge>
+              </Button>
 
               {/* Preset 2: Missing HLTB */}
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="sm"
                 disabled={isRunning}
                 onClick={() => setPresetMode("missing_hltb")}
-                className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
+                className={`h-auto px-3 py-1.5 rounded-xl border text-xs font-bold transition-all flex items-center gap-2 ${
                   presetMode === "missing_hltb"
-                    ? "bg-amber-500/20 border-amber-500 text-amber-300 shadow-sm"
+                    ? "bg-amber-500/20 hover:bg-amber-500/25 border-amber-500 text-amber-300 hover:text-amber-200 shadow-sm"
                     : "bg-white/[0.02] border-white/10 text-slate-400 hover:text-white hover:bg-white/5"
                 }`}
               >
                 <Clock className="w-3.5 h-3.5" />
                 <span>{t("batch_enrich.missing_hltb")}</span>
-                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-500/30 text-amber-200">
+                <Badge className="px-1.5 py-0 border-0 text-[10px] bg-amber-500/30 text-amber-200">
                   {missingHltbGames.length}
-                </span>
-              </button>
+                </Badge>
+              </Button>
 
               {/* Preset 3: Missing Achievements */}
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="sm"
                 disabled={isRunning}
                 onClick={() => setPresetMode("missing_achievements")}
-                className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
+                className={`h-auto px-3 py-1.5 rounded-xl border text-xs font-bold transition-all flex items-center gap-2 ${
                   presetMode === "missing_achievements"
-                    ? "bg-indigo-500/20 border-indigo-500 text-indigo-300 shadow-sm"
+                    ? "bg-indigo-500/20 hover:bg-indigo-500/25 border-indigo-500 text-indigo-300 hover:text-indigo-200 shadow-sm"
                     : "bg-white/[0.02] border-white/10 text-slate-400 hover:text-white hover:bg-white/5"
                 }`}
               >
                 <Trophy className="w-3.5 h-3.5" />
                 <span>{t("batch_enrich.missing_achievements")}</span>
-                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-indigo-500/30 text-indigo-200">
+                <Badge className="px-1.5 py-0 border-0 text-[10px] bg-indigo-500/30 text-indigo-200">
                   {missingAchievementsGames.length}
-                </span>
-              </button>
+                </Badge>
+              </Button>
 
               {/* Preset 4: All Library */}
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="sm"
                 disabled={isRunning}
                 onClick={() => setPresetMode("all")}
-                className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
+                className={`h-auto px-3 py-1.5 rounded-xl border text-xs font-bold transition-all flex items-center gap-2 ${
                   presetMode === "all"
-                    ? "bg-emerald-500/20 border-emerald-500 text-emerald-300 shadow-sm"
+                    ? "bg-emerald-500/20 hover:bg-emerald-500/25 border-emerald-500 text-emerald-300 hover:text-emerald-200 shadow-sm"
                     : "bg-white/[0.02] border-white/10 text-slate-400 hover:text-white hover:bg-white/5"
                 }`}
               >
                 <Layers className="w-3.5 h-3.5" />
                 <span>{t("batch_enrich.all_library")}</span>
-                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-500/30 text-emerald-200">
+                <Badge className="px-1.5 py-0 border-0 text-[10px] bg-emerald-500/30 text-emerald-200">
                   {allGames.length}
-                </span>
-              </button>
+                </Badge>
+              </Button>
 
               {/* Preset 5: Filtered View */}
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="sm"
                 disabled={isRunning}
                 onClick={() => setPresetMode("filtered")}
-                className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
+                className={`h-auto px-3 py-1.5 rounded-xl border text-xs font-bold transition-all flex items-center gap-2 ${
                   presetMode === "filtered"
-                    ? "bg-purple-500/20 border-purple-500 text-purple-300 shadow-sm"
+                    ? "bg-purple-500/20 hover:bg-purple-500/25 border-purple-500 text-purple-300 hover:text-purple-200 shadow-sm"
                     : "bg-white/[0.02] border-white/10 text-slate-400 hover:text-white hover:bg-white/5"
                 }`}
               >
                 <Filter className="w-3.5 h-3.5" />
                 <span>{t("batch_enrich.filtered")}</span>
-                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-purple-500/30 text-purple-200">
+                <Badge className="px-1.5 py-0 border-0 text-[10px] bg-purple-500/30 text-purple-200">
                   {filteredGames.length}
-                </span>
-              </button>
+                </Badge>
+              </Button>
             </div>
           </div>
 
@@ -649,125 +665,139 @@ export default function BatchEnrichModal({
                 {t("batch_enrich.no_games_matched")}
               </div>
             ) : (
-              <div className="max-h-[300px] overflow-y-auto divide-y divide-white/[0.06] custom-scrollbar">
-                {displayedGames.map((game) => {
-                  const isSelected = selectedIds.has(game.id);
-                  const hasCover = !!game.cover_image;
-                  const hasHltb =
-                    !!game.extra_metadata &&
-                    game.extra_metadata.includes("howlongtobeat");
-                  const hasAchievements =
-                    !!game.extra_metadata &&
-                    game.extra_metadata.includes("achievements");
+              <ScrollArea className="max-h-[300px]">
+                <div className="divide-y divide-white/[0.06]">
+                  {displayedGames.map((game) => {
+                    const isSelected = selectedIds.has(game.id);
+                    const hasCover = !!game.cover_image;
+                    const hasHltb =
+                      !!game.extra_metadata &&
+                      game.extra_metadata.includes("howlongtobeat");
+                    const hasAchievements =
+                      !!game.extra_metadata &&
+                      game.extra_metadata.includes("achievements");
 
-                  const resolvedCover = game.cover_image
-                    ? formatImageUrl(game.cover_image)
-                    : null;
+                    const resolvedCover = game.cover_image
+                      ? formatImageUrl(game.cover_image)
+                      : null;
 
-                  return (
-                    <div
-                      key={game.id}
-                      onClick={() => !isRunning && handleToggleGame(game.id)}
-                      className={`flex items-center justify-between px-3.5 py-2.5 transition-colors cursor-pointer select-none ${
-                        isSelected
-                          ? "bg-sky-500/[0.07] hover:bg-sky-500/[0.12]"
-                          : "hover:bg-white/[0.02] opacity-70"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          disabled={isRunning}
-                          onChange={() => {}}
-                          className="w-4 h-4 rounded border-white/20 bg-slate-900 text-sky-500 focus:ring-sky-400 cursor-pointer shrink-0"
-                        />
+                    return (
+                      <div
+                        key={game.id}
+                        onClick={() => !isRunning && handleToggleGame(game.id)}
+                        className={`flex items-center justify-between px-3.5 py-2.5 transition-colors cursor-pointer select-none ${
+                          isSelected
+                            ? "bg-sky-500/[0.07] hover:bg-sky-500/[0.12]"
+                            : "hover:bg-white/[0.02] opacity-70"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <Checkbox
+                            checked={isSelected}
+                            disabled={isRunning}
+                            onClick={(e) => e.stopPropagation()}
+                            onCheckedChange={() => !isRunning && handleToggleGame(game.id)}
+                            aria-label={game.title}
+                            className="shrink-0"
+                          />
 
-                        {/* Thumbnail */}
-                        <div className="w-8 h-10 rounded-md overflow-hidden bg-slate-800 shrink-0 border border-white/10 flex items-center justify-center">
-                          {resolvedCover ? (
-                            <img
-                              src={resolvedCover}
-                              alt={game.title}
-                              className="w-full h-full object-cover"
-                              loading="lazy"
-                            />
-                          ) : (
-                            <span className="text-[10px] font-black text-slate-500 uppercase">
-                              {(game.title || "??").slice(0, 2)}
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Title & Store */}
-                        <div className="min-w-0">
-                          <h4 className="text-xs font-bold text-white truncate max-w-sm sm:max-w-md">
-                            {game.title}
-                          </h4>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <StoreBadge
-                              library={game.library || "custom"}
-                              showName
-                              className="text-[10px] px-1.5 py-0.2"
-                            />
-                            {game.developers && game.developers.length > 0 && (
-                              <span className="text-[10px] text-slate-400 truncate max-w-[150px]">
-                                {game.developers[0]}
+                          {/* Thumbnail */}
+                          <div className="w-8 h-10 rounded-md overflow-hidden bg-slate-800 shrink-0 border border-white/10 flex items-center justify-center">
+                            {resolvedCover ? (
+                              <img
+                                src={resolvedCover}
+                                alt={game.title}
+                                className="w-full h-full object-cover"
+                                loading="lazy"
+                              />
+                            ) : (
+                              <span className="text-[10px] font-black text-slate-500 uppercase">
+                                {(game.title || "??").slice(0, 2)}
                               </span>
                             )}
                           </div>
+
+                          {/* Title & Store */}
+                          <div className="min-w-0">
+                            <h4 className="text-xs font-bold text-white truncate max-w-sm sm:max-w-md">
+                              {game.title}
+                            </h4>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <StoreBadge
+                                library={game.library || "custom"}
+                                showName
+                                className="text-[10px] px-1.5 py-0.2"
+                              />
+                              {game.developers && game.developers.length > 0 && (
+                                <span className="text-[10px] text-slate-400 truncate max-w-[150px]">
+                                  {game.developers[0]}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Status Indicators */}
+                        <div className="flex items-center gap-2 shrink-0">
+                          <ActionTooltip
+                            label={
+                              hasCover
+                                ? t("batch_enrich.cover_present")
+                                : t("batch_enrich.cover_missing")
+                            }
+                          >
+                            <span
+                              className={`p-1 rounded-md border text-[10px] flex items-center gap-1 ${
+                                hasCover
+                                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                                  : "bg-white/[0.02] border-white/10 text-slate-600"
+                              }`}
+                            >
+                              <ImageIcon className="w-3 h-3" />
+                            </span>
+                          </ActionTooltip>
+
+                          <ActionTooltip
+                            label={
+                              hasHltb
+                                ? t("batch_enrich.hltb_present")
+                                : t("batch_enrich.hltb_missing")
+                            }
+                          >
+                            <span
+                              className={`p-1 rounded-md border text-[10px] flex items-center gap-1 ${
+                                hasHltb
+                                  ? "bg-amber-500/10 border-amber-500/30 text-amber-400"
+                                  : "bg-white/[0.02] border-white/10 text-slate-600"
+                              }`}
+                            >
+                              <Clock className="w-3 h-3" />
+                            </span>
+                          </ActionTooltip>
+
+                          <ActionTooltip
+                            label={
+                              hasAchievements
+                                ? t("batch_enrich.achievements_synced")
+                                : t("batch_enrich.achievements_missing")
+                            }
+                          >
+                            <span
+                              className={`p-1 rounded-md border text-[10px] flex items-center gap-1 ${
+                                hasAchievements
+                                  ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-400"
+                                  : "bg-white/[0.02] border-white/10 text-slate-600"
+                              }`}
+                            >
+                              <Trophy className="w-3 h-3" />
+                            </span>
+                          </ActionTooltip>
                         </div>
                       </div>
-
-                      {/* Status Indicators */}
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span
-                          title={
-                            hasCover
-                              ? t("batch_enrich.cover_present")
-                              : t("batch_enrich.cover_missing")
-                          }
-                          className={`p-1 rounded-md border text-[10px] flex items-center gap-1 ${
-                            hasCover
-                              ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                              : "bg-white/[0.02] border-white/10 text-slate-600"
-                          }`}
-                        >
-                          <ImageIcon className="w-3 h-3" />
-                        </span>
-
-                        <span
-                          title={
-                            hasHltb ? t("batch_enrich.hltb_present") : t("batch_enrich.hltb_missing")
-                          }
-                          className={`p-1 rounded-md border text-[10px] flex items-center gap-1 ${
-                            hasHltb
-                              ? "bg-amber-500/10 border-amber-500/30 text-amber-400"
-                              : "bg-white/[0.02] border-white/10 text-slate-600"
-                          }`}
-                        >
-                          <Clock className="w-3 h-3" />
-                        </span>
-
-                        <span
-                          title={
-                            hasAchievements
-                              ? t("batch_enrich.achievements_synced")
-                              : t("batch_enrich.achievements_missing")
-                          }
-                          className={`p-1 rounded-md border text-[10px] flex items-center gap-1 ${
-                            hasAchievements
-                              ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-400"
-                              : "bg-white/[0.02] border-white/10 text-slate-600"
-                          }`}
-                        >
-                          <Trophy className="w-3 h-3" />
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              </ScrollArea>
             )}
           </div>
 

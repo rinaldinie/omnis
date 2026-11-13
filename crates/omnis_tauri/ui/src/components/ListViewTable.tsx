@@ -11,6 +11,17 @@ import {
 } from "lucide-react";
 import { StoreBadge, StoreIcon } from "./StoreBadge";
 import { useTranslation } from "../i18n";
+import { Button } from "./ui/button";
+import { Badge } from "./ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "./ui/table";
+import { ActionTooltip } from "./ui/tooltip";
 
 export interface GameItem {
   id: string;
@@ -289,21 +300,21 @@ export default function ListViewTable({
         backgroundColor: "var(--bg-card)",
       }}
     >
-      <table className="w-full text-left border-collapse text-xs">
+      <Table>
         {/* TABLE HEADER */}
-        <thead>
-          <tr
-            className="border-b border-white/[0.08] text-[10px] font-black uppercase tracking-wider sticky top-0 z-10 backdrop-blur-md"
+        <TableHeader>
+          <TableRow
+            className="border-b border-white/[0.08] text-[10px] font-black uppercase tracking-wider sticky top-0 z-10 backdrop-blur-md hover:bg-transparent"
             style={{
               backgroundColor: "var(--bg-surface)",
               color: "var(--text-muted)",
             }}
           >
             {/* 1. Cover */}
-            <th className="py-2 px-3 w-12 text-center">{t('table.cover')}</th>
+            <TableHead className="py-2 px-3 w-12 text-center">{t('table.cover')}</TableHead>
 
             {/* 2. Title */}
-            <th
+            <TableHead
               onClick={() => handleHeaderClick("title")}
               className="py-2 px-3 cursor-pointer hover:text-white transition-colors group min-w-[180px]"
             >
@@ -311,10 +322,10 @@ export default function ListViewTable({
                 <span>{t('table.title')}</span>
                 {renderSortArrow("title")}
               </div>
-            </th>
+            </TableHead>
 
             {/* 3. Store / Platform */}
-            <th
+            <TableHead
               onClick={() => handleHeaderClick("library")}
               className="py-2 px-3 cursor-pointer hover:text-white transition-colors group w-28"
             >
@@ -322,10 +333,10 @@ export default function ListViewTable({
                 <span>{t('table.platform')}</span>
                 {renderSortArrow("library")}
               </div>
-            </th>
+            </TableHead>
 
             {/* 4. Status (Installed / Available) */}
-            <th
+            <TableHead
               onClick={() => handleHeaderClick("is_installed")}
               className="py-2 px-3 cursor-pointer hover:text-white transition-colors group w-24"
             >
@@ -333,10 +344,10 @@ export default function ListViewTable({
                 <span>{t('table.status')}</span>
                 {renderSortArrow("is_installed")}
               </div>
-            </th>
+            </TableHead>
 
             {/* 5. Playtime */}
-            <th
+            <TableHead
               onClick={() => handleHeaderClick("playtime_seconds")}
               className="py-2 px-3 cursor-pointer hover:text-white transition-colors group w-24"
             >
@@ -344,10 +355,10 @@ export default function ListViewTable({
                 <span>{t('table.playtime')}</span>
                 {renderSortArrow("playtime_seconds")}
               </div>
-            </th>
+            </TableHead>
 
             {/* 6. Critic Score */}
-            <th
+            <TableHead
               onClick={() => handleHeaderClick("critic_score")}
               className="py-2 px-3 cursor-pointer hover:text-white transition-colors group w-20 text-center"
             >
@@ -355,10 +366,10 @@ export default function ListViewTable({
                 <span>{t('table.critic_score')}</span>
                 {renderSortArrow("critic_score")}
               </div>
-            </th>
+            </TableHead>
 
             {/* 7. Completion Status */}
-            <th
+            <TableHead
               onClick={() => handleHeaderClick("completion_status")}
               className="py-2 px-3 cursor-pointer hover:text-white transition-colors group w-32"
             >
@@ -366,10 +377,10 @@ export default function ListViewTable({
                 <span>{t('table.completion')}</span>
                 {renderSortArrow("completion_status")}
               </div>
-            </th>
+            </TableHead>
 
             {/* 8. Release Date */}
-            <th
+            <TableHead
               onClick={() => handleHeaderClick("release_date")}
               className="py-2 px-3 cursor-pointer hover:text-white transition-colors group w-24"
             >
@@ -377,35 +388,34 @@ export default function ListViewTable({
                 <span>{t('table.release_date')}</span>
                 {renderSortArrow("release_date")}
               </div>
-            </th>
+            </TableHead>
 
             {/* 9. Actions */}
-            <th className="py-2 px-3 text-right pr-3 w-28">{t('table.actions')}</th>
-          </tr>
-        </thead>
+            <TableHead className="py-2 px-3 text-right pr-3 w-28">{t('table.actions')}</TableHead>
+          </TableRow>
+        </TableHeader>
 
         {/* TABLE BODY */}
-        <tbody
-          className="divide-y divide-white/[0.04] font-medium transition-colors"
-        >
+        <TableBody className="divide-y divide-white/[0.04] font-medium transition-colors">
           {sortedGames.length === 0 ? (
-            <tr>
-              <td
+            <TableRow>
+              <TableCell
                 colSpan={9}
                 className="py-8 text-center text-xs"
                 style={{ color: "var(--text-muted)" }}
               >
                 {t('table.no_games_found')}
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ) : (
             sortedGames.map((game, index) => {
               const isSelected = selectedGameId === game.id;
               const thumbnailSrc = game.icon_image || game.cover_image;
 
               return (
-                <tr
+                <TableRow
                   key={game.id}
+                  data-state={isSelected ? "selected" : undefined}
                   onClick={() => onSelectGame(game)}
                   onContextMenu={(e) => onContextMenu && onContextMenu(e, game)}
                   onDoubleClick={(e) => {
@@ -427,7 +437,7 @@ export default function ListViewTable({
                   title={t("list_table.row_hint")}
                 >
                   {/* 1. Icon / Thumbnail (Compact vertical cover poster with fallback) */}
-                  <td className="py-1.5 px-3 text-center">
+                  <TableCell className="py-1.5 px-3 text-center">
                     <div className="flex items-center justify-center">
                       <div
                         className="w-8 h-10.5 rounded-md overflow-hidden flex items-center justify-center border border-white/10 shadow-xs shrink-0 transition-transform group-hover:scale-105"
@@ -455,10 +465,10 @@ export default function ListViewTable({
                         )}
                       </div>
                     </div>
-                  </td>
+                  </TableCell>
 
                   {/* 2. Title */}
-                  <td className="py-1.5 px-3 font-semibold text-white max-w-xs md:max-w-sm">
+                  <TableCell className="py-1.5 px-3 font-semibold text-white max-w-xs md:max-w-sm">
                     <div className="flex items-center gap-1.5">
                       <span
                         className="truncate block text-xs md:text-sm font-bold tracking-tight text-white group-hover:text-indigo-300 transition-colors"
@@ -467,152 +477,173 @@ export default function ListViewTable({
                         {game.title}
                       </span>
                       {game.is_hidden && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[9px] font-semibold bg-rose-500/15 text-rose-300 border border-rose-500/30 shrink-0">
+                        <Badge variant="outline" className="gap-1 px-1.5 py-0 rounded text-[9px] font-semibold bg-rose-500/15 text-rose-300 border-rose-500/30 shrink-0">
                           <EyeOff className="w-2.5 h-2.5" />
                           <span>{t("sidebar.hidden")}</span>
-                        </span>
+                        </Badge>
                       )}
                     </div>
-                  </td>
+                  </TableCell>
 
                   {/* 3. Store / Platform */}
-                  <td className="py-1.5 px-3 whitespace-nowrap">
+                  <TableCell className="py-1.5 px-3 whitespace-nowrap">
                     <div className="flex items-center gap-1.5">
                       <StoreBadge library={game.library} />
                       {game.other_copies && game.other_copies.length > 0 && (
-                        <span
-                          className="flex items-center gap-1 pl-1 border-l border-white/10"
-                          title={t("duplicate_hider.other_copies")}
-                        >
-                          {game.other_copies.map((copy) => (
-                            <span
-                              key={copy.id}
-                              className={`inline-flex items-center justify-center p-1 rounded-full bg-slate-900/80 border border-white/20 ${
-                                copy.is_installed
-                                  ? "border-emerald-400/70 text-emerald-300 ring-1 ring-emerald-400/30"
-                                  : "text-white/80"
-                              }`}
-                              title={`${copy.library.toUpperCase()} ${
-                                copy.is_installed ? `(${t("groups.installed")})` : ""
-                              }`}
-                            >
-                              <StoreIcon library={copy.library} className="w-3.5 h-3.5" />
-                            </span>
-                          ))}
-                        </span>
+                        <ActionTooltip label={t("duplicate_hider.other_copies")}>
+                          <span className="flex items-center gap-1 pl-1 border-l border-white/10">
+                            {game.other_copies.map((copy) => (
+                              <ActionTooltip
+                                key={copy.id}
+                                label={`${copy.library.toUpperCase()} ${
+                                  copy.is_installed ? `(${t("groups.installed")})` : ""
+                                }`}
+                              >
+                                <span
+                                  className={`inline-flex items-center justify-center p-1 rounded-full bg-slate-900/80 border border-white/20 ${
+                                    copy.is_installed
+                                      ? "border-emerald-400/70 text-emerald-300 ring-1 ring-emerald-400/30"
+                                      : "text-white/80"
+                                  }`}
+                                >
+                                  <StoreIcon library={copy.library} className="w-3.5 h-3.5" />
+                                </span>
+                              </ActionTooltip>
+                            ))}
+                          </span>
+                        </ActionTooltip>
                       )}
                     </div>
-                  </td>
+                  </TableCell>
 
                   {/* 4. Status (Installed / Available) */}
-                  <td className="py-1.5 px-3 whitespace-nowrap">
+                  <TableCell className="py-1.5 px-3 whitespace-nowrap">
                     {game.is_installed ? (
-                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
+                      <Badge variant="success" className="gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                         <span>{t("groups.installed")}</span>
-                      </span>
+                      </Badge>
                     ) : (
-                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-800/40 text-slate-400 border border-slate-700/40">
+                      <Badge variant="secondary" className="gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-800/40 text-slate-400 border-slate-700/40">
                         <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
                         <span>Cloud</span>
-                      </span>
+                      </Badge>
                     )}
-                  </td>
+                  </TableCell>
 
                   {/* 5. Playtime */}
-                  <td className="py-1.5 px-3 whitespace-nowrap text-xs font-semibold">
+                  <TableCell className="py-1.5 px-3 whitespace-nowrap text-xs font-semibold">
                     {formatPlaytime(game.playtime_seconds, game.playtime_formatted)}
-                  </td>
+                  </TableCell>
 
                   {/* 6. Critic Score */}
-                  <td className="py-1.5 px-3 text-center whitespace-nowrap">
+                  <TableCell className="py-1.5 px-3 text-center whitespace-nowrap">
                     {renderScoreBadge(game.critic_score)}
-                  </td>
+                  </TableCell>
 
                   {/* 7. Completion Status */}
-                  <td className="py-1.5 px-3 whitespace-nowrap">
+                  <TableCell className="py-1.5 px-3 whitespace-nowrap">
                     {renderCompletionBadge(game.completion_status)}
-                  </td>
+                  </TableCell>
 
                   {/* 8. Release Date */}
-                  <td
+                  <TableCell
                     className="py-1.5 px-3 whitespace-nowrap text-xs font-medium"
                     style={{ color: "var(--text-muted)" }}
                   >
                     {game.release_date || "-"}
-                  </td>
+                  </TableCell>
 
                   {/* 9. Quick Actions */}
-                  <td className="py-1.5 px-3 text-right pr-3 whitespace-nowrap">
+                  <TableCell className="py-1.5 px-3 text-right pr-3 whitespace-nowrap">
                     <div className="flex items-center justify-end gap-1">
                       {/* Play Button (if installed) */}
                       {game.is_installed ? (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onLaunchGame(game.id);
-                          }}
-                          className="w-7 h-7 rounded-md flex items-center justify-center text-white transition-all hover:scale-105 hover:brightness-125 active:scale-95 shadow-xs cursor-pointer"
-                          style={{
-                            backgroundColor: "var(--accent-primary)",
-                          }}
-                          title={t('common.play')}
-                        >
-                          <Play className="w-3 h-3 fill-white" />
-                        </button>
+                        <ActionTooltip label={t('common.play')}>
+                          <Button
+                            type="button"
+                            size="icon-xs"
+                            aria-label={t('common.play')}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onLaunchGame(game.id);
+                            }}
+                            className="w-7 h-7 rounded-md text-white hover:scale-105 hover:brightness-125 active:scale-95 shadow-xs"
+                            style={{
+                              backgroundColor: "var(--accent-primary)",
+                            }}
+                          >
+                            <Play className="w-3 h-3 fill-white" />
+                          </Button>
+                        </ActionTooltip>
                       ) : (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onLaunchGame(game.id);
-                          }}
-                          className="w-7 h-7 rounded-md flex items-center justify-center text-indigo-300 hover:text-white border border-indigo-500/40 hover:bg-indigo-500/25 transition-all hover:scale-105 active:scale-95 shadow-xs cursor-pointer"
-                          style={{ backgroundColor: "rgba(99, 102, 241, 0.15)" }}
-                          title={t('common.install')}
-                        >
-                          <Download className="w-3 h-3 text-indigo-300" />
-                        </button>
+                        <ActionTooltip label={t('common.install')}>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon-xs"
+                            aria-label={t('common.install')}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onLaunchGame(game.id);
+                            }}
+                            className="w-7 h-7 rounded-md text-indigo-300 hover:text-white border-indigo-500/40 hover:bg-indigo-500/25 hover:scale-105 active:scale-95 shadow-xs"
+                            style={{ backgroundColor: "rgba(99, 102, 241, 0.15)" }}
+                          >
+                            <Download className="w-3 h-3 text-indigo-300" />
+                          </Button>
+                        </ActionTooltip>
                       )}
 
                       {/* Details Button */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onOpenDetails(game);
-                        }}
-                        className="w-7 h-7 rounded-md flex items-center justify-center border text-slate-300 hover:text-white transition-all hover:bg-white/10 hover:border-slate-400 cursor-pointer shadow-xs"
-                        style={{
-                          backgroundColor: "var(--bg-surface)",
-                          borderColor: "var(--border-color)",
-                        }}
-                        title={t("context_menu.view_details")}
-                      >
-                        <Info className="w-3 h-3" />
-                      </button>
+                      <ActionTooltip label={t("context_menu.view_details")}>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon-xs"
+                          aria-label={t("context_menu.view_details")}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onOpenDetails(game);
+                          }}
+                          className="w-7 h-7 rounded-md text-slate-300 hover:text-white hover:bg-white/10 hover:border-slate-400 shadow-xs"
+                          style={{
+                            backgroundColor: "var(--bg-surface)",
+                            borderColor: "var(--border-color)",
+                          }}
+                        >
+                          <Info className="w-3 h-3" />
+                        </Button>
+                      </ActionTooltip>
 
                       {/* Edit Modal Button */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onEditGame(game);
-                        }}
-                        className="w-7 h-7 rounded-md flex items-center justify-center border text-slate-300 hover:text-white transition-all hover:bg-white/10 hover:border-slate-400 cursor-pointer shadow-xs"
-                        style={{
-                          backgroundColor: "var(--bg-surface)",
-                          borderColor: "var(--border-color)",
-                        }}
-                        title={t("game_details.edit_manual")}
-                      >
-                        <Sliders className="w-3 h-3 text-indigo-400" />
-                      </button>
+                      <ActionTooltip label={t("game_details.edit_manual")}>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon-xs"
+                          aria-label={t("game_details.edit_manual")}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onEditGame(game);
+                          }}
+                          className="w-7 h-7 rounded-md text-slate-300 hover:text-white hover:bg-white/10 hover:border-slate-400 shadow-xs"
+                          style={{
+                            backgroundColor: "var(--bg-surface)",
+                            borderColor: "var(--border-color)",
+                          }}
+                        >
+                          <Sliders className="w-3 h-3 text-indigo-400" />
+                        </Button>
+                      </ActionTooltip>
                     </div>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               );
             })
           )}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }

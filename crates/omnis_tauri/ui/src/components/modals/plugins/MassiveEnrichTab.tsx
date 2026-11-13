@@ -4,6 +4,7 @@ import { MetadataPipelineConfig } from "../../../types";
 import { useTranslation } from "../../../i18n";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { ActionTooltip } from "@/components/ui/tooltip";
 
 export interface MassiveEnrichTabProps {
   gamesCount: number;
@@ -163,16 +164,18 @@ export const MassiveEnrichTab: React.FC<MassiveEnrichTabProps> = ({
           </Button>
 
           {isPipelineEnriching && onCancelPipeline && (
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={onCancelPipeline}
-              className="h-auto px-5 py-3 rounded-xl font-black text-xs text-white bg-red-600 hover:bg-red-500 shadow-lg shadow-red-500/25 gap-2 active:scale-95 animate-pulse"
-              title={t("plugin_manager.stop_title")}
-            >
-              <Square className="w-3.5 h-3.5 fill-current" />
-              <span>{t("plugin_manager.stop")}</span>
-            </Button>
+            <ActionTooltip label={t("plugin_manager.stop_title")}>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={onCancelPipeline}
+                className="h-auto px-5 py-3 rounded-xl font-black text-xs text-white bg-red-600 hover:bg-red-500 shadow-lg shadow-red-500/25 gap-2 active:scale-95 animate-pulse"
+                aria-label={t("plugin_manager.stop_title")}
+              >
+                <Square className="w-3.5 h-3.5 fill-current" />
+                <span>{t("plugin_manager.stop")}</span>
+              </Button>
+            </ActionTooltip>
           )}
         </div>
       </div>

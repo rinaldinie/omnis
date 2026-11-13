@@ -11,6 +11,8 @@ import {
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { ActionTooltip } from "@/components/ui/tooltip";
 
 export interface FilterCounts {
   total: number;
@@ -240,28 +242,31 @@ export default function FilterAndSortPopover({
                 {t("filter_modal.clear_all") || "Cancella tutto"}
               </Button>
             )}
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => onOpenChange(false)}
-              className="h-6 w-6 rounded-lg"
-              title={t("common.close") || "Chiudi"}
-              aria-label={t("common.close") || "Chiudi"}
-            >
-              <X className="w-4 h-4" />
-            </Button>
+            <ActionTooltip label={t("common.close") || "Chiudi"}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => onOpenChange(false)}
+                className="h-6 w-6 rounded-lg"
+                aria-label={t("common.close") || "Chiudi"}
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </ActionTooltip>
           </div>
         </div>
 
         {/* Scrollable Body */}
-        <div className="overflow-y-auto max-h-[75vh] divide-y divide-white/[0.06] custom-scrollbar">
+        <ScrollArea className="max-h-[75vh]">
+          <div className="divide-y divide-white/[0.06]">
           {/* SECTION 1: SORT */}
           <div>
-            <button
+            <Button
               type="button"
+              variant="ghost"
               onClick={() => toggleSection("sort")}
-              className="w-full flex items-center justify-between py-2.5 px-4 font-bold text-xs uppercase tracking-wider text-slate-200 hover:text-white transition-colors cursor-pointer select-none"
+              className="w-full h-auto justify-between py-2.5 px-4 rounded-none font-bold text-xs uppercase tracking-wider text-slate-200 hover:text-white hover:bg-transparent select-none"
             >
               <span>{t("filter_modal.sort") || "Ordina per"}</span>
               {openSections.sort ? (
@@ -269,18 +274,19 @@ export default function FilterAndSortPopover({
               ) : (
                 <ChevronDown className="w-4 h-4 text-slate-400" />
               )}
-            </button>
+            </Button>
 
             {openSections.sort && (
               <div className="px-4 pb-3 space-y-1">
                 {sortOptions.map((opt) => {
                   const isSelected = sortMode === opt.id;
                   return (
-                    <button
+                    <Button
                       key={opt.id}
                       type="button"
+                      variant="ghost"
                       onClick={() => onSortChange(opt.id)}
-                      className="w-full flex items-center gap-3 px-2 py-1.5 rounded-lg text-left transition-colors hover:bg-white/[0.04] group cursor-pointer"
+                      className="w-full h-auto justify-start gap-3 px-2 py-1.5 rounded-lg text-left hover:bg-white/[0.04] group"
                     >
                       <div
                         className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all ${
@@ -302,7 +308,7 @@ export default function FilterAndSortPopover({
                       >
                         {opt.label}
                       </span>
-                    </button>
+                    </Button>
                   );
                 })}
               </div>
@@ -311,10 +317,11 @@ export default function FilterAndSortPopover({
 
           {/* SECTION 2: STATUS */}
           <div>
-            <button
+            <Button
               type="button"
+              variant="ghost"
               onClick={() => toggleSection("status")}
-              className="w-full flex items-center justify-between py-2.5 px-4 font-bold text-xs uppercase tracking-wider text-slate-200 hover:text-white transition-colors cursor-pointer select-none"
+              className="w-full h-auto justify-between py-2.5 px-4 rounded-none font-bold text-xs uppercase tracking-wider text-slate-200 hover:text-white hover:bg-transparent select-none"
             >
               <span>{t("filter_modal.status") || "Stato"}</span>
               {openSections.status ? (
@@ -322,16 +329,17 @@ export default function FilterAndSortPopover({
               ) : (
                 <ChevronDown className="w-4 h-4 text-slate-400" />
               )}
-            </button>
+            </Button>
 
             {openSections.status && (
               <div className="px-4 pb-3 grid grid-cols-2 gap-1.5">
                 {statusItems.map((item) => (
-                  <button
+                  <Button
                     key={item.id}
                     type="button"
+                    variant="ghost"
                     onClick={item.toggle}
-                    className="flex items-center justify-between px-2 py-1.5 rounded-lg text-left transition-colors hover:bg-white/[0.04] group cursor-pointer truncate"
+                    className="h-auto justify-between px-2 py-1.5 rounded-lg text-left hover:bg-white/[0.04] group truncate"
                   >
                     <div className="flex items-center gap-2.5 truncate">
                       <div
@@ -363,7 +371,7 @@ export default function FilterAndSortPopover({
                         {item.count}
                       </span>
                     )}
-                  </button>
+                  </Button>
                 ))}
               </div>
             )}
@@ -371,10 +379,11 @@ export default function FilterAndSortPopover({
 
           {/* SECTION 3: PLATFORM / STORE */}
           <div>
-            <button
+            <Button
               type="button"
+              variant="ghost"
               onClick={() => toggleSection("platform")}
-              className="w-full flex items-center justify-between py-2.5 px-4 font-bold text-xs uppercase tracking-wider text-slate-200 hover:text-white transition-colors cursor-pointer select-none"
+              className="w-full h-auto justify-between py-2.5 px-4 rounded-none font-bold text-xs uppercase tracking-wider text-slate-200 hover:text-white hover:bg-transparent select-none"
             >
               <span>{t("filter_modal.platform") || "Piattaforma"}</span>
               {openSections.platform ? (
@@ -382,18 +391,19 @@ export default function FilterAndSortPopover({
               ) : (
                 <ChevronDown className="w-4 h-4 text-slate-400" />
               )}
-            </button>
+            </Button>
 
             {openSections.platform && (
               <div className="px-4 pb-3 grid grid-cols-2 gap-1.5">
                 {storeItems.map((store) => {
                   const Icon = store.icon;
                   return (
-                    <button
+                    <Button
                       key={store.id}
                       type="button"
+                      variant="ghost"
                       onClick={() => onToggleStore(store.id)}
-                      className="flex items-center justify-between px-2 py-1.5 rounded-lg text-left transition-colors hover:bg-white/[0.04] group cursor-pointer truncate"
+                      className="h-auto justify-between px-2 py-1.5 rounded-lg text-left hover:bg-white/[0.04] group truncate"
                     >
                       <div className="flex items-center gap-2.5 truncate">
                         <div
@@ -423,7 +433,7 @@ export default function FilterAndSortPopover({
                           {store.count}
                         </span>
                       )}
-                    </button>
+                    </Button>
                   );
                 })}
               </div>
@@ -433,10 +443,11 @@ export default function FilterAndSortPopover({
           {/* SECTION 4: GENRE */}
           {availableGenres.length > 0 && (
             <div>
-              <button
+              <Button
                 type="button"
+                variant="ghost"
                 onClick={() => toggleSection("genre")}
-                className="w-full flex items-center justify-between py-2.5 px-4 font-bold text-xs uppercase tracking-wider text-slate-200 hover:text-white transition-colors cursor-pointer select-none"
+                className="w-full h-auto justify-between py-2.5 px-4 rounded-none font-bold text-xs uppercase tracking-wider text-slate-200 hover:text-white hover:bg-transparent select-none"
               >
                 <span>{t("filter_modal.genre") || "Genere"}</span>
                 {openSections.genre ? (
@@ -444,21 +455,23 @@ export default function FilterAndSortPopover({
                 ) : (
                   <ChevronDown className="w-4 h-4 text-slate-400" />
                 )}
-              </button>
+              </Button>
 
               {openSections.genre && (
-                <div className="px-4 pb-3 grid grid-cols-2 gap-1.5 max-h-48 overflow-y-auto custom-scrollbar">
+                <ScrollArea className="max-h-48 px-4 pb-3">
+                  <div className="grid grid-cols-2 gap-1.5">
                   {availableGenres.map((genre) => {
                     const isChecked = selectedGenres.some(
                       (g) => g.toLowerCase() === genre.toLowerCase()
                     );
                     const count = filterCounts.genres[genre] || 0;
                     return (
-                      <button
+                      <Button
                         key={genre}
                         type="button"
+                        variant="ghost"
                         onClick={() => onToggleGenre(genre)}
-                        className="flex items-center justify-between px-2 py-1.5 rounded-lg text-left transition-colors hover:bg-white/[0.04] group cursor-pointer truncate"
+                        className="h-auto justify-between px-2 py-1.5 rounded-lg text-left hover:bg-white/[0.04] group truncate"
                       >
                         <div className="flex items-center gap-2.5 truncate">
                           <div
@@ -487,10 +500,11 @@ export default function FilterAndSortPopover({
                             {count}
                           </span>
                         )}
-                      </button>
+                      </Button>
                     );
                   })}
-                </div>
+                  </div>
+                </ScrollArea>
               )}
             </div>
           )}
@@ -498,10 +512,11 @@ export default function FilterAndSortPopover({
           {/* SECTION 5: FEATURES */}
           {availableFeatures.length > 0 && (
             <div>
-              <button
+              <Button
                 type="button"
+                variant="ghost"
                 onClick={() => toggleSection("features")}
-                className="w-full flex items-center justify-between py-2.5 px-4 font-bold text-xs uppercase tracking-wider text-slate-200 hover:text-white transition-colors cursor-pointer select-none"
+                className="w-full h-auto justify-between py-2.5 px-4 rounded-none font-bold text-xs uppercase tracking-wider text-slate-200 hover:text-white hover:bg-transparent select-none"
               >
                 <span>{t("filter_modal.features") || "Caratteristiche"}</span>
                 {openSections.features ? (
@@ -509,21 +524,23 @@ export default function FilterAndSortPopover({
                 ) : (
                   <ChevronDown className="w-4 h-4 text-slate-400" />
                 )}
-              </button>
+              </Button>
 
               {openSections.features && (
-                <div className="px-4 pb-3 grid grid-cols-2 gap-1.5 max-h-48 overflow-y-auto custom-scrollbar">
+                <ScrollArea className="max-h-48 px-4 pb-3">
+                  <div className="grid grid-cols-2 gap-1.5">
                   {availableFeatures.map((feat) => {
                     const isChecked = selectedFeatures.some(
                       (f) => f.toLowerCase() === feat.toLowerCase()
                     );
                     const count = filterCounts.features[feat] || 0;
                     return (
-                      <button
+                      <Button
                         key={feat}
                         type="button"
+                        variant="ghost"
                         onClick={() => onToggleFeature(feat)}
-                        className="flex items-center justify-between px-2 py-1.5 rounded-lg text-left transition-colors hover:bg-white/[0.04] group cursor-pointer truncate"
+                        className="h-auto justify-between px-2 py-1.5 rounded-lg text-left hover:bg-white/[0.04] group truncate"
                       >
                         <div className="flex items-center gap-2.5 truncate">
                           <div
@@ -552,14 +569,16 @@ export default function FilterAndSortPopover({
                             {count}
                           </span>
                         )}
-                      </button>
+                      </Button>
                     );
                   })}
-                </div>
+                  </div>
+                </ScrollArea>
               )}
             </div>
           )}
-        </div>
+          </div>
+        </ScrollArea>
       </PopoverContent>
     </Popover>
   );

@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { useTranslation } from "../../../i18n";
 import { ProviderInfo, MetadataPipelineConfig } from "../../../types";
+import { ActionTooltip } from "@/components/ui/tooltip";
 import { SettingGroup, SettingRow, ToggleSwitch } from "../SettingsControls";
 import { StoreIcon } from "../../StoreBadge";
 import { Button } from "@/components/ui/button";
@@ -343,48 +344,54 @@ export const PipelineSection: React.FC<PipelineSectionProps> = ({
                           <div className="flex items-center gap-0.5 ml-1 border-l border-white/10 pl-0.5">
                             {onMoveFieldSource && (
                               <>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon-xs"
-                                  disabled={isFirst}
-                                  onClick={() =>
-                                    onMoveFieldSource(fieldDef.id, srcIdx, -1)
-                                  }
-                                  className="h-auto w-auto p-0.5 rounded hover:bg-white/10 text-slate-400 hover:text-white disabled:opacity-20"
-                                  title={t("metadata_settings.move_up", { defaultValue: "Move up" })}
-                                >
-                                  <ArrowLeft className="w-2.5 h-2.5" />
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon-xs"
-                                  disabled={isLast}
-                                  onClick={() =>
-                                    onMoveFieldSource(fieldDef.id, srcIdx, 1)
-                                  }
-                                  className="h-auto w-auto p-0.5 rounded hover:bg-white/10 text-slate-400 hover:text-white disabled:opacity-20"
-                                  title={t("metadata_settings.move_down", { defaultValue: "Move down" })}
-                                >
-                                  <ArrowRight className="w-2.5 h-2.5" />
-                                </Button>
+                                <ActionTooltip label={t("metadata_settings.move_up", { defaultValue: "Move up" })}>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon-xs"
+                                    disabled={isFirst}
+                                    onClick={() =>
+                                      onMoveFieldSource(fieldDef.id, srcIdx, -1)
+                                    }
+                                    className="h-auto w-auto p-0.5 rounded hover:bg-white/10 text-slate-400 hover:text-white disabled:opacity-20"
+                                    aria-label={t("metadata_settings.move_up", { defaultValue: "Move up" })}
+                                  >
+                                    <ArrowLeft className="w-2.5 h-2.5" />
+                                  </Button>
+                                </ActionTooltip>
+                                <ActionTooltip label={t("metadata_settings.move_down", { defaultValue: "Move down" })}>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon-xs"
+                                    disabled={isLast}
+                                    onClick={() =>
+                                      onMoveFieldSource(fieldDef.id, srcIdx, 1)
+                                    }
+                                    className="h-auto w-auto p-0.5 rounded hover:bg-white/10 text-slate-400 hover:text-white disabled:opacity-20"
+                                    aria-label={t("metadata_settings.move_down", { defaultValue: "Move down" })}
+                                  >
+                                    <ArrowRight className="w-2.5 h-2.5" />
+                                  </Button>
+                                </ActionTooltip>
                               </>
                             )}
 
                             {onRemoveFieldSource && rule.sources.length > 1 && (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon-xs"
-                                onClick={() =>
-                                  onRemoveFieldSource(fieldDef.id, srcIdx)
-                                }
-                                className="h-auto w-auto p-0.5 rounded hover:bg-rose-500/20 text-slate-400 hover:text-rose-300 ml-0.5"
-                                title={t("metadata_settings.remove_source", { defaultValue: "Remove this provider" })}
-                              >
-                                <X className="w-2.5 h-2.5" />
-                              </Button>
+                              <ActionTooltip label={t("metadata_settings.remove_source", { defaultValue: "Remove this provider" })}>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon-xs"
+                                  onClick={() =>
+                                    onRemoveFieldSource(fieldDef.id, srcIdx)
+                                  }
+                                  className="h-auto w-auto p-0.5 rounded hover:bg-rose-500/20 text-slate-400 hover:text-rose-300 ml-0.5"
+                                  aria-label={t("metadata_settings.remove_source", { defaultValue: "Remove this provider" })}
+                                >
+                                  <X className="w-2.5 h-2.5" />
+                                </Button>
+                              </ActionTooltip>
                             )}
                           </div>
                         </div>
@@ -436,17 +443,19 @@ export const PipelineSection: React.FC<PipelineSectionProps> = ({
                           </Button>
                         </div>
                       ) : (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="xs"
-                          onClick={() => setAddingSourceForField(fieldDef.id)}
-                          className="h-auto gap-1 px-2 py-1 rounded-lg border-dashed border-white/20 hover:border-white/40 bg-white/[0.02] hover:bg-white/[0.06] text-[11px] font-medium text-slate-400 hover:text-white"
-                          title={t("metadata_settings.add_fallback_source", { defaultValue: "Add fallback provider to this field" })}
-                        >
-                          <Plus className="w-3 h-3" />
-                          <span>{t("common.add", { defaultValue: "Add" })}</span>
-                        </Button>
+                        <ActionTooltip label={t("metadata_settings.add_fallback_source", { defaultValue: "Add fallback provider to this field" })}>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="xs"
+                            onClick={() => setAddingSourceForField(fieldDef.id)}
+                            className="h-auto gap-1 px-2 py-1 rounded-lg border-dashed border-white/20 hover:border-white/40 bg-white/[0.02] hover:bg-white/[0.06] text-[11px] font-medium text-slate-400 hover:text-white"
+                            aria-label={t("metadata_settings.add_fallback_source", { defaultValue: "Add fallback provider to this field" })}
+                          >
+                            <Plus className="w-3 h-3" />
+                            <span>{t("common.add", { defaultValue: "Add" })}</span>
+                          </Button>
+                        </ActionTooltip>
                       )}
                     </div>
                   )}
@@ -550,28 +559,32 @@ export const PipelineSection: React.FC<PipelineSectionProps> = ({
               </div>
 
               <div className="flex items-center gap-1">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon-xs"
-                  disabled={isFirst}
-                  onClick={() => onMovePriority(index, -1)}
-                  className="h-auto w-auto p-1 rounded-md border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 disabled:opacity-20"
-                  title={t("metadata_settings.move_up", { defaultValue: "Move up" })}
-                >
-                  <ArrowUp className="w-3 h-3" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon-xs"
-                  disabled={isLast}
-                  onClick={() => onMovePriority(index, 1)}
-                  className="h-auto w-auto p-1 rounded-md border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 disabled:opacity-20"
-                  title={t("metadata_settings.move_down", { defaultValue: "Move down" })}
-                >
-                  <ArrowDown className="w-3 h-3" />
-                </Button>
+                <ActionTooltip label={t("metadata_settings.move_up", { defaultValue: "Move up" })}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon-xs"
+                    disabled={isFirst}
+                    onClick={() => onMovePriority(index, -1)}
+                    className="h-auto w-auto p-1 rounded-md border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 disabled:opacity-20"
+                    aria-label={t("metadata_settings.move_up", { defaultValue: "Move up" })}
+                  >
+                    <ArrowUp className="w-3 h-3" />
+                  </Button>
+                </ActionTooltip>
+                <ActionTooltip label={t("metadata_settings.move_down", { defaultValue: "Move down" })}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon-xs"
+                    disabled={isLast}
+                    onClick={() => onMovePriority(index, 1)}
+                    className="h-auto w-auto p-1 rounded-md border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 disabled:opacity-20"
+                    aria-label={t("metadata_settings.move_down", { defaultValue: "Move down" })}
+                  >
+                    <ArrowDown className="w-3 h-3" />
+                  </Button>
+                </ActionTooltip>
               </div>
             </div>
           );

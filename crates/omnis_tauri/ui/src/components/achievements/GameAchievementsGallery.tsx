@@ -18,6 +18,7 @@ import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { Card } from "../ui/card";
 import { Progress } from "../ui/progress";
+import { ActionTooltip } from "../ui/tooltip";
 
 interface GameAchievementsGalleryProps {
   game: GameDto;
@@ -462,23 +463,25 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
           )}
 
           {!isFullscreenMode && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                soundEffects.playSelect();
-                fetchAchievements(true);
-              }}
-              disabled={refreshing}
-              title={t("achievements.refresh_title")}
-              className="h-auto px-2.5 py-1.5 rounded-xl border border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin text-indigo-400" : ""}`} />
-              <span className="text-xs font-semibold">
-                {t("achievements.sync")}
-              </span>
-            </Button>
+            <ActionTooltip label={t("achievements.refresh_title")}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  soundEffects.playSelect();
+                  fetchAchievements(true);
+                }}
+                disabled={refreshing}
+                aria-label={t("achievements.refresh_title")}
+                className="h-auto px-2.5 py-1.5 rounded-xl border border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin text-indigo-400" : ""}`} />
+                <span className="text-xs font-semibold">
+                  {t("achievements.sync")}
+                </span>
+              </Button>
+            </ActionTooltip>
           )}
         </div>
       </div>

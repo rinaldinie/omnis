@@ -14,6 +14,7 @@ import { formatImageUrl } from "../../types";
 import { api } from "../../api";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { ActionTooltip } from "@/components/ui/tooltip";
 
 interface MediaTabProps {
   formData: GameEditorFormData;
@@ -178,24 +179,30 @@ export const MediaTab: React.FC<MediaTabProps> = ({
 
           <div className="flex items-center gap-3">
             {isCoverModified && initialMedia?.cover_image_path && (
-              <button
-                type="button"
-                onClick={() => onChange({ cover_image_path: initialMedia.cover_image_path })}
-                className="text-xs text-indigo-400 hover:text-indigo-300 hover:underline flex items-center gap-1"
-                title={t("editor_media.revert_original")}
-              >
-                <RotateCcw className="w-3 h-3" />
-                <span>{t("editor_media.revert_original")}</span>
-              </button>
+              <ActionTooltip label={t("editor_media.revert_original")}>
+                <Button
+                  type="button"
+                  variant="link"
+                  size="xs"
+                  onClick={() => onChange({ cover_image_path: initialMedia.cover_image_path })}
+                  className="h-auto p-0 text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
+                  aria-label={t("editor_media.revert_original")}
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>{t("editor_media.revert_original")}</span>
+                </Button>
+              </ActionTooltip>
             )}
             {formData.cover_image_path && (
-              <button
+              <Button
                 type="button"
+                variant="link"
+                size="xs"
                 onClick={() => onChange({ cover_image_path: "" })}
-                className="text-xs text-rose-400 hover:underline"
+                className="h-auto p-0 text-xs text-rose-400 hover:text-rose-300"
               >
                 {t("editor_media.remove_cover")}
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -222,17 +229,19 @@ export const MediaTab: React.FC<MediaTabProps> = ({
                 className="flex-1 h-9 px-3.5 py-2 bg-popover text-xs font-mono"
                 placeholder={t("editor_media.cover_placeholder")}
               />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => onPickImage("cover_image_path")}
-                className="h-9 bg-popover font-medium shrink-0"
-                title={t("editor_media.pick_cover_title")}
-              >
-                <FolderOpen className="w-4 h-4 text-indigo-400" />
-                <span>{t("custom_game.browse")}</span>
-              </Button>
+              <ActionTooltip label={t("editor_media.pick_cover_title")}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onPickImage("cover_image_path")}
+                  className="h-9 bg-popover font-medium shrink-0"
+                  aria-label={t("editor_media.pick_cover_title")}
+                >
+                  <FolderOpen className="w-4 h-4 text-indigo-400" />
+                  <span>{t("custom_game.browse")}</span>
+                </Button>
+              </ActionTooltip>
             </div>
             <p className="text-[11px] text-slate-400">
               {t("editor_media.path_hint")}
@@ -264,24 +273,30 @@ export const MediaTab: React.FC<MediaTabProps> = ({
 
           <div className="flex items-center gap-3">
             {isBgModified && initialMedia?.background_image_path && (
-              <button
-                type="button"
-                onClick={() => onChange({ background_image_path: initialMedia.background_image_path })}
-                className="text-xs text-indigo-400 hover:text-indigo-300 hover:underline flex items-center gap-1"
-                title={t("editor_media.revert_original")}
-              >
-                <RotateCcw className="w-3 h-3" />
-                <span>{t("editor_media.revert_original")}</span>
-              </button>
+              <ActionTooltip label={t("editor_media.revert_original")}>
+                <Button
+                  type="button"
+                  variant="link"
+                  size="xs"
+                  onClick={() => onChange({ background_image_path: initialMedia.background_image_path })}
+                  className="h-auto p-0 text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
+                  aria-label={t("editor_media.revert_original")}
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>{t("editor_media.revert_original")}</span>
+                </Button>
+              </ActionTooltip>
             )}
             {formData.background_image_path && (
-              <button
+              <Button
                 type="button"
+                variant="link"
+                size="xs"
                 onClick={() => onChange({ background_image_path: "" })}
-                className="text-xs text-rose-400 hover:underline"
+                className="h-auto p-0 text-xs text-rose-400 hover:text-rose-300"
               >
                 {t("editor_media.remove_background")}
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -304,17 +319,19 @@ export const MediaTab: React.FC<MediaTabProps> = ({
               className="flex-1 h-9 px-3.5 py-2 bg-popover text-xs font-mono"
               placeholder={t("editor_media.background_placeholder")}
             />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => onPickImage("background_image_path")}
-              className="h-9 bg-popover font-medium shrink-0"
-              title={t("editor_media.pick_background_title")}
-            >
-              <FolderOpen className="w-4 h-4 text-indigo-400" />
-              <span>{t("custom_game.browse")}</span>
-            </Button>
+            <ActionTooltip label={t("editor_media.pick_background_title")}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => onPickImage("background_image_path")}
+                className="h-9 bg-popover font-medium shrink-0"
+                aria-label={t("editor_media.pick_background_title")}
+              >
+                <FolderOpen className="w-4 h-4 text-indigo-400" />
+                <span>{t("custom_game.browse")}</span>
+              </Button>
+            </ActionTooltip>
           </div>
         </div>
       </div>
@@ -342,24 +359,30 @@ export const MediaTab: React.FC<MediaTabProps> = ({
 
           <div className="flex items-center gap-3">
             {isIconModified && initialMedia?.icon_image_path && (
-              <button
-                type="button"
-                onClick={() => onChange({ icon_image_path: initialMedia.icon_image_path })}
-                className="text-xs text-indigo-400 hover:text-indigo-300 hover:underline flex items-center gap-1"
-                title={t("editor_media.revert_original")}
-              >
-                <RotateCcw className="w-3 h-3" />
-                <span>{t("editor_media.revert_original")}</span>
-              </button>
+              <ActionTooltip label={t("editor_media.revert_original")}>
+                <Button
+                  type="button"
+                  variant="link"
+                  size="xs"
+                  onClick={() => onChange({ icon_image_path: initialMedia.icon_image_path })}
+                  className="h-auto p-0 text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
+                  aria-label={t("editor_media.revert_original")}
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>{t("editor_media.revert_original")}</span>
+                </Button>
+              </ActionTooltip>
             )}
             {formData.icon_image_path && (
-              <button
+              <Button
                 type="button"
+                variant="link"
+                size="xs"
                 onClick={() => onChange({ icon_image_path: "" })}
-                className="text-xs text-rose-400 hover:underline"
+                className="h-auto p-0 text-xs text-rose-400 hover:text-rose-300"
               >
                 {t("editor_media.remove_icon")}
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -382,17 +405,19 @@ export const MediaTab: React.FC<MediaTabProps> = ({
               className="flex-1 h-9 px-3.5 py-2 bg-popover text-xs font-mono"
               placeholder={t("editor_media.icon_placeholder")}
             />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => onPickImage("icon_image_path")}
-              className="h-9 bg-popover font-medium shrink-0"
-              title={t("editor_media.pick_icon_title")}
-            >
-              <FolderOpen className="w-4 h-4 text-indigo-400" />
-              <span>{t("custom_game.browse")}</span>
-            </Button>
+            <ActionTooltip label={t("editor_media.pick_icon_title")}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => onPickImage("icon_image_path")}
+                className="h-9 bg-popover font-medium shrink-0"
+                aria-label={t("editor_media.pick_icon_title")}
+              >
+                <FolderOpen className="w-4 h-4 text-indigo-400" />
+                <span>{t("custom_game.browse")}</span>
+              </Button>
+            </ActionTooltip>
           </div>
         </div>
       </div>

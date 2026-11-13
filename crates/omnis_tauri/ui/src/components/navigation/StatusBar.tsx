@@ -3,6 +3,8 @@ import { RefreshCw } from "lucide-react";
 import { ActiveGameSession, AchievementSyncProgress } from "../../types";
 import { ActiveGameStatusBarTicker } from "../../context/ActiveGameTimerContext";
 import { AchievementSyncIndicator } from "../achievements";
+import { Button } from "@/components/ui/button";
+import { ActionTooltip } from "@/components/ui/tooltip";
 
 export interface StatusBarProps {
   gamepadConnected: boolean;
@@ -61,14 +63,18 @@ export const StatusBar: React.FC<StatusBarProps> = ({
               label={t("app_misc.now_playing")}
               formatDuration={formatDuration}
             />
-            <button
-              type="button"
-              onClick={handleKillRunningGame}
-              className="px-2 py-0.5 rounded text-[10px] font-black bg-rose-600 hover:bg-rose-500 text-white transition-colors shrink-0 shadow-sm cursor-pointer"
-              title={t("app_misc.kill_title")}
-            >
-              {t("app_misc.kill_short")}
-            </button>
+            <ActionTooltip label={t("app_misc.kill_title")}>
+              <Button
+                type="button"
+                variant="destructive"
+                size="xs"
+                onClick={handleKillRunningGame}
+                className="h-auto px-2 py-0.5 rounded text-[10px] font-black shrink-0 shadow-sm"
+                aria-label={t("app_misc.kill_title")}
+              >
+                {t("app_misc.kill_short")}
+              </Button>
+            </ActionTooltip>
           </div>
         ) : isSyncing ? (
           <div className="flex items-center gap-2 truncate">

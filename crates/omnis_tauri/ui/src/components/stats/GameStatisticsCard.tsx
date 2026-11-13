@@ -4,6 +4,8 @@ import { GameDto, GameStatsDto } from "../../types";
 import WeeklyBarChart from "./WeeklyBarChart";
 import { Clock, Trophy, Activity, Hourglass } from "lucide-react";
 import { useTranslation } from "../../i18n";
+import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface GameStatisticsCardProps {
   game: GameDto;
@@ -48,15 +50,15 @@ export default function GameStatisticsCard({ game }: GameStatisticsCardProps) {
 
   if (loading) {
     return (
-      <div className="p-6 rounded-xl bg-white/[0.02] border border-white/[0.06] animate-pulse space-y-4">
-        <div className="h-4 w-32 rounded bg-white/[0.04] mb-4" />
+      <Card className="p-6 rounded-xl bg-white/[0.02] border-white/[0.06] space-y-4 shadow-none">
+        <Skeleton className="h-4 w-32 rounded mb-4" />
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-          <div className="h-16 rounded-xl bg-white/[0.04]" />
-          <div className="h-16 rounded-xl bg-white/[0.04]" />
-          <div className="h-16 rounded-xl bg-white/[0.04]" />
+          <Skeleton className="h-16 rounded-xl" />
+          <Skeleton className="h-16 rounded-xl" />
+          <Skeleton className="h-16 rounded-xl" />
         </div>
-        <div className="h-28 rounded-xl bg-white/[0.04]" />
-      </div>
+        <Skeleton className="h-28 rounded-xl" />
+      </Card>
     );
   }
 
@@ -77,7 +79,7 @@ export default function GameStatisticsCard({ game }: GameStatisticsCardProps) {
     totalPlaytimeSeconds > 0 ? formatDuration(totalPlaytimeSeconds) : game.playtime_formatted || `0${t("statistics.min")}`;
 
   return (
-    <div className="p-6 rounded-xl bg-white/[0.02] border border-white/[0.06] space-y-4 transition-colors duration-300">
+    <Card className="p-6 rounded-xl bg-white/[0.02] border-white/[0.06] space-y-4 transition-colors duration-300 shadow-none">
       {/* Header */}
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold tracking-wider uppercase flex items-center gap-2 text-[var(--text-muted)]">
@@ -142,6 +144,6 @@ export default function GameStatisticsCard({ game }: GameStatisticsCardProps) {
           {t("statistics.no_activity_4_weeks")}
         </p>
       )}
-    </div>
+    </Card>
   );
 }

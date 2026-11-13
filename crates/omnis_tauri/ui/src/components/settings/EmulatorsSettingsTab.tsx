@@ -21,6 +21,7 @@ import type { GameDto } from '../../types';
 import soundEffects from '../../utils/soundEffects';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { ActionTooltip } from '@/components/ui/tooltip';
 import {
   Select,
   SelectContent,
@@ -232,9 +233,11 @@ export const EmulatorsSettingsTab: React.FC<EmulatorsSettingsTabProps> = ({ onSy
               }
               badge={
                 emu.has_keys ? (
-                  <span title={t('emulators_settings.has_keys', { defaultValue: 'Chiavi presenti' })}>
-                    <KeyRound className="w-3.5 h-3.5 text-amber-400" />
-                  </span>
+                  <ActionTooltip label={t('emulators_settings.has_keys', { defaultValue: 'Chiavi presenti' })}>
+                    <span>
+                      <KeyRound className="w-3.5 h-3.5 text-amber-400" />
+                    </span>
+                  </ActionTooltip>
                 ) : undefined
               }
             >
@@ -245,17 +248,19 @@ export const EmulatorsSettingsTab: React.FC<EmulatorsSettingsTabProps> = ({ onSy
                 </Button>
               )}
               {emu.custom_executable && emu.executable && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleRemoveExecutable(emu.executable!)}
-                  disabled={busy}
-                  className={compactBtnClass}
-                  title={t('emulators_settings.remove_exe', { defaultValue: 'Torna al rilevamento automatico' })}
-                >
-                  <X className="w-3.5 h-3.5" />
-                </Button>
+                <ActionTooltip label={t('emulators_settings.remove_exe', { defaultValue: 'Torna al rilevamento automatico' })}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleRemoveExecutable(emu.executable!)}
+                    disabled={busy}
+                    className={compactBtnClass}
+                    aria-label={t('emulators_settings.remove_exe', { defaultValue: 'Torna al rilevamento automatico' })}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </Button>
+                </ActionTooltip>
               )}
             </SettingRow>
           ))
@@ -307,17 +312,19 @@ export const EmulatorsSettingsTab: React.FC<EmulatorsSettingsTabProps> = ({ onSy
               icon={<FolderOpen className="w-4 h-4" />}
               title={<span className="font-mono text-[11px] break-all">{dir}</span>}
             >
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => handleRemoveFolder(dir)}
-                disabled={busy}
-                className={compactBtnClass}
-                title={t('emulators_settings.remove_folder', { defaultValue: 'Rimuovi cartella' })}
-              >
-                <X className="w-3.5 h-3.5" />
-              </Button>
+              <ActionTooltip label={t('emulators_settings.remove_folder', { defaultValue: 'Rimuovi cartella' })}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleRemoveFolder(dir)}
+                  disabled={busy}
+                  className={compactBtnClass}
+                  aria-label={t('emulators_settings.remove_folder', { defaultValue: 'Rimuovi cartella' })}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </Button>
+              </ActionTooltip>
             </SettingRow>
           ))
         )}

@@ -26,6 +26,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
+import { ActionTooltip } from "@/components/ui/tooltip";
 
 interface PluginManagerModalProps {
   isOpen: boolean;
@@ -311,36 +312,40 @@ export default function PluginManagerModal({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleRefreshPlugins}
-              disabled={isRefreshingPlugins}
-              className="gap-1.5 px-3 py-1.5 h-auto rounded-lg text-xs font-bold"
-              style={{
-                color: isRefreshingPlugins ? "var(--accent-primary)" : "var(--text-muted)",
-              }}
-              title={t("plugin_manager.scan_title")}
-            >
-              <RefreshCw
-                className={`w-3.5 h-3.5 ${
-                  isRefreshingPlugins ? "animate-spin text-cyan-400" : ""
-                }`}
-              />
-              <span className="hidden sm:inline">{t("plugins_modal.refresh_plugins")}</span>
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => handleOpenFolder("plugins")}
-              className="gap-1.5 px-3 py-1.5 h-auto rounded-lg text-xs font-bold text-muted-foreground"
-              title={t("plugin_manager.open_folder_title")}
-            >
-              <Folder className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{t("plugins_modal.plugins_folder")}</span>
-            </Button>
+            <ActionTooltip label={t("plugin_manager.scan_title")}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleRefreshPlugins}
+                disabled={isRefreshingPlugins}
+                className="gap-1.5 px-3 py-1.5 h-auto rounded-lg text-xs font-bold"
+                style={{
+                  color: isRefreshingPlugins ? "var(--accent-primary)" : "var(--text-muted)",
+                }}
+                aria-label={t("plugin_manager.scan_title")}
+              >
+                <RefreshCw
+                  className={`w-3.5 h-3.5 ${
+                    isRefreshingPlugins ? "animate-spin text-cyan-400" : ""
+                  }`}
+                />
+                <span className="hidden sm:inline">{t("plugins_modal.refresh_plugins")}</span>
+              </Button>
+            </ActionTooltip>
+            <ActionTooltip label={t("plugin_manager.open_folder_title")}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => handleOpenFolder("plugins")}
+                className="gap-1.5 px-3 py-1.5 h-auto rounded-lg text-xs font-bold text-muted-foreground"
+                aria-label={t("plugin_manager.open_folder_title")}
+              >
+                <Folder className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">{t("plugins_modal.plugins_folder")}</span>
+              </Button>
+            </ActionTooltip>
             <DialogClose asChild>
               <Button
                 type="button"
