@@ -126,7 +126,7 @@ export function useGameOperations({
 
   const handleKillRunningGame = useCallback(() => {
     setShowKillConfirmModal(true);
-  }, []);
+  }, [setShowKillConfirmModal]);
 
   const confirmKillRunningGame = useCallback(async () => {
     setShowKillConfirmModal(false);
@@ -142,7 +142,7 @@ export function useGameOperations({
     } catch (err: any) {
       setStatusMessage(statusText("stop_error", { error: String(err) }));
     }
-  }, [setStatusMessage, statusText]);
+  }, [setShowKillConfirmModal, setStatusMessage, statusText]);
 
   const handleOpenFolder = useCallback((folderType: string) => {
     api.window.openFolder(folderType);
@@ -178,7 +178,7 @@ export function useGameOperations({
   const handleOpenUninstallModal = useCallback((game: GameDto) => {
     setGameToUninstall(game);
     setShowUninstallModal(true);
-  }, []);
+  }, [setGameToUninstall, setShowUninstallModal]);
 
   const handleConfirmUninstall = useCallback(async (gameId: string) => {
     try {

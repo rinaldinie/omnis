@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ActiveGameSession, GameDto, ThemeConfig, ViewMode, formatImageUrl } from "../../../types";
 import { useActiveGameTimer } from "../../../context/ActiveGameTimerContext";
-import { StoreBadge, StoreIcon } from "../../StoreBadge";
+import { StoreBadge } from "../../StoreBadge";
 import { VideoBackdrop } from "../../common/VideoBackdrop";
 import { Slot } from "../../common/Slot";
 import { GameCardCover } from "../../common/GameCardCover";
@@ -89,7 +89,7 @@ export const DetailsHeroHeader: React.FC<DetailsHeroHeaderProps> = ({
   handleVerifyFiles,
   handleOpenUninstallModal,
   handleRemoveFromLibrary,
-  handlePromoteCopy,
+  handlePromoteCopy: _handlePromoteCopy,
   handleToggleFavorite,
 }) => {
   const { locale } = useTranslation();

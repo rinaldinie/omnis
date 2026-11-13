@@ -32,7 +32,7 @@ export const PipelinePriorityTab: React.FC<PipelinePriorityTabProps> = ({
   pipelineConfig,
   setPipelineConfig,
   onSavePipelineConfig,
-  tr,
+  tr: _tr,
 }) => {
   const { t } = useTranslation();
 

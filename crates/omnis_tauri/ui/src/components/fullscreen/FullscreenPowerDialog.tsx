@@ -68,6 +68,8 @@ export const FullscreenPowerDialog: React.FC<FullscreenPowerDialogProps> = ({
       tone: "default",
     },
   ];
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
 
   // Reset focus to top option whenever dialog opens
   useEffect(() => {
@@ -94,7 +96,7 @@ export const FullscreenPowerDialog: React.FC<FullscreenPowerDialogProps> = ({
 
     const handleAction = () => {
       soundEffects.playSelect();
-      const current = options[focusedIndexRef.current];
+      const current = optionsRef.current[focusedIndexRef.current];
       if (current) {
         onSelectAction(current.id);
       }

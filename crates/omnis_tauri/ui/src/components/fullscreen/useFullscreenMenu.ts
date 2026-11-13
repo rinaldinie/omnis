@@ -17,8 +17,6 @@ import {
   VolumeX,
   Gamepad2,
   CloudDownload,
-  Minimize2,
-  Monitor,
   Power,
   BarChart3,
   OctagonX,
@@ -411,6 +409,8 @@ export function useFullscreenMenu({
   const [menuFocusedIndex, setMenuFocusedIndex] = useState<number>(0);
   const safeMenuIndex = Math.min(menuFocusedIndex, menuItems.length - 1);
   const focusedMenuItem = menuItems[safeMenuIndex];
+  const menuStateRef = useRef({ menuItems, focusedMenuItem, confirm });
+  menuStateRef.current = { menuItems, focusedMenuItem, confirm };
 
   // Reset menu focus whenever the menu opens
   useEffect(() => {
@@ -430,8 +430,9 @@ export function useFullscreenMenu({
 
     const handleMenuNav = (e: Event) => {
       const dir = (e as CustomEvent<{ direction: "up" | "down" | "left" | "right" }>).detail?.direction;
-      if (!dir || confirm) return;
-      const count = menuItems.length;
+      const { menuItems: items, focusedMenuItem: activeItem, confirm: activeConfirm } = menuStateRef.current;
+      if (!dir || activeConfirm) return;
+      const count = items.length;
 
       if (dir === "down") {
         setMenuFocusedIndex((prev) => (Math.min(prev, count - 1) + 1) % count);
@@ -439,16 +440,17 @@ export function useFullscreenMenu({
       } else if (dir === "up") {
         setMenuFocusedIndex((prev) => (Math.min(prev, count - 1) <= 0 ? count - 1 : Math.min(prev, count - 1) - 1));
         soundEffects.playNav();
-      } else if (focusedMenuItem?.onAdjust) {
-        if (focusedMenuItem.id !== "sound") soundEffects.playNav();
-        focusedMenuItem.onAdjust(dir === "right" ? 1 : -1);
+      } else if (activeItem?.onAdjust) {
+        if (activeItem.id !== "sound") soundEffects.playNav();
+        activeItem.onAdjust(dir === "right" ? 1 : -1);
       }
     };
 
     const handleMenuActionA = () => {
-      if (!focusedMenuItem || confirm) return;
+      const { focusedMenuItem: activeItem, confirm: activeConfirm } = menuStateRef.current;
+      if (!activeItem || activeConfirm) return;
       soundEffects.playSelect();
-      focusedMenuItem.onActivate();
+      activeItem.onActivate();
     };
 
     window.addEventListener("omnis:menu-nav", handleMenuNav);
@@ -457,7 +459,7 @@ export function useFullscreenMenu({
       window.removeEventListener("omnis:menu-nav", handleMenuNav);
       window.removeEventListener("omnis:menu-action-a", handleMenuActionA);
     };
-  }, [isMenuOpen, menuItems, focusedMenuItem, confirm]);
+  }, [isMenuOpen]);
 
   return {
     hasUpdate,

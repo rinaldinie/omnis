@@ -35,8 +35,9 @@ export const ArtImage = React.memo(function ArtImage({
   /** Off when the caller already overlays the title */
   showFallbackTitle?: boolean;
 }) {
-  const sourcesKey = sources.join("|");
-  const candidates = React.useMemo(() => {
+  const sourcesKey = sources.join("\0");
+  const cachedRef = React.useRef<{ key: string; candidates: string[] } | null>(null);
+  if (!cachedRef.current || cachedRef.current.key !== sourcesKey) {
     const out: string[] = [];
     for (const src of sources) {
       const url = resolveImage(src);
@@ -47,8 +48,9 @@ export const ArtImage = React.memo(function ArtImage({
         if (!out.includes(header)) out.push(header);
       }
     }
-    return out;
-  }, [sourcesKey]);
+    cachedRef.current = { key: sourcesKey, candidates: out };
+  }
+  const candidates = cachedRef.current.candidates;
 
   const [index, setIndex] = React.useState(0);
   React.useEffect(() => setIndex(0), [candidates]);

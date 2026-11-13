@@ -152,7 +152,7 @@ export default function FullscreenView({
   currentTheme,
   loadProvidersAndConfig,
   toggleFullscreen,
-  handleMinimize,
+  handleMinimize: _handleMinimize,
   handleClose,
   handleLaunch,
   handleSync,

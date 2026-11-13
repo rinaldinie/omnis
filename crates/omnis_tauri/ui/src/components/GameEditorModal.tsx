@@ -103,14 +103,6 @@ export default function GameEditorModal({
     setSaveSuccess(false);
 
     const initFromGame = (g: any) => {
-      let parsedExtra: any = {};
-      try {
-        if (g.extra_metadata) {
-          parsedExtra = typeof g.extra_metadata === "string" ? JSON.parse(g.extra_metadata) : g.extra_metadata;
-        }
-      } catch {}
-      const hltb = parsedExtra?.howlongtobeat || {};
-
       const cleanRawMedia = (path?: string | null, img?: string | null) => {
         if (path && !path.startsWith("asset:") && !path.startsWith("http://asset.localhost")) {
           return path;

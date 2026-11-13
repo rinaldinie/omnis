@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Plus, Trash2, FolderOpen, Folder, Terminal } from "lucide-react";
 import { LaunchConfiguration } from "./types";
 import { useTranslation } from "../../i18n";
@@ -41,10 +41,12 @@ const PlayActionCard: React.FC<PlayActionCardProps> = ({
 }) => {
   const { t } = useTranslation();
   const [argsText, setArgsText] = useState((action.arguments || []).join(" "));
+  const argsTextRef = useRef(argsText);
+  argsTextRef.current = argsText;
 
   useEffect(() => {
     const actionArgs = action.arguments || [];
-    const parsedCurrent = argsText.trim().split(/\s+/).filter(Boolean);
+    const parsedCurrent = argsTextRef.current.trim().split(/\s+/).filter(Boolean);
     if (JSON.stringify(parsedCurrent) !== JSON.stringify(actionArgs)) {
       setArgsText(actionArgs.join(" "));
     }

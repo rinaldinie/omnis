@@ -12,9 +12,6 @@ import {
   Check,
   DownloadCloud,
   FileArchive,
-  ArrowRight,
-  Library,
-  Layers,
   Search,
 } from "lucide-react";
 import { api } from "../../api";

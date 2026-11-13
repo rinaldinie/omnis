@@ -211,9 +211,12 @@ export function StoreBadge({
 
   const badgeNode = (
     <span
-      className={`inline-flex items-center justify-center p-1 rounded-full border transition-colors ${badgeStyle} ${className}`}
+      className={`inline-flex items-center justify-center ${showName ? "gap-1 px-2 py-0.5" : "p-1"} rounded-full border transition-colors ${badgeStyle} ${className}`}
     >
       {icon}
+      {showName && (
+        <span className="text-[11px] font-medium leading-none">{storeName}</span>
+      )}
     </span>
   );
 
