@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ActionTooltip } from "@/components/ui/tooltip";
-import { StoreBadge } from "../../StoreBadge";
+import { StoreBadge } from "../../common/StoreBadge";
 import { GameDto, TranslateFn, formatImageUrl } from "../../../types";
 
 export interface BatchEnrichGameListSectionProps {

@@ -1,7 +1,7 @@
 import React from "react";
 import type { GameDto } from "../../types";
 import { formatImageUrl } from "../../types";
-import { StoreIcon } from "../StoreBadge";
+import { StoreIcon } from "../common/StoreBadge";
 
 export const CARD_W_REM = 12;
 export const CARD_FOCUSED_W_REM = 32;

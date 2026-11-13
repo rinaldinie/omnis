@@ -25,7 +25,7 @@ import { useTranslation } from "../../../i18n";
 import { ProviderInfo, MetadataPipelineConfig } from "../../../types";
 import { ActionTooltip } from "@/components/ui/tooltip";
 import { SettingGroup, SettingRow, ToggleSwitch } from "../SettingsControls";
-import { StoreIcon } from "../../StoreBadge";
+import { StoreIcon } from "../../common/StoreBadge";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {

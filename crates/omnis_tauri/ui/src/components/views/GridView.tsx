@@ -1,7 +1,7 @@
 import React from "react";
 import { Gamepad2, ChevronRight, ChevronDown, Play, Download, Square, MoreHorizontal, Clock, EyeOff } from "lucide-react";
 import { ActiveGameSession, GameDto, GroupBy, ViewMode } from "../../types";
-import { MultiStoreBadgeGroup } from "../StoreBadge";
+import { MultiStoreBadgeGroup } from "../common/StoreBadge";
 import { Slot } from "../common/Slot";
 import { GameCardCover } from "../common/GameCardCover";
 import EmptyGamesView from "../common/EmptyGamesView";

@@ -21,7 +21,7 @@ import soundEffects from '../../utils/soundEffects';
 import { api } from '../../api';
 import type { DuplicateHiderConfig, DuplicateHiderStats, GameDto } from '../../types';
 import { SettingGroup, SettingRow, ToggleSwitch } from './SettingsControls';
-import { StoreIcon } from '../StoreBadge';
+import { StoreIcon } from '../common/StoreBadge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';

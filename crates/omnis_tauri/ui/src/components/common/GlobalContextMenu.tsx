@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Play, Download, Pencil, Search, Info, FolderOpen, Monitor, ShieldCheck, Trash2, XCircle, CheckCircle2, ChevronRight, Check, Eye, EyeOff, Layers, Star } from "lucide-react";
-import { GameDto } from "../types";
+import { GameDto } from "../../types";
 import { StoreIcon } from "./StoreBadge";
-import { useTranslation } from "../i18n";
-import { Button } from "./ui/button";
-import { Badge } from "./ui/badge";
-import { ActionTooltip } from "./ui/tooltip";
+import { useTranslation } from "../../i18n";
+import { Button } from "../ui/button";
+import { Badge } from "../ui/badge";
+import { ActionTooltip } from "../ui/tooltip";
 import { cn } from "@/lib/utils";
 
 const COMPLETION_STATUS_OPTIONS = [

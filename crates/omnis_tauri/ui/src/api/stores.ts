@@ -1,6 +1,9 @@
 import { invokeIpc } from "./client";
-import type { VaultStatus } from "../types";
-import type { StoreAccount, StoreIntegrationSettings } from "../components/store_accounts/types";
+import type {
+  StoreAccount,
+  StoreIntegrationSettings,
+  VaultStatus,
+} from "../types";
 
 export const storesApi = {
   /** Fetch all connected store accounts */

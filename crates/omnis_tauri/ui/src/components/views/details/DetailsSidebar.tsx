@@ -1,7 +1,7 @@
 import React from "react";
 import { Search, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { GameDto, ActiveGameSession, TranslateFn } from "../../../types";
-import { StoreBadge } from "../../StoreBadge";
+import { StoreBadge } from "../../common/StoreBadge";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
 import { ScrollArea } from "../../ui/scroll-area";

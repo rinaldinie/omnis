@@ -1,7 +1,7 @@
 import React from "react";
 import { Calendar, Star } from "lucide-react";
 import { GameEditorFormData, COMPLETION_STATUSES } from "./types";
-import { useTranslation } from "../../i18n";
+import { useTranslation } from "../../../i18n";
 import { Input } from "@/components/ui/input";
 import {
   Select,

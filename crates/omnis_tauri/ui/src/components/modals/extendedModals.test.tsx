@@ -8,7 +8,7 @@ import ResetStatisticsModal from "../stats/ResetStatisticsModal";
 import ThemeModal from "./ThemeModal";
 import PluginManagerModal from "./PluginManagerModal";
 import OnboardingModal from "./OnboardingModal";
-import MetadataResolutionModal from "../MetadataResolutionModal";
+import MetadataResolutionModal from "./MetadataResolutionModal";
 import PlayniteImportModal from "./PlayniteImportModal";
 import BatchEnrichModal from "./BatchEnrichModal";
 import type { GameDto, MetadataPipelineConfig, ProviderInfo, ThemeConfig } from "@/types";

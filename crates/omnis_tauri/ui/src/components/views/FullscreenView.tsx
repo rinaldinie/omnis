@@ -16,7 +16,7 @@ import {
 import { api } from "../../api";
 import { useLibraryStore, useUiStore } from "../../stores";
 import { categoryCount, getVisibleCategories, toCategoryId } from "../../utils/consoleCategories";
-import { StoreIcon } from "../StoreBadge";
+import { StoreIcon } from "../common/StoreBadge";
 import soundEffects from "../../utils/soundEffects";
 import { VideoBackdrop } from "../common/VideoBackdrop";
 import { useTranslation } from "../../i18n/i18nContext";

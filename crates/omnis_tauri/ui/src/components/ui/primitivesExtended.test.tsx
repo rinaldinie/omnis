@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import React from "react";
-import { I18nProvider } from "@/i18n";
 import {
   Select,
   SelectContent,
@@ -32,20 +31,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ActionTooltip } from "@/components/ui/tooltip";
-import GlobalContextMenu from "@/components/GlobalContextMenu";
-import { DetailsHeroHeader } from "@/components/views/details/DetailsHeroHeader";
-import GridView from "@/components/views/GridView";
-import ListViewTable from "@/components/ListViewTable";
-import BatchEnrichModal from "@/components/modals/BatchEnrichModal";
-import StatisticsDashboardView from "@/components/views/StatisticsDashboardView";
-import { api } from "@/api";
-import type { GameDto, GlobalStatsDto } from "@/types";
-
-vi.mock("@/api/slots", () => ({
-  slotsApi: {
-    getSlotWidgets: vi.fn().mockResolvedValue([]),
-  },
-}));
 
 if (typeof globalThis.ResizeObserver === "undefined") {
   globalThis.ResizeObserver = class ResizeObserver {
@@ -55,57 +40,7 @@ if (typeof globalThis.ResizeObserver === "undefined") {
   };
 }
 
-const sampleGame = {
-  id: "g1",
-  title: "Hollow Knight",
-  library: "steam",
-  platform: "pc",
-  playtime_formatted: "15h 20m",
-  playtime_seconds: 55200,
-  genres: ["Action", "Indie"],
-  developers: ["Team Cherry"],
-  publishers: ["Team Cherry"],
-  features: ["Single-player"],
-  custom_links: [],
-  is_installed: true,
-  is_favorite: false,
-  is_hidden: false,
-  completion_status: "Playing",
-} as unknown as GameDto;
-
-const sampleStats: GlobalStatsDto = {
-  available_years: [2026, 2025],
-  total_playtime_year_seconds: 36000,
-  total_playtime_lifetime_seconds: 72000,
-  activity_heatmap: [
-    {
-      date: "2026-01-15",
-      duration_seconds: 3600,
-      count_sessions: 1,
-      sessions: [
-        {
-          id: "s1",
-          game_id: "g1",
-          game_title: "Hollow Knight",
-          duration_seconds: 3600,
-          started_at: "2026-01-15T18:00:00Z",
-          ended_at: "2026-01-15T19:00:00Z",
-        },
-      ],
-    },
-  ],
-  store_distribution: [{ name: "steam", duration_seconds: 36000, percentage: 100 }],
-  genre_distribution: [{ name: "Indie", duration_seconds: 36000, percentage: 100 }],
-  backlog_summary: {
-    total_games: 10,
-    completed_count: 3,
-    in_progress_count: 2,
-    not_played_count: 5,
-    completion_percentage: 30,
-  },
-};
-
-describe("Extended UI primitives & migrated views", () => {
+describe("Extended UI primitives", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -178,124 +113,6 @@ describe("Extended UI primitives & migrated views", () => {
     expect(screen.getByText("Details body")).toBeTruthy();
   });
 
-  it("renders GlobalContextMenu with ARIA menu roles and Escape handling", () => {
-    const onClose = vi.fn();
-    const onLaunch = vi.fn();
-
-    render(
-      <I18nProvider initialLocale="en">
-        <GlobalContextMenu
-          contextMenu={{ x: 100, y: 120, game: sampleGame }}
-          onClose={onClose}
-          onLaunch={onLaunch}
-          onEdit={vi.fn()}
-          onResolve={vi.fn()}
-          onShowDetails={vi.fn()}
-          onUpdateCompletionStatus={vi.fn()}
-        />
-      </I18nProvider>
-    );
-
-    const menu = screen.getByRole("menu", { name: "Hollow Knight" });
-    expect(menu).toBeTruthy();
-
-    fireEvent.keyDown(window, { key: "Escape" });
-    expect(onClose).toHaveBeenCalledTimes(1);
-
-    const items = screen.getAllByRole("menuitem");
-    expect(items.length).toBeGreaterThan(3);
-    fireEvent.click(items[0]);
-    expect(onLaunch).toHaveBeenCalledWith("g1");
-    expect(onClose).toHaveBeenCalledTimes(2);
-  });
-
-  it("renders DetailsHeroHeader with DropdownMenu Manage button and action buttons", async () => {
-    const handleLaunch = vi.fn();
-    const handleToggleFavorite = vi.fn();
-
-    render(
-      <I18nProvider initialLocale="en">
-        <DetailsHeroHeader
-          selectedGame={sampleGame}
-          setViewMode={vi.fn()}
-          handleLaunch={handleLaunch}
-          handleEnrichSingleGame={vi.fn()}
-          isEnrichingSingle={false}
-          setGameToEdit={vi.fn()}
-          setShowEditorModal={vi.fn()}
-          setGameToResolve={vi.fn()}
-          setShowResolutionModal={vi.fn()}
-          t={(key) => key}
-          handleToggleFavorite={handleToggleFavorite}
-          handleOpenInstallDir={vi.fn()}
-        />
-      </I18nProvider>
-    );
-
-    const manageTrigger = screen.getByRole("button", { name: /game_details\.manage/i });
-    expect(manageTrigger.getAttribute("aria-haspopup")).toBe("menu");
-
-    const launchBtn = screen.getByRole("button", { name: /game_details\.play_now/i });
-    fireEvent.click(launchBtn);
-    expect(handleLaunch).toHaveBeenCalledWith("g1");
-
-    const favBtn = screen.getByRole("button", { name: "sidebar.add_favorite" });
-    fireEvent.click(favBtn);
-    expect(handleToggleFavorite).toHaveBeenCalledWith(sampleGame);
-
-    await act(async () => {
-      await Promise.resolve();
-    });
-  });
-
-  it("renders StatisticsDashboardView with Select year combobox and KPI cards", async () => {
-    vi.spyOn(api.stats, "getGlobalStatistics").mockResolvedValueOnce(sampleStats);
-
-    render(
-      <I18nProvider initialLocale="en">
-        <StatisticsDashboardView />
-      </I18nProvider>
-    );
-
-    await waitFor(() => {
-      expect(screen.getByRole("combobox")).toBeTruthy();
-    });
-
-    const yearSelect = screen.getByRole("combobox");
-    expect(yearSelect.textContent).toContain("2026");
-    expect(screen.getByText("30.0%")).toBeTruthy();
-  });
-
-  it("does not keep a persistent accent selection ring on GridView game cards for selectedGame", async () => {
-    render(
-      <I18nProvider initialLocale="en">
-        <GridView
-          filteredGames={[sampleGame]}
-          groupedGames={{ All: [sampleGame] }}
-          groupBy="none"
-          collapsedGroups={{}}
-          toggleGroup={vi.fn()}
-          gridCardWidth={200}
-          selectedGame={sampleGame}
-          setSelectedGame={vi.fn()}
-          setViewMode={vi.fn()}
-          handleOpenContextMenu={vi.fn()}
-          handleLaunch={vi.fn()}
-          setGameToEdit={vi.fn()}
-          setShowEditorModal={vi.fn()}
-        />
-      </I18nProvider>
-    );
-
-    const card = screen.getByRole("button", { name: "Hollow Knight" });
-    expect(card.className).not.toContain("border-[var(--accent-primary)]");
-    expect(card.className).not.toContain("ring-2 ring-[var(--accent-primary)]");
-
-    await act(async () => {
-      await Promise.resolve();
-    });
-  });
-
   it("renders Checkbox, Table, Skeleton, and standalone ActionTooltip primitives", () => {
     const onCheckedChange = vi.fn();
     render(
@@ -329,46 +146,5 @@ describe("Extended UI primitives & migrated views", () => {
     expect(screen.getByRole("table")).toBeTruthy();
     expect(screen.getByText("Silksong")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Hover me" })).toBeTruthy();
-  });
-
-  it("renders ListViewTable using shadcn Table and triggers launch action", () => {
-    const onLaunchGame = vi.fn();
-    render(
-      <I18nProvider initialLocale="en">
-        <ListViewTable
-          games={[sampleGame]}
-          selectedGameId={null}
-          onSelectGame={vi.fn()}
-          onOpenDetails={vi.fn()}
-          onLaunchGame={onLaunchGame}
-          onEditGame={vi.fn()}
-        />
-      </I18nProvider>
-    );
-
-    expect(screen.getByRole("table")).toBeTruthy();
-    expect(screen.getByText("Hollow Knight")).toBeTruthy();
-    const launchBtn = screen.getByRole("button", { name: /common\.play|Avvia|Play/i });
-    fireEvent.click(launchBtn);
-    expect(onLaunchGame).toHaveBeenCalledWith("g1");
-  });
-
-  it("renders BatchEnrichModal with Radix Checkbox controls and toggles selection", () => {
-    render(
-      <I18nProvider initialLocale="en">
-        <BatchEnrichModal
-          isOpen={true}
-          onClose={vi.fn()}
-          allGames={[sampleGame]}
-          filteredGames={[sampleGame]}
-          onComplete={vi.fn(async () => {})}
-        />
-      </I18nProvider>
-    );
-
-    const checkbox = screen.getByRole("checkbox", { name: "Hollow Knight" });
-    expect(checkbox.getAttribute("data-state")).toBe("checked");
-    fireEvent.click(checkbox);
-    expect(checkbox.getAttribute("data-state")).toBe("unchecked");
   });
 });

@@ -1,10 +1,10 @@
 import { invokeIpc } from "./client";
 import type {
   GameDto,
+  MetadataCandidateDto,
   MetadataPipelineConfig,
   ProviderInfo,
 } from "../types";
-import type { MetadataCandidateDto } from "../components/MetadataResolutionModal";
 
 export const metadataApi = {
   /** Fetch all registered metadata providers */

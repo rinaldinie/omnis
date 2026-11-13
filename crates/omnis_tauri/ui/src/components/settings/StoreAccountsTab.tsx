@@ -11,11 +11,11 @@ import {
 import soundEffects from "../../utils/soundEffects";
 import { openExternalUrl } from "../../utils/openUrl";
 import { useTranslation } from "../../i18n/i18nContext";
-import {
+import type {
   StoreAccount,
   StoreSyncProgress,
   StoreIntegrationSettings,
-} from "../store_accounts/types";
+} from "../../types";
 import { DisconnectStoreModal } from "../modals/DisconnectStoreModal";
 import { SettingGroup, SettingRow, ToggleSwitch } from "./SettingsControls";
 import {

@@ -838,7 +838,83 @@ export interface VaultStatus {
   warning?: string | null;
 }
 
+// ============================================================================
+// Store Accounts, Metadata Candidates & Declarative Slot Widgets
+// ============================================================================
 
+export interface StoreAccount {
+  store_id: string;
+  name: string;
+  is_connected: boolean;
+  username: string | null;
+  avatar_url: string | null;
+  last_sync: string | null;
+  has_api_key?: boolean | null;
+  is_syncing?: boolean;
+}
 
+export interface StoreSyncProgress {
+  store_id: string;
+  current: number;
+  total: number;
+  status: string; // 'syncing' | 'completed' | 'error'
+  message?: string;
+}
 
+export interface StoreIntegrationSettings {
+  store_id: string;
+  import_installed: boolean;
+  connect_account: boolean;
+  import_uninstalled: boolean;
+  ignore_other_accounts: boolean;
+  account_id?: string | null;
+  api_key?: string | null;
+  import_free_items?: boolean | null;
+  import_family_sharing?: boolean | null;
+  import_game_pass?: boolean | null;
+  custom_client_path?: string | null;
+}
+
+export interface MetadataCandidateDto {
+  provider_id: string;
+  provider_game_id: string;
+  title: string;
+  release_year?: number | null;
+  cover_url?: string | null;
+  background_url?: string | null;
+  description?: string | null;
+  raw_patch: {
+    name?: string | null;
+    description?: string | null;
+    release_date?: string | null;
+    cover_url?: string | null;
+    background_url?: string | null;
+    icon_url?: string | null;
+    critic_score?: number | null;
+    community_score?: number | null;
+    genres?: string[];
+    developers?: string[];
+    publishers?: string[];
+    features?: string[];
+    tags?: string[];
+    series?: string | null;
+    age_rating?: string | null;
+    region?: string | null;
+    platform?: string | null;
+    custom_links?: Array<{ title: string; url: string }>;
+    install_size_bytes?: number | null;
+  };
+}
+
+export interface WidgetLink {
+  title: string;
+  url: string;
+}
+
+export type SlotWidget =
+  | { type: "stat"; label: string; value: string; icon?: string }
+  | { type: "badge-list"; badges: string[] }
+  | { type: "progress"; label: string; value: number; max: number }
+  | { type: "link-list"; links: WidgetLink[] }
+  | { type: "text"; content: string };
 

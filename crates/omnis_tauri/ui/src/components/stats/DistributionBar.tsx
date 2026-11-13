@@ -11,7 +11,7 @@ import {
   BattlenetIcon,
   ItchIcon,
   StoreIcon,
-} from "../StoreBadge";
+} from "../common/StoreBadge";
 import { Gamepad2 } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import { getLocalizedGenre } from "../../utils/genres";

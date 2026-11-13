@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { X, ChevronDown, ChevronUp, Check, SlidersHorizontal } from "lucide-react";
 import { GameSortMode } from "../../utils/sortGames";
-import { SteamIcon, EpicIcon, GogIcon, XboxIcon, SwitchIcon } from "../StoreBadge";
+import { SteamIcon, EpicIcon, GogIcon, XboxIcon, SwitchIcon } from "../common/StoreBadge";
 import { useTranslation } from "../../i18n";
 import { getLocalizedGenre } from "../../utils/genres";
 import {

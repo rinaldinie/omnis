@@ -3,7 +3,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import React from "react";
 import { PlayActionsTab } from "./PlayActionsTab";
 import { LaunchConfiguration } from "./types";
-import { I18nProvider } from "../../i18n";
+import { I18nProvider } from "../../../i18n";
 
 describe("PlayActionsTab component", () => {
   it("renders empty state when playActions is empty", () => {

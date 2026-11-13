@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Search, CornerDownLeft, Delete, Space, Trash2 } from "lucide-react";
-import soundEffects from "../utils/soundEffects";
-import { useTranslation } from "../i18n";
-import { Glyph } from "./fullscreen/ConsoleChrome";
+import soundEffects from "../../utils/soundEffects";
+import { useTranslation } from "../../i18n";
+import { Glyph } from "../fullscreen/ConsoleChrome";
 
 export interface VirtualKeyboardProps {
   isOpen: boolean;

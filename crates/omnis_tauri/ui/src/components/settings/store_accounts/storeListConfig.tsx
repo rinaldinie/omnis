@@ -1,5 +1,5 @@
 import React from 'react';
-import { SteamIcon, EpicIcon, GogIcon, XboxIcon, AmazonIcon } from '../../StoreBadge';
+import { SteamIcon, EpicIcon, GogIcon, XboxIcon, AmazonIcon } from '../../common/StoreBadge';
 
 export interface StoreItemMeta {
   id: string;

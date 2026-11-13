@@ -1,33 +1,5 @@
-export interface MetadataCandidateDto {
-  provider_id: string;
-  provider_game_id: string;
-  title: string;
-  release_year?: number | null;
-  cover_url?: string | null;
-  background_url?: string | null;
-  description?: string | null;
-  raw_patch: {
-    name?: string | null;
-    description?: string | null;
-    release_date?: string | null;
-    cover_url?: string | null;
-    background_url?: string | null;
-    icon_url?: string | null;
-    critic_score?: number | null;
-    community_score?: number | null;
-    genres?: string[];
-    developers?: string[];
-    publishers?: string[];
-    features?: string[];
-    tags?: string[];
-    series?: string | null;
-    age_rating?: string | null;
-    region?: string | null;
-    platform?: string | null;
-    custom_links?: Array<{ title: string; url: string }>;
-    install_size_bytes?: number | null;
-  };
-}
+import type { MetadataCandidateDto } from "../../../types";
+export type { MetadataCandidateDto };
 
 export interface ProviderBadgeStyle {
   name: string;

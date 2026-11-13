@@ -6,8 +6,8 @@ import {
   normalizeGame,
 } from "../../types";
 import { useLibraryStore, useUiStore, ContextMenuState } from "../../stores";
-import GlobalContextMenu from "../GlobalContextMenu";
-import VirtualKeyboard from "../VirtualKeyboard";
+import GlobalContextMenu from "../common/GlobalContextMenu";
+import VirtualKeyboard from "../common/VirtualKeyboard";
 import { UninstallModal } from "./UninstallModal";
 import { KillGameConfirmModal } from "./KillGameConfirmModal";
 import type { usePluginManager } from "../../hooks/usePluginManager";

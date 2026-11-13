@@ -1,7 +1,7 @@
 import React from "react";
 import { Sparkles } from "lucide-react";
 import { GameEditorFormData } from "./types";
-import { useTranslation } from "../../i18n";
+import { useTranslation } from "../../../i18n";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";

@@ -15,18 +15,9 @@ import { slotsApi } from "../../api/slots";
 import { TAURI_EVENTS } from "../../api/events";
 import { Progress } from "@/components/ui/progress";
 import { ErrorBoundary } from "./ErrorBoundary";
+import type { WidgetLink, SlotWidget } from "../../types";
 
-export interface WidgetLink {
-  title: string;
-  url: string;
-}
-
-export type SlotWidget =
-  | { type: "stat"; label: string; value: string; icon?: string }
-  | { type: "badge-list"; badges: string[] }
-  | { type: "progress"; label: string; value: number; max: number }
-  | { type: "link-list"; links: WidgetLink[] }
-  | { type: "text"; content: string };
+export type { WidgetLink, SlotWidget };
 
 interface SlotProps {
   name: string;

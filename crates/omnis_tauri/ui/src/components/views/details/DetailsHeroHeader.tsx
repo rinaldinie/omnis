@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ActiveGameSession, GameDto, ThemeConfig, TranslateFn, ViewMode, formatImageUrl } from "../../../types";
 import { useActiveGameTimer } from "../../../context/ActiveGameTimerContext";
-import { StoreBadge } from "../../StoreBadge";
+import { StoreBadge } from "../../common/StoreBadge";
 import { VideoBackdrop } from "../../common/VideoBackdrop";
 import { Slot } from "../../common/Slot";
 import { GameCardCover } from "../../common/GameCardCover";

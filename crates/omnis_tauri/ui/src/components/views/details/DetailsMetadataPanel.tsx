@@ -11,7 +11,7 @@ import { GameDto, TranslateFn } from "../../../types";
 import { Slot } from "../../common/Slot";
 import { GameAchievementsGallery } from "../../achievements";
 import GameStatisticsCard from "../../stats/GameStatisticsCard";
-import { StoreIcon } from "../../StoreBadge";
+import { StoreIcon } from "../../common/StoreBadge";
 import { getCompletionStatusInfo } from "./helpers";
 import { useTranslation } from "../../../i18n";
 import { getLocalizedGenre } from "../../../utils/genres";

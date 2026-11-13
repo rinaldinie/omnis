@@ -1,5 +1,5 @@
 import { invokeIpc } from "./client";
-import type { SlotWidget } from "../components/common/Slot";
+import type { SlotWidget } from "../types";
 
 export const slotsApi = {
   /** Fetch declarative slot widgets registered by plugins */
