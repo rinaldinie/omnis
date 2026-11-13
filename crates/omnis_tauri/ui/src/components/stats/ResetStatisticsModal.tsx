@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 export interface ResetStatisticsModalProps {
   isOpen: boolean;
@@ -53,21 +54,24 @@ export default function ResetStatisticsModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3">
+        <RadioGroup
+          value={resetOption}
+          onValueChange={(val) => setResetOption(val as "sessions" | "all")}
+          className="space-y-3 gap-0"
+        >
           {/* Option 1: Sessions only */}
           <label
+            htmlFor="reset-option-sessions"
             className={`flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition-all bg-popover ${
               resetOption === "sessions"
                 ? "border-primary ring-1 ring-primary"
                 : "border-border opacity-80 hover:opacity-100"
             }`}
           >
-            <input
-              type="radio"
-              name="resetOption"
-              checked={resetOption === "sessions"}
-              onChange={() => setResetOption("sessions")}
-              className="mt-0.5 accent-primary"
+            <RadioGroupItem
+              id="reset-option-sessions"
+              value="sessions"
+              className="mt-0.5 shrink-0"
             />
             <div className="text-xs">
               <span className="font-bold text-foreground block">
@@ -81,18 +85,17 @@ export default function ResetStatisticsModal({
 
           {/* Option 2: Sessions and lifetime playtime of all games */}
           <label
+            htmlFor="reset-option-all"
             className={`flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition-all bg-popover ${
               resetOption === "all"
                 ? "border-rose-500 ring-1 ring-rose-500"
                 : "border-border opacity-80 hover:opacity-100"
             }`}
           >
-            <input
-              type="radio"
-              name="resetOption"
-              checked={resetOption === "all"}
-              onChange={() => setResetOption("all")}
-              className="mt-0.5 accent-rose-500"
+            <RadioGroupItem
+              id="reset-option-all"
+              value="all"
+              className="mt-0.5 shrink-0 data-[state=checked]:border-rose-500 text-rose-500"
             />
             <div className="text-xs">
               <span className="font-bold text-rose-400 block">
@@ -103,7 +106,7 @@ export default function ResetStatisticsModal({
               </span>
             </div>
           </label>
-        </div>
+        </RadioGroup>
 
         <DialogFooter className="pt-2">
           <Button

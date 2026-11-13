@@ -14,6 +14,10 @@ import {
   isUncommonAchievement,
   isCommonAchievement,
 } from "./useGameAchievements";
+import { Button } from "../ui/button";
+import { Badge } from "../ui/badge";
+import { Card } from "../ui/card";
+import { Progress } from "../ui/progress";
 
 interface GameAchievementsGalleryProps {
   game: GameDto;
@@ -279,14 +283,15 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
                 </div>
               </div>
             </div>
-            <button
+            <Button
               type="button"
+              size="sm"
               onClick={openStoreSettings}
-              className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition-colors cursor-pointer self-start sm:self-center"
+              className="shrink-0 h-auto px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs self-start sm:self-center"
             >
               <Settings className="w-3.5 h-3.5" />
               <span>{t("achievements.configure_store")}</span>
-            </button>
+            </Button>
           </div>
         );
       }
@@ -297,14 +302,16 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
             <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
             <span>{syncError.replace(/^ERR_[A-Z_]+:\s*/, "")}</span>
           </div>
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="xs"
             onClick={() => fetchAchievements(true)}
             disabled={refreshing}
-            className="shrink-0 px-2.5 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 font-bold text-xs transition-colors cursor-pointer"
+            className="shrink-0 h-auto px-2.5 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 hover:text-rose-100 font-bold text-xs"
           >
             {t("achievements.retry")}
-          </button>
+          </Button>
         </div>
       );
     }
@@ -362,13 +369,16 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
             </div>
           </div>
           {!isFullscreenMode && (
-            <button
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
               onClick={() => {
                 soundEffects.playSelect();
                 fetchAchievements(true);
               }}
               disabled={refreshing}
-              className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.08] text-xs font-bold text-white transition-all cursor-pointer disabled:opacity-50"
+              className="h-auto px-3.5 py-1.5 rounded-xl border border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.08] text-xs font-bold text-white"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin text-indigo-400" : ""}`} />
               <span>
@@ -376,7 +386,7 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
                   ? t("achievements.syncing")
                   : t("achievements.sync")}
               </span>
-            </button>
+            </Button>
           )}
         </div>
 
@@ -386,7 +396,7 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
   }
 
   return (
-    <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/[0.06] space-y-5">
+    <Card className="p-6 rounded-2xl bg-white/[0.02] border-white/[0.06] space-y-5 shadow-none">
       {/* Header & Stat Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -396,9 +406,9 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
           <div>
             <h3 className="text-sm font-bold text-white tracking-wide flex items-center gap-2">
               <span>{t("achievements.title")}</span>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-white/[0.06] text-slate-300 font-semibold">
+              <Badge variant="secondary" className="text-xs px-2 py-0.5 rounded-full bg-white/[0.06] text-slate-300 font-semibold border-transparent">
                 {stats.unlocked} / {stats.total}
-              </span>
+              </Badge>
             </h3>
             <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-400 font-medium">
               <span>{stats.percentage}% {t("achievements.completed")}</span>
@@ -452,20 +462,23 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
           )}
 
           {!isFullscreenMode && (
-            <button
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
               onClick={() => {
                 soundEffects.playSelect();
                 fetchAchievements(true);
               }}
               disabled={refreshing}
               title={t("achievements.refresh_title")}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white transition-all cursor-pointer disabled:opacity-50"
+              className="h-auto px-2.5 py-1.5 rounded-xl border border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin text-indigo-400" : ""}`} />
               <span className="text-xs font-semibold">
                 {t("achievements.sync")}
               </span>
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -475,126 +488,146 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
 
       {/* Progress Bar */}
       {config.showProgressBar && (
-        <div className="w-full h-2 rounded-full bg-white/[0.05] overflow-hidden p-0.5">
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-amber-400 transition-all duration-500 shadow-xs"
-            style={{ width: `${stats.percentage}%` }}
-          />
-        </div>
+        <Progress
+          value={stats.percentage}
+          className="h-2 bg-white/[0.05] p-0.5"
+          indicatorClassName="rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-amber-400 shadow-xs"
+        />
       )}
 
       {/* Filter Pills */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
-        <button
+        <Button
+          type="button"
+          variant="ghost"
+          size="xs"
           onClick={() => {
             soundEffects.playNav();
             setActiveFilter("all");
           }}
-          className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer ${
+          className={`h-auto px-3 py-1.5 rounded-xl font-bold ${
             activeFilter === "all"
-              ? "bg-indigo-600 text-white shadow-sm shadow-indigo-600/30"
+              ? "bg-indigo-600 text-white hover:bg-indigo-600 hover:text-white shadow-sm shadow-indigo-600/30"
               : "bg-white/[0.04] text-slate-400 hover:text-slate-200 hover:bg-white/[0.08]"
           }`}
         >
           {t("achievements.all")} ({stats.total})
-        </button>
+        </Button>
 
-        <button
+        <Button
+          type="button"
+          variant="ghost"
+          size="xs"
           onClick={() => {
             soundEffects.playNav();
             setActiveFilter("unlocked");
           }}
-          className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+          className={`h-auto px-3 py-1.5 rounded-xl font-bold ${
             activeFilter === "unlocked"
-              ? "bg-indigo-600 text-white shadow-sm shadow-indigo-600/30"
+              ? "bg-indigo-600 text-white hover:bg-indigo-600 hover:text-white shadow-sm shadow-indigo-600/30"
               : "bg-white/[0.04] text-slate-400 hover:text-slate-200 hover:bg-white/[0.08]"
           }`}
         >
           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
           <span>{t("achievements.unlocked")} ({stats.unlocked})</span>
-        </button>
+        </Button>
 
-        <button
+        <Button
+          type="button"
+          variant="ghost"
+          size="xs"
           onClick={() => {
             soundEffects.playNav();
             setActiveFilter("locked");
           }}
-          className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+          className={`h-auto px-3 py-1.5 rounded-xl font-bold ${
             activeFilter === "locked"
-              ? "bg-indigo-600 text-white shadow-sm shadow-indigo-600/30"
+              ? "bg-indigo-600 text-white hover:bg-indigo-600 hover:text-white shadow-sm shadow-indigo-600/30"
               : "bg-white/[0.04] text-slate-400 hover:text-slate-200 hover:bg-white/[0.08]"
           }`}
         >
           <Lock className="w-3 h-3 text-slate-400" />
           <span>{t("achievements.locked")} ({stats.total - stats.unlocked})</span>
-        </button>
+        </Button>
 
         {stats.ultraRareCount > 0 && (
-          <button
+          <Button
+            type="button"
+            variant="ghost"
+            size="xs"
             onClick={() => {
               soundEffects.playNav();
               setActiveFilter("ultrarare");
             }}
-            className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`h-auto px-3 py-1.5 rounded-xl font-bold ${
               activeFilter === "ultrarare"
-                ? "bg-amber-500 text-slate-950 font-black shadow-sm shadow-amber-500/30"
-                : "bg-white/[0.04] text-amber-300 hover:bg-white/[0.08]"
+                ? "bg-amber-500 text-slate-950 hover:bg-amber-500 hover:text-slate-950 font-black shadow-sm shadow-amber-500/30"
+                : "bg-white/[0.04] text-amber-300 hover:text-amber-200 hover:bg-white/[0.08]"
             }`}
           >
             <Sparkles className="w-3 h-3 text-amber-400" />
             <span>{t("achievements.ultra_rare")} ({stats.ultraRareCount})</span>
-          </button>
+          </Button>
         )}
 
         {stats.rareCount > 0 && (
-          <button
+          <Button
+            type="button"
+            variant="ghost"
+            size="xs"
             onClick={() => {
               soundEffects.playNav();
               setActiveFilter("rare");
             }}
-            className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`h-auto px-3 py-1.5 rounded-xl font-bold ${
               activeFilter === "rare"
-                ? "bg-amber-500 text-slate-950 font-black shadow-sm shadow-amber-500/30"
-                : "bg-white/[0.04] text-amber-400 hover:bg-white/[0.08]"
+                ? "bg-amber-500 text-slate-950 hover:bg-amber-500 hover:text-slate-950 font-black shadow-sm shadow-amber-500/30"
+                : "bg-white/[0.04] text-amber-400 hover:text-amber-300 hover:bg-white/[0.08]"
             }`}
           >
             <Trophy className="w-3 h-3 text-amber-500" />
             <span>{t("achievements.rare")} ({stats.rareCount})</span>
-          </button>
+          </Button>
         )}
 
         {stats.uncommonCount > 0 && (
-          <button
+          <Button
+            type="button"
+            variant="ghost"
+            size="xs"
             onClick={() => {
               soundEffects.playNav();
               setActiveFilter("uncommon");
             }}
-            className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`h-auto px-3 py-1.5 rounded-xl font-bold ${
               activeFilter === "uncommon"
-                ? "bg-sky-500 text-slate-950 font-black shadow-sm shadow-sky-500/30"
-                : "bg-white/[0.04] text-sky-300 hover:bg-white/[0.08]"
+                ? "bg-sky-500 text-slate-950 hover:bg-sky-500 hover:text-slate-950 font-black shadow-sm shadow-sky-500/30"
+                : "bg-white/[0.04] text-sky-300 hover:text-sky-200 hover:bg-white/[0.08]"
             }`}
           >
             <Medal className="w-3 h-3 text-sky-400" />
             <span>{t("achievements.uncommon")} ({stats.uncommonCount})</span>
-          </button>
+          </Button>
         )}
 
         {stats.commonCount > 0 && (
-          <button
+          <Button
+            type="button"
+            variant="ghost"
+            size="xs"
             onClick={() => {
               soundEffects.playNav();
               setActiveFilter("common");
             }}
-            className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`h-auto px-3 py-1.5 rounded-xl font-bold ${
               activeFilter === "common"
-                ? "bg-slate-300 text-slate-950 font-black shadow-sm shadow-slate-300/30"
-                : "bg-white/[0.04] text-slate-300 hover:bg-white/[0.08]"
+                ? "bg-slate-300 text-slate-950 hover:bg-slate-300 hover:text-slate-950 font-black shadow-sm shadow-slate-300/30"
+                : "bg-white/[0.04] text-slate-300 hover:text-white hover:bg-white/[0.08]"
             }`}
           >
             <Award className="w-3 h-3 text-slate-400" />
             <span>{t("achievements.common")} ({stats.commonCount})</span>
-          </button>
+          </Button>
         )}
       </div>
 
@@ -621,6 +654,6 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
           </div>
         )}
       </div>
-    </div>
+    </Card>
   );
 };

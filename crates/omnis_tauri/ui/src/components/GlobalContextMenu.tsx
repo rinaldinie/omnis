@@ -1,8 +1,11 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Play, Download, Pencil, Search, Info, FolderOpen, Monitor, ShieldCheck, Trash2, XCircle, CheckCircle2, ChevronRight, Check, Eye, EyeOff, Layers, Star } from "lucide-react";
 import { GameDto } from "../types";
 import { StoreIcon } from "./StoreBadge";
 import { useTranslation } from "../i18n";
+import { Button } from "./ui/button";
+import { Badge } from "./ui/badge";
+import { cn } from "@/lib/utils";
 
 const COMPLETION_STATUS_OPTIONS = [
   { value: "NotPlayed", key: "not_played", dot: "bg-slate-400" },
@@ -56,9 +59,67 @@ export default function GlobalContextMenu({
   const { t } = useTranslation();
   const [showStatusSubmenu, setShowStatusSubmenu] = useState(false);
   const [showCopiesSubmenu, setShowCopiesSubmenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!contextMenu) {
+      setShowStatusSubmenu(false);
+      setShowCopiesSubmenu(false);
+      return;
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onClose();
+        return;
+      }
+
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        const items = Array.from(
+          menuRef.current?.querySelectorAll<HTMLButtonElement>(':scope > [role="menuitem"], :scope > div > [role="menuitem"]') ?? []
+        );
+        if (items.length === 0) return;
+        e.preventDefault();
+        const activeIdx = items.indexOf(document.activeElement as HTMLButtonElement);
+        const nextIdx =
+          e.key === "ArrowDown"
+            ? (activeIdx + 1) % items.length
+            : (activeIdx - 1 + items.length) % items.length;
+        items[nextIdx]?.focus();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [contextMenu, onClose]);
+
   if (!contextMenu) return null;
 
   const currentStatus = contextMenu.game.completion_status || "NotPlayed";
+
+  const renderMenuButton = ({
+    onClick,
+    className,
+    children,
+  }: {
+    onClick: () => void;
+    className?: string;
+    children: React.ReactNode;
+  }) => (
+    <Button
+      type="button"
+      role="menuitem"
+      variant="ghost"
+      onClick={onClick}
+      className={cn(
+        "w-full h-auto justify-start gap-2.5 px-3.5 py-2 rounded-none text-left text-xs font-medium text-slate-300 hover:text-white hover:bg-white/5",
+        className
+      )}
+    >
+      {children}
+    </Button>
+  );
 
   return (
     <>
@@ -72,6 +133,9 @@ export default function GlobalContextMenu({
         }}
       />
       <div
+        ref={menuRef}
+        role="menu"
+        aria-label={contextMenu.game.title}
         className="fixed z-[9999] py-1.5 w-60 rounded-xl border shadow-2xl backdrop-blur-xl select-none text-xs"
         style={{
           left: `${contextMenu.x}px`,
@@ -92,62 +156,75 @@ export default function GlobalContextMenu({
           </span>
         </div>
 
-        {contextMenu.game.is_installed ? (
-          <button
-            onClick={() => {
-              onLaunch(contextMenu.game.id);
-              onClose();
-            }}
-            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-left font-bold text-emerald-400 hover:bg-emerald-500/10 transition-colors"
-          >
-            <Play className="w-3.5 h-3.5 fill-emerald-400" />
-            <span>{t("context_menu.launch")}</span>
-          </button>
-        ) : (
-          <button
-            onClick={() => {
-              onLaunch(contextMenu.game.id);
-              onClose();
-            }}
-            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-left font-bold text-indigo-400 hover:bg-indigo-500/10 transition-colors"
-          >
-            <Download className="w-3.5 h-3.5 text-indigo-400" />
-            <span>{t("context_menu.install_native")}</span>
-          </button>
-        )}
+        {contextMenu.game.is_installed
+          ? renderMenuButton({
+              onClick: () => {
+                onLaunch(contextMenu.game.id);
+                onClose();
+              },
+              className: "font-bold text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10",
+              children: (
+                <>
+                  <Play className="w-3.5 h-3.5 fill-emerald-400" />
+                  <span>{t("context_menu.launch")}</span>
+                </>
+              ),
+            })
+          : renderMenuButton({
+              onClick: () => {
+                onLaunch(contextMenu.game.id);
+                onClose();
+              },
+              className: "font-bold text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10",
+              children: (
+                <>
+                  <Download className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>{t("context_menu.install_native")}</span>
+                </>
+              ),
+            })}
 
-        <button
-          onClick={() => {
+        {renderMenuButton({
+          onClick: () => {
             onEdit(contextMenu.game);
             onClose();
-          }}
-          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-left font-bold text-indigo-300 hover:bg-indigo-500/10 transition-colors"
-        >
-          <Pencil className="w-3.5 h-3.5 text-indigo-400" />
-          <span>{t("context_menu.edit_manual")}</span>
-        </button>
+          },
+          className: "font-bold text-indigo-300 hover:text-indigo-200 hover:bg-indigo-500/10",
+          children: (
+            <>
+              <Pencil className="w-3.5 h-3.5 text-indigo-400" />
+              <span>{t("context_menu.edit_manual")}</span>
+            </>
+          ),
+        })}
 
-        <button
-          onClick={() => {
+        {renderMenuButton({
+          onClick: () => {
             onResolve(contextMenu.game);
             onClose();
-          }}
-          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-left font-bold text-sky-300 hover:bg-sky-500/10 transition-colors"
-        >
-          <Search className="w-3.5 h-3.5 text-sky-400" />
-          <span>{t("context_menu.identify_metadata")}</span>
-        </button>
+          },
+          className: "font-bold text-sky-300 hover:text-sky-200 hover:bg-sky-500/10",
+          children: (
+            <>
+              <Search className="w-3.5 h-3.5 text-sky-400" />
+              <span>{t("context_menu.identify_metadata")}</span>
+            </>
+          ),
+        })}
 
-        <button
-          onClick={() => {
+        {renderMenuButton({
+          onClick: () => {
             onShowDetails(contextMenu.game);
             onClose();
-          }}
-          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-left font-medium text-white/90 hover:bg-white/5 transition-colors"
-        >
-          <Info className="w-3.5 h-3.5 text-slate-400" />
-          <span>{t("context_menu.view_details")}</span>
-        </button>
+          },
+          className: "text-white/90 hover:text-white",
+          children: (
+            <>
+              <Info className="w-3.5 h-3.5 text-slate-400" />
+              <span>{t("context_menu.view_details")}</span>
+            </>
+          ),
+        })}
 
         {/* Completion Status Submenu Trigger */}
         {onUpdateCompletionStatus && (
@@ -156,20 +233,26 @@ export default function GlobalContextMenu({
             onMouseEnter={() => setShowStatusSubmenu(true)}
             onMouseLeave={() => setShowStatusSubmenu(false)}
           >
-            <button
+            <Button
               type="button"
+              role="menuitem"
+              aria-haspopup="menu"
+              aria-expanded={showStatusSubmenu}
+              variant="ghost"
               onClick={() => setShowStatusSubmenu((v) => !v)}
-              className="w-full flex items-center justify-between px-3.5 py-2 text-left font-medium text-slate-200 hover:bg-white/5 transition-colors"
+              className="w-full h-auto justify-between px-3.5 py-2 rounded-none text-left text-xs font-medium text-slate-200 hover:text-white hover:bg-white/5"
             >
               <div className="flex items-center gap-2.5">
                 <CheckCircle2 className="w-3.5 h-3.5 text-indigo-400" />
                 <span>{t("groups.completion_status")}</span>
               </div>
               <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-            </button>
+            </Button>
 
             {showStatusSubmenu && (
               <div
+                role="menu"
+                aria-label={t("groups.completion_status")}
                 className={`absolute top-0 ${
                   contextMenu.x + 440 > window.innerWidth ? "right-full mr-1" : "left-full ml-1"
                 } w-48 py-1.5 rounded-xl border shadow-2xl backdrop-blur-xl z-[10000]`}
@@ -182,16 +265,19 @@ export default function GlobalContextMenu({
                 {COMPLETION_STATUS_OPTIONS.map((opt) => {
                   const isSelected = currentStatus.toLowerCase() === opt.value.toLowerCase();
                   return (
-                    <button
+                    <Button
                       key={opt.value}
                       type="button"
+                      role="menuitemradio"
+                      aria-checked={isSelected}
+                      variant="ghost"
                       onClick={() => {
                         onUpdateCompletionStatus(contextMenu.game, opt.value);
                         onClose();
                       }}
-                      className={`w-full flex items-center justify-between px-3 py-1.5 text-left text-xs transition-colors cursor-pointer ${
+                      className={`w-full h-auto justify-between px-3 py-1.5 rounded-none text-left text-xs ${
                         isSelected
-                          ? "bg-indigo-600/20 text-white font-semibold"
+                          ? "bg-indigo-600/20 text-white font-semibold hover:bg-indigo-600/30"
                           : "text-slate-300 hover:text-white hover:bg-white/5"
                       }`}
                     >
@@ -200,7 +286,7 @@ export default function GlobalContextMenu({
                         <span>{t(`completion_status.${opt.key}`)}</span>
                       </div>
                       {isSelected && <Check className="w-3.5 h-3.5 text-indigo-400 shrink-0" />}
-                    </button>
+                    </Button>
                   );
                 })}
               </div>
@@ -218,25 +304,31 @@ export default function GlobalContextMenu({
               onMouseEnter={() => setShowCopiesSubmenu(true)}
               onMouseLeave={() => setShowCopiesSubmenu(false)}
             >
-              <button
+              <Button
                 type="button"
+                role="menuitem"
+                aria-haspopup="menu"
+                aria-expanded={showCopiesSubmenu}
+                variant="ghost"
                 onClick={() => setShowCopiesSubmenu((v) => !v)}
-                className="w-full flex items-center justify-between px-3.5 py-2 text-left font-medium text-slate-200 hover:bg-white/5 transition-colors"
+                className="w-full h-auto justify-between px-3.5 py-2 rounded-none text-left text-xs font-medium text-slate-200 hover:text-white hover:bg-white/5"
               >
                 <div className="flex items-center gap-2.5">
                   <Layers className="w-3.5 h-3.5 text-indigo-400" />
                   <span>{t("duplicate_hider.other_copies")}</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded text-slate-400 bg-white/5">
+                  <Badge variant="secondary" className="text-[10px] font-mono px-1.5 py-0 text-slate-300 bg-white/5 border-transparent">
                     {contextMenu.game.other_copies.length}
-                  </span>
+                  </Badge>
                   <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
                 </div>
-              </button>
+              </Button>
 
               {showCopiesSubmenu && (
                 <div
+                  role="menu"
+                  aria-label={t("duplicate_hider.other_copies")}
                   className={`absolute top-0 ${
                     contextMenu.x + 440 > window.innerWidth ? "right-full mr-1" : "left-full ml-1"
                   } w-64 py-1.5 rounded-xl border shadow-2xl backdrop-blur-xl z-[10000]`}
@@ -280,30 +372,34 @@ export default function GlobalContextMenu({
                         </div>
                       )}
                       <div className="flex items-center gap-1.5 pt-0.5">
-                        <button
+                        <Button
                           type="button"
+                          variant="ghost"
+                          size="xs"
                           onClick={() => {
                             onLaunch(copy.id);
                             onClose();
                           }}
-                          className="flex-1 flex items-center justify-center gap-1 py-1 px-2 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 border border-indigo-500/30 text-[10px] font-semibold transition-colors cursor-pointer"
+                          className="flex-1 h-auto py-1 px-2 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 border border-indigo-500/30 text-[10px] font-semibold"
                           title={t("duplicate_hider.launch_copy", { store: copy.library.toUpperCase() })}
                         >
                           <Play className="w-2.5 h-2.5 fill-current" />
                           <span>{copy.is_installed ? t("common.play") : t("common.install")}</span>
-                        </button>
+                        </Button>
                         {onPromoteCopy && (
-                          <button
+                          <Button
                             type="button"
+                            variant="ghost"
+                            size="xs"
                             onClick={() => {
                               onPromoteCopy(copy.id);
                               onClose();
                             }}
-                            className="flex-1 flex items-center justify-center gap-1 py-1 px-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10 text-[10px] font-medium transition-colors cursor-pointer"
+                            className="flex-1 h-auto py-1 px-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10 text-[10px] font-medium"
                             title={t("duplicate_hider.promote_copy", { store: copy.library.toUpperCase() })}
                           >
                             <span>{t("duplicate_hider.active_copy")}</span>
-                          </button>
+                          </Button>
                         )}
                       </div>
                     </div>
@@ -313,93 +409,100 @@ export default function GlobalContextMenu({
             </div>
           )}
 
-        <div className="my-1 border-t" style={{ borderColor: "var(--border-color)" }} />
+        <div role="separator" className="my-1 border-t" style={{ borderColor: "var(--border-color)" }} />
 
         {/* Management Actions */}
-        {contextMenu.game.is_installed && onOpenFolder && (
-          <button
-            onClick={() => {
+        {contextMenu.game.is_installed &&
+          onOpenFolder &&
+          renderMenuButton({
+            onClick: () => {
               onOpenFolder(contextMenu.game);
               onClose();
-            }}
-            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-left font-medium text-slate-300 hover:text-white hover:bg-white/5 transition-colors"
-          >
-            <FolderOpen className="w-3.5 h-3.5 text-amber-400" />
-            <span>{t("context_menu.open_install_dir")}</span>
-          </button>
-        )}
+            },
+            children: (
+              <>
+                <FolderOpen className="w-3.5 h-3.5 text-amber-400" />
+                <span>{t("context_menu.open_install_dir")}</span>
+              </>
+            ),
+          })}
 
-        {onCreateShortcut && (
-          <button
-            onClick={() => {
+        {onCreateShortcut &&
+          renderMenuButton({
+            onClick: () => {
               onCreateShortcut(contextMenu.game);
               onClose();
-            }}
-            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-left font-medium text-slate-300 hover:text-white hover:bg-white/5 transition-colors"
-          >
-            <Monitor className="w-3.5 h-3.5 text-cyan-400" />
-            <span>{t("context_menu.create_desktop_shortcut")}</span>
-          </button>
-        )}
+            },
+            children: (
+              <>
+                <Monitor className="w-3.5 h-3.5 text-cyan-400" />
+                <span>{t("context_menu.create_desktop_shortcut")}</span>
+              </>
+            ),
+          })}
 
-        {["steam", "epic"].includes((contextMenu.game.library || "").toLowerCase()) && onVerifyFiles && (
-          <button
-            onClick={() => {
+        {["steam", "epic"].includes((contextMenu.game.library || "").toLowerCase()) &&
+          onVerifyFiles &&
+          renderMenuButton({
+            onClick: () => {
               onVerifyFiles(contextMenu.game);
               onClose();
-            }}
-            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-left font-medium text-slate-300 hover:text-white hover:bg-white/5 transition-colors"
-          >
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-            <span>{t("context_menu.verify_files")}</span>
-          </button>
-        )}
+            },
+            children: (
+              <>
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                <span>{t("context_menu.verify_files")}</span>
+              </>
+            ),
+          })}
 
-        {contextMenu.game.is_installed && onUninstall && (
-          <button
-            onClick={() => {
+        {contextMenu.game.is_installed &&
+          onUninstall &&
+          renderMenuButton({
+            onClick: () => {
               onUninstall(contextMenu.game);
               onClose();
-            }}
-            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-left font-semibold text-rose-400 hover:bg-rose-500/10 transition-colors"
-          >
-            <Trash2 className="w-3.5 h-3.5 text-rose-400" />
-            <span>{t("context_menu.uninstall")}</span>
-          </button>
-        )}
+            },
+            className: "font-semibold text-rose-400 hover:text-rose-300 hover:bg-rose-500/10",
+            children: (
+              <>
+                <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                <span>{t("context_menu.uninstall")}</span>
+              </>
+            ),
+          })}
 
-        {onToggleFavorite && (
-          <button
-            onClick={() => {
+        {onToggleFavorite &&
+          renderMenuButton({
+            onClick: () => {
               onToggleFavorite(contextMenu.game);
               onClose();
-            }}
-            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-left font-medium text-slate-300 hover:text-white hover:bg-white/5 transition-colors"
-          >
-            <Star
-              className={`w-3.5 h-3.5 ${
-                contextMenu.game.is_favorite
-                  ? "text-amber-400 fill-amber-400"
-                  : "text-slate-400"
-              }`}
-            />
-            <span>
-              {contextMenu.game.is_favorite
-                ? (t("sidebar.remove_favorite") || "Rimuovi dai preferiti")
-                : (t("sidebar.add_favorite") || "Aggiungi ai preferiti")}
-            </span>
-          </button>
-        )}
+            },
+            children: (
+              <>
+                <Star
+                  className={`w-3.5 h-3.5 ${
+                    contextMenu.game.is_favorite
+                      ? "text-amber-400 fill-amber-400"
+                      : "text-slate-400"
+                  }`}
+                />
+                <span>
+                  {contextMenu.game.is_favorite
+                    ? (t("sidebar.remove_favorite") || "Rimuovi dai preferiti")
+                    : (t("sidebar.add_favorite") || "Aggiungi ai preferiti")}
+                </span>
+              </>
+            ),
+          })}
 
-        {onToggleHidden && (
-          <button
-            onClick={() => {
+        {onToggleHidden &&
+          renderMenuButton({
+            onClick: () => {
               onToggleHidden(contextMenu.game);
               onClose();
-            }}
-            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-left font-medium text-slate-300 hover:text-white hover:bg-white/5 transition-colors"
-          >
-            {contextMenu.game.is_hidden ? (
+            },
+            children: contextMenu.game.is_hidden ? (
               <>
                 <Eye className="w-3.5 h-3.5 text-indigo-400" />
                 <span>{t("duplicate_hider.unhide_game")}</span>
@@ -409,22 +512,23 @@ export default function GlobalContextMenu({
                 <EyeOff className="w-3.5 h-3.5 text-slate-400" />
                 <span>{t("duplicate_hider.hide_game")}</span>
               </>
-            )}
-          </button>
-        )}
+            ),
+          })}
 
-        {onRemoveFromLibrary && (
-          <button
-            onClick={() => {
+        {onRemoveFromLibrary &&
+          renderMenuButton({
+            onClick: () => {
               onRemoveFromLibrary(contextMenu.game);
               onClose();
-            }}
-            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-left font-medium text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors"
-          >
-            <XCircle className="w-3.5 h-3.5 text-slate-500" />
-            <span>{t("context_menu.remove_from_library")}</span>
-          </button>
-        )}
+            },
+            className: "text-slate-400 hover:text-rose-300 hover:bg-rose-500/10",
+            children: (
+              <>
+                <XCircle className="w-3.5 h-3.5 text-slate-500" />
+                <span>{t("context_menu.remove_from_library")}</span>
+              </>
+            ),
+          })}
       </div>
     </>
   );

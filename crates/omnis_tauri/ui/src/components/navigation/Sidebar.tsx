@@ -14,6 +14,9 @@ import {
 import { LibraryCounts, ViewMode } from "../../types";
 import { SteamIcon, EpicIcon, GogIcon, XboxIcon, SwitchIcon } from "../StoreBadge";
 import { useTranslation } from "../../i18n";
+import { Button } from "../ui/button";
+import { Progress } from "../ui/progress";
+import { ScrollArea } from "../ui/scroll-area";
 
 interface SidebarProps {
   counts: LibraryCounts;
@@ -75,8 +78,10 @@ export default function Sidebar({
     const Icon = source.icon;
     const isActive = checkActive(source.id);
     return (
-      <button
+      <Button
         key={source.id}
+        type="button"
+        variant="ghost"
         data-omnis="sidebar.item"
         data-state={isActive ? "active" : "idle"}
         onClick={() => {
@@ -85,9 +90,9 @@ export default function Sidebar({
           }
           setActiveFilter(source.id);
         }}
-        className={`flex items-center justify-between px-2 py-1.5 rounded-md text-xs transition-colors group ${
+        className={`w-full h-auto justify-between px-2 py-1.5 rounded-md text-xs group ${
           isActive
-            ? "font-semibold bg-white/10 text-white"
+            ? "font-semibold bg-white/10 text-white hover:bg-white/10 hover:text-white"
             : "font-normal hover:bg-white/5 text-slate-300 hover:text-white"
         }`}
         style={{
@@ -102,7 +107,7 @@ export default function Sidebar({
         <span className="text-[9px] font-mono px-1 py-0.2 rounded text-slate-400 bg-black/20 shrink-0">
           {source.count}
         </span>
-      </button>
+      </Button>
     );
   };
 
@@ -115,7 +120,8 @@ export default function Sidebar({
         borderColor: "var(--border-color)",
       }}
     >
-      <div className="flex flex-col gap-3 overflow-y-auto pr-0.5 custom-scrollbar">
+      <ScrollArea className="flex-1 min-h-0 -mr-0.5 pr-0.5">
+        <div className="flex flex-col gap-3">
         {/* Section: Libreria */}
         <div className="flex flex-col gap-0.5">
           <span
@@ -128,8 +134,10 @@ export default function Sidebar({
             const Icon = item.icon;
             const isActive = checkActive(item.id);
             return (
-              <button
+              <Button
                 key={item.id}
+                type="button"
+                variant="ghost"
                 data-omnis="sidebar.item"
                 data-state={isActive ? "active" : "idle"}
                 onClick={() => {
@@ -138,9 +146,9 @@ export default function Sidebar({
                   }
                   setActiveFilter(item.id);
                 }}
-                className={`flex items-center justify-between px-2 py-1.5 rounded-md text-xs transition-colors group ${
+                className={`w-full h-auto justify-between px-2 py-1.5 rounded-md text-xs group ${
                   isActive
-                    ? "font-semibold bg-white/10 text-white"
+                    ? "font-semibold bg-white/10 text-white hover:bg-white/10 hover:text-white"
                     : "font-normal hover:bg-white/5 text-slate-300 hover:text-white"
                 }`}
                 style={{
@@ -160,7 +168,7 @@ export default function Sidebar({
                 >
                   {item.count}
                 </span>
-              </button>
+              </Button>
             );
           })}
         </div>
@@ -173,8 +181,9 @@ export default function Sidebar({
           >
             {t("sidebar.analytics")}
           </span>
-          <button
+          <Button
             type="button"
+            variant="ghost"
             data-omnis="sidebar.item"
             data-state={viewMode === "stats" ? "active" : "idle"}
             onClick={() => {
@@ -182,9 +191,9 @@ export default function Sidebar({
                 setViewMode("stats");
               }
             }}
-            className={`flex items-center justify-between px-2 py-1.5 rounded-md text-xs transition-colors group cursor-pointer ${
+            className={`w-full h-auto justify-between px-2 py-1.5 rounded-md text-xs group ${
               viewMode === "stats"
-                ? "font-semibold bg-white/10 text-white"
+                ? "font-semibold bg-white/10 text-white hover:bg-white/10 hover:text-white"
                 : "font-normal hover:bg-white/5 text-slate-300 hover:text-white"
             }`}
             style={{
@@ -202,7 +211,7 @@ export default function Sidebar({
             <span className="text-[9px] font-mono px-1.5 py-0.2 rounded text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 shrink-0">
               Hub
             </span>
-          </button>
+          </Button>
         </div>
 
         {/* Section: Store Accounts */}
@@ -215,15 +224,17 @@ export default function Sidebar({
               {t("sidebar.stores")}
             </span>
             {onOpenStoreAccounts && (
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="xs"
                 onClick={onOpenStoreAccounts}
-                className="px-1 py-0.2 rounded text-[9px] font-semibold text-sky-400 hover:text-white hover:bg-sky-500/20 transition-all flex items-center gap-1 border border-sky-500/30"
+                className="h-auto px-1.5 py-0.5 rounded text-[9px] font-semibold text-sky-400 hover:text-white hover:bg-sky-500/20 border border-sky-500/30"
                 title={t("sidebar.connect_account_title")}
               >
                 <Cloud className="w-2.5 h-2.5" />
                 <span>{t("sidebar.connect_account")}</span>
-              </button>
+              </Button>
             )}
           </div>
           {storeItems.map(renderSourceItem)}
@@ -240,20 +251,23 @@ export default function Sidebar({
                 {t("sidebar.emulators")}
               </span>
               {onOpenEmulatorSettings && (
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="icon-xs"
                   onClick={onOpenEmulatorSettings}
-                  className="p-0.5 rounded text-slate-500 hover:text-white hover:bg-white/10 transition-all"
+                  className="h-5 w-5 p-0.5 rounded text-slate-500 hover:text-white hover:bg-white/10"
                   title={t("sidebar.emulator_settings_title")}
                 >
                   <Settings2 className="w-3 h-3" />
-                </button>
+                </Button>
               )}
             </div>
             {emulatorItems.map(renderSourceItem)}
           </div>
         )}
-      </div>
+        </div>
+      </ScrollArea>
 
       {/* Sidebar Footer (Heroic-style compact storage & folder tools) */}
       <div
@@ -270,56 +284,54 @@ export default function Sidebar({
               {counts.installed}/{counts.total} ({Math.round(installedRatio)}%)
             </span>
           </div>
-          <div
-            className="h-1 w-full rounded-full overflow-hidden bg-white/10"
-          >
-            <div
-              className="h-full rounded-full transition-all duration-500"
-              style={{
-                width: `${installedRatio}%`,
-                backgroundColor: "var(--accent-primary)",
-              }}
-            />
-          </div>
+          <Progress
+            value={installedRatio}
+            className="h-1 bg-white/10"
+            indicatorStyle={{ backgroundColor: "var(--accent-primary)" }}
+          />
         </div>
 
         <div className="grid grid-cols-4 gap-1 pt-0.5">
-          <button
+          <Button
             type="button"
+            variant="ghost"
             onClick={() => handleOpenFolder("db")}
-            className="p-1 rounded text-[9px] font-medium flex flex-col items-center gap-0.5 border border-white/5 hover:border-white/20 bg-white/[0.03] hover:bg-white/10 text-slate-400 hover:text-white transition-all"
+            className="h-auto p-1 rounded text-[9px] font-medium flex flex-col items-center gap-0.5 border border-white/5 hover:border-white/20 bg-white/[0.03] hover:bg-white/10 text-slate-400 hover:text-white"
             title={t("sidebar.folder_db")}
           >
             <Folder className="w-3 h-3" />
             <span>DB</span>
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="ghost"
             onClick={() => handleOpenFolder("covers")}
-            className="p-1 rounded text-[9px] font-medium flex flex-col items-center gap-0.5 border border-white/5 hover:border-white/20 bg-white/[0.03] hover:bg-white/10 text-slate-400 hover:text-white transition-all"
+            className="h-auto p-1 rounded text-[9px] font-medium flex flex-col items-center gap-0.5 border border-white/5 hover:border-white/20 bg-white/[0.03] hover:bg-white/10 text-slate-400 hover:text-white"
             title={t("sidebar.folder_covers")}
           >
             <Folder className="w-3 h-3" />
             <span>{t("sidebar.short_covers")}</span>
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="ghost"
             onClick={() => handleOpenFolder("themes")}
-            className="p-1 rounded text-[9px] font-medium flex flex-col items-center gap-0.5 border border-white/5 hover:border-white/20 bg-white/[0.03] hover:bg-white/10 text-slate-400 hover:text-white transition-all"
+            className="h-auto p-1 rounded text-[9px] font-medium flex flex-col items-center gap-0.5 border border-white/5 hover:border-white/20 bg-white/[0.03] hover:bg-white/10 text-slate-400 hover:text-white"
             title={t("sidebar.folder_themes")}
           >
             <Palette className="w-3 h-3" />
             <span>{t("sidebar.short_themes")}</span>
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="ghost"
             onClick={() => handleOpenFolder("plugins")}
-            className="p-1 rounded text-[9px] font-medium flex flex-col items-center gap-0.5 border border-white/5 hover:border-white/20 bg-white/[0.03] hover:bg-white/10 text-slate-400 hover:text-white transition-all"
+            className="h-auto p-1 rounded text-[9px] font-medium flex flex-col items-center gap-0.5 border border-white/5 hover:border-white/20 bg-white/[0.03] hover:bg-white/10 text-slate-400 hover:text-white"
             title={t("sidebar.folder_plugins")}
           >
             <Folder className="w-3 h-3" />
             <span>{t("sidebar.short_plugins")}</span>
-          </button>
+          </Button>
         </div>
       </div>
     </aside>

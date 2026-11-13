@@ -6,6 +6,7 @@ import type { BackupScheduleConfigDto } from '../../../types';
 import { ToggleSwitch } from '../SettingsControls';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Slider } from '@/components/ui/slider';
 
 interface ScheduleBackupSectionProps {
   scheduleConfig: BackupScheduleConfigDto | null;
@@ -174,14 +175,12 @@ export const ScheduleBackupSection: React.FC<ScheduleBackupSectionProps> = ({
           </span>
         </div>
         <div className="flex items-center gap-4">
-          <input
-            type="range"
+          <Slider
             min={1}
             max={10}
             step={1}
-            value={scheduleConfig?.max_rotations ?? 5}
-            onChange={(e) => {
-              const val = Number(e.target.value);
+            value={[scheduleConfig?.max_rotations ?? 5]}
+            onValueChange={([val]) => {
               setScheduleConfig((prev) =>
                 prev
                   ? { ...prev, max_rotations: val }
@@ -192,8 +191,8 @@ export const ScheduleBackupSection: React.FC<ScheduleBackupSectionProps> = ({
                     }
               );
             }}
-            className="flex-1 h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer"
-            style={{ accentColor: 'var(--accent-primary)' }}
+            className="flex-1 cursor-pointer"
+            aria-label={t('backup_settings.rotation_label') || 'Copie rotanti da conservare:'}
           />
           <Input
             id="maxRotationsInput"

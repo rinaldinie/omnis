@@ -1,5 +1,4 @@
 import React from "react";
-import { createPortal } from "react-dom";
 import {
   ArrowLeft,
   Play,
@@ -15,9 +14,16 @@ import {
   ShieldCheck,
   Trash2,
   XCircle,
-  Layers,
   Star,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ActiveGameSession, GameDto, ThemeConfig, ViewMode, formatImageUrl } from "../../../types";
 import { useActiveGameTimer } from "../../../context/ActiveGameTimerContext";
 import { StoreBadge, StoreIcon } from "../../StoreBadge";
@@ -89,47 +95,6 @@ export const DetailsHeroHeader: React.FC<DetailsHeroHeaderProps> = ({
   const isSelectedGameRunning = activeGame?.game_id === selectedGame.id;
   const timerContextSeconds = useActiveGameTimer();
   const actualElapsed = elapsedSeconds ?? timerContextSeconds;
-  const manageButtonRef = React.useRef<HTMLButtonElement>(null);
-  const [showManageMenu, setShowManageMenu] = React.useState(false);
-  const [menuPosition, setMenuPosition] = React.useState<{ top: number; left: number }>({ top: 0, left: 0 });
-
-  const toggleManageMenu = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!showManageMenu && manageButtonRef.current) {
-      const rect = manageButtonRef.current.getBoundingClientRect();
-      const menuHeight = 260;
-      const fitsBelow = rect.bottom + menuHeight <= window.innerHeight;
-      const top = fitsBelow ? rect.bottom + 6 : Math.max(10, rect.top - menuHeight - 6);
-      const left = Math.min(rect.left, window.innerWidth - 270);
-      setMenuPosition({ top, left });
-      setShowManageMenu(true);
-    } else {
-      setShowManageMenu(false);
-    }
-  };
-
-  React.useEffect(() => {
-    setShowManageMenu(false);
-  }, [selectedGame.id]);
-
-  React.useEffect(() => {
-    if (!showManageMenu) return;
-    const handleClose = () => setShowManageMenu(false);
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setShowManageMenu(false);
-        manageButtonRef.current?.focus();
-      }
-    };
-    window.addEventListener("scroll", handleClose, true);
-    window.addEventListener("resize", handleClose);
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("scroll", handleClose, true);
-      window.removeEventListener("resize", handleClose);
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [showManageMenu]);
 
   const handleFilterByGenre = (genre: string) => {
     if (!setActiveFilter) return;
@@ -178,13 +143,16 @@ export const DetailsHeroHeader: React.FC<DetailsHeroHeaderProps> = ({
           backgroundColor: "var(--bg-surface)",
         }}
       >
-        <button
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
           onClick={() => setViewMode("grid")}
-          className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-white/[0.08] bg-white/[0.04] text-xs font-semibold text-slate-200 transition-all hover:bg-white/[0.08] hover:text-white hover:border-white/20 active:opacity-90 shadow-sm cursor-pointer"
+          className="h-auto gap-2 px-3.5 py-1.5 rounded-xl border-white/[0.08] bg-white/[0.04] text-xs font-semibold text-slate-200 hover:bg-white/[0.08] hover:text-white hover:border-white/20 shadow-sm"
         >
           <ArrowLeft className="w-3.5 h-3.5" style={{ color: "var(--accent-primary)" }} />
           <span>{t("game_details.back_to_grid")}</span>
-        </button>
+        </Button>
 
         <div
           className="flex items-center gap-2 text-xs font-semibold"
@@ -357,30 +325,34 @@ export const DetailsHeroHeader: React.FC<DetailsHeroHeaderProps> = ({
             <div data-omnis="details.actions" className="flex flex-wrap items-center gap-2 sm:gap-2.5 pt-2">
               {isSelectedGameRunning ? (
                 <>
-                  <button
+                  <Button
+                    type="button"
+                    variant="outline"
                     disabled
-                    className="flex items-center gap-2.5 px-6 py-3 rounded-xl font-bold text-xs text-emerald-200 bg-emerald-600/30 border border-emerald-500/50 shadow-lg cursor-default"
+                    className="h-auto gap-2.5 px-6 py-3 rounded-xl font-bold text-xs text-emerald-200 bg-emerald-600/30 border-emerald-500/50 shadow-lg disabled:opacity-100 cursor-default"
                   >
                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
                     <span>{t("status.running")}... ({formatDuration ? formatDuration(actualElapsed) : `${actualElapsed}s`})</span>
-                  </button>
+                  </Button>
 
                   {handleKillRunningGame && (
-                    <button
+                    <Button
                       type="button"
+                      variant="destructive"
                       onClick={handleKillRunningGame}
-                      className="flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-xs text-white bg-rose-600 hover:bg-rose-500 active:bg-rose-700 border border-rose-500/50 shadow-lg transition-all hover:scale-105 active:opacity-90 cursor-pointer"
+                      className="h-auto gap-2 px-5 py-3 rounded-xl font-bold text-xs border-rose-500/50 shadow-lg hover:scale-105"
                       title={t("status.kill_game_title")}
                     >
                       <Square className="w-3.5 h-3.5 fill-white" />
                       <span>{t("status.kill_game")}</span>
-                    </button>
+                    </Button>
                   )}
                 </>
               ) : (
-                <button
+                <Button
+                  type="button"
                   onClick={() => handleLaunch(selectedGame.id)}
-                  className="flex items-center gap-2.5 px-6 py-3 rounded-xl font-bold text-xs text-white shadow-lg transition-all hover:brightness-110 active:scale-95 bg-[var(--accent-primary)] cursor-pointer"
+                  className="h-auto gap-2.5 px-6 py-3 rounded-xl font-bold text-xs text-white shadow-lg hover:brightness-110 active:scale-95 bg-[var(--accent-primary)]"
                 >
                   {selectedGame.is_installed ? (
                     <Play className="w-4 h-4 fill-white" />
@@ -392,16 +364,17 @@ export const DetailsHeroHeader: React.FC<DetailsHeroHeaderProps> = ({
                       ? t("game_details.play_now")
                       : t("game_details.install_now")}
                   </span>
-                </button>
+                </Button>
               )}
 
               {handleToggleFavorite && (
-                <button
+                <Button
                   type="button"
+                  variant="outline"
                   onClick={() => handleToggleFavorite(selectedGame)}
-                  className={`flex items-center gap-2 px-4 py-3 rounded-xl border text-xs font-semibold transition-all backdrop-blur-md active:scale-95 cursor-pointer ${
+                  className={`h-auto gap-2 px-4 py-3 rounded-xl text-xs font-semibold backdrop-blur-md active:scale-95 ${
                     selectedGame.is_favorite
-                      ? "bg-amber-500/15 border-amber-500/40 text-amber-300 hover:bg-amber-500/25"
+                      ? "bg-amber-500/15 border-amber-500/40 text-amber-300 hover:bg-amber-500/25 hover:text-amber-200"
                       : "bg-white/[0.04] border-white/[0.08] text-slate-200 hover:bg-white/[0.08] hover:border-white/20 hover:text-white"
                   }`}
                   title={
@@ -422,13 +395,15 @@ export const DetailsHeroHeader: React.FC<DetailsHeroHeaderProps> = ({
                       ? t("sidebar.favorites")
                       : (t("sidebar.add_favorite") || "Preferito")}
                   </span>
-                </button>
+                </Button>
               )}
 
-              <button
+              <Button
+                type="button"
+                variant="outline"
                 onClick={() => handleEnrichSingleGame(selectedGame.id)}
                 disabled={isEnrichingSingle}
-                className="flex items-center gap-2 px-4 py-3 rounded-xl border border-white/[0.08] bg-white/[0.04] text-xs font-semibold text-slate-200 transition-all backdrop-blur-md hover:bg-white/[0.08] hover:border-white/20 hover:text-white active:scale-95 cursor-pointer disabled:opacity-50"
+                className="h-auto gap-2 px-4 py-3 rounded-xl border-white/[0.08] bg-white/[0.04] text-xs font-semibold text-slate-200 backdrop-blur-md hover:bg-white/[0.08] hover:border-white/20 hover:text-white active:scale-95"
                 title={t("topbar.enrich_tooltip")}
               >
                 <Sparkles
@@ -439,147 +414,107 @@ export const DetailsHeroHeader: React.FC<DetailsHeroHeaderProps> = ({
                 <span>
                   {isEnrichingSingle ? t("game_details.enriching") : t("game_details.enrich_pipeline")}
                 </span>
-              </button>
+              </Button>
 
-              <button
+              <Button
+                type="button"
+                variant="outline"
                 onClick={() => {
                   setGameToEdit(selectedGame);
                   setShowEditorModal(true);
                 }}
-                className="flex items-center gap-2 px-4 py-3 rounded-xl border border-white/[0.08] bg-white/[0.04] text-xs font-semibold text-slate-200 transition-all backdrop-blur-md hover:bg-white/[0.08] hover:border-white/20 hover:text-white active:scale-95 cursor-pointer"
+                className="h-auto gap-2 px-4 py-3 rounded-xl border-white/[0.08] bg-white/[0.04] text-xs font-semibold text-slate-200 backdrop-blur-md hover:bg-white/[0.08] hover:border-white/20 hover:text-white active:scale-95"
                 title={t("game_details.edit_manual")}
               >
                 <Pencil className="w-4 h-4 text-slate-300" />
                 <span>{t("game_details.edit_manual")}</span>
-              </button>
+              </Button>
 
-              <button
+              <Button
+                type="button"
+                variant="outline"
                 onClick={() => {
                   setGameToResolve(selectedGame);
                   setShowResolutionModal(true);
                 }}
-                className="flex items-center gap-2 px-4 py-3 rounded-xl border border-white/[0.08] bg-white/[0.04] text-xs font-semibold text-slate-200 transition-all backdrop-blur-md hover:bg-white/[0.08] hover:border-white/20 hover:text-white active:scale-95 cursor-pointer"
+                className="h-auto gap-2 px-4 py-3 rounded-xl border-white/[0.08] bg-white/[0.04] text-xs font-semibold text-slate-200 backdrop-blur-md hover:bg-white/[0.08] hover:border-white/20 hover:text-white active:scale-95"
                 title={t("game_details.identify_metadata")}
               >
                 <Search className="w-3.5 h-3.5 text-slate-300" />
                 <span>{t("game_details.identify_metadata")}</span>
-              </button>
+              </Button>
 
-              {/* Manage Menu Button */}
-              <button
-                ref={manageButtonRef}
-                type="button"
-                onClick={toggleManageMenu}
-                className="flex items-center gap-2 px-4 py-3 rounded-xl border border-white/[0.08] bg-white/[0.04] text-xs font-semibold text-slate-200 transition-all backdrop-blur-md hover:bg-white/[0.08] hover:border-white/20 hover:text-white active:scale-95 cursor-pointer"
-                title={t("game_details.manage")}
-              >
-                <Settings2 className="w-4 h-4 text-slate-300" />
-                <span>{t("game_details.manage")}</span>
-                <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${showManageMenu ? "rotate-180" : ""}`} />
-              </button>
-
-              {/* Manage Menu Portal (renders into document.body to avoid parent overflow clipping) */}
-              {showManageMenu &&
-                createPortal(
-                  <>
-                    <div
-                      className="fixed inset-0 z-[9998]"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowManageMenu(false);
-                      }}
-                      onContextMenu={(e) => {
-                        e.preventDefault();
-                        setShowManageMenu(false);
-                      }}
-                    />
-                    <div
-                      role="menu"
-                      className="fixed z-[9999] w-64 rounded-2xl border shadow-2xl backdrop-blur-xl py-1.5 select-none text-xs animate-in fade-in zoom-in-95 duration-150"
-                      style={{
-                        top: `${menuPosition.top}px`,
-                        left: `${menuPosition.left}px`,
-                        backgroundColor: "var(--bg-surface)",
-                        borderColor: "var(--border-color)",
-                        boxShadow: "0 16px 40px rgba(0,0,0,0.85)",
-                      }}
-                      onClick={(e) => e.stopPropagation()}
+              {/* Manage Dropdown Menu */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-auto gap-2 px-4 py-3 rounded-xl border-white/[0.08] bg-white/[0.04] text-xs font-semibold text-slate-200 backdrop-blur-md hover:bg-white/[0.08] hover:border-white/20 hover:text-white active:scale-95 group"
+                    title={t("game_details.manage")}
+                  >
+                    <Settings2 className="w-4 h-4 text-slate-300" />
+                    <span>{t("game_details.manage")}</span>
+                    <ChevronDown className="w-3.5 h-3.5 text-slate-400 transition-transform group-data-[state=open]:rotate-180" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="start"
+                  className="z-[9999] w-64 rounded-2xl py-1.5 shadow-2xl"
+                >
+                  {selectedGame.is_installed && handleOpenInstallDir && (
+                    <DropdownMenuItem
+                      onSelect={() => handleOpenInstallDir(selectedGame.id)}
+                      className="justify-start gap-2.5 px-3.5 py-2.5 font-medium"
                     >
-                      {selectedGame.is_installed && handleOpenInstallDir && (
-                        <button
-                          role="menuitem"
-                          onClick={() => {
-                            setShowManageMenu(false);
-                            handleOpenInstallDir(selectedGame.id);
-                          }}
-                          className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-left font-medium text-slate-200 hover:text-white hover:bg-white/5 transition-colors"
-                        >
-                          <FolderOpen className="w-4 h-4 text-amber-400" />
-                          <span>{t("game_details.open_install_dir")}</span>
-                        </button>
-                      )}
+                      <FolderOpen className="w-4 h-4 text-amber-400" />
+                      <span>{t("game_details.open_install_dir")}</span>
+                    </DropdownMenuItem>
+                  )}
 
-                      {handleCreateShortcut && (
-                        <button
-                          role="menuitem"
-                          onClick={() => {
-                            setShowManageMenu(false);
-                            handleCreateShortcut(selectedGame.id);
-                          }}
-                          className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-left font-medium text-slate-200 hover:text-white hover:bg-white/5 transition-colors"
-                        >
-                          <Monitor className="w-4 h-4 text-cyan-400" />
-                          <span>{t("game_details.create_desktop_shortcut")}</span>
-                        </button>
-                      )}
+                  {handleCreateShortcut && (
+                    <DropdownMenuItem
+                      onSelect={() => handleCreateShortcut(selectedGame.id)}
+                      className="justify-start gap-2.5 px-3.5 py-2.5 font-medium"
+                    >
+                      <Monitor className="w-4 h-4 text-cyan-400" />
+                      <span>{t("game_details.create_desktop_shortcut")}</span>
+                    </DropdownMenuItem>
+                  )}
 
-                      {["steam", "epic"].includes((selectedGame.library || "").toLowerCase()) && handleVerifyFiles && (
-                        <button
-                          role="menuitem"
-                          onClick={() => {
-                            setShowManageMenu(false);
-                            handleVerifyFiles(selectedGame.id);
-                          }}
-                          className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-left font-medium text-slate-200 hover:text-white hover:bg-white/5 transition-colors"
-                        >
-                          <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                          <span>{t("game_details.verify_files")}</span>
-                        </button>
-                      )}
+                  {["steam", "epic"].includes((selectedGame.library || "").toLowerCase()) && handleVerifyFiles && (
+                    <DropdownMenuItem
+                      onSelect={() => handleVerifyFiles(selectedGame.id)}
+                      className="justify-start gap-2.5 px-3.5 py-2.5 font-medium"
+                    >
+                      <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                      <span>{t("game_details.verify_files")}</span>
+                    </DropdownMenuItem>
+                  )}
 
-                      <div className="my-1 border-t" style={{ borderColor: "var(--border-color)" }} />
+                  <DropdownMenuSeparator />
 
-                      {selectedGame.is_installed && handleOpenUninstallModal && (
-                        <button
-                          role="menuitem"
-                          onClick={() => {
-                            setShowManageMenu(false);
-                            handleOpenUninstallModal(selectedGame);
-                          }}
-                          className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-left font-bold text-rose-400 hover:bg-rose-500/10 transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4 text-rose-400" />
-                          <span>{t("game_details.uninstall")}</span>
-                        </button>
-                      )}
+                  {selectedGame.is_installed && handleOpenUninstallModal && (
+                    <DropdownMenuItem
+                      onSelect={() => handleOpenUninstallModal(selectedGame)}
+                      className="justify-start gap-2.5 px-3.5 py-2.5 font-bold text-rose-400 focus:bg-rose-500/10 focus:text-rose-300 data-[highlighted]:bg-rose-500/10 data-[highlighted]:text-rose-300"
+                    >
+                      <Trash2 className="w-4 h-4 text-rose-400" />
+                      <span>{t("game_details.uninstall")}</span>
+                    </DropdownMenuItem>
+                  )}
 
-                      {handleRemoveFromLibrary && (
-                        <button
-                          role="menuitem"
-                          onClick={() => {
-                            setShowManageMenu(false);
-                            handleRemoveFromLibrary(selectedGame.id);
-                          }}
-                          className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-left font-medium text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors"
-                        >
-                          <XCircle className="w-4 h-4 text-slate-500" />
-                          <span>{t("game_details.remove_from_library")}</span>
-                        </button>
-                      )}
-                    </div>
-                  </>,
-                  document.body
-                )}
+                  {handleRemoveFromLibrary && (
+                    <DropdownMenuItem
+                      onSelect={() => handleRemoveFromLibrary(selectedGame.id)}
+                      className="justify-start gap-2.5 px-3.5 py-2.5 font-medium text-slate-400 focus:bg-rose-500/10 focus:text-rose-300 data-[highlighted]:bg-rose-500/10 data-[highlighted]:text-rose-300"
+                    >
+                      <XCircle className="w-4 h-4 text-slate-500" />
+                      <span>{t("game_details.remove_from_library")}</span>
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
             {/* Slot: Details Hero */}

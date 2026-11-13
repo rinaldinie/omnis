@@ -4,6 +4,7 @@ import { GameEditorFormData } from "./types";
 import { useTranslation } from "../../i18n";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 
 interface DescriptionTabProps {
   formData: GameEditorFormData;
@@ -47,11 +48,11 @@ export const DescriptionTab: React.FC<DescriptionTabProps> = ({ formData, onChan
         <label className="block text-xs font-medium mb-1.5 text-slate-300">
           {t("editor_description.synopsis")}
         </label>
-        <textarea
+        <Textarea
           rows={7}
           value={formData.description}
           onChange={(e) => onChange({ description: e.target.value })}
-          className="w-full px-4 py-3 rounded-xl border text-sm font-normal leading-relaxed text-slate-100 placeholder:text-slate-500 outline-none transition-all focus:border-indigo-500"
+          className="px-4 py-3 text-sm font-normal leading-relaxed text-slate-100 placeholder:text-slate-500 focus-visible:border-indigo-500"
           style={{
             backgroundColor: "var(--bg-card)",
             borderColor: "var(--border-color)",

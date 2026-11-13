@@ -21,6 +21,13 @@ import type { GameDto } from '../../types';
 import soundEffects from '../../utils/soundEffects';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { SettingGroup, SettingRadioOption, SettingRow, ToggleSwitch } from './SettingsControls';
 
 export interface EmulatorsSettingsTabProps {
@@ -355,33 +362,41 @@ export const EmulatorsSettingsTab: React.FC<EmulatorsSettingsTabProps> = ({ onSy
             const chosen = settings.switch_game_emulators?.[titleId] ?? '';
             return (
               <SettingRow key={game.id} title={game.title}>
-                <select
-                  value={chosen}
+                <Select
+                  value={chosen || '__default__'}
                   disabled={busy}
-                  onChange={(e) => handleGameEmulator(titleId, e.target.value)}
-                  aria-label={t('emulators_settings.per_game_select', {
-                    defaultValue: 'Emulatore per {title}',
-                    title: game.title,
-                  })}
-                  className="px-2.5 py-1.5 rounded-lg border text-[11px] outline-none cursor-pointer disabled:opacity-50"
-                  style={{
-                    backgroundColor: 'var(--bg-surface)',
-                    borderColor: 'var(--border-color)',
-                    color: 'var(--text-primary)',
-                  }}
+                  onValueChange={(val) =>
+                    handleGameEmulator(titleId, val === '__default__' ? '' : val)
+                  }
                 >
-                  <option value="">
-                    {t('emulators_settings.per_game_default', {
-                      defaultValue: 'Predefinito ({name})',
-                      name: defaultEmulator?.name ?? '—',
+                  <SelectTrigger
+                    aria-label={t('emulators_settings.per_game_select', {
+                      defaultValue: 'Emulatore per {title}',
+                      title: game.title,
                     })}
-                  </option>
-                  {launchable.map((emu) => (
-                    <option key={emu.id} value={emu.id}>
-                      {emu.name}
-                    </option>
-                  ))}
-                </select>
+                    className="h-auto w-auto min-w-[160px] px-2.5 py-1.5 rounded-lg text-[11px]"
+                    style={{
+                      backgroundColor: 'var(--bg-surface)',
+                      borderColor: 'var(--border-color)',
+                      color: 'var(--text-primary)',
+                    }}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__default__">
+                      {t('emulators_settings.per_game_default', {
+                        defaultValue: 'Predefinito ({name})',
+                        name: defaultEmulator?.name ?? '—',
+                      })}
+                    </SelectItem>
+                    {launchable.map((emu) => (
+                      <SelectItem key={emu.id} value={emu.id}>
+                        {emu.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </SettingRow>
             );
           })}

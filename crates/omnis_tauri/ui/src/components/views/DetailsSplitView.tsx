@@ -3,6 +3,7 @@ import { ActiveGameSession, GameDto, ThemeConfig, ViewMode } from "../../types";
 import { DetailsSidebar } from "./details/DetailsSidebar";
 import { DetailsHeroHeader } from "./details/DetailsHeroHeader";
 import { DetailsMetadataPanel } from "./details/DetailsMetadataPanel";
+import { ScrollArea } from "../ui/scroll-area";
 
 interface DetailsSplitViewProps {
   currentTheme?: ThemeConfig;
@@ -99,7 +100,8 @@ export default function DetailsSplitView({
       />
 
       {/* Right Column: Expanded Hero Details Panel */}
-      <div className="flex-1 flex flex-col overflow-y-auto">
+      <ScrollArea className="flex-1">
+        <div className="flex flex-col">
         <DetailsHeroHeader
           currentTheme={currentTheme}
           selectedGame={selectedGame}
@@ -143,7 +145,8 @@ export default function DetailsSplitView({
           handleLaunch={handleLaunch}
           handlePromoteCopy={handlePromoteCopy}
         />
-      </div>
+        </div>
+      </ScrollArea>
     </div>
   );
 }

@@ -6,9 +6,18 @@ import DistributionBar from "../stats/DistributionBar";
 import QuickStatsCards from "../stats/QuickStatsCards";
 import BacklogProgressCard from "../stats/BacklogProgressCard";
 import ResetStatisticsModal from "../stats/ResetStatisticsModal";
-import { RefreshCw, Sparkles, TrendingUp, Trash2, Check, Calendar, ChevronDown } from "lucide-react";
+import { RefreshCw, Sparkles, TrendingUp, Trash2, Check, Calendar } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import soundEffects from "../../utils/soundEffects";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface StatisticsDashboardViewProps {
   onSelectGame?: (gameId: string) => void;
@@ -103,13 +112,14 @@ export default function StatisticsDashboardView({
   }, [stats?.available_years, selectedYear, currentYear]);
 
   return (
-    <div
-      className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6 custom-scrollbar transition-colors duration-300"
+    <ScrollArea
+      className="flex-1 transition-colors duration-300"
       style={{
         backgroundColor: "var(--bg-base)",
         color: "var(--text-primary)",
       }}
     >
+      <div className="p-6 md:p-8 space-y-6">
       {/* Top Header */}
       <div
         className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b"
@@ -142,12 +152,14 @@ export default function StatisticsDashboardView({
         {/* Controls: Reset, Year Selector & Refresh */}
         <div className="flex items-center gap-2 flex-wrap">
           {/* Reset Statistics Button */}
-          <button
+          <Button
+            type="button"
+            variant="outline"
             onClick={() => {
               soundEffects.playSelect();
               setShowResetModal(true);
             }}
-            className="h-[34px] flex items-center gap-1.5 px-3 rounded-xl border text-xs font-semibold text-rose-400 hover:text-rose-300 transition-all cursor-pointer"
+            className="h-[34px] gap-1.5 px-3 rounded-xl text-xs font-semibold text-rose-400 hover:text-rose-300"
             style={{
               backgroundColor: "color-mix(in srgb, #f43f5e 12%, transparent)",
               borderColor: "color-mix(in srgb, #f43f5e 30%, transparent)",
@@ -156,53 +168,49 @@ export default function StatisticsDashboardView({
           >
             <Trash2 className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">{t("statistics.reset_button")}</span>
-          </button>
+          </Button>
 
           {/* Dynamic Year Selector Dropdown */}
-          <div className="relative inline-flex items-center">
-            <Calendar
-              className="w-3.5 h-3.5 absolute left-2.5 text-[var(--text-muted)] pointer-events-none"
-              aria-hidden="true"
-            />
-            <select
-              value={selectedYear}
-              onChange={(e) => {
-                soundEffects.playSelect();
-                setSelectedYear(Number(e.target.value));
-              }}
+          <Select
+            value={String(selectedYear)}
+            onValueChange={(val) => {
+              soundEffects.playSelect();
+              setSelectedYear(Number(val));
+            }}
+          >
+            <SelectTrigger
               title={t("statistics.select_year")}
               aria-label={t("statistics.select_year")}
-              className="h-[34px] appearance-none pl-8 pr-7 rounded-xl border text-xs font-semibold transition-all cursor-pointer outline-none hover:border-[var(--accent-primary,#6366f1)] focus:border-[var(--accent-primary,#6366f1)] focus:ring-1 focus:ring-[var(--accent-primary,#6366f1)]"
+              className="h-[34px] w-auto min-w-[100px] gap-2 px-3 rounded-xl text-xs font-semibold"
               style={{
                 backgroundColor: "var(--bg-surface)",
                 borderColor: "var(--border-color)",
                 color: "var(--text-primary)",
               }}
             >
+              <Calendar
+                className="w-3.5 h-3.5 text-[var(--text-muted)] shrink-0"
+                aria-hidden="true"
+              />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
               {availableYears.map((yr) => (
-                <option
-                  key={yr}
-                  value={yr}
-                  style={{
-                    backgroundColor: "var(--bg-card, #1e293b)",
-                    color: "var(--text-primary, #ffffff)",
-                  }}
-                >
+                <SelectItem key={yr} value={String(yr)}>
                   {yr}
-                </option>
+                </SelectItem>
               ))}
-            </select>
-            <ChevronDown
-              className="w-3.5 h-3.5 absolute right-2 text-[var(--text-muted)] pointer-events-none"
-              aria-hidden="true"
-            />
-          </div>
+            </SelectContent>
+          </Select>
 
           {/* Refresh button */}
-          <button
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
             onClick={handleRefresh}
             disabled={refreshing}
-            className="h-[34px] w-[34px] flex items-center justify-center rounded-xl border text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-all disabled:opacity-50 cursor-pointer"
+            className="h-[34px] w-[34px] rounded-xl text-[var(--text-muted)] hover:text-[var(--text-primary)]"
             style={{
               backgroundColor: "var(--bg-surface)",
               borderColor: "var(--border-color)",
@@ -215,7 +223,7 @@ export default function StatisticsDashboardView({
                 color: refreshing ? "var(--accent-primary, #6366f1)" : undefined,
               }}
             />
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -337,6 +345,7 @@ export default function StatisticsDashboardView({
         onClose={() => setShowResetModal(false)}
         onConfirm={handleResetStatistics}
       />
-    </div>
+      </div>
+    </ScrollArea>
   );
 }

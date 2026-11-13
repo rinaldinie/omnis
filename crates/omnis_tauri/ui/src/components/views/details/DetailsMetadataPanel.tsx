@@ -5,17 +5,19 @@ import {
   Sparkles,
   BookOpen,
   ExternalLink,
-  Layers,
   Play,
 } from "lucide-react";
 import { GameDto } from "../../../types";
 import { Slot } from "../../common/Slot";
 import { GameAchievementsGallery } from "../../achievements";
 import GameStatisticsCard from "../../stats/GameStatisticsCard";
-import { StoreBadge, StoreIcon } from "../../StoreBadge";
+import { StoreIcon } from "../../StoreBadge";
 import { getCompletionStatusInfo } from "./helpers";
 import { useTranslation } from "../../../i18n";
 import { getLocalizedGenre } from "../../../utils/genres";
+import { Button } from "../../ui/button";
+import { Badge } from "../../ui/badge";
+import { Card } from "../../ui/card";
 
 export interface DetailsMetadataPanelProps {
   selectedGame: GameDto;
@@ -96,28 +98,33 @@ export const DetailsMetadataPanel: React.FC<DetailsMetadataPanelProps> = ({
               {t("game_details.hltb_not_downloaded")}
             </p>
           </div>
-          <button
+          <Button
+            type="button"
+            size="sm"
             onClick={() => (handleRefreshHltb ? handleRefreshHltb(selectedGame.id) : handleEnrichSingleGame(selectedGame.id))}
             disabled={isEnrichingSingle}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white transition-all hover:brightness-110 active:opacity-90 shadow-sm shrink-0"
+            className="h-auto px-3 py-1.5 rounded-lg text-xs font-bold text-white shadow-sm shrink-0"
             style={{ backgroundColor: "var(--accent-primary)" }}
           >
             <Sparkles className={`w-3.5 h-3.5 ${isEnrichingSingle ? "animate-spin" : ""}`} />
             <span>{isEnrichingSingle ? t("game_details.downloading") : t("game_details.download_source")}</span>
-          </button>
+          </Button>
         </div>
       ) : (
         <div className="flex items-center gap-2.5 flex-wrap">
           <Slot name="details.info" gameId={selectedGame.id} />
-          <button
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
             onClick={() => (handleRefreshHltb ? handleRefreshHltb(selectedGame.id) : handleEnrichSingleGame(selectedGame.id))}
             disabled={isEnrichingSingle}
             title={t("game_details.refresh_hltb_title")}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-300 hover:text-white bg-white/[0.02] hover:bg-white/[0.06] border border-white/[0.06] transition-colors disabled:opacity-50 shrink-0"
+            className="h-auto px-3 py-2 rounded-xl text-xs font-medium text-slate-300 hover:text-white bg-white/[0.02] hover:bg-white/[0.06] border border-white/[0.06] shrink-0"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isEnrichingSingle ? "animate-spin text-amber-400" : "text-amber-400"}`} />
             <span>{isEnrichingSingle ? t("game_details.refreshing") : t("game_details.refresh_source")}</span>
-          </button>
+          </Button>
         </div>
       )}
 
@@ -152,25 +159,29 @@ export const DetailsMetadataPanel: React.FC<DetailsMetadataPanelProps> = ({
                   title={copy.is_installed ? t("status.installed") : t("status.available")}
                 />
                 {handlePromoteCopy && (
-                  <button
+                  <Button
                     type="button"
+                    variant="ghost"
+                    size="xs"
                     onClick={() => handlePromoteCopy(copy.id)}
-                    className="ml-1 px-2 py-0.5 rounded text-[10px] font-semibold text-indigo-300 hover:text-white bg-indigo-500/20 hover:bg-indigo-500/40 border border-indigo-500/30 transition-all cursor-pointer"
+                    className="ml-1 h-auto px-2 py-0.5 rounded text-[10px] font-semibold text-indigo-300 hover:text-white bg-indigo-500/20 hover:bg-indigo-500/40 border border-indigo-500/30"
                     title={t("duplicate_hider.promote_copy", { store: copy.library.toUpperCase() })}
                   >
                     {t("duplicate_hider.promote_copy", { store: copy.library.toUpperCase() })}
-                  </button>
+                  </Button>
                 )}
                 {handleLaunch && (
-                  <button
+                  <Button
                     type="button"
+                    variant="ghost"
+                    size="xs"
                     onClick={() => handleLaunch(copy.id)}
-                    className="px-2 py-0.5 rounded text-[10px] font-semibold text-emerald-300 hover:text-white bg-emerald-500/20 hover:bg-emerald-500/40 border border-emerald-500/30 transition-all cursor-pointer flex items-center gap-1"
+                    className="h-auto px-2 py-0.5 rounded text-[10px] font-semibold text-emerald-300 hover:text-white bg-emerald-500/20 hover:bg-emerald-500/40 border border-emerald-500/30"
                     title={t("duplicate_hider.launch_copy", { store: copy.library.toUpperCase() })}
                   >
                     <Play className="w-2.5 h-2.5 fill-current" />
                     <span>{copy.is_installed ? t("common.play") : t("common.install")}</span>
-                  </button>
+                  </Button>
                 )}
               </div>
             ))}
@@ -179,7 +190,7 @@ export const DetailsMetadataPanel: React.FC<DetailsMetadataPanelProps> = ({
       )}
 
       {/* Card 1: Synopsis & Description */}
-      <div className="p-6 rounded-xl bg-white/[0.02] border border-white/[0.06] space-y-3">
+      <Card className="p-6 rounded-xl bg-white/[0.02] border-white/[0.06] space-y-3 shadow-none">
         <span className="text-xs font-semibold tracking-wider uppercase flex items-center gap-2 text-[var(--text-muted)]">
           <BookOpen className="w-3.5 h-3.5 text-slate-400" />
           <span>{t("game_details.description")}</span>
@@ -187,10 +198,10 @@ export const DetailsMetadataPanel: React.FC<DetailsMetadataPanelProps> = ({
         <p className="text-sm leading-relaxed text-slate-300">
           {selectedGame.description || t("game_details.no_description")}
         </p>
-      </div>
+      </Card>
 
       {/* Card 2: Technical Parameters - Unified Specs Grid */}
-      <div className="p-6 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+      <Card className="p-6 rounded-xl bg-white/[0.02] border-white/[0.06] shadow-none">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-5">
           <div className="space-y-1">
             <span className="text-[10px] font-semibold text-[var(--text-muted)] tracking-wider uppercase block">
@@ -219,11 +230,13 @@ export const DetailsMetadataPanel: React.FC<DetailsMetadataPanelProps> = ({
                 selectedGame.genres.map((genre) => {
                   const active = isGenreActive(genre);
                   return (
-                    <button
+                    <Button
                       key={genre}
                       type="button"
+                      variant="ghost"
+                      size="xs"
                       onClick={() => handleFilterByGenre(genre)}
-                      className={`bg-white/[0.04] border border-white/[0.08] text-slate-300 text-xs px-2.5 py-1 rounded-lg hover:border-white/20 transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 ${
+                      className={`h-auto bg-white/[0.04] border border-white/[0.08] text-slate-300 text-xs px-2.5 py-1 rounded-lg hover:border-white/20 hover:bg-white/[0.08] hover:text-white active:scale-95 ${
                         active
                           ? "bg-[var(--accent-primary)]/20 border-[var(--accent-primary)] text-white shadow-xs"
                           : ""
@@ -236,7 +249,7 @@ export const DetailsMetadataPanel: React.FC<DetailsMetadataPanelProps> = ({
                         }`}
                       />
                       <span>{getLocalizedGenre(genre, locale)}</span>
-                    </button>
+                    </Button>
                   );
                 })
               ) : (
@@ -272,17 +285,19 @@ export const DetailsMetadataPanel: React.FC<DetailsMetadataPanelProps> = ({
                   ? isFilterActive(`completion:${selectedGame.completion_status || "NotPlayed"}`)
                   : activeFilter === `completion:${selectedGame.completion_status || "NotPlayed"}`;
                 return (
-                  <button
+                  <Button
                     type="button"
+                    variant="ghost"
+                    size="xs"
                     onClick={() => handleFilterByCompletion(selectedGame.completion_status)}
-                    className={`bg-white/[0.04] border border-white/[0.08] text-slate-300 text-xs px-2.5 py-1 rounded-lg hover:border-white/20 transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 ${
+                    className={`h-auto bg-white/[0.04] border border-white/[0.08] text-slate-300 text-xs px-2.5 py-1 rounded-lg hover:border-white/20 hover:bg-white/[0.08] hover:text-white active:scale-95 ${
                       isFiltered ? "border-[var(--accent-primary)] ring-1 ring-[var(--accent-primary)] text-white" : ""
                     }`}
                     title={t("tooltips.filter_status", { status: statusInfo.label })}
                   >
                     <span className={`w-1.5 h-1.5 rounded-full ${statusInfo.dot}`} />
                     <span className="font-semibold">{statusInfo.label}</span>
-                  </button>
+                  </Button>
                 );
               })()}
             </div>
@@ -297,7 +312,7 @@ export const DetailsMetadataPanel: React.FC<DetailsMetadataPanelProps> = ({
             </p>
           </div>
         </div>
-      </div>
+      </Card>
 
       {/* Native Achievements Showcase */}
       <GameAchievementsGallery key={selectedGame.id} game={selectedGame} />
@@ -306,32 +321,36 @@ export const DetailsMetadataPanel: React.FC<DetailsMetadataPanelProps> = ({
       <GameStatisticsCard game={selectedGame} />
 
       {/* Card 3: Key Features (Playnite Parity) */}
-      <div className="p-6 rounded-xl bg-white/[0.02] border border-white/[0.06] space-y-3">
+      <Card className="p-6 rounded-xl bg-white/[0.02] border-white/[0.06] space-y-3 shadow-none">
         <div className="flex items-center justify-between">
           <span className="text-xs font-semibold tracking-wider uppercase flex items-center gap-2 text-[var(--text-muted)]">
             <Sparkles className="w-3.5 h-3.5 text-slate-400" />
             <span>{t("game_details.features")}</span>
           </span>
-          <button
+          <Button
+            type="button"
+            variant="ghost"
+            size="xs"
             onClick={() => {
               setGameToEdit(selectedGame);
               setShowEditorModal(true);
             }}
-            className="text-[10px] font-semibold text-slate-400 hover:text-white transition-colors cursor-pointer"
+            className="h-auto px-1.5 py-0.5 text-[10px] font-semibold text-slate-400 hover:text-white hover:bg-transparent"
           >
             {t("common.edit")}
-          </button>
+          </Button>
         </div>
         {selectedGame.features && selectedGame.features.length > 0 ? (
           <div className="flex flex-wrap gap-2 pt-1">
             {selectedGame.features.map((feature, idx) => (
-              <span
+              <Badge
                 key={idx}
-                className="px-2.5 py-1 rounded-lg bg-white/[0.04] border border-white/[0.08] text-xs font-medium text-slate-300 flex items-center gap-2"
+                variant="outline"
+                className="px-2.5 py-1 rounded-lg bg-white/[0.04] border-white/[0.08] text-xs font-medium text-slate-300 flex items-center gap-2"
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
                 <span>{feature}</span>
-              </span>
+              </Badge>
             ))}
           </div>
         ) : (
@@ -339,11 +358,11 @@ export const DetailsMetadataPanel: React.FC<DetailsMetadataPanelProps> = ({
             {t("game_details.no_features")}
           </p>
         )}
-      </div>
+      </Card>
 
       {/* Card 4: Custom Links */}
       {selectedGame.custom_links && selectedGame.custom_links.length > 0 && (
-        <div className="p-6 rounded-xl bg-white/[0.02] border border-white/[0.06] space-y-3">
+        <Card className="p-6 rounded-xl bg-white/[0.02] border-white/[0.06] space-y-3 shadow-none">
           <span className="text-xs font-semibold tracking-wider uppercase flex items-center gap-2 text-[var(--text-muted)]">
             <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
             <span>{t("game_details.custom_links")}</span>
@@ -362,7 +381,7 @@ export const DetailsMetadataPanel: React.FC<DetailsMetadataPanelProps> = ({
               </a>
             ))}
           </div>
-        </div>
+        </Card>
       )}
     </div>
   );

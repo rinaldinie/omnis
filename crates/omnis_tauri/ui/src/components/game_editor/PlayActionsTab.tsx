@@ -4,6 +4,13 @@ import { LaunchConfiguration } from "./types";
 import { useTranslation } from "../../i18n";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface PlayActionsTabProps {
   playActions: LaunchConfiguration[];
@@ -145,10 +152,9 @@ const PlayActionCard: React.FC<PlayActionCardProps> = ({
           {t("play_actions.tracking")}
         </label>
         <div className="flex flex-col sm:flex-row gap-2">
-          <select
+          <Select
             value={trackingType}
-            onChange={(e) => {
-              const val = e.target.value;
+            onValueChange={(val) => {
               if (val === "KernelJobObject") {
                 onUpdateAction(idx, "tracking_mode", {
                   type: "KernelJobObject",
@@ -165,18 +171,22 @@ const PlayActionCard: React.FC<PlayActionCardProps> = ({
                 });
               }
             }}
-            className="h-9 px-3 py-2 rounded-xl border border-input bg-popover text-xs font-medium text-foreground outline-none cursor-pointer focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
           >
-            <option value="KernelJobObject">
-              {t("play_actions.tracking_kernel")}
-            </option>
-            <option value="ProcessName">
-              {t("play_actions.tracking_process")}
-            </option>
-            <option value="WatchDirectory">
-              {t("play_actions.tracking_directory")}
-            </option>
-          </select>
+            <SelectTrigger className="h-9 sm:w-auto min-w-[200px] px-3 py-2 bg-popover text-xs font-medium">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="KernelJobObject">
+                {t("play_actions.tracking_kernel")}
+              </SelectItem>
+              <SelectItem value="ProcessName">
+                {t("play_actions.tracking_process")}
+              </SelectItem>
+              <SelectItem value="WatchDirectory">
+                {t("play_actions.tracking_directory")}
+              </SelectItem>
+            </SelectContent>
+          </Select>
 
           {trackingType === "ProcessName" && (
             <Input

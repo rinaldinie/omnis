@@ -8,6 +8,9 @@ import EmptyGamesView from "../common/EmptyGamesView";
 import { useTranslation } from "../../i18n";
 import { useActiveGameTimer } from "../../context/ActiveGameTimerContext";
 import { getRecentSettings } from "../../utils/recentSettings";
+import { Button } from "../ui/button";
+import { Badge } from "../ui/badge";
+import { ScrollArea } from "../ui/scroll-area";
 
 const COMPLETION_STATUS_CONFIG: Record<string, { dot: string; labelKey: string }> = {
   Playing: { dot: "bg-sky-400", labelKey: "playing" },
@@ -44,7 +47,6 @@ interface GridViewProps {
 
 interface GameCardItemProps {
   game: GameDto;
-  isSelected: boolean;
   isRunning: boolean;
   activeGameState?: "launching" | "running" | "stopping";
   elapsedSeconds?: number;
@@ -59,7 +61,6 @@ interface GameCardItemProps {
 const GameCardItem = React.memo(
   function GameCardItem({
     game,
-    isSelected,
     isRunning,
     activeGameState,
     elapsedSeconds,
@@ -88,10 +89,8 @@ const GameCardItem = React.memo(
           }
         }}
         onContextMenu={onContextMenu}
-        className={`group relative flex flex-col rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 transform-gpu hover:-translate-y-1 shadow-md border will-change-transform [backface-visibility:hidden] [transform:translateZ(0)] ${
-          isSelected
-            ? "border-[var(--accent-primary)] ring-2 ring-[var(--accent-primary)]/40 shadow-lg"
-            : isRunning
+        className={`group relative flex flex-col rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 transform-gpu hover:-translate-y-1 shadow-md border outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/50 will-change-transform [backface-visibility:hidden] [transform:translateZ(0)] ${
+          isRunning
             ? "border-emerald-500/60 ring-1 ring-emerald-500/30 shadow-lg"
             : "border-[var(--border-color)] hover:border-white/20"
         }`}
@@ -160,37 +159,45 @@ const GameCardItem = React.memo(
             {isRunning ? (
               <>
                 {onKill && (
-                  <button
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
                     onClick={(e) => {
                       e.stopPropagation();
                       onKill();
                     }}
-                    className="bg-rose-600 hover:bg-rose-500 active:scale-95 text-white font-bold rounded-xl px-4 py-2 shadow-lg flex items-center gap-2 text-xs transition-all cursor-pointer"
+                    className="h-auto bg-rose-600 hover:bg-rose-500 active:scale-95 text-white font-bold rounded-xl px-4 py-2 shadow-lg text-xs"
                     title={t("status.kill_game_title")}
                   >
                     <Square className="w-3.5 h-3.5 fill-white" />
                     <span>{t("status.kill_game")}</span>
-                  </button>
+                  </Button>
                 )}
-                <button
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
                   onClick={(e) => {
                     e.stopPropagation();
                     onContextMenu(e);
                   }}
-                  className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/10 transition-colors cursor-pointer"
+                  className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/10"
                   title={t("game_details.manage")}
                 >
                   <MoreHorizontal className="w-4 h-4" />
-                </button>
+                </Button>
               </>
             ) : (
               <>
-                <button
+                <Button
+                  type="button"
+                  size="sm"
                   onClick={(e) => {
                     e.stopPropagation();
                     onLaunch();
                   }}
-                  className="bg-[var(--accent-primary)] hover:brightness-110 active:scale-95 text-white font-bold rounded-xl px-4 py-2 shadow-lg flex items-center gap-2 text-xs transition-all cursor-pointer"
+                  className="h-auto bg-[var(--accent-primary)] hover:brightness-110 active:scale-95 text-white font-bold rounded-xl px-4 py-2 shadow-lg text-xs"
                   title={game.is_installed ? t("common.play") : t("common.install")}
                 >
                   {game.is_installed ? (
@@ -199,18 +206,21 @@ const GameCardItem = React.memo(
                     <Download className="w-3.5 h-3.5 text-white" />
                   )}
                   <span>{game.is_installed ? t("common.play") : t("common.install")}</span>
-                </button>
+                </Button>
 
-                <button
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
                   onClick={(e) => {
                     e.stopPropagation();
                     onContextMenu(e);
                   }}
-                  className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/10 transition-colors cursor-pointer"
+                  className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/10"
                   title={t("game_details.manage")}
                 >
                   <MoreHorizontal className="w-4 h-4" />
-                </button>
+                </Button>
               </>
             )}
           </div>
@@ -249,7 +259,6 @@ const GameCardItem = React.memo(
   },
   (prev, next) => {
     if (prev.game !== next.game) return false;
-    if (prev.isSelected !== next.isSelected) return false;
     if (prev.isRunning !== next.isRunning) return false;
     if (prev.activeGameState !== next.activeGameState) return false;
     if (next.isRunning && prev.elapsedSeconds !== next.elapsedSeconds) return false;
@@ -259,7 +268,6 @@ const GameCardItem = React.memo(
 
 interface DesktopRecentCardProps {
   game: GameDto;
-  isSelected: boolean;
   isRunning: boolean;
   onSelect: () => void;
   onLaunch: () => void;
@@ -268,7 +276,6 @@ interface DesktopRecentCardProps {
 
 const DesktopRecentCard = React.memo(function DesktopRecentCard({
   game,
-  isSelected,
   isRunning,
   onSelect,
   onLaunch,
@@ -292,10 +299,8 @@ const DesktopRecentCard = React.memo(function DesktopRecentCard({
         }
       }}
       onContextMenu={onContextMenu}
-      className={`group relative flex flex-col rounded-xl overflow-hidden cursor-pointer transition-all duration-200 transform-gpu hover:-translate-y-1 shadow-md border will-change-transform aspect-video ${
-        isSelected
-          ? "border-[var(--accent-primary)] ring-2 ring-[var(--accent-primary)]/40 shadow-lg"
-          : isRunning
+      className={`group relative flex flex-col rounded-xl overflow-hidden cursor-pointer transition-all duration-200 transform-gpu hover:-translate-y-1 shadow-md border outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/50 will-change-transform aspect-video ${
+        isRunning
           ? "border-emerald-500/60 ring-1 ring-emerald-500/30 shadow-lg"
           : "border-[var(--border-color)] hover:border-white/25"
       }`}
@@ -337,13 +342,14 @@ const DesktopRecentCard = React.memo(function DesktopRecentCard({
 
       {/* Play Button on Hover */}
       <div className="absolute inset-0 z-10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-        <button
+        <Button
           type="button"
+          size="icon"
           onClick={(e) => {
             e.stopPropagation();
             onLaunch();
           }}
-          className="w-10 h-10 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center shadow-xl transform transition-transform hover:scale-110 active:scale-95 cursor-pointer"
+          className="w-10 h-10 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white shadow-xl transform transition-transform hover:scale-110 active:scale-95"
           title={game.is_installed ? t("common.play") : t("common.install")}
         >
           {game.is_installed ? (
@@ -351,7 +357,7 @@ const DesktopRecentCard = React.memo(function DesktopRecentCard({
           ) : (
             <Download className="w-4 h-4 text-white" />
           )}
-        </button>
+        </Button>
       </div>
 
       {/* Bottom Game Title & Info */}
@@ -379,7 +385,7 @@ export default function GridView({
   collapsedGroups,
   toggleGroup,
   gridCardWidth,
-  selectedGame,
+  selectedGame: _selectedGame,
   setSelectedGame,
   setViewMode,
   handleOpenContextMenu,
@@ -424,7 +430,8 @@ export default function GridView({
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 space-y-6">
+    <ScrollArea className="flex-1">
+      <div className="p-6 space-y-6">
       {/* SECTION: Continua a giocare (Recent Games Shelf) */}
       {recentGames.length > 0 && (
         <section className="space-y-3 pb-3 border-b border-white/[0.08]">
@@ -434,9 +441,9 @@ export default function GridView({
               <h2 className="text-xs font-bold uppercase tracking-wider text-slate-200">
                 {t("console_ui.continue_playing")}
               </h2>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-white/[0.06] border border-white/[0.08] text-[var(--accent-primary)]">
+              <Badge variant="outline" className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-white/[0.06] border-white/[0.08] text-[var(--accent-primary)]">
                 {recentGames.length}
-              </span>
+              </Badge>
             </div>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3.5">
@@ -444,7 +451,6 @@ export default function GridView({
               <DesktopRecentCard
                 key={game.id}
                 game={game}
-                isSelected={selectedGame?.id === game.id}
                 isRunning={activeGame?.game_id === game.id}
                 onSelect={() => {
                   setSelectedGame(game);
@@ -465,9 +471,9 @@ export default function GridView({
           <h2 className="text-xs font-bold uppercase tracking-wider text-slate-300">
             {t("sidebar.all_games")}
           </h2>
-          <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-white/[0.06] border border-white/[0.08] text-slate-400">
+          <Badge variant="outline" className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-white/[0.06] border-white/[0.08] text-slate-400">
             {filteredGames.length}
-          </span>
+          </Badge>
         </div>
       )}
 
@@ -478,9 +484,11 @@ export default function GridView({
         return (
           <div key={groupName} className="space-y-3">
               {isGrouped && (
-                <button
+                <Button
+                  type="button"
+                  variant="ghost"
                   onClick={() => toggleGroup(groupName)}
-                  className="w-full flex items-center justify-between py-2 px-3.5 rounded-xl border border-[var(--border-color)] hover:border-white/20 transition-all text-left group bg-[var(--bg-card)]"
+                  className="w-full h-auto justify-between py-2 px-3.5 rounded-xl border border-[var(--border-color)] hover:border-white/20 text-left group bg-[var(--bg-card)] hover:bg-[var(--bg-card)]"
                 >
                   <div className="flex items-center gap-2.5">
                     {isCollapsed ? (
@@ -491,14 +499,14 @@ export default function GridView({
                     <span className="text-xs font-bold uppercase tracking-wider text-white">
                       {groupName}
                     </span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-white/[0.06] border border-white/[0.08] text-[var(--accent-primary)]">
+                    <Badge variant="outline" className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-white/[0.06] border-white/[0.08] text-[var(--accent-primary)]">
                       {groupGames.length}
-                    </span>
+                    </Badge>
                   </div>
                   <span className="text-[10px] font-medium" style={{ color: "var(--text-muted)" }}>
                     {isCollapsed ? t("views.expand") : t("views.collapse")}
                   </span>
-                </button>
+                </Button>
               )}
 
               {!isCollapsed && (
@@ -516,7 +524,6 @@ export default function GridView({
                       <GameCardItem
                         key={game.id}
                         game={game}
-                        isSelected={selectedGame?.id === game.id}
                         isRunning={isRunning}
                         activeGameState={isRunning ? activeGame?.state : undefined}
                         elapsedSeconds={isRunning ? elapsedSeconds : undefined}
@@ -540,6 +547,7 @@ export default function GridView({
             </div>
           );
         })}
-    </div>
+      </div>
+    </ScrollArea>
   );
 }

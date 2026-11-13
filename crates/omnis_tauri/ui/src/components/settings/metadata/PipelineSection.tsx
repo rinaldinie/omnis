@@ -28,6 +28,13 @@ import { StoreIcon } from "../../StoreBadge";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   ALL_METADATA_SOURCES,
   METADATA_FIELDS_DEFINITIONS,
   getDefaultFieldRules,
@@ -394,31 +401,30 @@ export const PipelineSection: React.FC<PipelineSectionProps> = ({
                   {onAddFieldSource && availableToAdd.length > 0 && (
                     <div className="relative inline-block ml-0.5">
                       {addingSourceForField === fieldDef.id ? (
-                        <div className="flex items-center gap-1 bg-slate-900 border border-white/20 rounded-lg px-2 py-0.5 shadow-xl animate-in fade-in">
-                          <select
-                            autoFocus
-                            onChange={(e) => {
-                              if (e.target.value) {
-                                onAddFieldSource(fieldDef.id, e.target.value);
+                        <div className="flex items-center gap-1 bg-slate-900 border border-white/20 rounded-lg px-1.5 py-0.5 shadow-xl animate-in fade-in">
+                          <Select
+                            onValueChange={(val) => {
+                              if (val) {
+                                onAddFieldSource(fieldDef.id, val);
                                 setAddingSourceForField(null);
                               }
                             }}
-                            defaultValue=""
-                            className="bg-transparent text-[11px] text-white focus:outline-none cursor-pointer py-0.5"
                           >
-                            <option value="" disabled>
-                              {t("metadata_settings.select_source", { defaultValue: "Select source..." })}
-                            </option>
-                            {availableToAdd.map((src) => (
-                              <option
-                                key={src}
-                                value={src}
-                                className="bg-slate-900 text-white"
-                              >
-                                {getSourceDisplayName(src)}
-                              </option>
-                            ))}
-                          </select>
+                            <SelectTrigger className="h-6 border-0 bg-transparent px-1.5 py-0 text-[11px] text-white shadow-none focus:ring-0 w-auto min-w-[130px]">
+                              <SelectValue
+                                placeholder={t("metadata_settings.select_source", {
+                                  defaultValue: "Select source...",
+                                })}
+                              />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {availableToAdd.map((src) => (
+                                <SelectItem key={src} value={src}>
+                                  {getSourceDisplayName(src)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                           <Button
                             type="button"
                             variant="ghost"

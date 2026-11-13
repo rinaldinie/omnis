@@ -30,6 +30,14 @@ import { getRecentSettings, saveRecentSettings, RecentSettings } from '../../uti
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Slider } from '@/components/ui/slider';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 export type GeneralSubTab = 'language' | 'audio' | 'window' | 'appearance' | 'recent' | 'data' | 'updates';
 
@@ -496,14 +504,16 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
                 })}
               >
                 <div className="flex items-center gap-3">
-                  <input
-                    type="range"
-                    min="5"
-                    max="50"
-                    step="5"
-                    value={recentSettings.maxCount}
-                    onChange={(e) => handleMaxRecentChange(Number(e.target.value))}
-                    className="w-28 sm:w-36 accent-[var(--accent-primary)] cursor-pointer"
+                  <Slider
+                    min={5}
+                    max={50}
+                    step={5}
+                    value={[recentSettings.maxCount]}
+                    onValueChange={([val]) => handleMaxRecentChange(val)}
+                    className="w-28 sm:w-36"
+                    aria-label={t('general_settings.recent_max_title', {
+                      defaultValue: 'Maximum Recent Games',
+                    })}
                   />
                   <span className="w-8 text-right font-mono font-bold text-xs text-slate-200">
                     {recentSettings.maxCount}
@@ -520,30 +530,34 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
                   defaultValue: 'Only consider games played within this timeframe as recent.',
                 })}
               >
-                <select
-                  value={recentSettings.timeWindowDays}
-                  onChange={(e) => handleTimeWindowChange(Number(e.target.value))}
-                  className="bg-white/5 border border-white/10 rounded-lg px-2.5 py-1 text-xs text-slate-200 focus:outline-none focus:border-[var(--accent-primary)] cursor-pointer"
+                <Select
+                  value={String(recentSettings.timeWindowDays)}
+                  onValueChange={(val) => handleTimeWindowChange(Number(val))}
                 >
-                  <option value={0} className="bg-slate-900 text-white">
-                    {t('general_settings.recent_window_always', { defaultValue: 'Always (all played titles)' })}
-                  </option>
-                  <option value={7} className="bg-slate-900 text-white">
-                    {t('general_settings.recent_window_7d', { defaultValue: 'Past 7 days' })}
-                  </option>
-                  <option value={14} className="bg-slate-900 text-white">
-                    {t('general_settings.recent_window_14d', { defaultValue: 'Past 2 weeks' })}
-                  </option>
-                  <option value={30} className="bg-slate-900 text-white">
-                    {t('general_settings.recent_window_30d', { defaultValue: 'Past 30 days' })}
-                  </option>
-                  <option value={60} className="bg-slate-900 text-white">
-                    {t('general_settings.recent_window_60d', { defaultValue: 'Past 60 days' })}
-                  </option>
-                  <option value={90} className="bg-slate-900 text-white">
-                    {t('general_settings.recent_window_90d', { defaultValue: 'Past 90 days' })}
-                  </option>
-                </select>
+                  <SelectTrigger className="h-auto w-auto min-w-[180px] bg-white/5 border-white/10 rounded-lg px-2.5 py-1 text-xs text-slate-200">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">
+                      {t('general_settings.recent_window_always', { defaultValue: 'Always (all played titles)' })}
+                    </SelectItem>
+                    <SelectItem value="7">
+                      {t('general_settings.recent_window_7d', { defaultValue: 'Past 7 days' })}
+                    </SelectItem>
+                    <SelectItem value="14">
+                      {t('general_settings.recent_window_14d', { defaultValue: 'Past 2 weeks' })}
+                    </SelectItem>
+                    <SelectItem value="30">
+                      {t('general_settings.recent_window_30d', { defaultValue: 'Past 30 days' })}
+                    </SelectItem>
+                    <SelectItem value="60">
+                      {t('general_settings.recent_window_60d', { defaultValue: 'Past 60 days' })}
+                    </SelectItem>
+                    <SelectItem value="90">
+                      {t('general_settings.recent_window_90d', { defaultValue: 'Past 90 days' })}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
               </SettingRow>
             </SettingGroup>
           </div>

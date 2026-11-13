@@ -3,6 +3,7 @@ import { DayActivityDto, DaySessionDto, formatImageUrl } from "../../types";
 import { useTranslation } from "../../i18n";
 import { Clock, Calendar, X, ExternalLink } from "lucide-react";
 import soundEffects from "../../utils/soundEffects";
+import { Card } from "../ui/card";
 
 interface ActivityHeatmapCalendarProps {
   activityData: DayActivityDto[];
@@ -140,8 +141,8 @@ export default function ActivityHeatmapCalendar({
   const selectedAct = selectedDate ? activityMap.get(selectedDate) : null;
 
   return (
-    <div
-      className="flex flex-col gap-3 p-5 rounded-2xl border relative transition-colors duration-300"
+    <Card
+      className="flex flex-col gap-3 p-5 relative transition-colors duration-300 shadow-none"
       style={{
         backgroundColor: "var(--bg-card)",
         borderColor: "var(--border-color)",
@@ -538,6 +539,6 @@ export default function ActivityHeatmapCalendar({
           </span>
         </div>
       )}
-    </div>
+    </Card>
   );
 }

@@ -2,6 +2,9 @@ import React from "react";
 import { Search, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { GameDto, ActiveGameSession } from "../../../types";
 import { StoreBadge } from "../../StoreBadge";
+import { Button } from "../../ui/button";
+import { Input } from "../../ui/input";
+import { ScrollArea } from "../../ui/scroll-area";
 
 function ListThumbCover({ thumb, title }: { thumb?: string | null; title: string }) {
   const [hasError, setHasError] = React.useState(false);
@@ -84,38 +87,48 @@ export const DetailsSidebar: React.FC<DetailsSidebarProps> = ({
                 className="w-3.5 h-3.5 absolute left-2.5 pointer-events-none"
                 style={{ color: "var(--text-muted)" }}
               />
-              <input
+              <Input
                 type="text"
                 placeholder={t("game_details.filter_titles_placeholder")}
                 value={detailsSearchQuery}
                 onChange={(e) => setDetailsSearchQuery(e.target.value)}
-                className="w-full h-7 pl-8 pr-7 rounded-lg text-xs focus:outline-none border border-white/[0.08] bg-white/[0.03] text-slate-100 placeholder:text-slate-500 transition-colors focus:border-indigo-500/50"
+                className="w-full h-7 pl-8 pr-7 rounded-lg text-xs border-white/[0.08] bg-white/[0.03] text-slate-100 placeholder:text-slate-500 focus-visible:border-indigo-500/50 focus-visible:ring-0"
               />
               {detailsSearchQuery && (
-                <button
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-xs"
                   onClick={() => setDetailsSearchQuery("")}
-                  className="absolute right-2 text-slate-400 hover:text-white"
+                  className="absolute right-1.5 h-5 w-5 text-slate-400 hover:text-white hover:bg-transparent"
+                  aria-label="Clear search"
                 >
                   <X className="w-3 h-3" />
-                </button>
+                </Button>
               )}
             </div>
-            <button
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
               onClick={() => setDetailsSidebarOpen(false)}
-              className="p-1.5 rounded-lg border border-white/[0.08] bg-white/[0.03] text-slate-400 hover:text-white hover:bg-white/[0.08] transition-colors"
+              className="h-7 w-7 p-1.5 rounded-lg border border-white/[0.08] bg-white/[0.03] text-slate-400 hover:text-white hover:bg-white/[0.08]"
               title={t("game_details.collapse_sidebar")}
             >
               <ChevronLeft className="w-3.5 h-3.5" />
-            </button>
+            </Button>
           </>
         ) : (
-          <button
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
             onClick={() => setDetailsSidebarOpen(true)}
-            className="w-full py-1.5 flex items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.03] text-slate-400 hover:text-white hover:bg-white/[0.08] transition-colors"
+            className="w-full h-auto py-1.5 flex items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.03] text-slate-400 hover:text-white hover:bg-white/[0.08]"
             title={t("game_details.expand_sidebar")}
           >
             <ChevronRight className="w-3.5 h-3.5" />
-          </button>
+          </Button>
         )}
       </div>
 
@@ -125,19 +138,23 @@ export const DetailsSidebar: React.FC<DetailsSidebarProps> = ({
           <span className="truncate font-medium">
             Filtro: {activeFilter ? (activeFilter.startsWith("genre:") ? activeFilter.slice(6) : activeFilter.startsWith("completion:") ? activeFilter.slice(11) : activeFilter) : "Attivo"}
           </span>
-          <button
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
             onClick={() => setActiveFilter && setActiveFilter("all")}
-            className="p-0.5 text-slate-400 hover:text-white transition-colors cursor-pointer"
+            className="h-5 w-5 p-0.5 text-slate-400 hover:text-white hover:bg-transparent"
             title={t("tooltips.reset_filters")}
           >
             <X className="w-3 h-3" />
-          </button>
+          </Button>
         </div>
       )}
 
       {/* Master list of games */}
       {detailsSidebarOpen && (
-        <div className="flex-1 overflow-y-auto divide-y divide-white/[0.04] custom-scrollbar">
+        <ScrollArea className="flex-1">
+          <div className="divide-y divide-white/[0.04]">
           {detailsFilteredGames.map((game) => {
             const isSelected = selectedGame.id === game.id;
             const thumb = game.icon_image || game.cover_image;
@@ -203,7 +220,8 @@ export const DetailsSidebar: React.FC<DetailsSidebarProps> = ({
               </div>
             );
           })}
-        </div>
+          </div>
+        </ScrollArea>
       )}
     </div>
   );
