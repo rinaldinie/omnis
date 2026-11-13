@@ -587,7 +587,6 @@ export default function App() {
                 searchQuery={searchQuery}
                 handleToggleSound={handleToggleSound}
                 currentTheme={currentTheme}
-                loadProvidersAndConfig={loadProvidersAndConfig}
                 toggleFullscreen={toggleFullscreen}
                 handleMinimize={handleMinimize}
                 handleClose={handleExit}

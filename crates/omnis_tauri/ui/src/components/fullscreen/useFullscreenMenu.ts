@@ -8,7 +8,6 @@ import {
   ArrowDownWideNarrow,
   Shuffle,
   RefreshCw,
-  Puzzle,
   Type,
   Palette,
   Film,
@@ -55,7 +54,6 @@ export interface UseFullscreenMenuOptions {
   toggleLayout: () => void;
   isSyncing: boolean;
   handleSync: () => void;
-  loadProvidersAndConfig: () => void;
   scale: number;
   stepScale: (delta: 1 | -1, wrap?: boolean) => boolean;
   soundEnabled: boolean;
@@ -94,7 +92,6 @@ export function useFullscreenMenu({
   toggleLayout,
   isSyncing,
   handleSync,
-  loadProvidersAndConfig,
   scale,
   stepScale,
   soundEnabled,
@@ -282,24 +279,15 @@ export function useFullscreenMenu({
       onActivate: pickRandomGame,
     });
   }
-  menuItems.push(
-    {
-      id: "sync",
-      icon: RefreshCw,
-      spinning: isSyncing,
-      section: "library",
-      label: t("console_ui.sync_library"),
-      value: isSyncing ? t("console_ui.syncing") : undefined,
-      onActivate: handleSync,
-    },
-    {
-      id: "plugins",
-      icon: Puzzle,
-      section: "library",
-      label: t("console_ui.plugins"),
-      onActivate: loadProvidersAndConfig,
-    }
-  );
+  menuItems.push({
+    id: "sync",
+    icon: RefreshCw,
+    spinning: isSyncing,
+    section: "library",
+    label: t("console_ui.sync_library"),
+    value: isSyncing ? t("console_ui.syncing") : undefined,
+    onActivate: handleSync,
+  });
 
   // Display
   menuItems.push(

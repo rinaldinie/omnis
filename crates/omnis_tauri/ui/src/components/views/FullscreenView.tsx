@@ -76,7 +76,6 @@ interface FullscreenViewProps {
   soundEnabled?: boolean;
   handleToggleSound: () => void;
   currentTheme: ThemeConfig;
-  loadProvidersAndConfig: () => void;
   toggleFullscreen: () => void;
   handleMinimize: () => void;
   handleClose: () => void;
@@ -153,7 +152,6 @@ export default function FullscreenView({
   soundEnabled: propSoundEnabled,
   handleToggleSound,
   currentTheme,
-  loadProvidersAndConfig,
   toggleFullscreen,
   handleMinimize: _handleMinimize,
   handleClose,
@@ -462,7 +460,6 @@ export default function FullscreenView({
     toggleLayout,
     isSyncing,
     handleSync,
-    loadProvidersAndConfig,
     scale,
     stepScale,
     soundEnabled,
