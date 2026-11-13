@@ -1689,4 +1689,12 @@ export const en: TranslationSchema = {
     privacy: 'Keys are only read into memory from the emulator folder during sync: Omnis never copies, saves, or transmits them.',
     playtime_note: 'Playtime recorded by Eden, Citron, and Ryujinx is always imported.',
   },
+  error_boundary: {
+    title: 'Something went wrong',
+    description: 'An unexpected error occurred in this section. You can retry without restarting the entire application.',
+    retry: 'Try again',
+    reload: 'Reload app',
+    back_to_grid: 'Back to grid',
+    exit_fullscreen: 'Switch to desktop',
+  },
 };

@@ -14,6 +14,7 @@ import DetailsSplitView from "./DetailsSplitView";
 import ListViewTable from "../ListViewTable";
 import StatisticsDashboardView from "./StatisticsDashboardView";
 import EmptyGamesView from "../common/EmptyGamesView";
+import { ErrorBoundary } from "../common/ErrorBoundary";
 import { StatusBar } from "../navigation/StatusBar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
@@ -284,8 +285,23 @@ export const DesktopView: React.FC<DesktopViewProps> = ({
             t={t}
           />
 
-          {/* VIEW 1: POSTER GRID VIEW */}
-          {viewMode === "grid" && (
+          <ErrorBoundary
+            scope={`DesktopCatalog:${viewMode}`}
+            variant="panel"
+            resetKeys={[viewMode, selectedGame?.id]}
+            secondaryAction={
+              viewMode !== "grid"
+                ? {
+                    label: t("error_boundary.back_to_grid", {
+                      defaultValue: "Back to grid",
+                    }),
+                    onClick: () => setViewMode("grid"),
+                  }
+                : undefined
+            }
+          >
+            {/* VIEW 1: POSTER GRID VIEW */}
+            {viewMode === "grid" && (
             <GridView
               filteredGames={filteredGames}
               groupedGames={groupedGames}
@@ -392,7 +408,8 @@ export const DesktopView: React.FC<DesktopViewProps> = ({
                 }
               }}
             />
-          )}
+            )}
+          </ErrorBoundary>
         </main>
       </div>
 

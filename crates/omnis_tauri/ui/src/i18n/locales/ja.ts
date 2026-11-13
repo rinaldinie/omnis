@@ -1689,4 +1689,12 @@ export const ja: TranslationSchema = {
     privacy: 'キーは同期中にエミュレータフォルダからメモリ内でのみ読み込まれます。Omnisがキーをコピー、保存、送信することはありません。',
     playtime_note: 'Eden、Citron、Ryujinxによって記録されたプレイ時間は常にインポートされます。',
   },
+  error_boundary: {
+    title: '問題が発生しました',
+    description: 'このセクションで予期しないエラーが発生しました。アプリ全体を再起動せずに再試行できます。',
+    retry: '再試行',
+    reload: 'アプリを再読み込み',
+    back_to_grid: 'グリッドに戻る',
+    exit_fullscreen: 'デスクトップへ切り替え',
+  },
 };

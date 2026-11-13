@@ -1689,4 +1689,12 @@ export const it: TranslationSchema = {
     privacy: 'Le chiavi vengono lette solo in memoria dalla cartella dell\'emulatore durante l\'aggiornamento: Omnis non le copia, non le salva e non le invia.',
     playtime_note: 'Le ore di gioco registrate da Eden, Citron e Ryujinx vengono importate sempre.',
   },
+  error_boundary: {
+    title: 'Si è verificato un problema',
+    description: 'Questa sezione ha riscontrato un errore imprevisto. Puoi riprovare senza chiudere l\'applicazione.',
+    retry: 'Riprova',
+    reload: 'Ricarica app',
+    back_to_grid: 'Torna alla griglia',
+    exit_fullscreen: 'Passa a Desktop',
+  },
 };

@@ -1689,4 +1689,12 @@ export const fr: TranslationSchema = {
     privacy: 'Les clés sont uniquement lues en mémoire depuis le dossier de l\'émulateur lors de la synchronisation : Omnis ne les copie pas, ne les enregistre pas et ne les transmet pas.',
     playtime_note: 'Le temps de jeu enregistré par Eden, Citron et Ryujinx est toujours importé.',
   },
+  error_boundary: {
+    title: 'Une erreur est survenue',
+    description: 'Une erreur inattendue s\'est produite dans cette section. Vous pouvez réessayer sans redémarrer l\'application.',
+    retry: 'Réessayer',
+    reload: 'Recharger l\'app',
+    back_to_grid: 'Retour à la grille',
+    exit_fullscreen: 'Passer au bureau',
+  },
 };
