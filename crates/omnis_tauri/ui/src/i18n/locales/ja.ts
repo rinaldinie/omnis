@@ -659,7 +659,7 @@ export const ja: TranslationSchema = {
     apply: '選択したメタデータを適用',
   },
   custom_game: {
-    title: 'ゲームを追加（.exe またはフォルダー）',
+    title: 'ゲームを追加',
     field_title: 'ゲームタイトル',
     title_placeholder: '例：Dark Souls Remastered',
     field_exe: 'ゲームの実行ファイルまたはフォルダー',
