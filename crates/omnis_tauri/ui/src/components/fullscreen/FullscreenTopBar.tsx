@@ -1,11 +1,31 @@
-import React from "react";
-import { Menu, Search, Gamepad2, Sparkles } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import {
+  Menu,
+  Search,
+  Gamepad2,
+  Sparkles,
+  Wifi,
+  WifiOff,
+  Battery,
+  BatteryCharging,
+  BatteryLow,
+  BatteryMedium,
+  BatteryFull,
+} from "lucide-react";
 import { ActiveGameSession } from "../../types";
 import { StoreIcon } from "../StoreBadge";
 import soundEffects from "../../utils/soundEffects";
 import { Glyph } from "./ConsoleChrome";
 import type { HomeFocusZone } from "../../hooks/useGamepadNavigation";
 import { STORE_LABELS, duration } from "./constants";
+
+export interface SystemStatus {
+  batteryPercent: number | null;
+  isCharging: boolean;
+  wifiConnected: boolean;
+  wifiSignal: number | null;
+}
 
 export interface FullscreenTopBarProps {
   isMenuOpen?: boolean;
@@ -48,6 +68,34 @@ export const FullscreenTopBar: React.FC<FullscreenTopBarProps> = ({
   clock,
   t,
 }) => {
+  const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const fetchStatus = async () => {
+      try {
+        const status = await invoke<SystemStatus>("get_system_status");
+        if (active) setSystemStatus(status);
+      } catch {
+        // Ignore if running outside Tauri or command unavailable
+      }
+    };
+    fetchStatus();
+    const timer = window.setInterval(fetchStatus, 30_000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  const renderBatteryIcon = (percent: number, charging: boolean) => {
+    if (charging) return <BatteryCharging className="w-5 h-5 text-emerald-300" />;
+    if (percent <= 15) return <BatteryLow className="w-5 h-5 text-rose-400" />;
+    if (percent <= 50) return <BatteryMedium className="w-5 h-5 text-white/90" />;
+    if (percent <= 85) return <BatteryFull className="w-5 h-5 text-white/90" />;
+    return <Battery className="w-5 h-5 text-white/90" />;
+  };
+
   return (
     <header className="relative z-20 flex items-center gap-6 px-10 pt-6 pb-2 shrink-0">
       <button
@@ -146,6 +194,43 @@ export const FullscreenTopBar: React.FC<FullscreenTopBarProps> = ({
           </span>
         )}
         <Gamepad2 className={`w-5 h-5 ${gamepadConnected ? "text-white" : "text-white/35"}`} />
+        {systemStatus && (
+          <>
+            <span
+              className="flex items-center"
+              title={
+                systemStatus.wifiConnected
+                  ? `Wi-Fi${systemStatus.wifiSignal !== null ? ` (${systemStatus.wifiSignal}%)` : ""}`
+                  : "Wi-Fi Disconnected"
+              }
+            >
+              {systemStatus.wifiConnected ? (
+                <Wifi className="w-5 h-5 text-white/90" />
+              ) : (
+                <WifiOff className="w-5 h-5 text-white/35" />
+              )}
+            </span>
+            {systemStatus.batteryPercent !== null && (
+              <span
+                className="flex items-center gap-1.5 text-sm font-medium tabular-nums"
+                title={systemStatus.isCharging ? "Charging" : "Battery"}
+              >
+                {renderBatteryIcon(systemStatus.batteryPercent, systemStatus.isCharging)}
+                <span
+                  className={
+                    systemStatus.isCharging
+                      ? "text-emerald-300"
+                      : systemStatus.batteryPercent <= 15
+                      ? "text-rose-400"
+                      : "text-white/90"
+                  }
+                >
+                  {systemStatus.batteryPercent}%
+                </span>
+              </span>
+            )}
+          </>
+        )}
         <span className="text-xl font-medium tabular-nums">{clock}</span>
       </div>
     </header>

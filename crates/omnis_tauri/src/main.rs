@@ -37,6 +37,7 @@ fn main() {
             AppBootstrap::handle_window_event(window, event);
         })
         .invoke_handler(tauri::generate_handler![
+            get_system_status,
             get_games,
             get_games_paginated,
             get_counts,
