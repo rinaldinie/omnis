@@ -6,6 +6,7 @@ import { PROVIDER_METAS, renderProviderIcon, getProviderColor } from "./constant
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { ActionTooltip } from "@/components/ui/tooltip";
 import {
   Select,
   SelectContent,
@@ -113,28 +114,32 @@ export const PipelinePriorityTab: React.FC<PipelinePriorityTabProps> = ({
 
                 {/* Order Control Buttons */}
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon-xs"
-                    disabled={isFirst}
-                    onClick={() => movePriority(idx, "up")}
-                    title={t("plugin_manager.move_up")}
-                    className="h-auto w-auto p-1 rounded-md border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white disabled:opacity-20"
-                  >
-                    <ArrowUp className="w-3.5 h-3.5" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon-xs"
-                    disabled={isLast}
-                    onClick={() => movePriority(idx, "down")}
-                    title={t("plugin_manager.move_down")}
-                    className="h-auto w-auto p-1 rounded-md border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white disabled:opacity-20"
-                  >
-                    <ArrowDown className="w-3.5 h-3.5" />
-                  </Button>
+                  <ActionTooltip label={t("plugin_manager.move_up")}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon-xs"
+                      disabled={isFirst}
+                      onClick={() => movePriority(idx, "up")}
+                      aria-label={t("plugin_manager.move_up")}
+                      className="h-auto w-auto p-1 rounded-md border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white disabled:opacity-20"
+                    >
+                      <ArrowUp className="w-3.5 h-3.5" />
+                    </Button>
+                  </ActionTooltip>
+                  <ActionTooltip label={t("plugin_manager.move_down")}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon-xs"
+                      disabled={isLast}
+                      onClick={() => movePriority(idx, "down")}
+                      aria-label={t("plugin_manager.move_down")}
+                      className="h-auto w-auto p-1 rounded-md border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white disabled:opacity-20"
+                    >
+                      <ArrowDown className="w-3.5 h-3.5" />
+                    </Button>
+                  </ActionTooltip>
                 </div>
               </div>
             );

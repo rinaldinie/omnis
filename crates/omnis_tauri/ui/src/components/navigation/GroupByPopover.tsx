@@ -18,6 +18,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { ActionTooltip } from "@/components/ui/tooltip";
 
 export interface GroupByPopoverProps {
   trigger: React.ReactNode;
@@ -113,70 +115,74 @@ export default function GroupByPopover({
                 {t("common.reset") || "Ripristina"}
               </Button>
             )}
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => onOpenChange(false)}
-              className="h-6 w-6 rounded-lg"
-              title={t("common.close") || "Chiudi"}
-              aria-label={t("common.close") || "Chiudi"}
-            >
-              <X className="w-4 h-4" />
-            </Button>
+            <ActionTooltip label={t("common.close") || "Chiudi"}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => onOpenChange(false)}
+                className="h-6 w-6 rounded-lg"
+                aria-label={t("common.close") || "Chiudi"}
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </ActionTooltip>
           </div>
         </div>
 
         {/* Options List */}
-        <div className="p-2 space-y-1 overflow-y-auto max-h-[60vh] custom-scrollbar">
-          {groupOptions.map((opt) => {
-            const isSelected = groupBy === opt.id;
-            const Icon = opt.icon;
-            return (
-              <button
-                key={opt.id}
-                type="button"
-                onClick={() => {
-                  onSelectGroup(opt.id);
-                  onOpenChange(false);
-                }}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-left transition-all group cursor-pointer ${
-                  isSelected
-                    ? "bg-sky-500/15 border border-sky-500/30 text-white shadow-sm"
-                    : "hover:bg-white/[0.04] text-slate-300 hover:text-white border border-transparent"
-                }`}
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <Icon
-                    className={`w-4 h-4 shrink-0 transition-colors ${
-                      isSelected
-                        ? "text-sky-400"
-                        : "text-slate-400 group-hover:text-slate-200"
-                    }`}
-                  />
-                  <span
-                    className={`text-xs truncate ${
-                      isSelected ? "font-semibold text-white" : "font-medium"
-                    }`}
-                  >
-                    {opt.label}
-                  </span>
-                </div>
-                <div
-                  className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ml-2 transition-all ${
+        <ScrollArea className="max-h-[60vh]">
+          <div className="p-2 space-y-1">
+            {groupOptions.map((opt) => {
+              const isSelected = groupBy === opt.id;
+              const Icon = opt.icon;
+              return (
+                <Button
+                  key={opt.id}
+                  type="button"
+                  variant="ghost"
+                  onClick={() => {
+                    onSelectGroup(opt.id);
+                    onOpenChange(false);
+                  }}
+                  className={`h-auto w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-left transition-all group whitespace-normal ${
                     isSelected
-                      ? "border-sky-400 bg-sky-500/20"
-                      : "border-white/20 bg-white/[0.04] group-hover:border-white/40"
+                      ? "bg-sky-500/15 hover:bg-sky-500/20 border border-sky-500/30 text-white shadow-sm"
+                      : "hover:bg-white/[0.04] text-slate-300 hover:text-white border border-transparent"
                   }`}
                 >
-                  {isSelected && (
-                    <div className="w-2 h-2 rounded-full bg-sky-400" />
-                  )}
-                </div>
-              </button>
-            );
-          })}
-        </div>
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Icon
+                      className={`w-4 h-4 shrink-0 transition-colors ${
+                        isSelected
+                          ? "text-sky-400"
+                          : "text-slate-400 group-hover:text-slate-200"
+                      }`}
+                    />
+                    <span
+                      className={`text-xs truncate ${
+                        isSelected ? "font-semibold text-white" : "font-medium"
+                      }`}
+                    >
+                      {opt.label}
+                    </span>
+                  </div>
+                  <div
+                    className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ml-2 transition-all ${
+                      isSelected
+                        ? "border-sky-400 bg-sky-500/20"
+                        : "border-white/20 bg-white/[0.04] group-hover:border-white/40"
+                    }`}
+                  >
+                    {isSelected && (
+                      <div className="w-2 h-2 rounded-full bg-sky-400" />
+                    )}
+                  </div>
+                </Button>
+              );
+            })}
+          </div>
+        </ScrollArea>
       </PopoverContent>
     </Popover>
   );

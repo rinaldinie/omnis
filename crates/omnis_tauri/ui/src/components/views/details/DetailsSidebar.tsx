@@ -5,6 +5,7 @@ import { StoreBadge } from "../../StoreBadge";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
 import { ScrollArea } from "../../ui/scroll-area";
+import { ActionTooltip } from "../../ui/tooltip";
 
 function ListThumbCover({ thumb, title }: { thumb?: string | null; title: string }) {
   const [hasError, setHasError] = React.useState(false);
@@ -107,28 +108,32 @@ export const DetailsSidebar: React.FC<DetailsSidebarProps> = ({
                 </Button>
               )}
             </div>
+            <ActionTooltip label={t("game_details.collapse_sidebar")}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-xs"
+                onClick={() => setDetailsSidebarOpen(false)}
+                className="h-7 w-7 p-1.5 rounded-lg border border-white/[0.08] bg-white/[0.03] text-slate-400 hover:text-white hover:bg-white/[0.08]"
+                aria-label={t("game_details.collapse_sidebar")}
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </Button>
+            </ActionTooltip>
+          </>
+        ) : (
+          <ActionTooltip label={t("game_details.expand_sidebar")} side="right">
             <Button
               type="button"
               variant="ghost"
-              size="icon-xs"
-              onClick={() => setDetailsSidebarOpen(false)}
-              className="h-7 w-7 p-1.5 rounded-lg border border-white/[0.08] bg-white/[0.03] text-slate-400 hover:text-white hover:bg-white/[0.08]"
-              title={t("game_details.collapse_sidebar")}
+              size="sm"
+              onClick={() => setDetailsSidebarOpen(true)}
+              className="w-full h-auto py-1.5 flex items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.03] text-slate-400 hover:text-white hover:bg-white/[0.08]"
+              aria-label={t("game_details.expand_sidebar")}
             >
-              <ChevronLeft className="w-3.5 h-3.5" />
+              <ChevronRight className="w-3.5 h-3.5" />
             </Button>
-          </>
-        ) : (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setDetailsSidebarOpen(true)}
-            className="w-full h-auto py-1.5 flex items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.03] text-slate-400 hover:text-white hover:bg-white/[0.08]"
-            title={t("game_details.expand_sidebar")}
-          >
-            <ChevronRight className="w-3.5 h-3.5" />
-          </Button>
+          </ActionTooltip>
         )}
       </div>
 
@@ -138,16 +143,18 @@ export const DetailsSidebar: React.FC<DetailsSidebarProps> = ({
           <span className="truncate font-medium">
             Filtro: {activeFilter ? (activeFilter.startsWith("genre:") ? activeFilter.slice(6) : activeFilter.startsWith("completion:") ? activeFilter.slice(11) : activeFilter) : "Attivo"}
           </span>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-xs"
-            onClick={() => setActiveFilter && setActiveFilter("all")}
-            className="h-5 w-5 p-0.5 text-slate-400 hover:text-white hover:bg-transparent"
-            title={t("tooltips.reset_filters")}
-          >
-            <X className="w-3 h-3" />
-          </Button>
+          <ActionTooltip label={t("tooltips.reset_filters")}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              onClick={() => setActiveFilter && setActiveFilter("all")}
+              className="h-5 w-5 p-0.5 text-slate-400 hover:text-white hover:bg-transparent"
+              aria-label={t("tooltips.reset_filters")}
+            >
+              <X className="w-3 h-3" />
+            </Button>
+          </ActionTooltip>
         </div>
       )}
 

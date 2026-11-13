@@ -12,6 +12,8 @@ import {
   getRarityColor,
 } from "./useGameAchievements";
 import { RarityIcon, getRarityBadgeClasses } from "./RarityIcon";
+import { Button } from "@/components/ui/button";
+import { ActionTooltip } from "@/components/ui/tooltip";
 
 interface AchievementBadgeProps {
   achievement: Achievement;
@@ -49,7 +51,7 @@ export const AchievementBadge: React.FC<AchievementBadgeProps> = ({
     const badgeEl = badgeRef.current;
     const badgeRect = badgeEl.getBoundingClientRect();
     const container =
-      badgeEl.closest(".overflow-y-auto, [data-omnis='fullscreen'], [data-omnis='bigpicture'], main, body") ||
+      badgeEl.closest(".overflow-y-auto, [data-radix-scroll-area-viewport], [data-omnis='fullscreen'], [data-omnis='bigpicture'], main, body") ||
       document.body;
     const containerRect = container.getBoundingClientRect();
 
@@ -319,17 +321,19 @@ export const AchievementBadge: React.FC<AchievementBadgeProps> = ({
                 <p className="text-[11px] text-slate-400 italic">
                   {t("achievements.secret_desc")}
                 </p>
-                <button
+                <Button
                   type="button"
+                  variant="link"
+                  size="xs"
                   onClick={(e) => {
                     e.stopPropagation();
                     setRevealed(true);
                   }}
-                  className="inline-flex items-center gap-1.5 text-[10px] font-bold text-indigo-400 hover:text-indigo-300 transition-colors"
+                  className="h-auto p-0 inline-flex items-center gap-1.5 text-[10px] font-bold text-indigo-400 hover:text-indigo-300"
                 >
                   <Eye className="w-3 h-3" />{" "}
                   {t("achievements.reveal")}
-                </button>
+                </Button>
               </div>
             ) : (
               <p className="text-[11px] text-slate-200 leading-relaxed">

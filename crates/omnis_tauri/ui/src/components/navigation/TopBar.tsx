@@ -21,7 +21,7 @@ import AppMenuDropdown from "./AppMenuDropdown";
 import type { SettingsTab } from "../settings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger, ActionTooltip } from "@/components/ui/tooltip";
 
 export interface TopBarProps {
   currentTheme: ThemeConfig;
@@ -93,11 +93,12 @@ export default function TopBar({
   const actualElapsed = elapsedSeconds ?? timerContextSeconds;
 
   const brandTrigger = (
-    <button
+    <Button
       type="button"
+      variant="ghost"
       onClick={() => soundEffects.playSelect()}
-      className="w-full h-10 flex items-center justify-between px-2 rounded-lg hover:bg-white/5 active:bg-white/10 transition-colors cursor-pointer group text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      title="Omnis Menu"
+      className="w-full h-10 flex items-center justify-between px-2 rounded-lg hover:bg-white/5 active:bg-white/10 group text-left"
+      aria-label="Omnis Menu"
       data-no-drag="true"
     >
       <div className="flex items-center gap-2.5 min-w-0">
@@ -120,12 +121,12 @@ export default function TopBar({
           </span>
         </div>
       </div>
-      <ChevronDown
+        <ChevronDown
         className={`w-3.5 h-3.5 text-slate-400 group-hover:text-white transition-transform duration-200 shrink-0 ${
           isAppMenuOpen ? "rotate-180 text-white" : ""
         }`}
       />
-    </button>
+    </Button>
   );
 
   return (
@@ -203,13 +204,15 @@ export default function TopBar({
               return (
                 <Tooltip key={mode}>
                   <TooltipTrigger asChild>
-                    <button
+                    <Button
                       type="button"
+                      variant="ghost"
+                      size="xs"
                       onClick={() => {
                         soundEffects.playNav();
                         setViewMode(mode);
                       }}
-                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold transition-all cursor-pointer"
+                      className="flex items-center gap-1.5 h-auto px-2.5 py-1 rounded-md text-xs font-bold"
                       style={{
                         backgroundColor: active
                           ? "var(--accent-primary)"
@@ -220,7 +223,7 @@ export default function TopBar({
                     >
                       <Icon className="w-3.5 h-3.5" />
                       <span className="hidden md:inline">{label}</span>
-                    </button>
+                    </Button>
                   </TooltipTrigger>
                   <TooltipContent>{label}</TooltipContent>
                 </Tooltip>
@@ -249,15 +252,18 @@ export default function TopBar({
               }}
             />
             {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery("")}
-                className="absolute right-2.5 text-slate-400 hover:text-white transition-colors cursor-pointer"
-                title="Clear search"
-                aria-label="Clear search"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
+              <ActionTooltip label="Clear search">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-xs"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-1.5 h-6 w-6 text-slate-400 hover:text-white hover:bg-transparent"
+                  aria-label="Clear search"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </Button>
+              </ActionTooltip>
             )}
           </div>
         </div>
@@ -279,16 +285,18 @@ export default function TopBar({
                 )
               </span>
               {handleKillRunningGame && (
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="xs"
-                  onClick={handleKillRunningGame}
-                  className="h-auto px-2 py-0.5 rounded text-[10px] font-black shrink-0"
-                  title={t("status.kill_game_title")}
-                >
-                  {t("status.kill_game")}
-                </Button>
+                <ActionTooltip label={t("status.kill_game_title")}>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="xs"
+                    onClick={handleKillRunningGame}
+                    className="h-auto px-2 py-0.5 rounded text-[10px] font-black shrink-0"
+                    aria-label={t("status.kill_game_title")}
+                  >
+                    {t("status.kill_game")}
+                  </Button>
+                </ActionTooltip>
               )}
             </div>
           )}

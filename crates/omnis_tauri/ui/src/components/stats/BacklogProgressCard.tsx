@@ -3,6 +3,7 @@ import { Sparkles } from "lucide-react";
 import { BacklogSummaryDto } from "../../types";
 import { useTranslation } from "../../i18n";
 import { Card } from "@/components/ui/card";
+import { ActionTooltip } from "@/components/ui/tooltip";
 
 export interface BacklogProgressCardProps {
   backlogSummary: BacklogSummaryDto;
@@ -46,30 +47,39 @@ export default function BacklogProgressCard({
             }}
           >
             {/* Completed / Beaten */}
-            <div
-              title={`${t("statistics.completed_beaten")}: ${backlogSummary.completed_count} (${backlogSummary.completion_percentage.toFixed(1)}%)`}
-              className="h-full bg-emerald-500 rounded-l-full transition-all duration-500"
-              style={{
-                width: `${(backlogSummary.completed_count / backlogSummary.total_games) * 100}%`,
-              }}
-            />
+            <ActionTooltip
+              label={`${t("statistics.completed_beaten")}: ${backlogSummary.completed_count} (${backlogSummary.completion_percentage.toFixed(1)}%)`}
+            >
+              <div
+                className="h-full bg-emerald-500 rounded-l-full transition-all duration-500"
+                style={{
+                  width: `${(backlogSummary.completed_count / backlogSummary.total_games) * 100}%`,
+                }}
+              />
+            </ActionTooltip>
             {/* In Progress */}
-            <div
-              title={`${t("statistics.started_in_progress")}: ${backlogSummary.in_progress_count}`}
-              className="h-full bg-amber-500 transition-all duration-500"
-              style={{
-                width: `${(backlogSummary.in_progress_count / backlogSummary.total_games) * 100}%`,
-              }}
-            />
+            <ActionTooltip
+              label={`${t("statistics.started_in_progress")}: ${backlogSummary.in_progress_count}`}
+            >
+              <div
+                className="h-full bg-amber-500 transition-all duration-500"
+                style={{
+                  width: `${(backlogSummary.in_progress_count / backlogSummary.total_games) * 100}%`,
+                }}
+              />
+            </ActionTooltip>
             {/* Not Played */}
-            <div
-              title={`${t("statistics.not_played")}: ${backlogSummary.not_played_count}`}
-              className="h-full rounded-r-full transition-all duration-500"
-              style={{
-                backgroundColor: "color-mix(in srgb, var(--border-color) 70%, transparent)",
-                width: `${(backlogSummary.not_played_count / backlogSummary.total_games) * 100}%`,
-              }}
-            />
+            <ActionTooltip
+              label={`${t("statistics.not_played")}: ${backlogSummary.not_played_count}`}
+            >
+              <div
+                className="h-full rounded-r-full transition-all duration-500"
+                style={{
+                  backgroundColor: "color-mix(in srgb, var(--border-color) 70%, transparent)",
+                  width: `${(backlogSummary.not_played_count / backlogSummary.total_games) * 100}%`,
+                }}
+              />
+            </ActionTooltip>
           </div>
 
           {/* Legend badges */}

@@ -33,6 +33,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { ActionTooltip } from "@/components/ui/tooltip";
 
 export { STORE_LIST };
 export type { StoreAccount, StoreSyncProgress, StoreIntegrationSettings };
@@ -162,15 +164,17 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
             const isSelected = selectedStoreId === store.id;
 
             return (
-              <button
+              <Button
                 key={store.id}
                 type="button"
+                variant="ghost"
+                size="sm"
                 onClick={() => {
                   soundEffects.playNav();
                   setSelectedStoreId(store.id);
                 }}
-                className={`relative flex items-center gap-2 px-3 py-2.5 rounded-t-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                  isSelected ? "text-white bg-white/5" : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.02]"
+                className={`relative flex items-center gap-2 h-auto px-3 py-2.5 rounded-none rounded-t-xl text-xs font-bold whitespace-nowrap ${
+                  isSelected ? "text-white bg-white/5 hover:bg-white/10" : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.02]"
                 }`}
               >
                 {store.icon("w-4 h-4")}
@@ -186,14 +190,14 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
                     style={{ backgroundColor: "var(--accent-primary)" }}
                   />
                 )}
-              </button>
+              </Button>
             );
           })}
         </div>
       )}
 
       {/* Main Content for Selected Store */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-5 custom-scrollbar min-h-0">
+      <ScrollArea className="flex-1 min-h-0" viewportClassName="p-6 space-y-5">
         <SettingGroup
           title={currentMeta.name}
           description={t("store_accounts.manage_connection_desc", {
@@ -362,7 +366,7 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
             </div>
           </div>
         )}
-      </div>
+      </ScrollArea>
 
       {/* FOOTER */}
       <div
@@ -374,18 +378,19 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            onClick={() => handleManualSync(selectedStoreId)}
-            disabled={isCurrentlySyncing || !currentAccount.is_connected}
-            title={isCurrentlySyncing ? t("store_accounts.syncing") : t("store_accounts.sync_now")}
-            aria-label={isCurrentlySyncing ? t("store_accounts.syncing") : t("store_accounts.sync_now")}
-            className="h-9 w-9 rounded-xl border-white/20 bg-white/5 hover:bg-white/10"
-          >
-            <RefreshCw className={`w-4 h-4 ${isCurrentlySyncing ? "animate-spin text-sky-400" : ""}`} />
-          </Button>
+          <ActionTooltip label={isCurrentlySyncing ? t("store_accounts.syncing") : t("store_accounts.sync_now")}>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={() => handleManualSync(selectedStoreId)}
+              disabled={isCurrentlySyncing || !currentAccount.is_connected}
+              aria-label={isCurrentlySyncing ? t("store_accounts.syncing") : t("store_accounts.sync_now")}
+              className="h-9 w-9 rounded-xl border-white/20 bg-white/5 hover:bg-white/10"
+            >
+              <RefreshCw className={`w-4 h-4 ${isCurrentlySyncing ? "animate-spin text-sky-400" : ""}`} />
+            </Button>
+          </ActionTooltip>
 
           <Button
             type="button"

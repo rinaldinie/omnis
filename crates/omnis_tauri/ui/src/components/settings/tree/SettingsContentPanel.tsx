@@ -12,6 +12,7 @@ import { DuplicateHiderSettingsTab } from '../DuplicateHiderSettingsTab';
 import { SettingsTab } from './settingsTreeConfig';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 export interface SettingsContentPanelProps {
   activeTab: SettingsTab;
@@ -140,7 +141,7 @@ export const SettingsContentPanel: React.FC<SettingsContentPanelProps> = ({
 
       {/* SECTION: DATI & BACKUP - CREA BACKUP MANUALE */}
       {activeTab === 'backup-manual' && (
-        <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+        <ScrollArea className="flex-1" viewportClassName="p-6">
           <BackupSettingsTab
             activeSection="manual"
             onClose={handleClose}
@@ -149,12 +150,12 @@ export const SettingsContentPanel: React.FC<SettingsContentPanelProps> = ({
               if (onSyncComplete) onSyncComplete();
             }}
           />
-        </div>
+        </ScrollArea>
       )}
 
       {/* SECTION: DATI & BACKUP - BACKUP AUTOMATICO & SCHEDULAZIONE */}
       {activeTab === 'backup-schedule' && (
-        <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+        <ScrollArea className="flex-1" viewportClassName="p-6">
           <BackupSettingsTab
             activeSection="schedule"
             onClose={handleClose}
@@ -163,12 +164,12 @@ export const SettingsContentPanel: React.FC<SettingsContentPanelProps> = ({
               if (onSyncComplete) onSyncComplete();
             }}
           />
-        </div>
+        </ScrollArea>
       )}
 
       {/* SECTION: DATI & BACKUP - RIPRISTINO */}
       {(activeTab === 'backup-restore' || activeTab === 'backup-manager') && (
-        <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+        <ScrollArea className="flex-1" viewportClassName="p-6">
           <BackupSettingsTab
             activeSection={activeTab === 'backup-manager' ? 'all' : 'restore'}
             onClose={handleClose}
@@ -177,12 +178,12 @@ export const SettingsContentPanel: React.FC<SettingsContentPanelProps> = ({
               if (onSyncComplete) onSyncComplete();
             }}
           />
-        </div>
+        </ScrollArea>
       )}
 
       {/* SECTION: DATI & BACKUP - PLAYNITE IMPORT */}
       {activeTab === 'backup-playnite' && (
-        <div className="flex-1 overflow-y-auto p-8 space-y-6 custom-scrollbar">
+        <ScrollArea className="flex-1" viewportClassName="p-8 space-y-6">
           <div
             className="p-6 rounded-2xl border space-y-4"
             style={{
@@ -262,7 +263,7 @@ export const SettingsContentPanel: React.FC<SettingsContentPanelProps> = ({
               </ul>
             </div>
           </div>
-        </div>
+        </ScrollArea>
       )}
     </div>
   );

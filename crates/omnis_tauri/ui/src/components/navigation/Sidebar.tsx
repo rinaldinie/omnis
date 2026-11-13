@@ -17,6 +17,7 @@ import { useTranslation } from "../../i18n";
 import { Button } from "../ui/button";
 import { Progress } from "../ui/progress";
 import { ScrollArea } from "../ui/scroll-area";
+import { ActionTooltip } from "../ui/tooltip";
 
 interface SidebarProps {
   counts: LibraryCounts;
@@ -224,17 +225,19 @@ export default function Sidebar({
               {t("sidebar.stores")}
             </span>
             {onOpenStoreAccounts && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="xs"
-                onClick={onOpenStoreAccounts}
-                className="h-auto px-1.5 py-0.5 rounded text-[9px] font-semibold text-sky-400 hover:text-white hover:bg-sky-500/20 border border-sky-500/30"
-                title={t("sidebar.connect_account_title")}
-              >
-                <Cloud className="w-2.5 h-2.5" />
-                <span>{t("sidebar.connect_account")}</span>
-              </Button>
+              <ActionTooltip label={t("sidebar.connect_account_title")}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="xs"
+                  onClick={onOpenStoreAccounts}
+                  className="h-auto px-1.5 py-0.5 rounded text-[9px] font-semibold text-sky-400 hover:text-white hover:bg-sky-500/20 border border-sky-500/30"
+                  aria-label={t("sidebar.connect_account_title")}
+                >
+                  <Cloud className="w-2.5 h-2.5" />
+                  <span>{t("sidebar.connect_account")}</span>
+                </Button>
+              </ActionTooltip>
             )}
           </div>
           {storeItems.map(renderSourceItem)}
@@ -251,16 +254,18 @@ export default function Sidebar({
                 {t("sidebar.emulators")}
               </span>
               {onOpenEmulatorSettings && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-xs"
-                  onClick={onOpenEmulatorSettings}
-                  className="h-5 w-5 p-0.5 rounded text-slate-500 hover:text-white hover:bg-white/10"
-                  title={t("sidebar.emulator_settings_title")}
-                >
-                  <Settings2 className="w-3 h-3" />
-                </Button>
+                <ActionTooltip label={t("sidebar.emulator_settings_title")}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-xs"
+                    onClick={onOpenEmulatorSettings}
+                    className="h-5 w-5 p-0.5 rounded text-slate-500 hover:text-white hover:bg-white/10"
+                    aria-label={t("sidebar.emulator_settings_title")}
+                  >
+                    <Settings2 className="w-3 h-3" />
+                  </Button>
+                </ActionTooltip>
               )}
             </div>
             {emulatorItems.map(renderSourceItem)}
@@ -292,46 +297,54 @@ export default function Sidebar({
         </div>
 
         <div className="grid grid-cols-4 gap-1 pt-0.5">
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => handleOpenFolder("db")}
-            className="h-auto p-1 rounded text-[9px] font-medium flex flex-col items-center gap-0.5 border border-white/5 hover:border-white/20 bg-white/[0.03] hover:bg-white/10 text-slate-400 hover:text-white"
-            title={t("sidebar.folder_db")}
-          >
-            <Folder className="w-3 h-3" />
-            <span>DB</span>
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => handleOpenFolder("covers")}
-            className="h-auto p-1 rounded text-[9px] font-medium flex flex-col items-center gap-0.5 border border-white/5 hover:border-white/20 bg-white/[0.03] hover:bg-white/10 text-slate-400 hover:text-white"
-            title={t("sidebar.folder_covers")}
-          >
-            <Folder className="w-3 h-3" />
-            <span>{t("sidebar.short_covers")}</span>
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => handleOpenFolder("themes")}
-            className="h-auto p-1 rounded text-[9px] font-medium flex flex-col items-center gap-0.5 border border-white/5 hover:border-white/20 bg-white/[0.03] hover:bg-white/10 text-slate-400 hover:text-white"
-            title={t("sidebar.folder_themes")}
-          >
-            <Palette className="w-3 h-3" />
-            <span>{t("sidebar.short_themes")}</span>
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => handleOpenFolder("plugins")}
-            className="h-auto p-1 rounded text-[9px] font-medium flex flex-col items-center gap-0.5 border border-white/5 hover:border-white/20 bg-white/[0.03] hover:bg-white/10 text-slate-400 hover:text-white"
-            title={t("sidebar.folder_plugins")}
-          >
-            <Folder className="w-3 h-3" />
-            <span>{t("sidebar.short_plugins")}</span>
-          </Button>
+          <ActionTooltip label={t("sidebar.folder_db")}>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => handleOpenFolder("db")}
+              className="h-auto p-1 rounded text-[9px] font-medium flex flex-col items-center gap-0.5 border border-white/5 hover:border-white/20 bg-white/[0.03] hover:bg-white/10 text-slate-400 hover:text-white"
+              aria-label={t("sidebar.folder_db")}
+            >
+              <Folder className="w-3 h-3" />
+              <span>DB</span>
+            </Button>
+          </ActionTooltip>
+          <ActionTooltip label={t("sidebar.folder_covers")}>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => handleOpenFolder("covers")}
+              className="h-auto p-1 rounded text-[9px] font-medium flex flex-col items-center gap-0.5 border border-white/5 hover:border-white/20 bg-white/[0.03] hover:bg-white/10 text-slate-400 hover:text-white"
+              aria-label={t("sidebar.folder_covers")}
+            >
+              <Folder className="w-3 h-3" />
+              <span>{t("sidebar.short_covers")}</span>
+            </Button>
+          </ActionTooltip>
+          <ActionTooltip label={t("sidebar.folder_themes")}>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => handleOpenFolder("themes")}
+              className="h-auto p-1 rounded text-[9px] font-medium flex flex-col items-center gap-0.5 border border-white/5 hover:border-white/20 bg-white/[0.03] hover:bg-white/10 text-slate-400 hover:text-white"
+              aria-label={t("sidebar.folder_themes")}
+            >
+              <Palette className="w-3 h-3" />
+              <span>{t("sidebar.short_themes")}</span>
+            </Button>
+          </ActionTooltip>
+          <ActionTooltip label={t("sidebar.folder_plugins")}>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => handleOpenFolder("plugins")}
+              className="h-auto p-1 rounded text-[9px] font-medium flex flex-col items-center gap-0.5 border border-white/5 hover:border-white/20 bg-white/[0.03] hover:bg-white/10 text-slate-400 hover:text-white"
+              aria-label={t("sidebar.folder_plugins")}
+            >
+              <Folder className="w-3 h-3" />
+              <span>{t("sidebar.short_plugins")}</span>
+            </Button>
+          </ActionTooltip>
         </div>
       </div>
     </aside>

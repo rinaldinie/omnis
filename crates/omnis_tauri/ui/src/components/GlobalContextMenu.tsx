@@ -5,6 +5,7 @@ import { StoreIcon } from "./StoreBadge";
 import { useTranslation } from "../i18n";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
+import { ActionTooltip } from "./ui/tooltip";
 import { cn } from "@/lib/utils";
 
 const COMPLETION_STATUS_OPTIONS = [
@@ -372,34 +373,38 @@ export default function GlobalContextMenu({
                         </div>
                       )}
                       <div className="flex items-center gap-1.5 pt-0.5">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="xs"
-                          onClick={() => {
-                            onLaunch(copy.id);
-                            onClose();
-                          }}
-                          className="flex-1 h-auto py-1 px-2 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 border border-indigo-500/30 text-[10px] font-semibold"
-                          title={t("duplicate_hider.launch_copy", { store: copy.library.toUpperCase() })}
-                        >
-                          <Play className="w-2.5 h-2.5 fill-current" />
-                          <span>{copy.is_installed ? t("common.play") : t("common.install")}</span>
-                        </Button>
-                        {onPromoteCopy && (
+                        <ActionTooltip label={t("duplicate_hider.launch_copy", { store: copy.library.toUpperCase() })}>
                           <Button
                             type="button"
                             variant="ghost"
                             size="xs"
                             onClick={() => {
-                              onPromoteCopy(copy.id);
+                              onLaunch(copy.id);
                               onClose();
                             }}
-                            className="flex-1 h-auto py-1 px-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10 text-[10px] font-medium"
-                            title={t("duplicate_hider.promote_copy", { store: copy.library.toUpperCase() })}
+                            className="flex-1 h-auto py-1 px-2 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 border border-indigo-500/30 text-[10px] font-semibold"
+                            aria-label={t("duplicate_hider.launch_copy", { store: copy.library.toUpperCase() })}
                           >
-                            <span>{t("duplicate_hider.active_copy")}</span>
+                            <Play className="w-2.5 h-2.5 fill-current" />
+                            <span>{copy.is_installed ? t("common.play") : t("common.install")}</span>
                           </Button>
+                        </ActionTooltip>
+                        {onPromoteCopy && (
+                          <ActionTooltip label={t("duplicate_hider.promote_copy", { store: copy.library.toUpperCase() })}>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="xs"
+                              onClick={() => {
+                                onPromoteCopy(copy.id);
+                                onClose();
+                              }}
+                              className="flex-1 h-auto py-1 px-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10 text-[10px] font-medium"
+                              aria-label={t("duplicate_hider.promote_copy", { store: copy.library.toUpperCase() })}
+                            >
+                              <span>{t("duplicate_hider.active_copy")}</span>
+                            </Button>
+                          </ActionTooltip>
                         )}
                       </div>
                     </div>

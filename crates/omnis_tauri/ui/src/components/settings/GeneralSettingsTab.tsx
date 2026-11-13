@@ -182,14 +182,16 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
           {subTabsList.map((tab) => {
             const isSelected = activeSubTab === tab.id;
             return (
-              <button
+              <Button
                 key={tab.id}
                 type="button"
+                variant="ghost"
+                size="sm"
                 onClick={() => {
                   soundEffects.playNav();
                   setActiveSubTab(tab.id);
                 }}
-                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative flex items-center gap-2 cursor-pointer ${
+                className={`h-auto px-4 py-1.5 rounded-lg text-xs font-bold relative flex items-center gap-2 ${
                   isSelected ? 'shadow-xs' : 'text-slate-400 hover:text-white hover:bg-white/5'
                 }`}
                 style={
@@ -215,7 +217,7 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
                     style={{ backgroundColor: 'var(--accent-primary)' }}
                   />
                 )}
-              </button>
+              </Button>
             );
           })}
         </div>
@@ -621,7 +623,7 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
                     }
                   >
                     {updater.status !== 'readyToInstall' && updater.status !== 'downloading' && (
-                      <button
+                      <Button
                         type="button"
                         onClick={() => {
                           soundEffects.playSelect();
@@ -632,7 +634,7 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
                           }
                         }}
                         disabled={updater.status === 'checking'}
-                        className="px-3.5 py-1.5 rounded-xl text-white text-xs font-bold transition-all shadow-md flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer hover:brightness-110 active:opacity-90"
+                        className="h-auto px-3.5 py-1.5 rounded-xl text-white text-xs font-bold shadow-md flex items-center gap-2 hover:brightness-110 active:opacity-90"
                         style={{
                           backgroundColor: 'var(--accent-primary)',
                           boxShadow: '0 2px 8px var(--accent-glow)',
@@ -646,7 +648,7 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
                             ? t('general_settings.updater_download_button')
                             : t('general_settings.updater_check_button')}
                         </span>
-                      </button>
+                      </Button>
                     )}
                   </SettingRow>
 
@@ -659,9 +661,11 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
                         </span>
                       </div>
                       {updater.releaseNotes && (
-                        <p className="text-slate-300 whitespace-pre-line text-[11px] leading-relaxed max-h-40 overflow-y-auto custom-scrollbar p-3 rounded-xl bg-black/20 border border-white/5">
-                          {updater.releaseNotes}
-                        </p>
+                        <ScrollArea className="max-h-40 rounded-xl bg-black/20 border border-white/5">
+                          <p className="text-slate-300 whitespace-pre-line text-[11px] leading-relaxed p-3">
+                            {updater.releaseNotes}
+                          </p>
+                        </ScrollArea>
                       )}
                     </div>
                   )}
@@ -697,13 +701,13 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
                         <Check className="w-4 h-4 shrink-0" />
                         <span>{t('general_settings.updater_ready_to_install')}</span>
                       </div>
-                      <button
+                      <Button
                         type="button"
                         onClick={() => {
                           soundEffects.playSelect();
                           updater.relaunch();
                         }}
-                        className="w-full py-2 rounded-xl text-white text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer hover:brightness-110 active:opacity-90"
+                        className="w-full h-auto py-2 rounded-xl text-white text-xs font-bold shadow-md flex items-center justify-center gap-2 hover:brightness-110 active:opacity-90"
                         style={{
                           backgroundColor: 'var(--accent-primary)',
                           boxShadow: '0 4px 14px var(--accent-glow)',
@@ -711,7 +715,7 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
                       >
                         <RefreshCw className="w-3.5 h-3.5" />
                         <span>{t('general_settings.updater_relaunch_button')}</span>
-                      </button>
+                      </Button>
                     </div>
                   )}
 

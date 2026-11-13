@@ -18,6 +18,7 @@ import { renderProviderIcon, getProviderColor } from "./constants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { ActionTooltip } from "@/components/ui/tooltip";
 import {
   Select,
   SelectContent,
@@ -87,21 +88,23 @@ export const PluginCard: React.FC<PluginCardProps> = ({
 
         <div className="flex items-center gap-2 shrink-0">
           {prov.is_builtin === false && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => onUninstall(prov.id)}
-              className="h-auto px-3 py-1.5 rounded-xl text-xs font-bold text-rose-400 hover:text-white hover:border-rose-500/50 hover:bg-rose-500/10 gap-1.5"
-              style={{
-                backgroundColor: "var(--bg-card)",
-                borderColor: "var(--border-color)",
-              }}
-              title={t("plugin_manager.uninstall_title")}
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>{t("plugin_manager.uninstall")}</span>
-            </Button>
+            <ActionTooltip label={t("plugin_manager.uninstall_title")}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => onUninstall(prov.id)}
+                className="h-auto px-3 py-1.5 rounded-xl text-xs font-bold text-rose-400 hover:text-white hover:border-rose-500/50 hover:bg-rose-500/10 gap-1.5"
+                style={{
+                  backgroundColor: "var(--bg-card)",
+                  borderColor: "var(--border-color)",
+                }}
+                aria-label={t("plugin_manager.uninstall_title")}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>{t("plugin_manager.uninstall")}</span>
+              </Button>
+            </ActionTooltip>
           )}
           <Button
             type="button"
@@ -214,21 +217,23 @@ export const PluginCard: React.FC<PluginCardProps> = ({
 
         <div className="flex items-center gap-2 shrink-0">
           {prov.is_builtin === false && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => onUninstall(prov.id)}
-              className="h-auto px-3 py-1.5 rounded-xl text-xs font-bold text-rose-400 hover:text-white hover:border-rose-500/50 hover:bg-rose-500/10 gap-1.5"
-              style={{
-                backgroundColor: "var(--bg-card)",
-                borderColor: "var(--border-color)",
-              }}
-              title={t("plugin_manager.uninstall_title")}
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>{t("plugin_manager.uninstall")}</span>
-            </Button>
+            <ActionTooltip label={t("plugin_manager.uninstall_title")}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => onUninstall(prov.id)}
+                className="h-auto px-3 py-1.5 rounded-xl text-xs font-bold text-rose-400 hover:text-white hover:border-rose-500/50 hover:bg-rose-500/10 gap-1.5"
+                style={{
+                  backgroundColor: "var(--bg-card)",
+                  borderColor: "var(--border-color)",
+                }}
+                aria-label={t("plugin_manager.uninstall_title")}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>{t("plugin_manager.uninstall")}</span>
+              </Button>
+            </ActionTooltip>
           )}
           <Button
             type="button"

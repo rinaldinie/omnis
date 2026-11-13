@@ -17,6 +17,7 @@ import {
   Star,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ActionTooltip } from "@/components/ui/tooltip";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -266,19 +267,23 @@ export const DetailsHeroHeader: React.FC<DetailsHeroHeaderProps> = ({
                   ? isFilterActive(`completion:${selectedGame.completion_status || "NotPlayed"}`)
                   : activeFilter === `completion:${selectedGame.completion_status || "NotPlayed"}`;
                 return (
-                  <button
-                    type="button"
-                    onClick={() => handleFilterByCompletion(selectedGame.completion_status)}
-                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold border shadow-xs flex items-center gap-1.5 cursor-pointer transition-all active:scale-95 ${
-                      isFiltered
-                        ? "ring-1 ring-[var(--accent-primary)] " + statusInfo.bg + " " + statusInfo.border + " " + statusInfo.color
-                        : statusInfo.bg + " " + statusInfo.border + " " + statusInfo.color
-                    }`}
-                    title={t("tooltips.filter_status", { status: statusInfo.label })}
-                  >
-                    <span className={`w-1.5 h-1.5 rounded-full ${statusInfo.dot}`} />
-                    <span>{statusInfo.label}</span>
-                  </button>
+                  <ActionTooltip label={t("tooltips.filter_status", { status: statusInfo.label })}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="xs"
+                      onClick={() => handleFilterByCompletion(selectedGame.completion_status)}
+                      className={`h-auto px-2.5 py-0.5 rounded-full text-[10px] font-semibold border shadow-xs flex items-center gap-1.5 active:scale-95 ${
+                        isFiltered
+                          ? "ring-1 ring-[var(--accent-primary)] " + statusInfo.bg + " " + statusInfo.border + " " + statusInfo.color
+                          : statusInfo.bg + " " + statusInfo.border + " " + statusInfo.color
+                      }`}
+                      aria-label={t("tooltips.filter_status", { status: statusInfo.label })}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full ${statusInfo.dot}`} />
+                      <span>{statusInfo.label}</span>
+                    </Button>
+                  </ActionTooltip>
                 );
               })()}
               {selectedGame.series && (
@@ -300,20 +305,23 @@ export const DetailsHeroHeader: React.FC<DetailsHeroHeaderProps> = ({
                 {selectedGame.genres.map((genre) => {
                   const active = isGenreActive(genre);
                   return (
-                    <button
-                      key={genre}
-                      type="button"
-                      onClick={() => handleFilterByGenre(genre)}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 ${
-                        active
-                          ? "bg-[var(--accent-primary)] border-[var(--accent-primary)] text-white shadow-xs"
-                          : "bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white border-white/[0.08] hover:border-white/20"
-                      }`}
-                      title={t("tooltips.filter_genre", { genre })}
-                    >
-                      <span className={`w-1.5 h-1.5 rounded-full ${active ? "bg-white" : "bg-slate-400"}`} />
-                      <span>{getLocalizedGenre(genre, locale)}</span>
-                    </button>
+                    <ActionTooltip key={genre} label={t("tooltips.filter_genre", { genre })}>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="xs"
+                        onClick={() => handleFilterByGenre(genre)}
+                        className={`h-auto px-2.5 py-1 rounded-lg text-xs font-medium border flex items-center gap-1.5 active:scale-95 ${
+                          active
+                            ? "bg-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/90 border-[var(--accent-primary)] text-white shadow-xs"
+                            : "bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white border-white/[0.08] hover:border-white/20"
+                        }`}
+                        aria-label={t("tooltips.filter_genre", { genre })}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full ${active ? "bg-white" : "bg-slate-400"}`} />
+                        <span>{getLocalizedGenre(genre, locale)}</span>
+                      </Button>
+                    </ActionTooltip>
                   );
                 })}
               </div>
@@ -336,16 +344,18 @@ export const DetailsHeroHeader: React.FC<DetailsHeroHeaderProps> = ({
                   </Button>
 
                   {handleKillRunningGame && (
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      onClick={handleKillRunningGame}
-                      className="h-auto gap-2 px-5 py-3 rounded-xl font-bold text-xs border-rose-500/50 shadow-lg hover:scale-105"
-                      title={t("status.kill_game_title")}
-                    >
-                      <Square className="w-3.5 h-3.5 fill-white" />
-                      <span>{t("status.kill_game")}</span>
-                    </Button>
+                    <ActionTooltip label={t("status.kill_game_title")}>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        onClick={handleKillRunningGame}
+                        className="h-auto gap-2 px-5 py-3 rounded-xl font-bold text-xs border-rose-500/50 shadow-lg hover:scale-105"
+                        aria-label={t("status.kill_game_title")}
+                      >
+                        <Square className="w-3.5 h-3.5 fill-white" />
+                        <span>{t("status.kill_game")}</span>
+                      </Button>
+                    </ActionTooltip>
                   )}
                 </>
               ) : (
@@ -368,81 +378,95 @@ export const DetailsHeroHeader: React.FC<DetailsHeroHeaderProps> = ({
               )}
 
               {handleToggleFavorite && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => handleToggleFavorite(selectedGame)}
-                  className={`h-auto gap-2 px-4 py-3 rounded-xl text-xs font-semibold backdrop-blur-md active:scale-95 ${
-                    selectedGame.is_favorite
-                      ? "bg-amber-500/15 border-amber-500/40 text-amber-300 hover:bg-amber-500/25 hover:text-amber-200"
-                      : "bg-white/[0.04] border-white/[0.08] text-slate-200 hover:bg-white/[0.08] hover:border-white/20 hover:text-white"
-                  }`}
-                  title={
+                <ActionTooltip
+                  label={
                     selectedGame.is_favorite
                       ? (t("sidebar.remove_favorite") || "Rimuovi dai preferiti")
                       : (t("sidebar.add_favorite") || "Aggiungi ai preferiti")
                   }
                 >
-                  <Star
-                    className={`w-4 h-4 ${
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => handleToggleFavorite(selectedGame)}
+                    className={`h-auto gap-2 px-4 py-3 rounded-xl text-xs font-semibold backdrop-blur-md active:scale-95 ${
                       selectedGame.is_favorite
-                        ? "text-amber-400 fill-amber-400"
-                        : "text-slate-300"
+                        ? "bg-amber-500/15 border-amber-500/40 text-amber-300 hover:bg-amber-500/25 hover:text-amber-200"
+                        : "bg-white/[0.04] border-white/[0.08] text-slate-200 hover:bg-white/[0.08] hover:border-white/20 hover:text-white"
+                    }`}
+                    aria-label={
+                      selectedGame.is_favorite
+                        ? (t("sidebar.remove_favorite") || "Rimuovi dai preferiti")
+                        : (t("sidebar.add_favorite") || "Aggiungi ai preferiti")
+                    }
+                  >
+                    <Star
+                      className={`w-4 h-4 ${
+                        selectedGame.is_favorite
+                          ? "text-amber-400 fill-amber-400"
+                          : "text-slate-300"
+                      }`}
+                    />
+                    <span>
+                      {selectedGame.is_favorite
+                        ? t("sidebar.favorites")
+                        : (t("sidebar.add_favorite") || "Preferito")}
+                    </span>
+                  </Button>
+                </ActionTooltip>
+              )}
+
+              <ActionTooltip label={t("topbar.enrich_tooltip")}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => handleEnrichSingleGame(selectedGame.id)}
+                  disabled={isEnrichingSingle}
+                  className="h-auto gap-2 px-4 py-3 rounded-xl border-white/[0.08] bg-white/[0.04] text-xs font-semibold text-slate-200 backdrop-blur-md hover:bg-white/[0.08] hover:border-white/20 hover:text-white active:scale-95"
+                  aria-label={t("topbar.enrich_tooltip")}
+                >
+                  <Sparkles
+                    className={`w-3.5 h-3.5 ${
+                      isEnrichingSingle ? "animate-spin text-amber-400" : "text-amber-400"
                     }`}
                   />
                   <span>
-                    {selectedGame.is_favorite
-                      ? t("sidebar.favorites")
-                      : (t("sidebar.add_favorite") || "Preferito")}
+                    {isEnrichingSingle ? t("game_details.enriching") : t("game_details.enrich_pipeline")}
                   </span>
                 </Button>
-              )}
+              </ActionTooltip>
 
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => handleEnrichSingleGame(selectedGame.id)}
-                disabled={isEnrichingSingle}
-                className="h-auto gap-2 px-4 py-3 rounded-xl border-white/[0.08] bg-white/[0.04] text-xs font-semibold text-slate-200 backdrop-blur-md hover:bg-white/[0.08] hover:border-white/20 hover:text-white active:scale-95"
-                title={t("topbar.enrich_tooltip")}
-              >
-                <Sparkles
-                  className={`w-3.5 h-3.5 ${
-                    isEnrichingSingle ? "animate-spin text-amber-400" : "text-amber-400"
-                  }`}
-                />
-                <span>
-                  {isEnrichingSingle ? t("game_details.enriching") : t("game_details.enrich_pipeline")}
-                </span>
-              </Button>
+              <ActionTooltip label={t("game_details.edit_manual")}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setGameToEdit(selectedGame);
+                    setShowEditorModal(true);
+                  }}
+                  className="h-auto gap-2 px-4 py-3 rounded-xl border-white/[0.08] bg-white/[0.04] text-xs font-semibold text-slate-200 backdrop-blur-md hover:bg-white/[0.08] hover:border-white/20 hover:text-white active:scale-95"
+                  aria-label={t("game_details.edit_manual")}
+                >
+                  <Pencil className="w-4 h-4 text-slate-300" />
+                  <span>{t("game_details.edit_manual")}</span>
+                </Button>
+              </ActionTooltip>
 
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setGameToEdit(selectedGame);
-                  setShowEditorModal(true);
-                }}
-                className="h-auto gap-2 px-4 py-3 rounded-xl border-white/[0.08] bg-white/[0.04] text-xs font-semibold text-slate-200 backdrop-blur-md hover:bg-white/[0.08] hover:border-white/20 hover:text-white active:scale-95"
-                title={t("game_details.edit_manual")}
-              >
-                <Pencil className="w-4 h-4 text-slate-300" />
-                <span>{t("game_details.edit_manual")}</span>
-              </Button>
-
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setGameToResolve(selectedGame);
-                  setShowResolutionModal(true);
-                }}
-                className="h-auto gap-2 px-4 py-3 rounded-xl border-white/[0.08] bg-white/[0.04] text-xs font-semibold text-slate-200 backdrop-blur-md hover:bg-white/[0.08] hover:border-white/20 hover:text-white active:scale-95"
-                title={t("game_details.identify_metadata")}
-              >
-                <Search className="w-3.5 h-3.5 text-slate-300" />
-                <span>{t("game_details.identify_metadata")}</span>
-              </Button>
+              <ActionTooltip label={t("game_details.identify_metadata")}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setGameToResolve(selectedGame);
+                    setShowResolutionModal(true);
+                  }}
+                  className="h-auto gap-2 px-4 py-3 rounded-xl border-white/[0.08] bg-white/[0.04] text-xs font-semibold text-slate-200 backdrop-blur-md hover:bg-white/[0.08] hover:border-white/20 hover:text-white active:scale-95"
+                  aria-label={t("game_details.identify_metadata")}
+                >
+                  <Search className="w-3.5 h-3.5 text-slate-300" />
+                  <span>{t("game_details.identify_metadata")}</span>
+                </Button>
+              </ActionTooltip>
 
               {/* Manage Dropdown Menu */}
               <DropdownMenu>
@@ -451,7 +475,7 @@ export const DetailsHeroHeader: React.FC<DetailsHeroHeaderProps> = ({
                     type="button"
                     variant="outline"
                     className="h-auto gap-2 px-4 py-3 rounded-xl border-white/[0.08] bg-white/[0.04] text-xs font-semibold text-slate-200 backdrop-blur-md hover:bg-white/[0.08] hover:border-white/20 hover:text-white active:scale-95 group"
-                    title={t("game_details.manage")}
+                    aria-label={t("game_details.manage")}
                   >
                     <Settings2 className="w-4 h-4 text-slate-300" />
                     <span>{t("game_details.manage")}</span>

@@ -4,6 +4,8 @@ import { useTranslation } from "../../i18n";
 import { Clock, Calendar, X, ExternalLink } from "lucide-react";
 import soundEffects from "../../utils/soundEffects";
 import { Card } from "../ui/card";
+import { Button } from "@/components/ui/button";
+import { ActionTooltip } from "@/components/ui/tooltip";
 
 interface ActivityHeatmapCalendarProps {
   activityData: DayActivityDto[];
@@ -407,16 +409,21 @@ export default function ActivityHeatmapCalendar({
               >
                 {formatDuration(selectedAct.duration_seconds)}
               </span>
-              <button
-                onClick={() => {
-                  soundEffects.playSelect();
-                  setSelectedDate(null);
-                }}
-                className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] transition-colors cursor-pointer"
-                title={t("statistics.close_details")}
-              >
-                <X className="w-4 h-4" />
-              </button>
+              <ActionTooltip label={t("statistics.close_details")}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-xs"
+                  onClick={() => {
+                    soundEffects.playSelect();
+                    setSelectedDate(null);
+                  }}
+                  className="h-7 w-7 p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)]"
+                  aria-label={t("statistics.close_details")}
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </ActionTooltip>
             </div>
           </div>
 
@@ -497,17 +504,22 @@ export default function ActivityHeatmapCalendar({
                       </span>
 
                       {onSelectGame && session.game_id && (
-                        <button
-                          onClick={() => {
-                            soundEffects.playSelect();
-                            onSelectGame(session.game_id);
-                          }}
-                          className="text-[10px] font-medium text-[var(--text-muted)] hover:text-[var(--accent-primary)] flex items-center gap-1 cursor-pointer transition-colors"
-                          title={t("statistics.view_game_in_library")}
-                        >
-                          <span>{t("statistics.view_game_in_library")}</span>
-                          <ExternalLink className="w-3 h-3" />
-                        </button>
+                        <ActionTooltip label={t("statistics.view_game_in_library")}>
+                          <Button
+                            type="button"
+                            variant="link"
+                            size="xs"
+                            onClick={() => {
+                              soundEffects.playSelect();
+                              onSelectGame(session.game_id);
+                            }}
+                            className="h-auto p-0 text-[10px] font-medium text-[var(--text-muted)] hover:text-[var(--accent-primary)] flex items-center gap-1"
+                            aria-label={t("statistics.view_game_in_library")}
+                          >
+                            <span>{t("statistics.view_game_in_library")}</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </Button>
+                        </ActionTooltip>
                       )}
                     </div>
                   </div>

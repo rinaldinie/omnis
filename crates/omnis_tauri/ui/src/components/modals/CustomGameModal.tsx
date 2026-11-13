@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ActionTooltip } from "@/components/ui/tooltip";
 
 interface CustomGameModalProps {
   isOpen: boolean;
@@ -212,28 +213,32 @@ export default function CustomGameModal({
                 className="flex-1 bg-black/30 text-xs font-mono focus-visible:ring-emerald-500/50"
               />
               <div className="flex gap-1.5 shrink-0">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={handlePickCustomExe}
-                  className="h-9 border-border bg-white/5 hover:bg-white/10"
-                  title={t("custom_game.browse_exe_title")}
-                >
-                  <FolderOpen className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>{t("custom_game.browse_exe")}</span>
-                </Button>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={handlePickCustomFolder}
-                  className="h-9 border-border bg-white/5 hover:bg-white/10"
-                  title={t("custom_game.browse_folder_title")}
-                >
-                  <Folder className="w-3.5 h-3.5 text-sky-400" />
-                  <span>{t("custom_game.browse_folder")}</span>
-                </Button>
+                <ActionTooltip label={t("custom_game.browse_exe_title")}>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={handlePickCustomExe}
+                    className="h-9 border-border bg-white/5 hover:bg-white/10"
+                    aria-label={t("custom_game.browse_exe_title")}
+                  >
+                    <FolderOpen className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>{t("custom_game.browse_exe")}</span>
+                  </Button>
+                </ActionTooltip>
+                <ActionTooltip label={t("custom_game.browse_folder_title")}>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={handlePickCustomFolder}
+                    className="h-9 border-border bg-white/5 hover:bg-white/10"
+                    aria-label={t("custom_game.browse_folder_title")}
+                  >
+                    <Folder className="w-3.5 h-3.5 text-sky-400" />
+                    <span>{t("custom_game.browse_folder")}</span>
+                  </Button>
+                </ActionTooltip>
               </div>
             </div>
           </div>
@@ -250,17 +255,19 @@ export default function CustomGameModal({
                 placeholder={t("custom_game.cover_placeholder")}
                 className="flex-1 bg-black/30 text-xs font-mono focus-visible:ring-emerald-500/50"
               />
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={handlePickCustomCover}
-                className="h-9 border-border bg-white/5 hover:bg-white/10 shrink-0"
-                title={t("custom_game.browse_cover_title")}
-              >
-                <FolderOpen className="w-3.5 h-3.5 text-emerald-400" />
-                <span>{t("custom_game.browse")}</span>
-              </Button>
+              <ActionTooltip label={t("custom_game.browse_cover_title")}>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={handlePickCustomCover}
+                  className="h-9 border-border bg-white/5 hover:bg-white/10 shrink-0"
+                  aria-label={t("custom_game.browse_cover_title")}
+                >
+                  <FolderOpen className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>{t("custom_game.browse")}</span>
+                </Button>
+              </ActionTooltip>
             </div>
           </div>
 

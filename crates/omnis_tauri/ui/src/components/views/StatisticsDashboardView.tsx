@@ -11,6 +11,7 @@ import { useTranslation } from "../../i18n";
 import soundEffects from "../../utils/soundEffects";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { ActionTooltip } from "@/components/ui/tooltip";
 import {
   Select,
   SelectContent,
@@ -152,23 +153,25 @@ export default function StatisticsDashboardView({
         {/* Controls: Reset, Year Selector & Refresh */}
         <div className="flex items-center gap-2 flex-wrap">
           {/* Reset Statistics Button */}
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-              soundEffects.playSelect();
-              setShowResetModal(true);
-            }}
-            className="h-[34px] gap-1.5 px-3 rounded-xl text-xs font-semibold text-rose-400 hover:text-rose-300"
-            style={{
-              backgroundColor: "color-mix(in srgb, #f43f5e 12%, transparent)",
-              borderColor: "color-mix(in srgb, #f43f5e 30%, transparent)",
-            }}
-            title={t("statistics.reset_button")}
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">{t("statistics.reset_button")}</span>
-          </Button>
+          <ActionTooltip label={t("statistics.reset_button")}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                soundEffects.playSelect();
+                setShowResetModal(true);
+              }}
+              className="h-[34px] gap-1.5 px-3 rounded-xl text-xs font-semibold text-rose-400 hover:text-rose-300"
+              style={{
+                backgroundColor: "color-mix(in srgb, #f43f5e 12%, transparent)",
+                borderColor: "color-mix(in srgb, #f43f5e 30%, transparent)",
+              }}
+              aria-label={t("statistics.reset_button")}
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{t("statistics.reset_button")}</span>
+            </Button>
+          </ActionTooltip>
 
           {/* Dynamic Year Selector Dropdown */}
           <Select
@@ -204,26 +207,28 @@ export default function StatisticsDashboardView({
           </Select>
 
           {/* Refresh button */}
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className="h-[34px] w-[34px] rounded-xl text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-            style={{
-              backgroundColor: "var(--bg-surface)",
-              borderColor: "var(--border-color)",
-            }}
-            title={t("statistics.refresh_tooltip")}
-          >
-            <RefreshCw
-              className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`}
+          <ActionTooltip label={t("statistics.refresh_tooltip")}>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="h-[34px] w-[34px] rounded-xl text-[var(--text-muted)] hover:text-[var(--text-primary)]"
               style={{
-                color: refreshing ? "var(--accent-primary, #6366f1)" : undefined,
+                backgroundColor: "var(--bg-surface)",
+                borderColor: "var(--border-color)",
               }}
-            />
-          </Button>
+              aria-label={t("statistics.refresh_tooltip")}
+            >
+              <RefreshCw
+                className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`}
+                style={{
+                  color: refreshing ? "var(--accent-primary, #6366f1)" : undefined,
+                }}
+              />
+            </Button>
+          </ActionTooltip>
         </div>
       </div>
 

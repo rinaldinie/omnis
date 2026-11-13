@@ -18,6 +18,7 @@ import { getLocalizedGenre } from "../../../utils/genres";
 import { Button } from "../../ui/button";
 import { Badge } from "../../ui/badge";
 import { Card } from "../../ui/card";
+import { ActionTooltip } from "../../ui/tooltip";
 
 export interface DetailsMetadataPanelProps {
   selectedGame: GameDto;
@@ -113,18 +114,20 @@ export const DetailsMetadataPanel: React.FC<DetailsMetadataPanelProps> = ({
       ) : (
         <div className="flex items-center gap-2.5 flex-wrap">
           <Slot name="details.info" gameId={selectedGame.id} />
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => (handleRefreshHltb ? handleRefreshHltb(selectedGame.id) : handleEnrichSingleGame(selectedGame.id))}
-            disabled={isEnrichingSingle}
-            title={t("game_details.refresh_hltb_title")}
-            className="h-auto px-3 py-2 rounded-xl text-xs font-medium text-slate-300 hover:text-white bg-white/[0.02] hover:bg-white/[0.06] border border-white/[0.06] shrink-0"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isEnrichingSingle ? "animate-spin text-amber-400" : "text-amber-400"}`} />
-            <span>{isEnrichingSingle ? t("game_details.refreshing") : t("game_details.refresh_source")}</span>
-          </Button>
+          <ActionTooltip label={t("game_details.refresh_hltb_title")}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => (handleRefreshHltb ? handleRefreshHltb(selectedGame.id) : handleEnrichSingleGame(selectedGame.id))}
+              disabled={isEnrichingSingle}
+              aria-label={t("game_details.refresh_hltb_title")}
+              className="h-auto px-3 py-2 rounded-xl text-xs font-medium text-slate-300 hover:text-white bg-white/[0.02] hover:bg-white/[0.06] border border-white/[0.06] shrink-0"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isEnrichingSingle ? "animate-spin text-amber-400" : "text-amber-400"}`} />
+              <span>{isEnrichingSingle ? t("game_details.refreshing") : t("game_details.refresh_source")}</span>
+            </Button>
+          </ActionTooltip>
         </div>
       )}
 
@@ -140,7 +143,9 @@ export const DetailsMetadataPanel: React.FC<DetailsMetadataPanelProps> = ({
                 {t("duplicate_hider.active_copy")}
               </span>
               {selectedGame.is_installed && (
-                <span className="w-2 h-2 rounded-full bg-emerald-400" title={t("status.installed")} />
+                <ActionTooltip label={t("status.installed")}>
+                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                </ActionTooltip>
               )}
             </div>
 
@@ -152,36 +157,41 @@ export const DetailsMetadataPanel: React.FC<DetailsMetadataPanelProps> = ({
               >
                 <StoreIcon library={copy.library} className="w-4 h-4 text-slate-300" />
                 <span className="font-medium text-slate-200">{copy.library.toUpperCase()}</span>
-                <span
-                  className={`w-2 h-2 rounded-full ${
-                    copy.is_installed ? "bg-emerald-400" : "bg-slate-500"
-                  }`}
-                  title={copy.is_installed ? t("status.installed") : t("status.available")}
-                />
+                <ActionTooltip label={copy.is_installed ? t("status.installed") : t("status.available")}>
+                  <span
+                    className={`w-2 h-2 rounded-full ${
+                      copy.is_installed ? "bg-emerald-400" : "bg-slate-500"
+                    }`}
+                  />
+                </ActionTooltip>
                 {handlePromoteCopy && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="xs"
-                    onClick={() => handlePromoteCopy(copy.id)}
-                    className="ml-1 h-auto px-2 py-0.5 rounded text-[10px] font-semibold text-indigo-300 hover:text-white bg-indigo-500/20 hover:bg-indigo-500/40 border border-indigo-500/30"
-                    title={t("duplicate_hider.promote_copy", { store: copy.library.toUpperCase() })}
-                  >
-                    {t("duplicate_hider.promote_copy", { store: copy.library.toUpperCase() })}
-                  </Button>
+                  <ActionTooltip label={t("duplicate_hider.promote_copy", { store: copy.library.toUpperCase() })}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="xs"
+                      onClick={() => handlePromoteCopy(copy.id)}
+                      className="ml-1 h-auto px-2 py-0.5 rounded text-[10px] font-semibold text-indigo-300 hover:text-white bg-indigo-500/20 hover:bg-indigo-500/40 border border-indigo-500/30"
+                      aria-label={t("duplicate_hider.promote_copy", { store: copy.library.toUpperCase() })}
+                    >
+                      {t("duplicate_hider.promote_copy", { store: copy.library.toUpperCase() })}
+                    </Button>
+                  </ActionTooltip>
                 )}
                 {handleLaunch && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="xs"
-                    onClick={() => handleLaunch(copy.id)}
-                    className="h-auto px-2 py-0.5 rounded text-[10px] font-semibold text-emerald-300 hover:text-white bg-emerald-500/20 hover:bg-emerald-500/40 border border-emerald-500/30"
-                    title={t("duplicate_hider.launch_copy", { store: copy.library.toUpperCase() })}
-                  >
-                    <Play className="w-2.5 h-2.5 fill-current" />
-                    <span>{copy.is_installed ? t("common.play") : t("common.install")}</span>
-                  </Button>
+                  <ActionTooltip label={t("duplicate_hider.launch_copy", { store: copy.library.toUpperCase() })}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="xs"
+                      onClick={() => handleLaunch(copy.id)}
+                      className="h-auto px-2 py-0.5 rounded text-[10px] font-semibold text-emerald-300 hover:text-white bg-emerald-500/20 hover:bg-emerald-500/40 border border-emerald-500/30"
+                      aria-label={t("duplicate_hider.launch_copy", { store: copy.library.toUpperCase() })}
+                    >
+                      <Play className="w-2.5 h-2.5 fill-current" />
+                      <span>{copy.is_installed ? t("common.play") : t("common.install")}</span>
+                    </Button>
+                  </ActionTooltip>
                 )}
               </div>
             ))}
@@ -230,26 +240,27 @@ export const DetailsMetadataPanel: React.FC<DetailsMetadataPanelProps> = ({
                 selectedGame.genres.map((genre) => {
                   const active = isGenreActive(genre);
                   return (
-                    <Button
-                      key={genre}
-                      type="button"
-                      variant="ghost"
-                      size="xs"
-                      onClick={() => handleFilterByGenre(genre)}
-                      className={`h-auto bg-white/[0.04] border border-white/[0.08] text-slate-300 text-xs px-2.5 py-1 rounded-lg hover:border-white/20 hover:bg-white/[0.08] hover:text-white active:scale-95 ${
-                        active
-                          ? "bg-[var(--accent-primary)]/20 border-[var(--accent-primary)] text-white shadow-xs"
-                          : ""
-                      }`}
-                      title={t("tooltips.filter_genre", { genre })}
-                    >
-                      <span
-                        className={`w-1.5 h-1.5 rounded-full ${
-                          active ? "bg-[var(--accent-primary)]" : "bg-slate-400"
+                    <ActionTooltip key={genre} label={t("tooltips.filter_genre", { genre })}>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="xs"
+                        onClick={() => handleFilterByGenre(genre)}
+                        className={`h-auto bg-white/[0.04] border border-white/[0.08] text-slate-300 text-xs px-2.5 py-1 rounded-lg hover:border-white/20 hover:bg-white/[0.08] hover:text-white active:scale-95 ${
+                          active
+                            ? "bg-[var(--accent-primary)]/20 border-[var(--accent-primary)] text-white shadow-xs"
+                            : ""
                         }`}
-                      />
-                      <span>{getLocalizedGenre(genre, locale)}</span>
-                    </Button>
+                        aria-label={t("tooltips.filter_genre", { genre })}
+                      >
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full ${
+                            active ? "bg-[var(--accent-primary)]" : "bg-slate-400"
+                          }`}
+                        />
+                        <span>{getLocalizedGenre(genre, locale)}</span>
+                      </Button>
+                    </ActionTooltip>
                   );
                 })
               ) : (
@@ -285,19 +296,21 @@ export const DetailsMetadataPanel: React.FC<DetailsMetadataPanelProps> = ({
                   ? isFilterActive(`completion:${selectedGame.completion_status || "NotPlayed"}`)
                   : activeFilter === `completion:${selectedGame.completion_status || "NotPlayed"}`;
                 return (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="xs"
-                    onClick={() => handleFilterByCompletion(selectedGame.completion_status)}
-                    className={`h-auto bg-white/[0.04] border border-white/[0.08] text-slate-300 text-xs px-2.5 py-1 rounded-lg hover:border-white/20 hover:bg-white/[0.08] hover:text-white active:scale-95 ${
-                      isFiltered ? "border-[var(--accent-primary)] ring-1 ring-[var(--accent-primary)] text-white" : ""
-                    }`}
-                    title={t("tooltips.filter_status", { status: statusInfo.label })}
-                  >
-                    <span className={`w-1.5 h-1.5 rounded-full ${statusInfo.dot}`} />
-                    <span className="font-semibold">{statusInfo.label}</span>
-                  </Button>
+                  <ActionTooltip label={t("tooltips.filter_status", { status: statusInfo.label })}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="xs"
+                      onClick={() => handleFilterByCompletion(selectedGame.completion_status)}
+                      className={`h-auto bg-white/[0.04] border border-white/[0.08] text-slate-300 text-xs px-2.5 py-1 rounded-lg hover:border-white/20 hover:bg-white/[0.08] hover:text-white active:scale-95 ${
+                        isFiltered ? "border-[var(--accent-primary)] ring-1 ring-[var(--accent-primary)] text-white" : ""
+                      }`}
+                      aria-label={t("tooltips.filter_status", { status: statusInfo.label })}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full ${statusInfo.dot}`} />
+                      <span className="font-semibold">{statusInfo.label}</span>
+                    </Button>
+                  </ActionTooltip>
                 );
               })()}
             </div>

@@ -23,6 +23,7 @@ import {
   Gamepad2,
 } from 'lucide-react';
 import { STORE_LIST } from '../StoreAccountsTab';
+import { ActionTooltip } from '@/components/ui/tooltip';
 import type { StoreAccount } from '../../store_accounts/types';
 import type { ProviderInfo } from '../../../types';
 
@@ -138,11 +139,12 @@ export function buildSettingsTree({
           ),
           badge:
             updaterStatus === 'available' ? (
-              <span
-                className="w-2 h-2 rounded-full animate-pulse"
-                style={{ backgroundColor: 'var(--accent-primary)' }}
-                title="Nuovo aggiornamento disponibile"
-              />
+              <ActionTooltip label="Nuovo aggiornamento disponibile">
+                <span
+                  className="w-2 h-2 rounded-full animate-pulse inline-block"
+                  style={{ backgroundColor: 'var(--accent-primary)' }}
+                />
+              </ActionTooltip>
             ) : undefined,
           keywords: ['aggiornamenti', 'updates', 'versione', 'update', 'changelog', 'download'],
         },
@@ -160,11 +162,12 @@ export function buildSettingsTree({
           label: store.name,
           icon: (c = 'w-4 h-4') => store.icon(c),
           badge: isConnected ? (
-            <span
-              className="w-2 h-2 rounded-full shadow-sm"
-              style={{ backgroundColor: '#22c55e' }}
-              title="Collegato"
-            />
+            <ActionTooltip label="Collegato">
+              <span
+                className="w-2 h-2 rounded-full shadow-sm inline-block"
+                style={{ backgroundColor: '#22c55e' }}
+              />
+            </ActionTooltip>
           ) : undefined,
           keywords: [
             store.name.toLowerCase(),
@@ -209,17 +212,19 @@ export function buildSettingsTree({
           label: 'IGDB (Twitch)',
           icon: (c = 'w-4 h-4') => <Database className={c} />,
           badge: metadataProviders.find((p) => p.id === 'igdb')?.is_enabled ? (
-            <span
-              className="w-2 h-2 rounded-full shadow-sm"
-              style={{ backgroundColor: '#22c55e' }}
-              title={t('common.enabled', { defaultValue: 'Enabled' })}
-            />
+            <ActionTooltip label={t('common.enabled', { defaultValue: 'Enabled' })}>
+              <span
+                className="w-2 h-2 rounded-full shadow-sm inline-block"
+                style={{ backgroundColor: '#22c55e' }}
+              />
+            </ActionTooltip>
           ) : (
-            <span
-              className="w-2 h-2 rounded-full shadow-sm opacity-40"
-              style={{ backgroundColor: '#ef4444' }}
-              title={t('common.disabled', { defaultValue: 'Disabled' })}
-            />
+            <ActionTooltip label={t('common.disabled', { defaultValue: 'Disabled' })}>
+              <span
+                className="w-2 h-2 rounded-full shadow-sm opacity-40 inline-block"
+                style={{ backgroundColor: '#ef4444' }}
+              />
+            </ActionTooltip>
           ),
           keywords: ['igdb', 'twitch', 'api key', 'client id', 'metadati', 'metadata', 'generi', 'sinossi'],
         },
@@ -228,17 +233,19 @@ export function buildSettingsTree({
           label: 'SteamGridDB',
           icon: (c = 'w-4 h-4') => <ImageIcon className={c} />,
           badge: metadataProviders.find((p) => p.id === 'steamgriddb')?.is_enabled ? (
-            <span
-              className="w-2 h-2 rounded-full shadow-sm"
-              style={{ backgroundColor: '#22c55e' }}
-              title={t('common.enabled', { defaultValue: 'Enabled' })}
-            />
+            <ActionTooltip label={t('common.enabled', { defaultValue: 'Enabled' })}>
+              <span
+                className="w-2 h-2 rounded-full shadow-sm inline-block"
+                style={{ backgroundColor: '#22c55e' }}
+              />
+            </ActionTooltip>
           ) : (
-            <span
-              className="w-2 h-2 rounded-full shadow-sm opacity-40"
-              style={{ backgroundColor: '#ef4444' }}
-              title={t('common.disabled', { defaultValue: 'Disabled' })}
-            />
+            <ActionTooltip label={t('common.disabled', { defaultValue: 'Disabled' })}>
+              <span
+                className="w-2 h-2 rounded-full shadow-sm opacity-40 inline-block"
+                style={{ backgroundColor: '#ef4444' }}
+              />
+            </ActionTooltip>
           ),
           keywords: ['steamgriddb', 'sgdb', 'artwork', 'cover', 'hero', 'logo', 'icon', 'immagini', 'posters'],
         },

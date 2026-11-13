@@ -9,6 +9,8 @@ import {
 } from "lucide-react";
 import { AchievementSyncProgress } from "../../types";
 import { AchievementSyncIndicator } from "../achievements";
+import { Button } from "@/components/ui/button";
+import { ActionTooltip } from "@/components/ui/tooltip";
 
 export interface SessionToastInfo {
   title: string;
@@ -120,13 +122,18 @@ export const AppToasts: React.FC<AppToastsProps> = ({
               {syncBanner.message}
             </p>
           </div>
-          <button
-            onClick={onDismissSyncBanner}
-            className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
-            title={t("app_misc.close_notification")}
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
+          <ActionTooltip label={t("app_misc.close_notification")}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              onClick={onDismissSyncBanner}
+              className="h-6 w-6 p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/5"
+              aria-label={t("app_misc.close_notification")}
+            >
+              <X className="w-3.5 h-3.5" />
+            </Button>
+          </ActionTooltip>
         </div>
       )}
 
@@ -170,9 +177,10 @@ export const AppToasts: React.FC<AppToastsProps> = ({
                   {t("topbar.options")}
                 </p>
               </div>
-              <button
+              <Button
                 type="button"
-                className="px-2.5 py-1 text-[10px] font-bold shadow-sm transition shrink-0 cursor-pointer"
+                size="xs"
+                className="h-auto px-2.5 py-1 text-[10px] font-bold shadow-sm shrink-0"
                 style={{
                   borderRadius: "calc(var(--card-radius) - 6px)",
                   backgroundColor: "var(--accent-primary)",
@@ -180,7 +188,7 @@ export const AppToasts: React.FC<AppToastsProps> = ({
                 }}
               >
                 {t("general_settings.update_now", { defaultValue: "Aggiorna" })}
-              </button>
+              </Button>
             </div>
           )}
 
@@ -223,13 +231,18 @@ export const AppToasts: React.FC<AppToastsProps> = ({
                   })}
                 </p>
               </div>
-              <button
-                onClick={onDismissSessionToast}
-                className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer shrink-0"
-                title={t("app_misc.close_notification")}
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
+              <ActionTooltip label={t("app_misc.close_notification")}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-xs"
+                  onClick={onDismissSessionToast}
+                  className="h-6 w-6 p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/5 shrink-0"
+                  aria-label={t("app_misc.close_notification")}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </Button>
+              </ActionTooltip>
 
               {/* Subtly animated progress drain countdown */}
               <div
@@ -332,13 +345,18 @@ export const AppToasts: React.FC<AppToastsProps> = ({
                   </div>
                 )}
               </div>
-              <button
-                onClick={onDismissSyncBanner}
-                className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer shrink-0"
-                title={t("app_misc.close_notification")}
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
+              <ActionTooltip label={t("app_misc.close_notification")}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-xs"
+                  onClick={onDismissSyncBanner}
+                  className="h-6 w-6 p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/5 shrink-0"
+                  aria-label={t("app_misc.close_notification")}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </Button>
+              </ActionTooltip>
 
               {/* Completed auto-dismiss indicator */}
               {syncBanner.status === "completed" && (
