@@ -7,7 +7,10 @@ import { Input } from "@/components/ui/input";
 
 export interface SteamAuthFormProps {
   settings: StoreIntegrationSettings;
-  updateSetting: (key: keyof StoreIntegrationSettings, value: any) => void;
+  updateSetting: <K extends keyof StoreIntegrationSettings>(
+    key: K,
+    value: StoreIntegrationSettings[K]
+  ) => void;
 }
 
 export const SteamAuthForm: React.FC<SteamAuthFormProps> = ({

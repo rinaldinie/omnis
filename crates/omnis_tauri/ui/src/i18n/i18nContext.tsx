@@ -21,7 +21,7 @@ const translations: Record<LocaleCode, TranslationSchema> = {
 interface I18nContextType {
   locale: LocaleCode;
   setLocale: (locale: LocaleCode) => void;
-  t: (keyPath: string, params?: Record<string, string | number>) => string;
+  t: TranslateFn;
   currentLocaleInfo: LocaleInfo;
   availableLocales: LocaleInfo[];
 }
@@ -47,12 +47,16 @@ function detectInitialLocale(): LocaleCode {
   return 'it';
 }
 
-function resolveNestedKey(obj: any, path: string): string | undefined {
+import type { TranslateFn } from '../types';
+
+function resolveNestedKey(obj: unknown, path: string): string | undefined {
   const parts = path.split('.');
-  let current = obj;
+  let current: unknown = obj;
   for (const part of parts) {
-    if (current === undefined || current === null) return undefined;
-    current = current[part];
+    if (current === undefined || current === null || typeof current !== 'object') {
+      return undefined;
+    }
+    current = (current as Record<string, unknown>)[part];
   }
   return typeof current === 'string' ? current : undefined;
 }
@@ -81,7 +85,7 @@ export function I18nProvider({
     return SUPPORTED_LOCALES.find((l) => l.code === locale) || SUPPORTED_LOCALES[0];
   }, [locale]);
 
-  const t = (keyPath: string, params?: Record<string, string | number>): string => {
+  const t: TranslateFn = (keyPath, params) => {
     // 1. Try current locale
     let text = resolveNestedKey(translations[locale], keyPath);
     // 2. Fallback to English if missing
@@ -126,7 +130,7 @@ export function I18nProvider({
 export function useTranslation() {
   const context = useContext(I18nContext);
   if (!context) {
-    const fallbackT = (path: string, options?: { defaultValue?: string } & Record<string, any>) => {
+    const fallbackT: TranslateFn = (path, options) => {
       let text = resolveNestedKey(translations.en, path) ?? resolveNestedKey(translations.it, path);
       if (!text) {
         if (options && typeof options.defaultValue === 'string') {

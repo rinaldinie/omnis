@@ -1,6 +1,7 @@
 import React from "react";
 import { Play } from "lucide-react";
-import { GameDto, ActiveGameSession, GameAchievementsSummary } from "../../types";
+import { GameDto, ActiveGameSession, GameAchievementsSummary, TranslateFn } from "../../types";
+import type { GameAction } from "../views/FullscreenView";
 import { ArtImage } from "./FullscreenCards";
 import { FullscreenAchievementsCard } from "./FullscreenAchievementsCard";
 import { useTranslation } from "../../i18n";
@@ -25,9 +26,9 @@ export interface FullscreenDetailsOverlayProps {
   setShowFullscreenDetails: (show: boolean) => void;
   detailsFocusedSection: "hero" | "achievements";
   heroFocusedButton: string;
-  heroButtons: string[];
+  heroButtons: Array<"launch" | GameAction | "back">;
   heroActions: Record<string, HeroActionDefinition>;
-  onGameAction?: (action: any, gameId: string) => void;
+  onGameAction?: (action: GameAction, gameId: string) => void;
   openConfirm: (kind: "uninstall", game: GameDto) => void;
   setNotice: (message: string) => void;
   soundEffects: { playSelect: () => void };
@@ -40,7 +41,7 @@ export interface FullscreenDetailsOverlayProps {
   onOpenAchievements: () => void;
   storeLabels: Record<string, string>;
   renderStoreIcon: (library: string) => React.ReactNode;
-  t: (key: string, params?: Record<string, any>) => string;
+  t: TranslateFn;
 }
 
 export const FullscreenDetailsOverlay: React.FC<FullscreenDetailsOverlayProps> = ({

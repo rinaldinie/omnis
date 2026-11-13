@@ -7,7 +7,7 @@ import {
   ExternalLink,
   Play,
 } from "lucide-react";
-import { GameDto } from "../../../types";
+import { GameDto, TranslateFn } from "../../../types";
 import { Slot } from "../../common/Slot";
 import { GameAchievementsGallery } from "../../achievements";
 import GameStatisticsCard from "../../stats/GameStatisticsCard";
@@ -25,7 +25,7 @@ export interface DetailsMetadataPanelProps {
   handleRefreshHltb?: (gameId: string) => void;
   handleEnrichSingleGame: (gameId: string) => void;
   isEnrichingSingle: boolean;
-  t: (key: string, params?: Record<string, any>) => string;
+  t: TranslateFn;
   setGameToEdit: (game: GameDto) => void;
   setShowEditorModal: (show: boolean) => void;
   activeFilter?: string;

@@ -1,14 +1,17 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 
 describe("Fullscreen recent games events contract", () => {
-  const originalWindow = (globalThis as any).window;
+  const globalMock = globalThis as unknown as {
+    window?: EventTarget | (Window & typeof globalThis);
+  };
+  const originalWindow = globalMock.window;
 
   beforeAll(() => {
-    (globalThis as any).window = new EventTarget();
+    globalMock.window = new EventTarget();
   });
 
   afterAll(() => {
-    (globalThis as any).window = originalWindow;
+    globalMock.window = originalWindow;
   });
 
   it("dispatches and handles omnis:recent-action with launch", () => {

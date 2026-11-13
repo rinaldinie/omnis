@@ -29,6 +29,12 @@ export type { CustomLink, ProcessTrackingMode, LaunchConfiguration, GameEditorFo
 
 import { GameDto } from "../types";
 import { api } from "../api";
+import { getErrorMessage } from "../utils/errors";
+
+type EditableGameInput = Partial<GameDto> & {
+  sorting_title?: string | null;
+  user_score?: number | null;
+};
 import {
   Dialog,
   DialogContent,
@@ -102,7 +108,7 @@ export default function GameEditorModal({
     setSaveError(null);
     setSaveSuccess(false);
 
-    const initFromGame = (g: any) => {
+    const initFromGame = (g: EditableGameInput) => {
       const cleanRawMedia = (path?: string | null, img?: string | null) => {
         if (path && !path.startsWith("asset:") && !path.startsWith("http://asset.localhost")) {
           return path;
@@ -138,7 +144,7 @@ export default function GameEditorModal({
         background_image_path: bgPath,
         icon_image_path: iconPath,
         play_actions: Array.isArray(g.play_actions)
-          ? g.play_actions.map((a: any) => ({
+          ? g.play_actions.map((a: LaunchConfiguration) => ({
               executable: a.executable || "",
               arguments: Array.isArray(a.arguments) ? a.arguments : [],
               working_dir: a.working_dir || "",
@@ -164,7 +170,7 @@ export default function GameEditorModal({
     api.games.getGame(game.id)
       .then((fullGame) => {
         if (fullGame) {
-          initFromGame(fullGame);
+          initFromGame(fullGame as EditableGameInput);
         }
       })
       .catch((err) => {
@@ -251,8 +257,8 @@ export default function GameEditorModal({
         onSave(updated);
         onClose();
       }, 400);
-    } catch (err: any) {
-      setSaveError(typeof err === "string" ? err : err.message || t("editor_modal.save_error"));
+    } catch (err: unknown) {
+      setSaveError(getErrorMessage(err, t("editor_modal.save_error")));
     } finally {
       setIsSaving(false);
     }
@@ -279,7 +285,11 @@ export default function GameEditorModal({
     }));
   };
 
-  const handleUpdateAction = (index: number, key: keyof LaunchConfiguration, value: any) => {
+  const handleUpdateAction = <K extends keyof LaunchConfiguration>(
+    index: number,
+    key: K,
+    value: LaunchConfiguration[K]
+  ) => {
     setFormData((prev) => {
       const updated = [...prev.play_actions];
       updated[index] = { ...updated[index], [key]: value };

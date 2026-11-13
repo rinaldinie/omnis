@@ -1,7 +1,8 @@
 import { useState, useCallback } from "react";
-import { GameDto, ActiveGameSession, normalizeGame } from "../types";
+import { GameDto, ActiveGameSession, TranslateFn, normalizeGame } from "../types";
 import { api } from "../api";
 import soundEffects from "../utils/soundEffects";
+import { getErrorMessage } from "../utils/errors";
 import { useLibraryStore, useUiStore } from "../stores";
 
 export interface UseGameOperationsOptions {
@@ -11,7 +12,7 @@ export interface UseGameOperationsOptions {
   setSelectedGame?: (game: GameDto | null | ((prev: GameDto | null) => GameDto | null)) => void;
   refreshLibrary?: () => Promise<void>;
   setStatusMessage?: (msg: string) => void;
-  statusText: (key: string, params?: Record<string, any>) => string;
+  statusText: TranslateFn;
   setIsSyncing?: (syncing: boolean) => void;
   setIsGameRunning?: (running: boolean) => void;
   setActiveGame?: (
@@ -20,7 +21,7 @@ export interface UseGameOperationsOptions {
       | null
       | ((prev: ActiveGameSession | null) => ActiveGameSession | null)
   ) => void;
-  t: (key: string, params?: Record<string, any>) => string;
+  t: TranslateFn;
 }
 
 export function useGameOperations({
@@ -77,9 +78,9 @@ export function useGameOperations({
           ? statusText("library_scanned_count", { count })
           : statusText("library_scanned")
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.warn("Sync error:", err);
-      setStatusMessage(statusText("library_scan_error", { error: String(err) }));
+      setStatusMessage(statusText("library_scan_error", { error: getErrorMessage(err) }));
     } finally {
       setIsSyncing(false);
     }
@@ -92,9 +93,9 @@ export function useGameOperations({
       await api.metadata.downloadAllMetadata();
       await refreshLibrary();
       setStatusMessage(statusText("metadata_updated"));
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.warn("Download metadata error:", err);
-      setStatusMessage(statusText("metadata_error", { error: String(err) }));
+      setStatusMessage(statusText("metadata_error", { error: getErrorMessage(err) }));
     } finally {
       setIsDownloading(false);
     }
@@ -115,10 +116,10 @@ export function useGameOperations({
       } else {
         setStatusMessage(statusText("game_running"));
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Launch game error:", err);
-      const errMsg = typeof err === "string" ? err : err?.message || t("app_misc.launch_error_default");
-      setStatusMessage(statusText("launch_error", { error: String(errMsg) }));
+      const errMsg = getErrorMessage(err, t("app_misc.launch_error_default"));
+      setStatusMessage(statusText("launch_error", { error: errMsg }));
       setIsGameRunning(false);
       setActiveGame(null);
     }
@@ -139,8 +140,8 @@ export function useGameOperations({
       } else {
         setStatusMessage(statusText("no_game_running"));
       }
-    } catch (err: any) {
-      setStatusMessage(statusText("stop_error", { error: String(err) }));
+    } catch (err: unknown) {
+      setStatusMessage(statusText("stop_error", { error: getErrorMessage(err) }));
     }
   }, [setShowKillConfirmModal, setStatusMessage, statusText]);
 
@@ -152,8 +153,8 @@ export function useGameOperations({
     try {
       await api.games.openGameInstallDir(gameId);
       setStatusMessage(statusText("folder_opening"));
-    } catch (err: any) {
-      setStatusMessage(statusText("folder_error", { error: String(err?.message || err) }));
+    } catch (err: unknown) {
+      setStatusMessage(statusText("folder_error", { error: getErrorMessage(err) }));
     }
   }, [setStatusMessage, statusText]);
 
@@ -161,8 +162,8 @@ export function useGameOperations({
     try {
       const path = await api.games.createDesktopShortcut(gameId);
       setStatusMessage(statusText("shortcut_created", { path: String(path) }));
-    } catch (err: any) {
-      setStatusMessage(statusText("shortcut_error", { error: String(err?.message || err) }));
+    } catch (err: unknown) {
+      setStatusMessage(statusText("shortcut_error", { error: getErrorMessage(err) }));
     }
   }, [setStatusMessage, statusText]);
 
@@ -170,8 +171,8 @@ export function useGameOperations({
     try {
       await api.games.verifyGameFiles(gameId);
       setStatusMessage(statusText("verify_started"));
-    } catch (err: any) {
-      setStatusMessage(statusText("verify_error", { error: String(err?.message || err) }));
+    } catch (err: unknown) {
+      setStatusMessage(statusText("verify_error", { error: getErrorMessage(err) }));
     }
   }, [setStatusMessage, statusText]);
 
@@ -185,8 +186,8 @@ export function useGameOperations({
       await api.games.uninstallGame(gameId);
       setStatusMessage(statusText("uninstall_started"));
       await refreshLibrary();
-    } catch (err: any) {
-      setStatusMessage(statusText("uninstall_error", { error: String(err?.message || err) }));
+    } catch (err: unknown) {
+      setStatusMessage(statusText("uninstall_error", { error: getErrorMessage(err) }));
     }
   }, [setStatusMessage, statusText, refreshLibrary]);
 
@@ -203,8 +204,8 @@ export function useGameOperations({
       if (selectedGame?.id === gameId) {
         setSelectedGame(null);
       }
-    } catch (err: any) {
-      setStatusMessage(statusText("remove_error", { error: String(err?.message || err) }));
+    } catch (err: unknown) {
+      setStatusMessage(statusText("remove_error", { error: getErrorMessage(err) }));
     }
   }, [games, t, statusText, setStatusMessage, refreshLibrary, selectedGame, setSelectedGame]);
 
@@ -219,8 +220,8 @@ export function useGameOperations({
         setGames((prev) => prev.map((g) => (g.id === normalized.id ? normalized : g)));
         setStatusMessage(statusText("metadata_updated_game", { title: normalized.title }));
       }
-    } catch (err: any) {
-      setStatusMessage(statusText("metadata_download_error", { error: String(err) }));
+    } catch (err: unknown) {
+      setStatusMessage(statusText("metadata_download_error", { error: getErrorMessage(err) }));
     } finally {
       setIsEnrichingSingle(false);
     }
@@ -237,7 +238,7 @@ export function useGameOperations({
         setGames((prev) => prev.map((g) => (g.id === normalized.id ? normalized : g)));
         setStatusMessage(statusText("hltb_updated", { title: normalized.title }));
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.warn("Direct HLTB refresh error, falling back to full enrichment:", err);
       await handleEnrichSingleGame(gameId);
     } finally {
@@ -255,7 +256,7 @@ export function useGameOperations({
         refreshLibrary();
         setStatusMessage(statusText("edits_saved", { title: normalized.title }));
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Failed to update completion status:", err);
     }
   }, [setSelectedGame, setGames, refreshLibrary, setStatusMessage, statusText]);
@@ -266,7 +267,7 @@ export function useGameOperations({
         await api.games.setGameHidden(game.id, !game.is_hidden);
         await refreshLibrary();
         setStatusMessage(statusText("game_updated"));
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Toggle hidden error:", err);
       }
     },
@@ -283,7 +284,7 @@ export function useGameOperations({
         }
         await refreshLibrary();
         setStatusMessage(statusText("game_updated"));
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Toggle favorite error:", err);
       }
     },
@@ -296,7 +297,7 @@ export function useGameOperations({
         await api.games.promoteDuplicateCopy(copyId);
         await refreshLibrary();
         setStatusMessage(statusText("game_updated"));
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Promote duplicate copy error:", err);
       }
     },

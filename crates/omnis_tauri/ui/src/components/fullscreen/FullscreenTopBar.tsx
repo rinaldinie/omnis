@@ -13,7 +13,7 @@ import {
   BatteryMedium,
   BatteryFull,
 } from "lucide-react";
-import { ActiveGameSession } from "../../types";
+import { ActiveGameSession, TranslateFn } from "../../types";
 import { StoreIcon } from "../StoreBadge";
 import soundEffects from "../../utils/soundEffects";
 import { Glyph } from "./ConsoleChrome";
@@ -45,7 +45,7 @@ export interface FullscreenTopBarProps {
   searchQuery: string;
   gamepadConnected: boolean;
   clock: string;
-  t: (key: string, params?: Record<string, any>) => string;
+  t: TranslateFn;
 }
 
 export const FullscreenTopBar: React.FC<FullscreenTopBarProps> = ({

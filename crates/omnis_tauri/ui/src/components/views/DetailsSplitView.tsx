@@ -1,5 +1,5 @@
 import React from "react";
-import { ActiveGameSession, GameDto, ThemeConfig, ViewMode } from "../../types";
+import { ActiveGameSession, GameDto, ThemeConfig, TranslateFn, ViewMode } from "../../types";
 import { DetailsSidebar } from "./details/DetailsSidebar";
 import { DetailsHeroHeader } from "./details/DetailsHeroHeader";
 import { DetailsMetadataPanel } from "./details/DetailsMetadataPanel";
@@ -24,7 +24,7 @@ interface DetailsSplitViewProps {
   setShowEditorModal: (show: boolean) => void;
   setGameToResolve: (game: GameDto) => void;
   setShowResolutionModal: (show: boolean) => void;
-  t: (key: string, params?: Record<string, any>) => string;
+  t: TranslateFn;
   isGameRunning?: boolean;
   activeGame?: ActiveGameSession | null;
   elapsedSeconds?: number;

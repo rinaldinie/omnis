@@ -1,7 +1,8 @@
 import React from "react";
 import { Filter, ChevronDown, X, Layers, ZoomOut, ZoomIn } from "lucide-react";
-import { GroupBy, ViewMode } from "../../types";
-import FilterAndSortPopover from "./FilterAndSortPopover";
+import { GroupBy, TranslateFn, ViewMode } from "../../types";
+import type { GameSortMode } from "../../utils/sortGames";
+import FilterAndSortPopover, { FilterCounts } from "./FilterAndSortPopover";
 import GroupByPopover from "./GroupByPopover";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,8 +13,8 @@ export interface CatalogToolbarProps {
   viewMode: ViewMode;
   showFilterMenu: boolean;
   setShowFilterMenu: React.Dispatch<React.SetStateAction<boolean>>;
-  sortMode: any;
-  setSortMode: (mode: any) => void;
+  sortMode: GameSortMode;
+  setSortMode: (mode: GameSortMode) => void;
   selectedFlags: string[];
   toggleFlag: (flag: string) => void;
   selectedStatuses: string[];
@@ -26,7 +27,7 @@ export interface CatalogToolbarProps {
   toggleFeature: (feature: string) => void;
   clearAllFilters: () => void;
   totalActiveFilters: number;
-  filterCounts: any;
+  filterCounts: FilterCounts;
   availableGenres: string[];
   availableFeatures: string[];
   activeChips: Array<{ id: string; label: string }>;
@@ -41,7 +42,7 @@ export interface CatalogToolbarProps {
   currentGroupLabel: string;
   gridCardWidth: number;
   setGridCardWidth: React.Dispatch<React.SetStateAction<number>>;
-  t: (key: string, params?: Record<string, any>) => string;
+  t: TranslateFn;
 }
 
 export const CatalogToolbar: React.FC<CatalogToolbarProps> = ({

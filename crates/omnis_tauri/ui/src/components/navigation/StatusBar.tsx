@@ -1,6 +1,6 @@
 import React from "react";
 import { RefreshCw } from "lucide-react";
-import { ActiveGameSession, AchievementSyncProgress } from "../../types";
+import { ActiveGameSession, AchievementSyncProgress, TranslateFn } from "../../types";
 import { ActiveGameStatusBarTicker } from "../../context/ActiveGameTimerContext";
 import { AchievementSyncIndicator } from "../achievements";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,7 @@ export interface StatusBarProps {
   statusMessage: string;
   achievementSync: AchievementSyncProgress | null;
   currentThemeName: string;
-  t: (key: string, params?: Record<string, any>) => string;
+  t: TranslateFn;
 }
 
 export const StatusBar: React.FC<StatusBarProps> = ({

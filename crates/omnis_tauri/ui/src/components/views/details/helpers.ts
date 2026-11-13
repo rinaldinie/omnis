@@ -1,3 +1,5 @@
+import type { TranslateFn } from "../../../types";
+
 export interface CompletionStatusInfo {
   label: string;
   color: string;
@@ -8,7 +10,7 @@ export interface CompletionStatusInfo {
 
 export function getCompletionStatusInfo(
   status: string | null | undefined,
-  t: (key: string, params?: Record<string, any>) => string
+  t: TranslateFn
 ): CompletionStatusInfo {
   switch (status) {
     case "Playing":

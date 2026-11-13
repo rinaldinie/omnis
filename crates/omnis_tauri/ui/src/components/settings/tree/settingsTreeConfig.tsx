@@ -25,7 +25,7 @@ import {
 import { STORE_LIST } from '../StoreAccountsTab';
 import { ActionTooltip } from '@/components/ui/tooltip';
 import type { StoreAccount } from '../../store_accounts/types';
-import type { ProviderInfo } from '../../../types';
+import type { ProviderInfo, TranslateFn } from '../../../types';
 
 export type SettingsTab =
   | 'general'
@@ -83,7 +83,7 @@ export interface TreeGroup {
 }
 
 export interface BuildTreeOptions {
-  t: (key: string, options?: any) => string;
+  t: TranslateFn;
   updaterStatus?: string;
   storeAccounts: StoreAccount[];
   metadataProviders: ProviderInfo[];

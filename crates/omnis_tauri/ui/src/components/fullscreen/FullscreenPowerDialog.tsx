@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Moon, RotateCw, Power, Monitor, LogOut } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import type { TranslateFn } from "../../types";
 
 export type PowerActionId = "sleep" | "restart" | "shutdown" | "desktop" | "exit";
 
@@ -17,7 +18,7 @@ export interface FullscreenPowerDialogProps {
   onClose: () => void;
   onSelectAction: (actionId: PowerActionId) => void;
   soundEffects: { playSelect: () => void; playNav: () => void };
-  t: (key: string, params?: Record<string, any>) => string;
+  t: TranslateFn;
 }
 
 export const FullscreenPowerDialog: React.FC<FullscreenPowerDialogProps> = ({

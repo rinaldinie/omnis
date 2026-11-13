@@ -13,7 +13,7 @@ import {
   Square,
   BarChart2,
 } from "lucide-react";
-import { ActiveGameSession, ProviderInfo, ThemeConfig, ViewMode } from "../../types";
+import { ActiveGameSession, ProviderInfo, ThemeConfig, TranslateFn, ViewMode } from "../../types";
 import soundEffects from "../../utils/soundEffects";
 import { useUpdater } from "../../hooks/useAppUpdater";
 import { useActiveGameTimer } from "../../context/ActiveGameTimerContext";
@@ -48,7 +48,7 @@ export interface TopBarProps {
   handleToggleMaximize: () => void;
   handleClose: () => void;
   handleStartDragging: (e: React.MouseEvent) => void;
-  t: (key: string, params?: Record<string, any>) => string;
+  t: TranslateFn;
   activeGame?: ActiveGameSession | null;
   elapsedSeconds?: number;
   formatDuration?: (seconds: number) => string;

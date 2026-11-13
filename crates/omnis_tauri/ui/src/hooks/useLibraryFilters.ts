@@ -415,12 +415,13 @@ export function useLibraryFilters(games: GameDto[]) {
 
     filteredGames.forEach((game) => {
       let key: string;
-      switch (groupBy) {
+      const effectiveGroupBy: string = groupBy;
+      switch (effectiveGroupBy) {
         case "library":
           key = game.library ? game.library.toUpperCase() : t("library_groups.other").toUpperCase();
           break;
         case "is_installed":
-        case "installed" as any:
+        case "installed":
           key = game.is_installed ? t("sidebar.installed") : t("library_groups.downloadable");
           break;
         case "genre":

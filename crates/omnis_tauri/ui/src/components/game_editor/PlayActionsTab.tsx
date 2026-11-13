@@ -17,7 +17,11 @@ interface PlayActionsTabProps {
   playActions: LaunchConfiguration[];
   onAddAction: () => void;
   onRemoveAction: (index: number) => void;
-  onUpdateAction: (index: number, key: keyof LaunchConfiguration, value: any) => void;
+  onUpdateAction: <K extends keyof LaunchConfiguration>(
+    index: number,
+    key: K,
+    value: LaunchConfiguration[K]
+  ) => void;
   onPickExe: (index: number) => void;
   onPickDir: (index: number) => void;
 }
@@ -26,7 +30,11 @@ interface PlayActionCardProps {
   action: LaunchConfiguration;
   idx: number;
   onRemoveAction: (index: number) => void;
-  onUpdateAction: (index: number, key: keyof LaunchConfiguration, value: any) => void;
+  onUpdateAction: <K extends keyof LaunchConfiguration>(
+    index: number,
+    key: K,
+    value: LaunchConfiguration[K]
+  ) => void;
   onPickExe: (index: number) => void;
   onPickDir: (index: number) => void;
 }
@@ -60,7 +68,8 @@ const PlayActionCard: React.FC<PlayActionCardProps> = ({
   };
 
   const trackingType = action.tracking_mode?.type || "KernelJobObject";
-  const trackingTarget = (action.tracking_mode as any)?.target || "";
+  const trackingTarget =
+    action.tracking_mode && "target" in action.tracking_mode ? action.tracking_mode.target : "";
 
   return (
     <div className="p-5 rounded-2xl border border-border bg-card space-y-4 shadow-sm">

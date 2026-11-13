@@ -21,6 +21,7 @@ import {
   GameDto,
   ViewMode,
   GroupBy,
+  TranslateFn,
   formatImageUrl,
   normalizeGame,
   TAURI_EVENTS,
@@ -102,9 +103,8 @@ export default function App() {
   const { t } = useTranslation();
   const tRef = useRef(t);
   tRef.current = t;
-  const statusText = useCallback(
-    (key: string, params?: Record<string, string | number>) =>
-      tRef.current(`app_status.${key}`, params),
+  const statusText = useCallback<TranslateFn>(
+    (key, params) => tRef.current(`app_status.${key}`, params),
     []
   );
 
@@ -492,7 +492,7 @@ export default function App() {
       return;
     }
     try {
-      if (typeof window !== "undefined" && (window as any).__TAURI_INTERNALS__) {
+      if (typeof window !== "undefined" && window.__TAURI_INTERNALS__) {
         const { getCurrentWindow } = await import("@tauri-apps/api/window");
         await getCurrentWindow().startDragging();
         return;

@@ -15,7 +15,7 @@ export async function openExternalUrl(url: string): Promise<void> {
   }
 
   try {
-    if (typeof window !== "undefined" && (window as any).__TAURI_INTERNALS__) {
+    if (typeof window !== "undefined" && window.__TAURI_INTERNALS__) {
       await api.window.openExternalUrl(trimmed);
       return;
     }

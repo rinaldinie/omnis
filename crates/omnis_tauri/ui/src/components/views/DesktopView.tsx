@@ -2,8 +2,13 @@ import React, { useState } from "react";
 import {
   GameDto,
   GroupBy,
+  ProviderInfo,
   ThemeConfig,
+  TranslateFn,
 } from "../../types";
+import type { GameSortMode } from "../../utils/sortGames";
+import type { FilterCounts } from "../navigation/FilterAndSortPopover";
+import type { FilterChip } from "../../hooks/useLibraryFilters";
 import { useLibraryStore, useUiStore } from "../../stores";
 import TopBar from "../navigation/TopBar";
 import Sidebar from "../navigation/Sidebar";
@@ -25,13 +30,13 @@ export interface DesktopViewProps {
   toggleFullscreen: () => void;
   handleToggleSound: () => void;
   loadProvidersAndConfig: () => void;
-  providers: any[];
+  providers: ProviderInfo[];
   handleSync: () => void;
   handleMinimize: () => void;
   handleToggleMaximize: () => void;
   handleClose: () => void;
   handleStartDragging: (e: React.MouseEvent) => void;
-  t: (key: string, params?: Record<string, any>) => string;
+  t: TranslateFn;
   formatDuration: (s: number) => string;
   handleKillRunningGame: () => void;
   activeFilter: string;
@@ -40,8 +45,8 @@ export interface DesktopViewProps {
   gamepadConnected: boolean;
   gamepadName: string;
   handleOpenFolder: (folder: string) => void;
-  sortMode: any;
-  setSortMode: (mode: any) => void;
+  sortMode: GameSortMode;
+  setSortMode: (mode: GameSortMode) => void;
   selectedFlags: string[];
   toggleFlag: (flag: string) => void;
   selectedStatuses: string[];
@@ -54,10 +59,10 @@ export interface DesktopViewProps {
   toggleFeature: (feature: string) => void;
   clearAllFilters: () => void;
   totalActiveFilters: number;
-  filterCounts: any;
+  filterCounts: FilterCounts;
   availableGenres: string[];
   availableFeatures: string[];
-  activeChips: any[];
+  activeChips: FilterChip[];
   removeFilterChip: (id: string) => void;
   filteredGames: GameDto[];
   groupedGames: Record<string, GameDto[]>;

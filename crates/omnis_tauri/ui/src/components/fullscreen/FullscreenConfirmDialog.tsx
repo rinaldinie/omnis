@@ -1,6 +1,6 @@
 import React from "react";
 import { Monitor, Power, Trash2, Moon, RotateCw, LogOut } from "lucide-react";
-import { GameDto } from "../../types";
+import { GameDto, TranslateFn } from "../../types";
 
 export type ConfirmKind = "exit" | "desktop" | "uninstall" | "sleep" | "restart" | "shutdown";
 
@@ -14,7 +14,7 @@ export interface FullscreenConfirmDialogProps {
   confirmFocus: "cancel" | "confirm";
   onSelectButton: (button: "cancel" | "confirm") => void;
   soundEffects: { playSelect: () => void };
-  t: (key: string, params?: Record<string, any>) => string;
+  t: TranslateFn;
 }
 
 const KIND_ICON = {

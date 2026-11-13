@@ -1,5 +1,16 @@
 import { convertFileSrc, isTauri } from "@tauri-apps/api/core";
 
+declare global {
+  interface Window {
+    __TAURI_INTERNALS__?: Record<string, unknown>;
+    __TAURI__?: unknown;
+  }
+}
+
+export type TranslationParamValue = string | number | boolean | undefined;
+export type TranslationParams = Record<string, TranslationParamValue>;
+export type TranslateFn = (key: string, params?: TranslationParams) => string;
+
 export type ViewMode = "grid" | "details" | "list" | "stats";
 
 export type GroupBy =
@@ -143,6 +154,27 @@ export interface ThemeConfig {
   video_delay_ms?: number;
 }
 
+export interface PluginSettingFieldType {
+  type?: string;
+  options?: string[];
+  default?: string;
+  placeholder?: string;
+}
+
+export interface PluginSettingFieldSchema {
+  key: string;
+  label: string;
+  description?: string;
+  required: boolean;
+  type: string;
+  placeholder?: string;
+  options?: string[];
+  default?: string;
+  field_type?: PluginSettingFieldType;
+}
+
+export type PluginSettingsMap = Record<string, string>;
+
 export interface ProviderInfo {
   id: string;
   name: string;
@@ -162,20 +194,10 @@ export interface ProviderInfo {
     groups: Array<{
       id: string;
       title: string;
-      fields: Array<{
-        key: string;
-        label: string;
-        description?: string;
-        required: boolean;
-        type: string;
-        placeholder?: string;
-        options?: string[];
-        default?: any;
-        field_type?: any;
-      }>;
+      fields: PluginSettingFieldSchema[];
     }>;
   } | null;
-  settings_values: Record<string, any>;
+  settings_values: PluginSettingsMap;
   has_configured_key: boolean;
   plugin_type?: string | null;
 }
@@ -197,7 +219,7 @@ export interface MetadataPipelineConfig {
 
 export function isTauriEnvironment(): boolean {
   if (typeof window === "undefined") return false;
-  return isTauri() || !!(window as any).__TAURI_INTERNALS__ || !!(window as any).__TAURI__;
+  return isTauri() || !!window.__TAURI_INTERNALS__ || !!window.__TAURI__;
 }
 
 export function formatImageUrl(src: string | null | undefined): string | null {
@@ -231,7 +253,9 @@ export function formatImageUrl(src: string | null | undefined): string | null {
   return src;
 }
 
-export const normalizeGame = (g: any): GameDto => {
+export type RawGameDto = GameDto & { library_id?: string };
+
+export const normalizeGame = (g: RawGameDto): GameDto => {
   if (!g) return g;
   const library = g.library || g.library_id || "custom";
   const rawCover = g.cover_image_path ?? g.cover_image ?? null;

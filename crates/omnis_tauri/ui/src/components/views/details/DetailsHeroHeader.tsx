@@ -25,7 +25,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ActiveGameSession, GameDto, ThemeConfig, ViewMode, formatImageUrl } from "../../../types";
+import { ActiveGameSession, GameDto, ThemeConfig, TranslateFn, ViewMode, formatImageUrl } from "../../../types";
 import { useActiveGameTimer } from "../../../context/ActiveGameTimerContext";
 import { StoreBadge } from "../../StoreBadge";
 import { VideoBackdrop } from "../../common/VideoBackdrop";
@@ -46,7 +46,7 @@ export interface DetailsHeroHeaderProps {
   setShowEditorModal: (show: boolean) => void;
   setGameToResolve: (game: GameDto) => void;
   setShowResolutionModal: (show: boolean) => void;
-  t: (key: string, params?: Record<string, any>) => string;
+  t: TranslateFn;
   isGameRunning?: boolean;
   activeGame?: ActiveGameSession | null;
   elapsedSeconds?: number;

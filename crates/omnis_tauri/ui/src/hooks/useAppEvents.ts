@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
-import { ActiveGameSession, AchievementSyncProgress, GameDto, TAURI_EVENTS } from "../types";
+import { ActiveGameSession, AchievementSyncProgress, GameDto, SessionState, TAURI_EVENTS, TranslateFn } from "../types";
+import type { SettingsTab } from "../components/settings";
 import { api } from "../api";
 import { listenTauri } from "../api/client";
 import soundEffects from "../utils/soundEffects";
@@ -17,8 +18,8 @@ export interface UseAppEventsOptions {
   loadThemes: () => Promise<void>;
   loadProvidersAndConfig: () => Promise<void>;
   handleLaunch: (gameId: string) => void;
-  handleOpenSettings?: (tab?: any) => void;
-  statusText: (key: string, params?: Record<string, any>) => string;
+  handleOpenSettings?: (tab?: SettingsTab) => void;
+  statusText: TranslateFn;
   setPipelineProgress: (progress: string | null) => void;
   gamesRef?: React.MutableRefObject<GameDto[]>;
 }
@@ -263,7 +264,7 @@ export function useAppEvents({
             session_id: payload.session_id,
             game_id: payload.game_id,
             title: payload.title,
-            state: (payload.state as any) || "launching",
+            state: (payload.state as SessionState) || "launching",
             started_at: payload.started_at,
             process_detected_at: null,
           });
@@ -279,7 +280,7 @@ export function useAppEvents({
           pid?: number;
         }>(TAURI_EVENTS.GAME_STATUS_CHANGED, (payload) => {
           if (activeGameRef.current && activeGameRef.current.session_id === payload.session_id) {
-            const newState = payload.state as any;
+            const newState = payload.state as SessionState;
             latestRef.current.setActiveGame((prev) => prev ? {
               ...prev,
               state: newState,

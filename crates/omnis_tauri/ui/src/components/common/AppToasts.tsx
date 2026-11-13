@@ -7,7 +7,8 @@ import {
   Gamepad2,
   Sparkles,
 } from "lucide-react";
-import { AchievementSyncProgress } from "../../types";
+import { AchievementSyncProgress, TranslateFn } from "../../types";
+import type { SettingsTab } from "../settings";
 import { AchievementSyncIndicator } from "../achievements";
 import { Button } from "@/components/ui/button";
 import { ActionTooltip } from "@/components/ui/tooltip";
@@ -39,8 +40,8 @@ export interface AppToastsProps {
     status: string;
     availableVersion?: string | null;
   };
-  onOpenSettings: (tab?: any) => void;
-  t: (key: string, params?: Record<string, any>) => string;
+  onOpenSettings: (tab?: SettingsTab) => void;
+  t: TranslateFn;
 }
 
 export const AppToasts: React.FC<AppToastsProps> = ({

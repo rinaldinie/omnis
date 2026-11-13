@@ -12,7 +12,12 @@ import {
   RefreshCw,
   Trash2,
 } from "lucide-react";
-import { ProviderInfo } from "../../../types";
+import {
+  ProviderInfo,
+  PluginSettingsMap,
+  PluginSettingFieldSchema,
+  PluginSettingFieldType,
+} from "../../../types";
 import { useTranslation } from "../../../i18n";
 import { renderProviderIcon, getProviderColor } from "./constants";
 import { Button } from "@/components/ui/button";
@@ -32,8 +37,8 @@ export interface PluginCardProps {
   isEnabled: boolean;
   onToggle: (provId: string, enabled: boolean) => void;
   onUninstall: (pluginId: string) => void;
-  settings: Record<string, any>;
-  onSettingChange: (provId: string, key: string, value: any) => void;
+  settings: PluginSettingsMap;
+  onSettingChange: (provId: string, key: string, value: string) => void;
   isApiKeyVisible: boolean;
   onToggleApiKeyVisibility: (provId: string) => void;
   testInfo?: { loading: boolean; success?: boolean; message?: string };
@@ -304,82 +309,74 @@ export const PluginCard: React.FC<PluginCardProps> = ({
                     )}
                   </div>
 
-                  {(field as any).type === "Enum" ||
-                  field.field_type?.type === "Enum" ||
-                  (field as any).options ? (
-                    <Select
-                      value={
-                        settings[field.key] ||
-                        (field as any).default ||
-                        field.field_type?.default ||
-                        undefined
-                      }
-                      onValueChange={(value) => onSettingChange(prov.id, field.key, value)}
-                    >
-                      <SelectTrigger
-                        className="w-full h-8 px-3 rounded-lg text-xs font-sans"
-                        style={{
-                          backgroundColor: "var(--bg-card)",
-                          borderColor: "var(--border-color)",
-                          color: "var(--text-primary)",
-                        }}
-                      >
-                        <SelectValue placeholder={t("plugin_manager.enter_value")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(
-                          (field as any).options ||
-                          field.field_type?.options ||
-                          []
-                        ).map((opt: string) => (
-                          <SelectItem key={opt} value={opt}>
-                            {opt}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <div className="relative flex items-center">
-                      <Input
-                        type={
-                          ((field as any).type === "SecretString" ||
-                            field.field_type?.type === "SecretString") &&
-                          !isApiKeyVisible
-                            ? "password"
-                            : "text"
-                        }
-                        placeholder={
-                          (field as any).placeholder ||
-                          field.field_type?.placeholder ||
-                          t("plugin_manager.enter_value")
-                        }
-                        value={settings[field.key] || ""}
-                        onChange={(e) => onSettingChange(prov.id, field.key, e.target.value)}
-                        className="w-full h-8 px-3 pr-9 rounded-lg text-xs font-mono"
-                        style={{
-                          backgroundColor: "var(--bg-card)",
-                          borderColor: "var(--border-color)",
-                          color: "var(--text-primary)",
-                        }}
-                      />
-                      {((field as any).type === "SecretString" ||
-                        field.field_type?.type === "SecretString") && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-xs"
-                          onClick={() => onToggleApiKeyVisibility(prov.id)}
-                          className="h-auto w-auto p-1 absolute right-2 text-slate-400 hover:text-white hover:bg-transparent"
+                  {((): React.ReactNode => {
+                    const legacyField = field as PluginSettingFieldSchema & PluginSettingFieldType;
+                    const fieldType = legacyField.type || field.field_type?.type;
+                    const fieldOptions = legacyField.options || field.field_type?.options;
+                    const fieldDefault = legacyField.default || field.field_type?.default;
+                    const fieldPlaceholder = legacyField.placeholder || field.field_type?.placeholder;
+                    const isEnum = fieldType === "Enum" || !!fieldOptions;
+                    const isSecret = fieldType === "SecretString";
+
+                    if (isEnum) {
+                      return (
+                        <Select
+                          value={settings[field.key] || fieldDefault || undefined}
+                          onValueChange={(value) => onSettingChange(prov.id, field.key, value)}
                         >
-                          {isApiKeyVisible ? (
-                            <EyeOff className="w-3.5 h-3.5" />
-                          ) : (
-                            <Eye className="w-3.5 h-3.5" />
-                          )}
-                        </Button>
-                      )}
-                    </div>
-                  )}
+                          <SelectTrigger
+                            className="w-full h-8 px-3 rounded-lg text-xs font-sans"
+                            style={{
+                              backgroundColor: "var(--bg-card)",
+                              borderColor: "var(--border-color)",
+                              color: "var(--text-primary)",
+                            }}
+                          >
+                            <SelectValue placeholder={t("plugin_manager.enter_value")} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(fieldOptions || []).map((opt: string) => (
+                              <SelectItem key={opt} value={opt}>
+                                {opt}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      );
+                    }
+
+                    return (
+                      <div className="relative flex items-center">
+                        <Input
+                          type={isSecret && !isApiKeyVisible ? "password" : "text"}
+                          placeholder={fieldPlaceholder || t("plugin_manager.enter_value")}
+                          value={settings[field.key] || ""}
+                          onChange={(e) => onSettingChange(prov.id, field.key, e.target.value)}
+                          className="w-full h-8 px-3 pr-9 rounded-lg text-xs font-mono"
+                          style={{
+                            backgroundColor: "var(--bg-card)",
+                            borderColor: "var(--border-color)",
+                            color: "var(--text-primary)",
+                          }}
+                        />
+                        {isSecret && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-xs"
+                            onClick={() => onToggleApiKeyVisibility(prov.id)}
+                            className="h-auto w-auto p-1 absolute right-2 text-slate-400 hover:text-white hover:bg-transparent"
+                          >
+                            {isApiKeyVisible ? (
+                              <EyeOff className="w-3.5 h-3.5" />
+                            ) : (
+                              <Eye className="w-3.5 h-3.5" />
+                            )}
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })()}
                   {field.description && (
                     <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>
                       {field.description}

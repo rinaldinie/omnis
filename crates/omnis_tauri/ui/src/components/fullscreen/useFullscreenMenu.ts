@@ -21,8 +21,10 @@ import {
   BarChart3,
   OctagonX,
 } from "lucide-react";
-import { GameDto, ThemeConfig } from "../../types";
-import { SUPPORTED_LOCALES } from "../../i18n/types";
+import { GameDto, ThemeConfig, TranslateFn } from "../../types";
+import { LocaleCode, SUPPORTED_LOCALES } from "../../i18n/types";
+import type { AppUpdater } from "../../hooks/useAppUpdater";
+import type { ConfirmState } from "./FullscreenConfirmDialog";
 import { GAME_SORT_MODES, GameSortMode } from "../../utils/sortGames";
 import soundEffects from "../../utils/soundEffects";
 import type { ControllerType, HomeFocusZone } from "../../hooks/useGamepadNavigation";
@@ -32,14 +34,14 @@ import { ConsoleMenuItem } from "./constants";
 const TRAILERS_STORAGE_KEY = "omnis_fullscreen_trailers";
 
 export interface UseFullscreenMenuOptions {
-  updater: any;
+  updater: AppUpdater | null;
   themes: ThemeConfig[];
   currentTheme: ThemeConfig;
   onSelectTheme?: (theme: ThemeConfig) => void;
   sortMode?: GameSortMode;
   onSortModeChange?: (mode: GameSortMode) => void;
   locale: string;
-  setLocale: (code: any) => void;
+  setLocale: (code: LocaleCode) => void;
   filteredGames: GameDto[];
   focusedIndex: number;
   setFocusedIndex: (idx: number) => void;
@@ -62,12 +64,12 @@ export interface UseFullscreenMenuOptions {
   effectiveFamily: ControllerType;
   cycleControllerStyle: (delta: 1 | -1) => void;
   onOpenPowerMenu: () => void;
-  confirm: any;
+  confirm: ConfirmState | null;
   /** Opens the console statistics page */
   onOpenStatistics?: () => void;
   activeGameTitle?: string | null;
   handleKillRunningGame?: () => void;
-  t: (key: string, params?: Record<string, any>) => string;
+  t: TranslateFn;
 }
 
 export function useFullscreenMenu({

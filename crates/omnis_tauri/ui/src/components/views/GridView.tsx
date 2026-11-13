@@ -34,7 +34,7 @@ interface GridViewProps {
   setViewMode: (mode: ViewMode) => void;
   handleOpenContextMenu: (e: React.MouseEvent, game: GameDto) => void;
   handleLaunch: (gameId: string) => void;
-  setGameToEdit: (game: any) => void;
+  setGameToEdit: (game: GameDto) => void;
   setShowEditorModal: (show: boolean) => void;
   activeGame?: ActiveGameSession | null;
   elapsedSeconds?: number;

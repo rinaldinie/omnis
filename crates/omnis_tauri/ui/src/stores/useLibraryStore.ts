@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { api } from "../api";
 import { GameDto, LibraryCounts, normalizeGame } from "../types";
+import { getErrorMessage } from "../utils/errors";
 
 export interface LibraryState {
   games: GameDto[];
@@ -95,9 +96,9 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
         }
       }
       set({ isLoading: false });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Failed to load games or counts", err);
-      set({ isLoading: false, error: err?.message || "Failed to load library" });
+      set({ isLoading: false, error: getErrorMessage(err, "Failed to load library") });
     }
   },
 

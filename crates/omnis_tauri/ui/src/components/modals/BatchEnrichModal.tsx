@@ -17,6 +17,7 @@ import {
 import { listen } from "@tauri-apps/api/event";
 import { GameDto, formatImageUrl, TAURI_EVENTS } from "../../types";
 import { api } from "../../api";
+import { getErrorMessage } from "../../utils/errors";
 import { useTranslation } from "../../i18n";
 import { StoreBadge } from "../StoreBadge";
 import {
@@ -304,10 +305,10 @@ export default function BatchEnrichModal({
       }
 
       await onComplete();
-    } catch (err: any) {
+    } catch (err: unknown) {
       setResultMessage({
         type: "error",
-        text: t("batch_enrich.error", { error: String(err) }),
+        text: t("batch_enrich.error", { error: getErrorMessage(err) }),
       });
     } finally {
       setIsRunning(false);

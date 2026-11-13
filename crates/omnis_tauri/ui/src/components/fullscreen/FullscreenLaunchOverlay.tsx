@@ -1,12 +1,12 @@
 import React from "react";
 import { Gamepad2, Loader2 } from "lucide-react";
-import { ActiveGameSession, GameDto, formatImageUrl } from "../../types";
+import { ActiveGameSession, GameDto, TranslateFn, formatImageUrl } from "../../types";
 
 export interface FullscreenLaunchOverlayProps {
   activeGame?: ActiveGameSession | null;
   allGames?: GameDto[];
   filteredGames?: GameDto[];
-  t: (key: string, params?: Record<string, any>) => string;
+  t: TranslateFn;
 }
 
 export const FullscreenLaunchOverlay: React.FC<FullscreenLaunchOverlayProps> = ({

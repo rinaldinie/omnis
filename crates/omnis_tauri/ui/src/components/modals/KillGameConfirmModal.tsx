@@ -1,6 +1,6 @@
 import React from "react";
 import { AlertTriangle, Square } from "lucide-react";
-import type { ActiveGameSession } from "../../types";
+import type { ActiveGameSession, TranslateFn } from "../../types";
 import {
   Dialog,
   DialogContent,
@@ -16,7 +16,7 @@ interface KillGameConfirmModalProps {
   activeGame: ActiveGameSession | null;
   onClose: () => void;
   onConfirm: () => void;
-  t: (key: string, params?: Record<string, any>) => string;
+  t: TranslateFn;
 }
 
 export const KillGameConfirmModal: React.FC<KillGameConfirmModalProps> = ({

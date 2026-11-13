@@ -42,7 +42,7 @@ export default function StatisticsDashboardView({
 
   const fetchStats = async (year: number) => {
     try {
-      const res = await api.stats.getGlobalStatistics({ year } as any);
+      const res = await api.stats.getGlobalStatistics({ year });
       setStats(res);
       // Auto-adjust selectedYear if not in available years
       if (
@@ -76,7 +76,7 @@ export default function StatisticsDashboardView({
       setResetting(true);
       await api.stats.resetStatistics({
         resetPlaytime: resetOption === "all",
-      } as any);
+      });
       setShowResetModal(false);
       soundEffects.playUnlock();
       setShowToast(true);
