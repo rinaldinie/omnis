@@ -1,0 +1,165 @@
+import { describe, it, expect, vi } from "vitest";
+import { render, screen, fireEvent, act } from "@testing-library/react";
+import React from "react";
+import { FullscreenQuickMenu } from "./FullscreenQuickMenu";
+import { useFullscreenMenu, UseFullscreenMenuOptions } from "./useFullscreenMenu";
+import { MENU_SECTION_LABEL_KEYS } from "./constants";
+import type { GameDto, ThemeConfig } from "../../types";
+
+vi.mock("../../utils/soundEffects", () => ({
+  default: { playNav: vi.fn(), playSelect: vi.fn() },
+}));
+
+const theme = { id: "default", name: "Default" } as unknown as ThemeConfig;
+const games = [{ id: "a" }, { id: "b" }] as unknown as GameDto[];
+
+function Harness(props: Partial<UseFullscreenMenuOptions>) {
+  const [isMenuOpen, setIsMenuOpen] = React.useState(true);
+  const menu = useFullscreenMenu({
+    updater: null,
+    themes: [theme],
+    currentTheme: theme,
+    onSelectTheme: vi.fn(),
+    locale: "en",
+    setLocale: vi.fn(),
+    filteredGames: games,
+    focusedIndex: 0,
+    setFocusedIndex: vi.fn(),
+    isMenuOpen,
+    setIsMenuOpen,
+    searchQuery: "",
+    setShowVirtualKeyboard: vi.fn(),
+    layout: "shelf",
+    toggleLayout: vi.fn(),
+    isSyncing: false,
+    handleSync: vi.fn(),
+    scale: 1,
+    stepScale: vi.fn(() => true),
+    soundEnabled: true,
+    handleToggleSound: vi.fn(),
+    styleSetting: "auto",
+    effectiveFamily: "xbox",
+    cycleControllerStyle: vi.fn(),
+    onPowerAction: vi.fn(),
+    confirm: null,
+    t: (k: string) => k,
+    ...props,
+  });
+
+  return (
+    <div>
+      <span data-testid="menu-state">{isMenuOpen ? "open" : "closed"}</span>
+      <span data-testid="depth">{menu.menuLevels.length}</span>
+      <span data-testid="focused">{menu.focusedMenuItem?.id}</span>
+      <FullscreenQuickMenu
+        isMenuOpen={isMenuOpen}
+        onClose={() => setIsMenuOpen(false)}
+        clock="21:30"
+        menuItems={menu.menuItems}
+        safeMenuIndex={menu.safeMenuIndex}
+        setMenuFocusedIndex={menu.setMenuFocusedIndex}
+        soundEffects={{ playSelect: vi.fn() }}
+        t={(k) => k}
+        menuSectionLabelKeys={MENU_SECTION_LABEL_KEYS}
+        menuItemRefs={menu.menuItemRefs}
+        levels={menu.menuLevels}
+        onBack={menu.goBackMenu}
+        onSelectParentItem={menu.selectParentMenuItem}
+      />
+    </div>
+  );
+}
+
+const nav = (direction: "up" | "down" | "left" | "right") =>
+  act(() => {
+    window.dispatchEvent(new CustomEvent("omnis:menu-nav", { detail: { direction } }));
+  });
+const pressA = () =>
+  act(() => {
+    window.dispatchEvent(new CustomEvent("omnis:menu-action-a"));
+  });
+
+describe("FullscreenQuickMenu sub menus", () => {
+  it("lists system actions directly in the root menu instead of a power dialog", () => {
+    render(<Harness />);
+    expect(screen.getByText("console_ui.settings")).toBeTruthy();
+    expect(screen.getByText("console_ui.desktop_mode")).toBeTruthy();
+    expect(screen.getByText("console_ui.exit")).toBeTruthy();
+    expect(screen.getByText("console_ui.sleep")).toBeTruthy();
+    expect(screen.getByText("console_ui.restart")).toBeTruthy();
+    expect(screen.getByText("console_ui.shutdown")).toBeTruthy();
+    expect(screen.queryByText("console_ui.power_options_desc")).toBeNull();
+  });
+
+  it("opens Settings → category panel and unwinds one level per Back press", () => {
+    const handleToggleSound = vi.fn();
+    render(<Harness handleToggleSound={handleToggleSound} />);
+
+    fireEvent.click(screen.getByText("console_ui.settings"));
+    expect(screen.getByTestId("depth").textContent).toBe("2");
+    expect(screen.getByText("console_ui.settings_audio")).toBeTruthy();
+
+    // Settings → Audio (4th category) with the D-pad, then enter it with Right
+    nav("down");
+    nav("down");
+    nav("down");
+    expect(screen.getByTestId("focused").textContent).toBe("settings-cat-audio");
+    nav("right");
+    expect(screen.getByTestId("depth").textContent).toBe("3");
+    expect(screen.getByTestId("focused").textContent).toBe("sound");
+    expect(screen.getByRole("checkbox").getAttribute("aria-checked")).toBe("true");
+
+    pressA();
+    expect(handleToggleSound).toHaveBeenCalledTimes(1);
+
+    // Back: panel → categories → root → closed
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.getByTestId("depth").textContent).toBe("2");
+    expect(screen.getByTestId("focused").textContent).toBe("settings-cat-audio");
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.getByTestId("depth").textContent).toBe("1");
+    expect(screen.getByTestId("menu-state").textContent).toBe("open");
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.getByTestId("menu-state").textContent).toBe("closed");
+  });
+
+  it("switches category by clicking the parent list while a panel is open", () => {
+    render(<Harness />);
+    fireEvent.click(screen.getByText("console_ui.settings"));
+    fireEvent.click(screen.getByText("console_ui.settings_audio"));
+    expect(screen.getByText("console_ui.sound")).toBeTruthy();
+
+    fireEvent.click(screen.getByText("console_ui.settings_input"));
+    expect(screen.getByTestId("depth").textContent).toBe("3");
+    expect(screen.getByTestId("focused").textContent).toBe("controller-style");
+    expect(screen.queryByText("console_ui.sound")).toBeNull();
+  });
+
+  it("asks for a second press before running a system action", () => {
+    const onPowerAction = vi.fn();
+    render(<Harness onPowerAction={onPowerAction} />);
+
+    fireEvent.click(screen.getByText("console_ui.shutdown"));
+    expect(onPowerAction).not.toHaveBeenCalled();
+    expect(screen.getByText("console_ui.press_again_confirm")).toBeTruthy();
+    expect(screen.getByTestId("focused").textContent).toBe("shutdown");
+
+    pressA();
+    expect(onPowerAction).toHaveBeenCalledWith("shutdown");
+    expect(screen.getByTestId("menu-state").textContent).toBe("closed");
+  });
+
+  it("cancels a pending confirmation when the focus moves away", () => {
+    const onPowerAction = vi.fn();
+    render(<Harness onPowerAction={onPowerAction} />);
+
+    fireEvent.click(screen.getByText("console_ui.restart"));
+    expect(screen.getByText("console_ui.press_again_confirm")).toBeTruthy();
+    nav("down");
+    expect(screen.queryByText("console_ui.press_again_confirm")).toBeNull();
+    nav("up");
+    pressA();
+    expect(onPowerAction).not.toHaveBeenCalled();
+    expect(screen.getByText("console_ui.press_again_confirm")).toBeTruthy();
+  });
+});

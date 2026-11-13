@@ -48,7 +48,21 @@ export const MENU_SECTION_LABEL_KEYS: Record<string, string> = {
   library: "console_ui.section_library",
   display: "console_ui.section_display",
   system: "console_ui.system",
+  power: "console_ui.power_options",
 };
+
+/** System / session actions available from the console menu */
+export type PowerActionId = "sleep" | "restart" | "shutdown" | "desktop" | "exit";
+
+/**
+ * How a menu entry is rendered and driven:
+ * - `action`: plain command (default)
+ * - `submenu`: opens a nested page (chevron on the right)
+ * - `toggle`: on/off checkbox
+ * - `select`: cycles through values with ◄ ►
+ * - `slider`: numeric value with a progress track
+ */
+export type ConsoleMenuItemKind = "action" | "submenu" | "toggle" | "select" | "slider";
 
 export interface ConsoleMenuItem {
   id: string;
@@ -58,8 +72,25 @@ export interface ConsoleMenuItem {
   value?: string;
   spinning?: boolean;
   tone?: "accent" | "danger" | "default";
+  kind?: ConsoleMenuItemKind;
+  /** Toggle state (kind `toggle`) */
+  checked?: boolean;
+  /** Fill ratio between 0 and 1 (kind `slider`) */
+  progress?: number;
+  /** Inline confirmation pending: the next activation runs the action */
+  armed?: boolean;
   onActivate: () => void;
   onAdjust?: (direction: 1 | -1) => void;
+}
+
+/** One level of the console menu navigation stack. */
+export interface ConsoleMenuLevel {
+  id: string;
+  title?: string;
+  /** `list` shows the level in the side bar; `panel` shows it as a detail panel beside its parent */
+  layout: "list" | "panel";
+  items: ConsoleMenuItem[];
+  focusedIndex: number;
 }
 
 export function duration(s: number): string {

@@ -5,7 +5,6 @@ import { FullscreenStatsPage } from "./FullscreenStatsPage";
 import { FullscreenQuickMenu } from "./FullscreenQuickMenu";
 import { FullscreenDetailsOverlay } from "./FullscreenDetailsOverlay";
 import { FullscreenAchievementsPage } from "./FullscreenAchievementsPage";
-import { FullscreenPowerDialog } from "./FullscreenPowerDialog";
 import { FullscreenTopBar } from "./FullscreenTopBar";
 import { FullscreenHomeContent } from "./FullscreenHomeContent";
 import { ControllerLegend } from "./ConsoleChrome";
@@ -53,6 +52,12 @@ const sampleGames = [
     cover_image: "https://example.com/cover.jpg",
   },
 ] as unknown as GameDto[];
+
+/** Generic overlay layer registered above the menu in the Back stack (e.g. a modal dialog) */
+function DialogBackLayer({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  useBackHandler(isOpen, onClose, BACK_PRIORITY.POWER_DIALOG);
+  return null;
+}
 
 const testTheme = {
   id: "test",
@@ -259,7 +264,7 @@ describe("FullscreenStatsPage & Console Back Navigation", () => {
     expect(screen.getByTestId("details-state").textContent).toBe("open");
   });
 
-  it("closes higher-priority PowerDialog before FullscreenQuickMenu on capture-phase Escape without hasModalChild", () => {
+  it("closes a higher-priority dialog layer before FullscreenQuickMenu on capture-phase Escape without hasModalChild", () => {
     const onCloseMenu = vi.fn();
     const onClosePower = vi.fn();
     const { rerender } = render(
@@ -277,13 +282,7 @@ describe("FullscreenStatsPage & Console Back Navigation", () => {
           menuSectionLabelKeys={{}}
           menuItemRefs={{ current: {} }}
         />
-        <FullscreenPowerDialog
-          isOpen={true}
-          onClose={onClosePower}
-          onSelectAction={vi.fn()}
-          soundEffects={{ playSelect: vi.fn(), playNav: vi.fn() }}
-          t={(k) => k}
-        />
+        <DialogBackLayer isOpen={true} onClose={onClosePower} />
       </div>
     );
 
@@ -307,13 +306,7 @@ describe("FullscreenStatsPage & Console Back Navigation", () => {
           menuSectionLabelKeys={{}}
           menuItemRefs={{ current: {} }}
         />
-        <FullscreenPowerDialog
-          isOpen={false}
-          onClose={onClosePower}
-          onSelectAction={vi.fn()}
-          soundEffects={{ playSelect: vi.fn(), playNav: vi.fn() }}
-          t={(k) => k}
-        />
+        <DialogBackLayer isOpen={false} onClose={onClosePower} />
       </div>
     );
 
@@ -341,13 +334,7 @@ describe("FullscreenStatsPage & Console Back Navigation", () => {
           </span>
           {vkOpen && <div data-virtual-keyboard="true">VK</div>}
           <button data-testid="close-vk" onClick={() => setVkOpen(false)} />
-          <FullscreenPowerDialog
-            isOpen={powerOpen}
-            onClose={() => setPowerOpen(false)}
-            onSelectAction={vi.fn()}
-            soundEffects={{ playSelect: vi.fn(), playNav: vi.fn() }}
-            t={(k) => k}
-          />
+          <DialogBackLayer isOpen={powerOpen} onClose={() => setPowerOpen(false)} />
           <FullscreenStatsPage
             isOpen={pageOpen}
             games={sampleGames}
@@ -591,13 +578,7 @@ describe("FullscreenStatsPage & Console Back Navigation", () => {
           <span data-testid="power">{powerOpen ? "open" : "closed"}</span>
           <span data-testid="menu">{isMenuOpen ? "open" : "closed"}</span>
           <span data-testid="details">{showFullscreenDetails ? "open" : "closed"}</span>
-          <FullscreenPowerDialog
-            isOpen={powerOpen}
-            onClose={() => setPowerOpen(false)}
-            onSelectAction={vi.fn()}
-            soundEffects={{ playSelect: vi.fn(), playNav: vi.fn() }}
-            t={(k) => k}
-          />
+          <DialogBackLayer isOpen={powerOpen} onClose={() => setPowerOpen(false)} />
         </div>
       );
     }
@@ -610,7 +591,7 @@ describe("FullscreenStatsPage & Console Back Navigation", () => {
         if (cb) act(() => cb(performance.now()));
       };
 
-      // Neutral frame -> press B closes PowerDialog first
+      // Neutral frame -> press B closes the dialog layer first
       tick(false);
       tick(true);
       expect(screen.getByTestId("power").textContent).toBe("closed");

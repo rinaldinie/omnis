@@ -386,6 +386,13 @@ export interface TranslationSchema {
     session_time: string;
     total_playtime: string;
     running: string;
+    settings: string;
+    settings_general: string;
+    settings_library: string;
+    settings_visual: string;
+    settings_audio: string;
+    settings_input: string;
+    press_again_confirm: string;
   };
   app_status: {
     theme_activated: string;

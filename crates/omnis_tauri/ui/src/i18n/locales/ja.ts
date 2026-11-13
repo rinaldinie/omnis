@@ -370,6 +370,13 @@ export const ja: TranslationSchema = {
     session_time: '今回のセッション',
     total_playtime: '合計',
     running: '実行中',
+    settings: '設定',
+    settings_general: '一般',
+    settings_library: 'ライブラリ',
+    settings_visual: '表示効果',
+    settings_audio: 'オーディオ',
+    settings_input: '入力',
+    press_again_confirm: 'もう一度押して確定',
   },
   app_status: {
     theme_activated: 'テーマ「{name}」を適用しました',

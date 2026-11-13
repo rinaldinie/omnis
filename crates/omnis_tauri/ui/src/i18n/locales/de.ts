@@ -370,6 +370,13 @@ export const de: TranslationSchema = {
     session_time: 'Diese Sitzung',
     total_playtime: 'Gesamt',
     running: 'Wird ausgeführt',
+    settings: 'Einstellungen',
+    settings_general: 'Allgemein',
+    settings_library: 'Bibliothek',
+    settings_visual: 'Darstellung',
+    settings_audio: 'Audio',
+    settings_input: 'Eingabe',
+    press_again_confirm: 'Zum Bestätigen erneut drücken',
   },
   app_status: {
     theme_activated: 'Design „{name}“ aktiviert!',
