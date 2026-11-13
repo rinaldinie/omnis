@@ -14,6 +14,7 @@ import {
   RarityTier,
 } from "../achievements";
 import soundEffects from "../../utils/soundEffects";
+import { BACK_PRIORITY, useBackHandler } from "../../hooks/useBackHandler";
 import { ArtImage } from "./FullscreenCards";
 import { Glyph } from "./ConsoleChrome";
 
@@ -171,6 +172,15 @@ export const FullscreenAchievementsPage: React.FC<FullscreenAchievementsPageProp
     events.forEach(([name, fn]) => window.addEventListener(name, fn));
     return () => events.forEach(([name, fn]) => window.removeEventListener(name, fn));
   }, [isOpen, visible.length, cycleFilter, cycleSort, canReveal, focused]);
+
+  useBackHandler(
+    isOpen,
+    () => {
+      soundEffects.playSelect();
+      onClose();
+    },
+    BACK_PRIORITY.PAGE
+  );
 
   if (!isOpen || !game) return null;
 
@@ -381,18 +391,6 @@ export const FullscreenAchievementsPage: React.FC<FullscreenAchievementsPageProp
           </div>
         )}
       </div>
-
-      <button
-        type="button"
-        onClick={() => {
-          soundEffects.playSelect();
-          onClose();
-        }}
-        className="absolute top-6 right-10 z-20 cursor-pointer px-5 py-2 rounded-md border-none text-sm font-semibold uppercase tracking-wider text-white/80"
-        style={{ backgroundColor: "rgba(255, 255, 255, 0.1)" }}
-      >
-        {t("console_ui.back")}
-      </button>
     </div>
   );
 };

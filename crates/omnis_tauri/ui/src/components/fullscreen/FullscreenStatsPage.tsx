@@ -4,14 +4,15 @@ import type { LucideIcon } from "lucide-react";
 import { api } from "../../api";
 import { CategoryShareDto, DayActivityDto, GameDto, GlobalStatsDto, TranslateFn } from "../../types";
 import soundEffects from "../../utils/soundEffects";
+import { BACK_PRIORITY, useBackHandler } from "../../hooks/useBackHandler";
 import { ArtImage } from "./FullscreenCards";
 import { Glyph } from "./ConsoleChrome";
 import { STORE_LABELS } from "./constants";
 import { getLocalizedGenre } from "../../utils/genres";
 
-const TOP_GAMES = 8;
-const TOP_SHARES = 6;
-const SECTIONS = ["overview", "monthly", "activity", "top", "breakdown", "backlog"] as const;
+const TOP_GAMES = 6;
+const TOP_SHARES = 5;
+const SECTIONS = ["overview", "monthly", "backlog", "activity", "top", "breakdown"] as const;
 type Section = (typeof SECTIONS)[number];
 
 function formatHours(seconds: number): string {
@@ -41,12 +42,18 @@ function yearWeeks(year: number): Array<Array<string | null>> {
 export interface FullscreenStatsPageProps {
   isOpen: boolean;
   games: GameDto[];
-  onClose: () => void;
   locale: string;
+  onClose?: () => void;
   t: TranslateFn;
 }
 
-export const FullscreenStatsPage: React.FC<FullscreenStatsPageProps> = ({ isOpen, games, onClose, locale, t }) => {
+export const FullscreenStatsPage: React.FC<FullscreenStatsPageProps> = ({
+  isOpen,
+  games,
+  locale,
+  onClose,
+  t,
+}) => {
   const currentYear = new Date().getUTCFullYear();
   const [year, setYear] = React.useState(currentYear);
   const [stats, setStats] = React.useState<GlobalStatsDto | null>(null);
@@ -85,15 +92,31 @@ export const FullscreenStatsPage: React.FC<FullscreenStatsPageProps> = ({ isOpen
     return list.sort((a, b) => a - b);
   }, [stats?.available_years, year, currentYear]);
 
+  const stepYear = React.useCallback(
+    (direction: number) => {
+      const next = years[years.indexOf(year) + direction];
+      if (next === undefined) return;
+      soundEffects.playNav();
+      setYear(next);
+    },
+    [years, year]
+  );
+
   React.useEffect(() => {
     if (!isOpen) return;
 
     const handleNav = (e: Event) => {
       const dir = (e as CustomEvent<{ direction: "up" | "down" | "left" | "right" }>).detail?.direction;
-      if (dir !== "up" && dir !== "down") return;
+      if (!dir) return;
       setFocused((prev) => {
         const idx = SECTIONS.indexOf(prev);
-        const next = SECTIONS[Math.max(0, Math.min(SECTIONS.length - 1, idx + (dir === "down" ? 1 : -1)))];
+        let nextIdx = idx;
+        if (dir === "down" || dir === "right") {
+          nextIdx = Math.min(SECTIONS.length - 1, idx + 1);
+        } else if (dir === "up" || dir === "left") {
+          nextIdx = Math.max(0, idx - 1);
+        }
+        const next = SECTIONS[nextIdx];
         if (next !== prev) {
           soundEffects.playNav();
           sectionRefs.current[next]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
@@ -103,10 +126,7 @@ export const FullscreenStatsPage: React.FC<FullscreenStatsPageProps> = ({ isOpen
     };
     const handleBumper = (e: Event) => {
       const direction = (e as CustomEvent<{ direction: number }>).detail?.direction ?? 1;
-      const next = years[years.indexOf(year) + direction];
-      if (next === undefined) return;
-      soundEffects.playNav();
-      setYear(next);
+      stepYear(direction);
     };
 
     window.addEventListener("omnis:page-nav", handleNav);
@@ -115,7 +135,16 @@ export const FullscreenStatsPage: React.FC<FullscreenStatsPageProps> = ({ isOpen
       window.removeEventListener("omnis:page-nav", handleNav);
       window.removeEventListener("omnis:page-bumper", handleBumper);
     };
-  }, [isOpen, years, year]);
+  }, [isOpen, stepYear]);
+
+  useBackHandler(
+    isOpen && !!onClose,
+    () => {
+      soundEffects.playSelect();
+      onClose?.();
+    },
+    BACK_PRIORITY.PAGE
+  );
 
   const heatmap = React.useMemo(() => {
     const byDate = new Map<string, DayActivityDto>();
@@ -154,27 +183,34 @@ export const FullscreenStatsPage: React.FC<FullscreenStatsPageProps> = ({ isOpen
 
   if (!isOpen) return null;
 
+  const canPrevYear = years.indexOf(year) > 0;
+  const canNextYear = years.indexOf(year) < years.length - 1;
+
   const formatDay = (date: string, options: Intl.DateTimeFormatOptions) =>
     new Date(`${date}T00:00:00Z`).toLocaleDateString(locale, { ...options, timeZone: "UTC" });
   const monthName = (month: number) =>
     new Date(Date.UTC(year, month, 1)).toLocaleDateString(locale, { month: "short", timeZone: "UTC" });
 
-  const sectionProps = (id: Section) => ({
-    ref: (el: HTMLElement | null) => {
-      sectionRefs.current[id] = el;
-    },
-    onClick: () => setFocused(id),
-    className: "p-8 rounded-lg scroll-my-10 transition-shadow duration-200",
-    style: {
-      backgroundColor: "rgba(255, 255, 255, 0.04)",
-      boxShadow: focused === id ? "0 0 0 0.15rem rgba(255, 255, 255, 0.6)" : "none",
-    },
-  });
+  const sectionProps = (id: Section, extraClass = "") => {
+    const isFocused = focused === id;
+    return {
+      ref: (el: HTMLElement | null) => {
+        sectionRefs.current[id] = el;
+      },
+      onClick: () => setFocused(id),
+      className: `rounded-xl border scroll-my-6 transition-all duration-150 backdrop-blur-md ${extraClass}`,
+      style: {
+        backgroundColor: isFocused ? "rgba(255, 255, 255, 0.07)" : "rgba(255, 255, 255, 0.04)",
+        borderColor: isFocused ? "rgba(255, 255, 255, 0.55)" : "rgba(255, 255, 255, 0.1)",
+        boxShadow: isFocused ? "0 0 0 1px rgba(255, 255, 255, 0.28)" : "none",
+      },
+    };
+  };
 
   const heading = (text: string, aside?: React.ReactNode) => (
-    <div className="flex items-baseline justify-between gap-6 mb-6">
-      <h2 className="text-sm font-semibold uppercase tracking-widest text-white/60">{text}</h2>
-      {aside && <span className="text-base text-white/55">{aside}</span>}
+    <div className="flex items-baseline justify-between gap-4 mb-3">
+      <h2 className="text-xs font-semibold uppercase tracking-widest text-white/55">{text}</h2>
+      {aside && <span className="text-xs text-white/50 truncate">{aside}</span>}
     </div>
   );
 
@@ -228,23 +264,25 @@ export const FullscreenStatsPage: React.FC<FullscreenStatsPageProps> = ({ isOpen
 
     return (
       <div>
-        <h3 className="text-base font-semibold text-white/80 mb-4">{title}</h3>
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-white/65 mb-2.5">{title}</h3>
         {displayItems.length === 0 ? (
-          <p className="text-base text-white/50">{t("statistics.no_data")}</p>
+          <p className="text-xs text-white/50">{t("statistics.no_data")}</p>
         ) : (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2.5">
             {displayItems.slice(0, TOP_SHARES).map((item) => (
               <div key={item.name}>
-                <div className="flex items-baseline justify-between gap-4 text-base">
-                  <span className="text-white truncate">{isStore ? STORE_LABELS[item.name] ?? item.name : item.name}</span>
-                  <span className="text-white/60 tabular-nums shrink-0">
+                <div className="flex items-baseline justify-between gap-3 text-xs">
+                  <span className="text-white/90 font-medium truncate">
+                    {isStore ? STORE_LABELS[item.name] ?? item.name : item.name}
+                  </span>
+                  <span className="text-white/55 tabular-nums shrink-0">
                     {formatHours(item.duration_seconds)} · {Math.round(item.percentage)}%
                   </span>
                 </div>
-                <div className="mt-1.5 h-2 rounded-full bg-white/10 overflow-hidden">
+                <div className="mt-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
                   <div
                     className="h-full rounded-full"
-                    style={{ width: `${Math.max(item.percentage, 1)}%`, backgroundColor: "var(--accent-primary)" }}
+                    style={{ width: `${Math.max(item.percentage, 2)}%`, backgroundColor: "var(--accent-primary)" }}
                   />
                 </div>
               </div>
@@ -256,83 +294,164 @@ export const FullscreenStatsPage: React.FC<FullscreenStatsPageProps> = ({ isOpen
   };
 
   return (
-    <div className="fixed inset-0 z-[45] flex flex-col omnis-fade-in" style={{ backgroundColor: "var(--bg-base)" }}>
-      {/* Header */}
-      <header className="flex items-end justify-between gap-8 px-16 pt-14 pb-8">
-        <h1 className="flex items-center gap-4 text-5xl font-bold text-white tracking-tight">
-          <BarChart3 className="w-10 h-10" style={{ color: "var(--accent-primary)" }} />
-          {t("console_ui.statistics")}
-        </h1>
-        <div className="flex items-center gap-4 text-3xl font-semibold text-white tabular-nums">
-          <span className={years.indexOf(year) > 0 ? "" : "opacity-30"}>
-            <Glyph kind="lb" />
-          </span>
-          <span className={loading ? "opacity-60" : ""}>{year}</span>
-          <span className={years.indexOf(year) < years.length - 1 ? "" : "opacity-30"}>
-            <Glyph kind="rb" />
-          </span>
+    <div
+      className="fixed inset-0 z-[45] flex flex-col omnis-fade-in backdrop-blur-xl"
+      style={{
+        backgroundColor: "color-mix(in srgb, var(--bg-base) 86%, transparent)",
+        backgroundImage:
+          "radial-gradient(ellipse at top, color-mix(in srgb, var(--accent-primary) 12%, transparent), transparent 60%)",
+      }}
+    >
+      {/* Header matching console top bar proportions */}
+      <header className="px-10 pt-6 pb-4 shrink-0 border-b border-white/10">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-6">
+          <div className="flex items-center gap-4 min-w-0">
+            <div className="w-9 h-9 rounded-lg bg-white/[0.06] border border-white/10 flex items-center justify-center shrink-0">
+              <BarChart3 className="w-5 h-5" style={{ color: "var(--accent-primary)" }} />
+            </div>
+            <h1 className="text-2xl font-bold text-white tracking-tight truncate">
+              {t("console_ui.statistics")}
+            </h1>
+          </div>
+
+          <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-white/[0.07] border border-white/10 text-sm font-semibold text-white tabular-nums shrink-0">
+            <button
+              type="button"
+              disabled={!canPrevYear}
+              onClick={() => stepYear(-1)}
+              aria-label="Previous year"
+              className={`bg-transparent border-none p-0 inline-flex items-center text-inherit transition-opacity ${
+                canPrevYear ? "cursor-pointer opacity-85 hover:opacity-100" : "opacity-30 cursor-default"
+              }`}
+            >
+              <Glyph kind="lb" />
+            </button>
+            <span className={`px-1 ${loading ? "opacity-60" : ""}`}>{year}</span>
+            <button
+              type="button"
+              disabled={!canNextYear}
+              onClick={() => stepYear(1)}
+              aria-label="Next year"
+              className={`bg-transparent border-none p-0 inline-flex items-center text-inherit transition-opacity ${
+                canNextYear ? "cursor-pointer opacity-85 hover:opacity-100" : "opacity-30 cursor-default"
+              }`}
+            >
+              <Glyph kind="rb" />
+            </button>
+          </div>
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto no-scrollbar px-16 pb-24 scroll-pt-6 scroll-pb-24">
+      <div className="flex-1 overflow-y-auto no-scrollbar px-10 pt-5 pb-20 scroll-pt-4 scroll-pb-20">
         {!stats ? (
-          <p className="py-16 text-center text-lg text-white/60">
+          <p className="py-16 text-center text-base text-white/60">
             {loading ? t("common.loading") : t("statistics.no_data")}
           </p>
         ) : (
-          <div className="flex flex-col gap-8">
-            {/* Overview */}
-            <section {...sectionProps("overview")}>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="max-w-7xl mx-auto flex flex-col gap-3.5">
+            {/* Overview KPIs */}
+            <section {...sectionProps("overview", "p-3.5")}>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 {tiles.map(({ icon: Icon, label, value }) => (
-                  <div key={label}>
-                    <p className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-white/55">
+                  <div
+                    key={label}
+                    className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg bg-black/35 border border-white/5 min-w-0"
+                  >
+                    <div className="w-9 h-9 rounded-lg bg-white/[0.06] border border-white/5 flex items-center justify-center shrink-0 text-white/75">
                       <Icon className="w-4 h-4" />
-                      {label}
-                    </p>
-                    <p className="mt-2 text-4xl font-bold text-white tabular-nums whitespace-nowrap">{value}</p>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-white/50 truncate">
+                        {label}
+                      </p>
+                      <p className="mt-0.5 text-xl font-bold text-white tabular-nums whitespace-nowrap leading-tight">
+                        {value}
+                      </p>
+                    </div>
                   </div>
                 ))}
               </div>
               {activeDays.length === 0 && (
-                <p className="mt-6 text-base text-white/55">{t("statistics.no_sessions_recorded_title")}</p>
+                <p className="mt-3 text-xs text-white/55">{t("statistics.no_sessions_recorded_title")}</p>
               )}
             </section>
 
-            {/* Playtime by month */}
-            <section {...sectionProps("monthly")}>
-              {heading(t("console_ui.stats_monthly"))}
-              <div className="flex items-end gap-2 lg:gap-4 h-56">
-                {months.map((seconds, month) => (
-                  <div key={month} className="flex-1 h-full flex flex-col items-center justify-end gap-2">
-                    <span className="text-xs lg:text-sm text-white/70 tabular-nums whitespace-nowrap">
-                      {seconds >= 3600 ? `${Math.round(seconds / 3600)}h` : seconds > 0 ? formatHours(seconds) : ""}
-                    </span>
-                    <div
-                      className="w-full rounded-t-md"
-                      style={{
-                        height: `${(seconds / maxMonth) * 100}%`,
-                        minHeight: seconds > 0 ? "0.25rem" : 0,
-                        backgroundColor: seconds === maxMonth ? "var(--accent-primary)" : "rgba(255, 255, 255, 0.3)",
-                      }}
-                    />
-                    <span className="text-sm uppercase tracking-wider text-white/55">{monthName(month)}</span>
+            {/* Monthly + Backlog */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
+              <section {...sectionProps("monthly", "lg:col-span-7 p-4")}>
+                {heading(t("console_ui.stats_monthly"))}
+                <div className="flex items-end gap-2 h-28">
+                  {months.map((seconds, month) => (
+                    <div key={month} className="flex-1 h-full flex flex-col items-center justify-end gap-1.5">
+                      <span className="text-[10px] text-white/65 tabular-nums whitespace-nowrap leading-none">
+                        {seconds >= 3600 ? `${Math.round(seconds / 3600)}h` : seconds > 0 ? formatHours(seconds) : ""}
+                      </span>
+                      <div
+                        className="w-full rounded-t"
+                        style={{
+                          height: `${(seconds / maxMonth) * 100}%`,
+                          minHeight: seconds > 0 ? "0.2rem" : 0,
+                          backgroundColor: seconds === maxMonth && seconds > 0 ? "var(--accent-primary)" : "rgba(255, 255, 255, 0.28)",
+                        }}
+                      />
+                      <span className="text-[11px] uppercase tracking-wider text-white/50 leading-none">
+                        {monthName(month)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              {backlog && (
+                <section {...sectionProps("backlog", "lg:col-span-5 p-4 flex flex-col justify-between")}>
+                  {heading(
+                    t("statistics.backlog_progress_title"),
+                    t("statistics.games_ratio", { completed: backlog.completed_count, total: backlog.total_games })
+                  )}
+                  <div className="flex h-2.5 rounded-full overflow-hidden bg-white/10">
+                    {backlogSegments.map((seg) =>
+                      seg.count > 0 && backlog.total_games > 0 ? (
+                        <div
+                          key={seg.label}
+                          style={{ width: `${(seg.count / backlog.total_games) * 100}%`, backgroundColor: seg.color }}
+                        />
+                      ) : null
+                    )}
                   </div>
-                ))}
-              </div>
-            </section>
+                  <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <div className="px-2.5 py-2 rounded-lg bg-black/30 border border-white/5">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-white/50 truncate">
+                        {t("statistics.backlog_resolved")}
+                      </p>
+                      <p className="mt-0.5 text-lg font-bold text-white tabular-nums leading-tight">
+                        {Math.round(backlog.completion_percentage)}%
+                      </p>
+                    </div>
+                    {backlogSegments.map((seg) => (
+                      <div key={seg.label} className="px-2.5 py-2 rounded-lg bg-black/30 border border-white/5 min-w-0">
+                        <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-white/50 truncate">
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: seg.color }} />
+                          <span className="truncate">{seg.label}</span>
+                        </p>
+                        <p className="mt-0.5 text-lg font-bold text-white tabular-nums leading-tight">{seg.count}</p>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+            </div>
 
             {/* Activity heatmap */}
-            <section {...sectionProps("activity")}>
+            <section {...sectionProps("activity", "p-4")}>
               {heading(
                 t("console_ui.stats_activity"),
                 peakDay
                   ? `${t("statistics.highest_day")}: ${formatDay(peakDay.date, { day: "numeric", month: "long" })} · ${formatHours(peakDay.duration_seconds)}`
                   : t("statistics.no_sessions")
               )}
-              <div className="flex gap-[0.2rem] overflow-hidden">
+              <div className="flex gap-[2px] overflow-hidden">
                 {yearWeeks(year).map((week, w) => (
-                  <div key={w} className="flex flex-col gap-[0.2rem] flex-1 min-w-0">
+                  <div key={w} className="flex flex-col gap-[2px] flex-1 min-w-0">
                     {week.map((date, d) => {
                       const seconds = date ? heatmap.get(date)?.duration_seconds ?? 0 : 0;
                       const level = seconds <= 0 ? 0 : seconds < 1800 ? 1 : seconds < 3600 ? 2 : seconds < 3 * 3600 ? 3 : 4;
@@ -340,7 +459,7 @@ export const FullscreenStatsPage: React.FC<FullscreenStatsPageProps> = ({ isOpen
                         <div
                           key={d}
                           title={date ? `${formatDay(date, { day: "numeric", month: "short" })} · ${formatHours(seconds)}` : undefined}
-                          className="aspect-square rounded-[0.15rem]"
+                          className="aspect-square rounded-[2px]"
                           style={{
                             backgroundColor: !date
                               ? "transparent"
@@ -354,14 +473,14 @@ export const FullscreenStatsPage: React.FC<FullscreenStatsPageProps> = ({ isOpen
                   </div>
                 ))}
               </div>
-              <div className="mt-4 flex items-center justify-between text-sm text-white/55">
+              <div className="mt-2.5 flex items-center justify-between text-xs text-white/50">
                 <span>{t("statistics.active_days", { count: activeDays.length })}</span>
-                <span className="flex items-center gap-1.5">
+                <span className="flex items-center gap-1">
                   {t("statistics.less")}
                   {[0, 1, 2, 3, 4].map((level) => (
                     <span
                       key={level}
-                      className="w-3.5 h-3.5 rounded-[0.15rem]"
+                      className="w-2.5 h-2.5 rounded-[2px]"
                       style={{
                         backgroundColor:
                           level === 0
@@ -375,107 +494,61 @@ export const FullscreenStatsPage: React.FC<FullscreenStatsPageProps> = ({ isOpen
               </div>
             </section>
 
-            {/* Most played */}
-            <section {...sectionProps("top")}>
-              {heading(t("console_ui.stats_top_games"), t("statistics.all_time"))}
-              {topGames.length === 0 ? (
-                <p className="text-base text-white/50">{t("statistics.no_data")}</p>
-              ) : (
-                <div className="grid grid-cols-2 gap-x-10 gap-y-4">
-                  {topGames.map((game, idx) => (
-                    <div key={game.id} className="flex items-center gap-4 min-w-0">
-                      <span className="w-6 text-right text-lg font-semibold text-white/45 tabular-nums">{idx + 1}</span>
-                      <div className="w-12 aspect-[3/4] rounded overflow-hidden shrink-0 bg-black/40">
-                        <ArtImage
-                          sources={[game.cover_image, game.background_image]}
-                          title={game.title}
-                          library={game.library}
-                          showFallbackTitle={false}
-                        />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-baseline justify-between gap-3">
-                          <span className="text-lg text-white truncate">{game.title}</span>
-                          <span className="text-base text-white/60 tabular-nums shrink-0">{game.playtime_formatted}</span>
-                        </div>
-                        <div className="mt-1.5 h-1.5 rounded-full bg-white/10 overflow-hidden">
-                          <div
-                            className="h-full rounded-full"
-                            style={{
-                              width: `${(game.playtime_seconds / topGames[0].playtime_seconds) * 100}%`,
-                              backgroundColor: "var(--accent-primary)",
-                            }}
+            {/* Most played + Store & genre breakdown */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
+              <section {...sectionProps("top", "lg:col-span-6 p-4")}>
+                {heading(t("console_ui.stats_top_games"), t("statistics.all_time"))}
+                {topGames.length === 0 ? (
+                  <p className="text-xs text-white/50">{t("statistics.no_data")}</p>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-2.5">
+                    {topGames.map((game, idx) => (
+                      <div key={game.id} className="flex items-center gap-2.5 min-w-0">
+                        <span className="w-4 text-right text-xs font-semibold text-white/40 tabular-nums shrink-0">
+                          {idx + 1}
+                        </span>
+                        <div className="w-8 aspect-[3/4] rounded overflow-hidden shrink-0 bg-black/40 border border-white/10">
+                          <ArtImage
+                            sources={[game.cover_image, game.background_image]}
+                            title={game.title}
+                            library={game.library}
+                            showFallbackTitle={false}
                           />
                         </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-baseline justify-between gap-2">
+                            <span className="text-sm font-medium text-white truncate">{game.title}</span>
+                            <span className="text-xs text-white/60 tabular-nums shrink-0">
+                              {game.playtime_formatted}
+                            </span>
+                          </div>
+                          <div className="mt-1 h-1 rounded-full bg-white/10 overflow-hidden">
+                            <div
+                              className="h-full rounded-full"
+                              style={{
+                                width: `${(game.playtime_seconds / topGames[0].playtime_seconds) * 100}%`,
+                                backgroundColor: "var(--accent-primary)",
+                              }}
+                            />
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
-
-            {/* Store and genre breakdown */}
-            <section {...sectionProps("breakdown")}>
-              {heading(t("console_ui.stats_breakdown"))}
-              <div className="grid grid-cols-2 gap-12">
-                {renderShares(t("statistics.store_distribution"), stats.store_distribution, true)}
-                {renderShares(t("statistics.genre_distribution"), stats.genre_distribution, false)}
-              </div>
-            </section>
-
-            {/* Backlog */}
-            {backlog && (
-              <section {...sectionProps("backlog")}>
-                {heading(
-                  t("statistics.backlog_progress_title"),
-                  t("statistics.games_ratio", { completed: backlog.completed_count, total: backlog.total_games })
-                )}
-                <div className="flex h-4 rounded-full overflow-hidden bg-white/10">
-                  {backlogSegments.map((seg) =>
-                    seg.count > 0 && backlog.total_games > 0 ? (
-                      <div
-                        key={seg.label}
-                        style={{ width: `${(seg.count / backlog.total_games) * 100}%`, backgroundColor: seg.color }}
-                      />
-                    ) : null
-                  )}
-                </div>
-                <div className="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-6">
-                  <div>
-                    <p className="text-sm font-semibold uppercase tracking-wider text-white/55">
-                      {t("statistics.backlog_resolved")}
-                    </p>
-                    <p className="mt-2 text-4xl font-bold text-white tabular-nums">
-                      {Math.round(backlog.completion_percentage)}%
-                    </p>
+                    ))}
                   </div>
-                  {backlogSegments.map((seg) => (
-                    <div key={seg.label}>
-                      <p className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-white/55">
-                        <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: seg.color }} />
-                        {seg.label}
-                      </p>
-                      <p className="mt-2 text-4xl font-bold text-white tabular-nums">{seg.count}</p>
-                    </div>
-                  ))}
+                )}
+              </section>
+
+              <section {...sectionProps("breakdown", "lg:col-span-6 p-4")}>
+                {heading(t("console_ui.stats_breakdown"))}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  {renderShares(t("statistics.store_distribution"), stats.store_distribution, true)}
+                  {renderShares(t("statistics.genre_distribution"), stats.genre_distribution, false)}
                 </div>
               </section>
-            )}
+            </div>
           </div>
         )}
       </div>
-
-      <button
-        type="button"
-        onClick={() => {
-          soundEffects.playSelect();
-          onClose();
-        }}
-        className="absolute top-6 right-10 z-20 cursor-pointer px-5 py-2 rounded-md border-none text-sm font-semibold uppercase tracking-wider text-white/80"
-        style={{ backgroundColor: "rgba(255, 255, 255, 0.1)" }}
-      >
-        {t("console_ui.back")}
-      </button>
     </div>
   );
 };

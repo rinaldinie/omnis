@@ -6,6 +6,7 @@ import { ArtImage } from "./FullscreenCards";
 import { FullscreenAchievementsCard } from "./FullscreenAchievementsCard";
 import { useTranslation } from "../../i18n";
 import { getLocalizedGenre } from "../../utils/genres";
+import { BACK_PRIORITY, useBackHandler } from "../../hooks/useBackHandler";
 
 export interface HeroActionDefinition {
   labelKey: string;
@@ -26,7 +27,7 @@ export interface FullscreenDetailsOverlayProps {
   setShowFullscreenDetails: (show: boolean) => void;
   detailsFocusedSection: "hero" | "achievements";
   heroFocusedButton: string;
-  heroButtons: Array<"launch" | GameAction | "back">;
+  heroButtons: Array<"launch" | GameAction>;
   heroActions: Record<string, HeroActionDefinition>;
   onGameAction?: (action: GameAction, gameId: string) => void;
   openConfirm: (kind: "uninstall", game: GameDto) => void;
@@ -74,6 +75,16 @@ export const FullscreenDetailsOverlay: React.FC<FullscreenDetailsOverlayProps> =
   t,
 }) => {
   const { locale } = useTranslation();
+
+  useBackHandler(
+    showFullscreenDetails,
+    () => {
+      soundEffects.playSelect();
+      setShowFullscreenDetails(false);
+    },
+    BACK_PRIORITY.DETAILS
+  );
+
   if (!showFullscreenDetails || !activeDetailGame) return null;
 
   return (
@@ -164,7 +175,7 @@ export const FullscreenDetailsOverlay: React.FC<FullscreenDetailsOverlayProps> =
             })()}
 
             {heroButtons.map((button) => {
-              if (button === "launch" || button === "back") return null;
+              if (button === "launch") return null;
               const action = heroActions[button];
               if (!action) return null;
               const Icon = action.icon;
@@ -198,22 +209,6 @@ export const FullscreenDetailsOverlay: React.FC<FullscreenDetailsOverlayProps> =
                 </button>
               );
             })}
-
-            <button
-              type="button"
-              onClick={() => {
-                soundEffects.playSelect();
-                setShowFullscreenDetails(false);
-              }}
-              className="cursor-pointer px-8 py-4 rounded-md text-lg font-semibold uppercase tracking-wider transition-all duration-150 border-none"
-              style={
-                detailsFocusedSection === "hero" && heroFocusedButton === "back"
-                  ? { backgroundColor: "#ffffff", color: "#0b0f19", transform: "scale(1.04)" }
-                  : { backgroundColor: "rgba(255, 255, 255, 0.1)", color: "rgba(255, 255, 255, 0.85)" }
-              }
-            >
-              {t("console_ui.back")}
-            </button>
           </div>
 
           <dl className="flex items-start gap-12 pt-2">

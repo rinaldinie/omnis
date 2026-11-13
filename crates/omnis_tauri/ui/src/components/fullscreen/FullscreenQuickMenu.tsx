@@ -1,5 +1,6 @@
 import React from "react";
 import { ChevronLeft, ChevronRight, LucideIcon } from "lucide-react";
+import { BACK_PRIORITY, useBackHandler } from "../../hooks/useBackHandler";
 import type { TranslateFn } from "../../types";
 
 export interface MenuItemData {
@@ -41,6 +42,15 @@ export const FullscreenQuickMenu: React.FC<FullscreenQuickMenuProps> = ({
   menuSectionLabelKeys,
   menuItemRefs,
 }) => {
+  useBackHandler(
+    isMenuOpen,
+    () => {
+      soundEffects.playSelect();
+      onClose();
+    },
+    BACK_PRIORITY.MENU
+  );
+
   if (!isMenuOpen) return null;
 
   return (

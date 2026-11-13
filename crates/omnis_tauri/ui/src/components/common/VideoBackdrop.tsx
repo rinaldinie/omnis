@@ -13,6 +13,7 @@ interface VideoBackdropProps {
   videoOpacity?: number;
   objectPosition?: string;
   gradientOverlay?: "hero" | "ambient";
+  imageFit?: "cover" | "contain";
 }
 
 export const VideoBackdrop: React.FC<VideoBackdropProps> = ({
@@ -25,6 +26,7 @@ export const VideoBackdrop: React.FC<VideoBackdropProps> = ({
   videoOpacity,
   objectPosition = "center 20%",
   gradientOverlay = "ambient",
+  imageFit = "cover",
 }) => {
   const [videoSrc, setVideoSrc] = useState<string | null>(null);
   const [isVideoPlaying, setIsVideoPlaying] = useState<boolean>(false);
@@ -240,10 +242,21 @@ export const VideoBackdrop: React.FC<VideoBackdropProps> = ({
   // covers (e.g. 256px Switch icons) would look pixelated, so the fallback is always shown
   // as a soft ambient blur, like the theme-less hero does.
   const usingCoverFallback = !game?.background_image && !!game?.cover_image;
+  const containMode = imageFit === "contain" && !usingCoverFallback;
+  const containMaskStyle: React.CSSProperties | undefined = containMode
+    ? {
+        WebkitMaskImage:
+          "linear-gradient(to bottom, transparent 0%, black 12%, black 65%, transparent 100%)",
+        maskImage:
+          "linear-gradient(to bottom, transparent 0%, black 12%, black 65%, transparent 100%)",
+      }
+    : undefined;
 
   return (
     <div
-      className={`absolute inset-0 z-0 overflow-hidden pointer-events-none select-none ${className}`}
+      className={`absolute inset-0 z-0 overflow-hidden pointer-events-none select-none ${
+        containMode ? "flex items-center justify-end" : ""
+      } ${className}`}
     >
       {/* 1. Static Image Layer (renders immediately with high clarity and contrast) */}
       {backdropUrl ? (
@@ -251,7 +264,9 @@ export const VideoBackdrop: React.FC<VideoBackdropProps> = ({
           key={backdropUrl}
           src={backdropUrl}
           alt={game?.title || "Backdrop"}
-          className={`w-full h-full object-cover transition-opacity duration-700 ${
+          className={`${
+            containMode ? "w-full h-auto max-h-full object-contain" : "w-full h-full object-cover"
+          } transition-opacity duration-700 ${
             isVideoPlaying && !isPaused
               ? "opacity-0 pointer-events-none"
               : usingCoverFallback
@@ -262,7 +277,7 @@ export const VideoBackdrop: React.FC<VideoBackdropProps> = ({
               ? "opacity-85 filter blur-[2px] scale-102"
               : "opacity-75 filter blur-sm scale-105"
           }`}
-          style={{ objectPosition }}
+          style={{ objectPosition, ...containMaskStyle }}
         />
       ) : (
         <div
@@ -288,12 +303,15 @@ export const VideoBackdrop: React.FC<VideoBackdropProps> = ({
             setIsVideoPlaying(false);
             setVideoSrc(null);
           }}
-          className={`video-backdrop absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${
+          className={`video-backdrop absolute inset-0 w-full h-full ${
+            containMode ? "object-contain" : "object-cover"
+          } transition-opacity duration-700 ${
             blurLevel === "none" ? "filter-none" : blurClass
           }`}
           style={{
             objectPosition,
             opacity: !isPaused && isVideoPlaying ? effectiveVideoOpacity : 0,
+            ...containMaskStyle,
           }}
         />
       )}
