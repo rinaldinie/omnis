@@ -42,6 +42,18 @@ export async function markOnboardingCompleted(): Promise<void> {
   }
 }
 
+export const AUTO_SCAN_KEY = "omnis_auto_scan_on_startup";
+
+/** Returns true if the user opted for auto-scan on startup. */
+export function shouldAutoScanOnStartup(): boolean {
+  try {
+    const saved = localStorage.getItem(AUTO_SCAN_KEY);
+    return saved !== null ? JSON.parse(saved) : true;
+  } catch {
+    return true;
+  }
+}
+
 /** Test helper: forces the cached state. */
 export function __setOnboardingStateForTests(value: boolean | null): void {
   completed = value;

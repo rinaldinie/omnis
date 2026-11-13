@@ -4,8 +4,11 @@ import type { SettingsTab } from "../components/settings";
 import { api } from "../api";
 import { listenTauri } from "../api/client";
 import soundEffects from "../utils/soundEffects";
-import { shouldAutoScanOnStartup, shouldShowOnboarding } from "../components/modals/OnboardingModal";
-import { loadOnboardingState } from "../components/modals/onboardingState";
+import {
+  loadOnboardingState,
+  shouldAutoScanOnStartup,
+  shouldShowOnboarding,
+} from "../components/modals/onboardingState";
 import { loadAchievementsConfig, saveAchievementsConfig } from "../components/achievements";
 import { useLibraryStore, useUiStore } from "../stores";
 

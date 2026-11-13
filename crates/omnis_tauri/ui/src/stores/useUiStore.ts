@@ -5,7 +5,7 @@ import {
   ActiveGameSession,
   AchievementSyncProgress,
 } from "../types";
-import { SettingsTab } from "../components/settings";
+import type { SettingsTab } from "../components/settings";
 import type { SessionToastInfo, SyncBannerInfo } from "../components/common/AppToasts";
 import soundEffects from "../utils/soundEffects";
 

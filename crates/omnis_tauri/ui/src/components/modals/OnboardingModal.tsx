@@ -17,8 +17,10 @@ import { api, TAURI_EVENTS, listenTauri } from "../../api";
 import { SteamIcon, EpicIcon, GogIcon, XboxIcon, SwitchIcon } from "../StoreBadge";
 import type { SettingsTab } from "../settings";
 import {
+  AUTO_SCAN_KEY,
   dismissOnboardingForSession,
   markOnboardingCompleted,
+  shouldAutoScanOnStartup,
   shouldShowOnboarding,
 } from "./onboardingState";
 import { buildImportSummary, needsMetadataKeys, ImportSummary } from "./onboardingSummary";
@@ -82,7 +84,6 @@ function StoreIconById({ id, className }: { id: string; className?: string }) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-const AUTO_SCAN_KEY = "omnis_auto_scan_on_startup";
 const LOGIN_STORES = new Set(["steam", "epic", "gog", "xbox"]);
 
 export default function OnboardingModal({
@@ -712,15 +713,5 @@ export default function OnboardingModal({
 
 // ─── Utility exports ──────────────────────────────────────────────────────────
 
-/** Returns true if this is the first launch (wizard neither completed nor skipped). */
-export { shouldShowOnboarding };
-
-/** Returns true if the user opted for auto-scan on startup. */
-export function shouldAutoScanOnStartup(): boolean {
-  try {
-    const saved = localStorage.getItem(AUTO_SCAN_KEY);
-    return saved !== null ? JSON.parse(saved) : true;
-  } catch {
-    return true;
-  }
-}
+/** Re-exports kept for compatibility; prefer importing from `./onboardingState`. */
+export { shouldShowOnboarding, shouldAutoScanOnStartup };

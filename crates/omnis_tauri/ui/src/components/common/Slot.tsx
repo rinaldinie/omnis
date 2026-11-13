@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { listen } from "@tauri-apps/api/event";
 import {
   Clock,
   Compass,
@@ -72,7 +73,6 @@ async function ensureSlotGlobalListeners() {
   }
   initPromise = (async () => {
     try {
-      const { listen } = await import("@tauri-apps/api/event");
       const u1 = await listen(TAURI_EVENTS.GAME_UPDATED, () => {
         slotSubscribers.forEach((cb) => cb());
       });
