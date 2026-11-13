@@ -1,10 +1,35 @@
+import type React from "react";
 import type { LucideIcon } from "lucide-react";
+
+export const CONSOLE_PILL_STYLE: React.CSSProperties = {
+  backgroundColor: "rgba(10, 14, 24, 0.68)",
+  border: "1px solid rgba(255, 255, 255, 0.2)",
+};
+
+export const CONSOLE_MODAL_SURFACE_STYLE: React.CSSProperties = {
+  backgroundColor: "rgba(10, 14, 24, 0.88)",
+  border: "1px solid rgba(255, 255, 255, 0.2)",
+  boxShadow: "0 24px 64px rgba(0, 0, 0, 0.65)",
+};
+
+export const CONSOLE_OPTION_ACTIVE_STYLE: React.CSSProperties = {
+  backgroundColor: "#ffffff",
+  color: "#0b0f19",
+  border: "1px solid rgba(255, 255, 255, 0.9)",
+};
+
+export const CONSOLE_OPTION_IDLE_STYLE: React.CSSProperties = {
+  backgroundColor: "rgba(255, 255, 255, 0.06)",
+  color: "#f8fafc",
+  border: "1px solid rgba(255, 255, 255, 0.2)",
+};
 
 export const STORE_LABELS: Record<string, string> = {
   steam: "Steam",
   epic: "Epic Games",
   gog: "GOG",
   xbox: "Xbox",
+  switch: "Switch",
 };
 
 export const FILTER_LABEL_KEYS: Record<string, string> = {

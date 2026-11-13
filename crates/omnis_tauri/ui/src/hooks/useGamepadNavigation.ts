@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import type { MutableRefObject } from "react";
 import soundEffects from "../utils/soundEffects";
 import { GameDto } from "../types";
+import { triggerTopBack } from "./useBackHandler";
 
 interface UseGamepadNavigationProps {
   isFullscreen?: boolean;
@@ -38,12 +39,9 @@ export function detectControllerType(id: string): ControllerType {
   return "xbox";
 }
 
-/**
- * Gives the fullscreen view a chance to handle Back (e.g. to dismiss a confirmation dialog).
- * Returns true when the view consumed it.
- */
-function interceptBack(scope: "menu" | "details" | "page"): boolean {
-  const event = new CustomEvent(`omnis:${scope}-back`, { cancelable: true });
+/** Gives topmost modal overlays (power dialog / confirm) first chance at gamepad nav or A. */
+function dispatchOverlay(type: "nav" | "action-a", detail?: Record<string, unknown>): boolean {
+  const event = new CustomEvent(`omnis:overlay-${type}`, { detail, cancelable: true });
   window.dispatchEvent(event);
   return event.defaultPrevented;
 }
@@ -322,54 +320,56 @@ export function useGamepadNavigation({
         };
 
         if (isFullscreenRef.current) {
+          const handleMenuNavX = () => {
+            const dir = currentDirX === 1 ? "right" : "left";
+            if (dispatchOverlay("nav", { direction: dir })) return;
+            window.dispatchEvent(new CustomEvent("omnis:menu-nav", { detail: { direction: dir } }));
+          };
+          const handleMenuNavY = () => {
+            const dir = currentDirY === 1 ? "down" : "up";
+            if (dispatchOverlay("nav", { direction: dir })) return;
+            window.dispatchEvent(new CustomEvent("omnis:menu-nav", { detail: { direction: dir } }));
+          };
+
           if (consolePageRef.current) {
-            // Console page (achievements, statistics) owns both axes
-            repeatAxis(currentDirX, navDirectionRef, navStartTimeRef, lastNavTimeRef, () =>
-              dispatchPage("nav", { direction: currentDirX === 1 ? "right" : "left" })
-            );
-            repeatAxis(currentDirY, navDirectionYRef, navStartYTimeRef, lastNavYTimeRef, () =>
-              dispatchPage("nav", { direction: currentDirY === 1 ? "down" : "up" })
-            );
+            // Console page (achievements, statistics) owns both axes unless a modal overlay intercepts
+            repeatAxis(currentDirX, navDirectionRef, navStartTimeRef, lastNavTimeRef, () => {
+              const dir = currentDirX === 1 ? "right" : "left";
+              if (!dispatchOverlay("nav", { direction: dir })) dispatchPage("nav", { direction: dir });
+            });
+            repeatAxis(currentDirY, navDirectionYRef, navStartYTimeRef, lastNavYTimeRef, () => {
+              const dir = currentDirY === 1 ? "down" : "up";
+              if (!dispatchOverlay("nav", { direction: dir })) dispatchPage("nav", { direction: dir });
+            });
+          } else if (isMenuOpenRef.current) {
+            // --- A. QUICK MENU IS OPEN (higher priority than details behind it) ---
+            repeatAxis(currentDirY, navDirectionYRef, navStartYTimeRef, lastNavYTimeRef, handleMenuNavY);
+            repeatAxis(currentDirX, navDirectionRef, navStartTimeRef, lastNavTimeRef, handleMenuNavX);
           } else if (showFullscreenDetailsRef.current) {
             // When in Fullscreen Details: handle horizontal and vertical navigation
-            repeatAxis(currentDirX, navDirectionRef, navStartTimeRef, lastNavTimeRef, () =>
-              window.dispatchEvent(
-                new CustomEvent("omnis:details-nav", {
-                  detail: { direction: currentDirX === 1 ? "right" : "left" },
-                })
-              )
-            );
-            repeatAxis(currentDirY, navDirectionYRef, navStartYTimeRef, lastNavYTimeRef, () =>
-              window.dispatchEvent(
-                new CustomEvent("omnis:details-nav", {
-                  detail: { direction: currentDirY === 1 ? "down" : "up" },
-                })
-              )
-            );
+            repeatAxis(currentDirX, navDirectionRef, navStartTimeRef, lastNavTimeRef, () => {
+              const dir = currentDirX === 1 ? "right" : "left";
+              if (!dispatchOverlay("nav", { direction: dir })) {
+                window.dispatchEvent(new CustomEvent("omnis:details-nav", { detail: { direction: dir } }));
+              }
+            });
+            repeatAxis(currentDirY, navDirectionYRef, navStartYTimeRef, lastNavYTimeRef, () => {
+              const dir = currentDirY === 1 ? "down" : "up";
+              if (!dispatchOverlay("nav", { direction: dir })) {
+                window.dispatchEvent(new CustomEvent("omnis:details-nav", { detail: { direction: dir } }));
+              }
+            });
           } else {
             // Main Fullscreen Home Screen
-            if (isMenuOpenRef.current) {
-              // --- A. DROPDOWN MENU IS OPEN ---
-              repeatAxis(currentDirY, navDirectionYRef, navStartYTimeRef, lastNavYTimeRef, () =>
-                window.dispatchEvent(
-                  new CustomEvent("omnis:menu-nav", {
-                    detail: { direction: currentDirY === 1 ? "down" : "up" },
-                  })
-                )
-              );
-              repeatAxis(currentDirX, navDirectionRef, navStartTimeRef, lastNavTimeRef, () =>
-                window.dispatchEvent(
-                  new CustomEvent("omnis:menu-nav", {
-                    detail: { direction: currentDirX === 1 ? "right" : "left" },
-                  })
-                )
-              );
-            } else if (homeFocusZoneRef.current === "recent") {
+            if (homeFocusZoneRef.current === "recent") {
               // --- B2. "CONTINUE PLAYING" ROW IS FOCUSED ---
               if (currentDirY !== 0) {
                 if (navDirectionYRef.current !== currentDirY) {
-                  soundEffects.playNav();
-                  setHomeFocusZone(currentDirY === -1 ? "topbar" : "carousel");
+                  const dir = currentDirY === -1 ? "up" : "down";
+                  if (!dispatchOverlay("nav", { direction: dir })) {
+                    soundEffects.playNav();
+                    setHomeFocusZone(currentDirY === -1 ? "topbar" : "carousel");
+                  }
                   navDirectionYRef.current = currentDirY;
                   navStartYTimeRef.current = now;
                 }
@@ -377,18 +377,26 @@ export function useGamepadNavigation({
                 navDirectionYRef.current = 0;
                 navStartYTimeRef.current = 0;
               }
-              repeatAxis(currentDirX, navDirectionRef, navStartTimeRef, lastNavTimeRef, () =>
-                dispatchRecent("nav", { direction: currentDirX === 1 ? "right" : "left" })
-              );
+              repeatAxis(currentDirX, navDirectionRef, navStartTimeRef, lastNavTimeRef, () => {
+                const dir = currentDirX === 1 ? "right" : "left";
+                if (!dispatchOverlay("nav", { direction: dir })) {
+                  dispatchRecent("nav", { direction: dir });
+                }
+              });
             } else if (homeFocusZoneRef.current === "topbar") {
               // --- B. TOP BAR MENU BUTTON IS FOCUSED ---
-              if (currentDirY === 1) {
-                // D-Pad Down: back to the "continue playing" row, or the games
-                soundEffects.playNav();
-                setHomeFocusZone(hasRecentRowRef.current ? "recent" : "carousel");
-                navDirectionYRef.current = 1;
-                navStartYTimeRef.current = now;
-              } else if (currentDirY === 0) {
+              if (currentDirY !== 0) {
+                if (navDirectionYRef.current !== currentDirY) {
+                  const dir = currentDirY === -1 ? "up" : "down";
+                  if (!dispatchOverlay("nav", { direction: dir }) && currentDirY === 1) {
+                    // D-Pad Down: back to the "continue playing" row, or the games
+                    soundEffects.playNav();
+                    setHomeFocusZone(hasRecentRowRef.current ? "recent" : "carousel");
+                  }
+                  navDirectionYRef.current = currentDirY;
+                  navStartYTimeRef.current = now;
+                }
+              } else {
                 navDirectionYRef.current = 0;
                 navStartYTimeRef.current = 0;
               }
@@ -407,7 +415,10 @@ export function useGamepadNavigation({
                 }
                 if (isNewPress || isRepeat) {
                   lastNavYTimeRef.current = now;
-                  if (currentDirY === -1 && (cols <= 0 || focusedIndexRef.current < cols)) {
+                  const dir = currentDirY === -1 ? "up" : "down";
+                  if (dispatchOverlay("nav", { direction: dir })) {
+                    // Consumed by active dialog overlay
+                  } else if (currentDirY === -1 && (cols <= 0 || focusedIndexRef.current < cols)) {
                     // Up from the shelf or the first grid row: recent row if shown, else the menu button
                     if (isNewPress) {
                       soundEffects.playNav();
@@ -423,9 +434,12 @@ export function useGamepadNavigation({
               }
 
               // Horizontal navigation in game carousel
-              repeatAxis(currentDirX, navDirectionRef, navStartTimeRef, lastNavTimeRef, () =>
-                stepCarousel(currentDirX)
-              );
+              repeatAxis(currentDirX, navDirectionRef, navStartTimeRef, lastNavTimeRef, () => {
+                const dir = currentDirX === 1 ? "right" : "left";
+                if (!dispatchOverlay("nav", { direction: dir })) {
+                  stepCarousel(currentDirX);
+                }
+              });
             }
           }
         }
@@ -443,27 +457,43 @@ export function useGamepadNavigation({
         const isEdgeGuide = isEdge(16) || isEdge(17);
 
         if (isFullscreenRef.current) {
-          if (consolePageRef.current) {
-            if (isEdgeA) {
-              dispatchPage("action-a");
-            } else if (isEdgeB) {
-              if (!interceptBack("page")) {
+          if (isEdgeB) {
+            // Execute the topmost registered Back handler first; fall back to local
+            // hook state unwinding when overlays aren't mounted (e.g. headless hook tests).
+            if (!triggerTopBack()) {
+              if (consolePageRef.current) {
                 soundEffects.playSelect();
                 setConsolePage(null);
+              } else if (isMenuOpenRef.current) {
+                soundEffects.playSelect();
+                setIsMenuOpen(false);
+              } else if (showFullscreenDetailsRef.current) {
+                soundEffects.playSelect();
+                setShowFullscreenDetails(false);
+              } else if (homeFocusZoneRef.current === "topbar" || homeFocusZoneRef.current === "recent") {
+                soundEffects.playNav();
+                setHomeFocusZone("carousel");
               }
+            }
+            // In Fullscreen home screen, B does NOT exit to desktop!
+          } else if (consolePageRef.current) {
+            if (isEdgeA) {
+              if (!dispatchOverlay("action-a")) dispatchPage("action-a");
             } else if (isEdgeY) {
               dispatchPage("action-y");
             } else if (isEdgeLB || isEdgeRB) {
               dispatchPage("bumper", { direction: isEdgeLB ? -1 : 1 });
             }
           } else if (isEdgeA) {
-            if (showFullscreenDetailsRef.current) {
-              window.dispatchEvent(new CustomEvent("omnis:details-action-a"));
+            if (dispatchOverlay("action-a")) {
+              // Consumed by active dialog (e.g. confirm / power dialog)
             } else if (isMenuOpenRef.current) {
               window.dispatchEvent(new CustomEvent("omnis:menu-action-a"));
             } else if (homeFocusZoneRef.current === "topbar") {
               soundEffects.playSelect();
               setIsMenuOpen(true);
+            } else if (showFullscreenDetailsRef.current) {
+              window.dispatchEvent(new CustomEvent("omnis:details-action-a"));
             } else if (homeFocusZoneRef.current === "recent") {
               dispatchRecent("action", { action: "launch" });
             } else {
@@ -473,22 +503,6 @@ export function useGamepadNavigation({
                 handleLaunchRef.current(current.id);
               }
             }
-          } else if (isEdgeB) {
-            if (showFullscreenDetailsRef.current) {
-              if (!interceptBack("details")) {
-                soundEffects.playSelect();
-                setShowFullscreenDetails(false);
-              }
-            } else if (isMenuOpenRef.current) {
-              if (!interceptBack("menu")) {
-                soundEffects.playSelect();
-                setIsMenuOpen(false);
-              }
-            } else if (homeFocusZoneRef.current === "topbar" || homeFocusZoneRef.current === "recent") {
-              soundEffects.playNav();
-              setHomeFocusZone("carousel");
-            }
-            // In Fullscreen home screen, B does NOT exit to desktop!
           } else if (isEdgeX) {
             if (
               !isMenuOpenRef.current &&
@@ -577,16 +591,19 @@ export function useGamepadNavigation({
       }
 
       if (isFullscreen) {
+        const plainKey = !e.ctrlKey && !e.altKey && !e.metaKey;
+        const isEsc = e.key === "Escape" || e.key === "Esc" || e.code === "Escape";
+
         if (consolePage) {
-          const plainKey = !e.ctrlKey && !e.altKey && !e.metaKey;
           const arrows: Record<string, string> = {
             ArrowUp: "up",
             ArrowDown: "down",
             ArrowLeft: "left",
             ArrowRight: "right",
           };
-          if (e.key === "Escape") {
-            if (!interceptBack("page")) {
+          if (isEsc || (e.key === "Backspace" && plainKey)) {
+            e.preventDefault();
+            if (!triggerTopBack()) {
               soundEffects.playSelect();
               setConsolePage(null);
             }
@@ -605,9 +622,41 @@ export function useGamepadNavigation({
           return;
         }
 
+        // When Dropdown Menu is open (checked before details so Esc always closes the topmost menu):
+        if (isMenuOpen) {
+          if (isEsc || (e.key === "Backspace" && plainKey)) {
+            e.preventDefault();
+            if (!triggerTopBack()) {
+              soundEffects.playSelect();
+              setIsMenuOpen(false);
+            }
+          } else if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            window.dispatchEvent(new CustomEvent("omnis:menu-action-a"));
+          } else if (e.key === "ArrowUp") {
+            window.dispatchEvent(
+              new CustomEvent("omnis:menu-nav", { detail: { direction: "up" } })
+            );
+          } else if (e.key === "ArrowDown") {
+            window.dispatchEvent(
+              new CustomEvent("omnis:menu-nav", { detail: { direction: "down" } })
+            );
+          } else if (e.key === "ArrowLeft") {
+            window.dispatchEvent(
+              new CustomEvent("omnis:menu-nav", { detail: { direction: "left" } })
+            );
+          } else if (e.key === "ArrowRight") {
+            window.dispatchEvent(
+              new CustomEvent("omnis:menu-nav", { detail: { direction: "right" } })
+            );
+          }
+          return;
+        }
+
         if (showFullscreenDetails) {
-          if (e.key === "Escape") {
-            if (!interceptBack("details")) {
+          if (isEsc || (e.key === "Backspace" && plainKey)) {
+            e.preventDefault();
+            if (!triggerTopBack()) {
               soundEffects.playSelect();
               setShowFullscreenDetails(false);
             }
@@ -632,36 +681,6 @@ export function useGamepadNavigation({
             );
           }
           // In Fullscreen Details page: never change game carousel!
-          return;
-        }
-
-        // When Dropdown Menu is open:
-        if (isMenuOpen) {
-          if (e.key === "Escape") {
-            if (!interceptBack("menu")) {
-              soundEffects.playSelect();
-              setIsMenuOpen(false);
-            }
-          } else if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            window.dispatchEvent(new CustomEvent("omnis:menu-action-a"));
-          } else if (e.key === "ArrowUp") {
-            window.dispatchEvent(
-              new CustomEvent("omnis:menu-nav", { detail: { direction: "up" } })
-            );
-          } else if (e.key === "ArrowDown") {
-            window.dispatchEvent(
-              new CustomEvent("omnis:menu-nav", { detail: { direction: "down" } })
-            );
-          } else if (e.key === "ArrowLeft") {
-            window.dispatchEvent(
-              new CustomEvent("omnis:menu-nav", { detail: { direction: "left" } })
-            );
-          } else if (e.key === "ArrowRight") {
-            window.dispatchEvent(
-              new CustomEvent("omnis:menu-nav", { detail: { direction: "right" } })
-            );
-          }
           return;
         }
 
@@ -728,6 +747,7 @@ export function useGamepadNavigation({
         // When in Games Shelf / Grid:
         const cols = fullscreenGridColumns;
         if (e.key === "ArrowUp") {
+          e.preventDefault();
           if (cols > 0 && focusedIndex >= cols) {
             setFocusedIndex(gridStep(focusedIndex, filteredGames.length, cols, -1));
             soundEffects.playNav();
@@ -736,18 +756,48 @@ export function useGamepadNavigation({
             setHomeFocusZone(hasRecentRow ? "recent" : "topbar");
           }
         } else if (e.key === "ArrowDown" && cols > 0) {
+          e.preventDefault();
           const next = gridStep(focusedIndex, filteredGames.length, cols, 1);
           if (next !== focusedIndex) {
             setFocusedIndex(next);
             soundEffects.playNav();
           }
+        } else if (e.key === "PageDown" && cols > 0) {
+          e.preventDefault();
+          const next = Math.min(filteredGames.length - 1, focusedIndex + cols * 3);
+          if (next !== focusedIndex) {
+            setFocusedIndex(next);
+            soundEffects.playNav();
+          }
+        } else if (e.key === "PageUp" && cols > 0) {
+          e.preventDefault();
+          const next = Math.max(0, focusedIndex - cols * 3);
+          if (next !== focusedIndex) {
+            setFocusedIndex(next);
+            soundEffects.playNav();
+          }
+        } else if (e.key === "Home" && filteredGames.length > 0) {
+          e.preventDefault();
+          if (focusedIndex !== 0) {
+            setFocusedIndex(0);
+            soundEffects.playNav();
+          }
+        } else if (e.key === "End" && filteredGames.length > 0) {
+          e.preventDefault();
+          const last = filteredGames.length - 1;
+          if (focusedIndex !== last) {
+            setFocusedIndex(last);
+            soundEffects.playNav();
+          }
         } else if (e.key === "ArrowLeft") {
+          e.preventDefault();
           setFocusedIndex((prev) => {
             const next = Math.max(0, prev - 1);
             if (next !== prev) soundEffects.playNav();
             return next;
           });
         } else if (e.key === "ArrowRight") {
+          e.preventDefault();
           setFocusedIndex((prev) => {
             const next = Math.min(filteredGames.length - 1, prev + 1);
             if (next !== prev) soundEffects.playNav();

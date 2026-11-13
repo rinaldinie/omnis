@@ -176,7 +176,14 @@ export const RecentCard = React.memo(function RecentCard({
   );
 });
 
-export const GridCard = React.memo(function GridCard({ game, isFocused, isRunning, onClick }: ShelfCardProps) {
+export const GridCard = React.memo(function GridCard({
+  game,
+  isFocused,
+  isRunning,
+  hasFocusRing = true,
+  onClick,
+}: ShelfCardProps) {
+  const showRing = isFocused && hasFocusRing;
   return (
     <div
       onClick={onClick}
@@ -184,10 +191,10 @@ export const GridCard = React.memo(function GridCard({ game, isFocused, isRunnin
       style={{
         paddingTop: "150%",
         backgroundColor: "var(--bg-card)",
-        opacity: isFocused ? 1 : 0.8,
-        transform: isFocused ? "scale(1.05)" : "none",
-        zIndex: isFocused ? 10 : undefined,
-        boxShadow: isFocused
+        opacity: showRing ? 1 : 0.8,
+        transform: showRing ? "scale(1.05)" : "none",
+        zIndex: showRing ? 10 : undefined,
+        boxShadow: showRing
           ? "0 0 0 0.2rem rgba(255, 255, 255, 0.92), 0 1.25rem 2.5rem -0.75rem rgba(0, 0, 0, 0.85)"
           : "0 0.75rem 1.5rem -1rem rgba(0, 0, 0, 0.8)",
       }}

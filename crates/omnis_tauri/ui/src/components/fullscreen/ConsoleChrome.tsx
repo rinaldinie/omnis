@@ -1,5 +1,6 @@
 import React from "react";
 import type { ControllerType, InputDevice, ControllerStyleSetting } from "../../hooks/useGamepadNavigation";
+import { CONSOLE_PILL_STYLE } from "./constants";
 
 export type { ControllerType, InputDevice, ControllerStyleSetting };
 
@@ -31,26 +32,11 @@ export const useInputPrompt = () => React.useContext(InputPromptContext);
 /** Family of the connected controller, so glyphs match the buttons in the player's hands. */
 export const ControllerTypeContext = React.createContext<ControllerType>("xbox");
 
-const FACE_GLYPHS: Record<ControllerType, Record<FaceKind, { text: string; bg: string; fg: string }>> = {
-  xbox: {
-    a: { text: "A", bg: "#3fae3f", fg: "#ffffff" },
-    b: { text: "B", bg: "#e5483f", fg: "#ffffff" },
-    x: { text: "X", bg: "#3b82f6", fg: "#ffffff" },
-    y: { text: "Y", bg: "#f2b632", fg: "#111111" },
-  },
-  playstation: {
-    a: { text: "✕", bg: "#1f2533", fg: "#7aa7ff" },
-    b: { text: "○", bg: "#1f2533", fg: "#ff6b6b" },
-    x: { text: "□", bg: "#1f2533", fg: "#f08ad8" },
-    y: { text: "△", bg: "#1f2533", fg: "#4fd1a5" },
-  },
+const FACE_GLYPHS: Record<ControllerType, Record<FaceKind, string>> = {
+  xbox: { a: "A", b: "B", x: "X", y: "Y" },
+  playstation: { a: "✕", b: "○", x: "□", y: "△" },
   // Nintendo labels are swapped relative to their position
-  nintendo: {
-    a: { text: "B", bg: "#3a3f4b", fg: "#ffffff" },
-    b: { text: "A", bg: "#3a3f4b", fg: "#ffffff" },
-    x: { text: "Y", bg: "#3a3f4b", fg: "#ffffff" },
-    y: { text: "X", bg: "#3a3f4b", fg: "#ffffff" },
-  },
+  nintendo: { a: "B", b: "A", x: "Y", y: "X" },
 };
 
 const SHOULDER_LABELS: Record<ControllerType, Record<"lb" | "rb" | "bumpers" | "r3", string>> = {
@@ -97,13 +83,9 @@ export function Glyph({ kind, label }: { kind: GlyphKind; label?: string }) {
   // Controller mode (Xbox / PlayStation / Nintendo)
   if (kind === "a" || kind === "b" || kind === "x" || kind === "y") {
     const familyFace = FACE_GLYPHS[effectiveFamily] || FACE_GLYPHS.xbox;
-    const c = familyFace[kind];
     return (
-      <span
-        className="inline-flex items-center justify-center w-[1.6em] h-[1.6em] rounded-full font-bold text-[0.85em] leading-none shrink-0 shadow-sm"
-        style={{ backgroundColor: c.bg, color: c.fg }}
-      >
-        {c.text}
+      <span className="inline-flex items-center justify-center w-[1.65em] h-[1.65em] rounded-full border border-white/35 bg-white/15 text-white font-bold text-[0.85em] leading-none shrink-0">
+        {familyFace[kind]}
       </span>
     );
   }
@@ -135,27 +117,60 @@ export interface LegendEntry {
   label: string;
   glyphLabel?: string;
   tone?: "default" | "danger";
+  onClick?: () => void;
 }
 
-/** Bottom controller legend bar, in the style of console dashboards. */
+/** Bottom controller legend bar, matching the top console capsules. */
 export function ControllerLegend({ left, right }: { left?: LegendEntry[]; right: LegendEntry[] }) {
-  const renderEntry = (entry: LegendEntry) => (
-    <span
-      key={`${entry.kind}-${entry.label}`}
-      className={`flex items-center gap-2.5 ${entry.tone === "danger" ? "text-rose-300" : "text-white"}`}
-    >
-      <Glyph kind={entry.kind} label={entry.glyphLabel} />
-      <span className="uppercase tracking-wider">{entry.label}</span>
-    </span>
-  );
+  const renderEntry = (entry: LegendEntry) => {
+    const content = (
+      <>
+        <Glyph kind={entry.kind} label={entry.glyphLabel} />
+        <span className="uppercase tracking-wider">{entry.label}</span>
+      </>
+    );
+
+    if (entry.onClick) {
+      return (
+        <button
+          key={`${entry.kind}-${entry.label}`}
+          type="button"
+          onClick={entry.onClick}
+          className="cursor-pointer bg-transparent border-none flex items-center gap-2.5 px-3 py-1.5 -mx-3 -my-1.5 rounded-full text-[#f8fafc] hover:bg-white/15 active:bg-white/20 transition-colors font-inherit"
+        >
+          {content}
+        </button>
+      );
+    }
+
+    return (
+      <span
+        key={`${entry.kind}-${entry.label}`}
+        className="flex items-center gap-2.5 text-[#f8fafc]"
+      >
+        {content}
+      </span>
+    );
+  };
 
   return (
-    <footer
-      className="relative z-30 flex items-center justify-between px-10 py-3 shrink-0 text-sm font-semibold"
-      style={{ backgroundColor: "rgba(0, 0, 0, 0.82)" }}
-    >
-      <div className="flex items-center gap-8">{left?.map(renderEntry)}</div>
-      <div className="flex items-center gap-8">{right.map(renderEntry)}</div>
+    <footer className="relative z-30 flex items-center justify-between px-10 pt-2 pb-5 shrink-0 text-sm font-semibold uppercase tracking-wider">
+      {left && left.length > 0 ? (
+        <div
+          className="h-12 inline-flex items-center gap-7 px-6 rounded-full backdrop-blur-md shadow-[0_10px_28px_rgba(0,0,0,0.45)]"
+          style={CONSOLE_PILL_STYLE}
+        >
+          {left.map(renderEntry)}
+        </div>
+      ) : (
+        <div />
+      )}
+      <div
+        className="h-12 inline-flex items-center gap-7 px-6 rounded-full backdrop-blur-md shadow-[0_10px_28px_rgba(0,0,0,0.45)]"
+        style={CONSOLE_PILL_STYLE}
+      >
+        {right.map(renderEntry)}
+      </div>
     </footer>
   );
 }

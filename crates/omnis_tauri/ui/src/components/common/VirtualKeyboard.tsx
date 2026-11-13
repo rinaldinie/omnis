@@ -266,6 +266,7 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
 
   return (
     <div
+      data-virtual-keyboard="true"
       className="fixed inset-0 z-[60] flex flex-col items-center px-6 pt-8 omnis-fade-in"
       style={{
         // Dims only the top of the screen, so live search results stay visible below

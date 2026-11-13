@@ -24,6 +24,7 @@ import { useActiveGameTimer } from "../../context/ActiveGameTimerContext";
 import { GameSortMode } from "../../utils/sortGames";
 import { useUpdater } from "../../hooks/useAppUpdater";
 import { useUiScale } from "../../hooks/useUiScale";
+import { BACK_PRIORITY, useBackHandler } from "../../hooks/useBackHandler";
 import type { ConsolePage, HomeFocusZone } from "../../hooks/useGamepadNavigation";
 import {
   useClock,
@@ -37,6 +38,7 @@ import {
   GRID_GAP_REM,
   RECENT_ROW_SIZE,
   RECENT_ROW_MIN_VIEWPORT_REM,
+  ArtImage,
 } from "../fullscreen/FullscreenCards";
 import { FullscreenQuickMenu } from "../fullscreen/FullscreenQuickMenu";
 import { FullscreenPowerDialog } from "../fullscreen/FullscreenPowerDialog";
@@ -115,7 +117,7 @@ interface FullscreenViewProps {
 }
 
 export type GameAction = "folder" | "verify" | "shortcut" | "uninstall";
-type HeroButton = "launch" | GameAction | "back";
+type HeroButton = "launch" | GameAction;
 
 const HERO_ACTIONS: Record<GameAction, { icon: LucideIcon; labelKey: string; danger?: boolean }> = {
   folder: { icon: FolderOpen, labelKey: "console_ui.action_folder" },
@@ -268,7 +270,12 @@ export default function FullscreenView({
       }
       return next;
     });
-  }, []);
+    setHomeFocusZone?.("carousel");
+    const activeEl = document.activeElement;
+    if (activeEl instanceof HTMLElement && activeEl.tagName === "BUTTON") {
+      activeEl.blur();
+    }
+  }, [setHomeFocusZone]);
 
   React.useEffect(() => {
     const handleToggle = () => {
@@ -293,14 +300,16 @@ export default function FullscreenView({
 
   const gridRef = React.useRef<HTMLDivElement>(null);
   const [gridColumns, setGridColumns] = React.useState(0);
+  const hasGridContent = layout === "grid" && filteredGames.length > 0;
 
   React.useLayoutEffect(() => {
     const grid = gridRef.current;
-    if (layout !== "grid" || !grid) {
+    if (!hasGridContent || !grid) {
       setGridColumns(0);
       return;
     }
     const measure = () => {
+      if (grid.clientWidth <= 0) return;
       const remPx = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
       const style = getComputedStyle(grid);
       const inner = grid.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
@@ -311,7 +320,7 @@ export default function FullscreenView({
     const observer = new ResizeObserver(measure);
     observer.observe(grid);
     return () => observer.disconnect();
-  }, [layout, scale]);
+  }, [hasGridContent, scale]);
 
   React.useEffect(() => {
     onGridColumnsChange?.(layout === "grid" ? gridColumns : 0);
@@ -541,6 +550,14 @@ export default function FullscreenView({
     shelf.scrollTo({ left: Math.max(0, focusedIndex * pitch), behavior: "smooth" });
   }, [layout, focusedIndex, scale, filteredGames.length, carouselRef]);
 
+  // Grid auto-scroll: keep focused card inside the visible viewport
+  React.useEffect(() => {
+    const grid = gridRef.current;
+    if (layout !== "grid" || !grid) return;
+    const card = grid.children[focusedIndex] as HTMLElement | undefined;
+    card?.scrollIntoView?.({ block: "nearest", inline: "nearest", behavior: "smooth" });
+  }, [layout, focusedIndex, gridColumns, scale, filteredGames.length]);
+
   // Category tabs
   const activeCategory = toCategoryId(activeFilter);
   const filterLabel = (id: string) => {
@@ -611,7 +628,6 @@ export default function FullscreenView({
       ...(hasGameActions && detailInstalled ? (["folder", "verify"] as const) : []),
       ...(hasGameActions ? (["shortcut"] as const) : []),
       ...(hasGameActions && detailInstalled ? (["uninstall"] as const) : []),
-      "back",
     ],
     [hasGameActions, detailInstalled]
   );
@@ -700,9 +716,7 @@ export default function FullscreenView({
       }
       soundEffects.playSelect();
       if (!activeDetailGame) return;
-      if (heroFocusedButton === "back") {
-        setShowFullscreenDetails(false);
-      } else if (heroFocusedButton === "launch") {
+      if (heroFocusedButton === "launch") {
         if (isFocusedGameRunning && handleKillRunningGame) {
           handleKillRunningGame();
         } else {
@@ -753,11 +767,31 @@ export default function FullscreenView({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isFocusedGameRunning, isInfoGameRunning, handleKillRunningGame, isMenuOpen, showFullscreenDetails, consolePage]);
 
-  // Confirmation dialog input
+  // Back / ESC registration for home focus zones and confirmation modal
+  useBackHandler(
+    Boolean(setHomeFocusZone) && (homeFocusZone === "topbar" || homeFocusZone === "recent"),
+    () => {
+      soundEffects.playNav();
+      setHomeFocusZone?.("carousel");
+    },
+    BACK_PRIORITY.HOME_ZONE
+  );
+
+  useBackHandler(
+    !!confirm,
+    () => {
+      soundEffects.playSelect();
+      setConfirm(null);
+    },
+    BACK_PRIORITY.CONFIRM_DIALOG
+  );
+
+  // Confirmation dialog input (directional + A/Enter confirmation)
   React.useEffect(() => {
     if (!confirm) return;
 
     const handleNav = (e: Event) => {
+      e.preventDefault();
       const dir = (e as CustomEvent<{ direction?: "up" | "down" | "left" | "right" }>).detail?.direction;
       soundEffects.playNav();
       if (dir === "up") {
@@ -769,7 +803,8 @@ export default function FullscreenView({
       }
     };
 
-    const handleAction = () => {
+    const handleAction = (e?: Event) => {
+      e?.preventDefault();
       soundEffects.playSelect();
       const currentFocus = confirmFocusRef.current;
       const currentConfirm = confirmRef.current;
@@ -796,12 +831,6 @@ export default function FullscreenView({
       }
     };
 
-    const handleBack = (e: Event) => {
-      e.preventDefault();
-      soundEffects.playSelect();
-      setConfirm(null);
-    };
-
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "ArrowUp") {
         e.preventDefault();
@@ -817,21 +846,16 @@ export default function FullscreenView({
         e.preventDefault();
         e.stopPropagation();
         handleAction();
-      } else if (e.key === "Escape") {
-        e.preventDefault();
-        e.stopPropagation();
-        soundEffects.playSelect();
-        setConfirm(null);
       }
     };
 
     const events: Array<[string, EventListener]> = [
+      ["omnis:overlay-nav", handleNav],
+      ["omnis:overlay-action-a", handleAction],
       ["omnis:menu-nav", handleNav],
       ["omnis:details-nav", handleNav],
       ["omnis:menu-action-a", handleAction],
       ["omnis:details-action-a", handleAction],
-      ["omnis:menu-back", handleBack],
-      ["omnis:details-back", handleBack],
     ];
     events.forEach(([name, fn]) => window.addEventListener(name, fn));
     window.addEventListener("keydown", handleKeyDown, true);
@@ -843,7 +867,19 @@ export default function FullscreenView({
   }, [confirm, setIsMenuOpen, handleClose, toggleFullscreen, onGameAction, t]);
 
   // Controller legend
-  const legendLeft = [{ kind: "menu" as const, label: t("console_ui.menu") }];
+  const legendLeft = [
+    {
+      kind: "menu" as const,
+      label: t("console_ui.menu"),
+      onClick:
+        consolePage || showFullscreenDetails
+          ? undefined
+          : () => {
+              soundEffects.playSelect();
+              setIsMenuOpen?.((prev) => !prev);
+            },
+    },
+  ];
   let legendRight;
 
   if (consolePage === "achievements") {
@@ -851,13 +887,27 @@ export default function FullscreenView({
       { kind: "bumpers" as const, label: t("console_ui.filter") },
       { kind: "y" as const, label: t("console_ui.sort_by") },
       ...(canRevealAchievement ? [{ kind: "a" as const, label: t("console_ui.reveal") }] : []),
-      { kind: "b" as const, label: t("console_ui.back") },
+      {
+        kind: "b" as const,
+        label: t("console_ui.back"),
+        onClick: () => {
+          soundEffects.playSelect();
+          setConsolePage?.(null);
+        },
+      },
     ];
   } else if (consolePage === "stats") {
     legendRight = [
       { kind: "key" as const, glyphLabel: "▲ ▼", label: t("console_ui.scroll") },
       { kind: "bumpers" as const, label: t("console_ui.year") },
-      { kind: "b" as const, label: t("console_ui.back") },
+      {
+        kind: "b" as const,
+        label: t("console_ui.back"),
+        onClick: () => {
+          soundEffects.playSelect();
+          setConsolePage?.(null);
+        },
+      },
     ];
   } else if (confirm || isPowerDialogOpen) {
     legendRight = [
@@ -868,7 +918,14 @@ export default function FullscreenView({
     legendRight = [
       ...(focusedMenuItem?.onAdjust ? [{ kind: "key" as const, glyphLabel: "◄ ►", label: t("console_ui.adjust") }] : []),
       { kind: "a" as const, label: t("console_ui.select") },
-      { kind: "b" as const, label: t("console_ui.back") },
+      {
+        kind: "b" as const,
+        label: t("console_ui.back"),
+        onClick: () => {
+          soundEffects.playSelect();
+          setIsMenuOpen?.(false);
+        },
+      },
     ];
   } else if (showFullscreenDetails && activeDetailGame) {
     legendRight =
@@ -878,9 +935,7 @@ export default function FullscreenView({
             {
               kind: "a" as const,
               label:
-                heroFocusedButton === "back"
-                  ? t("console_ui.back")
-                  : heroFocusedButton !== "launch"
+                heroFocusedButton !== "launch"
                   ? t(HERO_ACTIONS[heroFocusedButton].labelKey)
                   : isFocusedGameRunning
                   ? t("console_ui.stop")
@@ -888,12 +943,26 @@ export default function FullscreenView({
                   ? t("console_ui.play")
                   : t("console_ui.install"),
             },
-            { kind: "b" as const, label: t("console_ui.back") },
+            {
+              kind: "b" as const,
+              label: t("console_ui.back"),
+              onClick: () => {
+                soundEffects.playSelect();
+                setShowFullscreenDetails(false);
+              },
+            },
           ]
         : [
             { kind: "key" as const, glyphLabel: "▲", label: t("console_ui.play") },
             { kind: "a" as const, label: t("console_ui.view_all") },
-            { kind: "b" as const, label: t("console_ui.back") },
+            {
+              kind: "b" as const,
+              label: t("console_ui.back"),
+              onClick: () => {
+                soundEffects.playSelect();
+                setShowFullscreenDetails(false);
+              },
+            },
           ];
   } else if (homeFocusZone === "topbar") {
     legendRight = [
@@ -917,7 +986,15 @@ export default function FullscreenView({
   } else {
     legendRight = [
       { kind: "bumpers" as const, label: t("console_ui.category") },
-      { kind: "r3" as const, label: layout === "grid" ? t("console_ui.view_shelf") : t("console_ui.view_grid") },
+      ...(layout === "grid" ? [{ kind: "key" as const, glyphLabel: "▲ ▼", label: t("console_ui.scroll") }] : []),
+      {
+        kind: "r3" as const,
+        label: layout === "grid" ? t("console_ui.view_shelf") : t("console_ui.view_grid"),
+        onClick: () => {
+          soundEffects.playSelect();
+          toggleLayout();
+        },
+      },
       { kind: "y" as const, label: t("console_ui.search") },
       ...(filteredGames.length > 0
         ? [
@@ -944,18 +1021,38 @@ export default function FullscreenView({
         fontFamily: currentTheme.font_family || undefined,
       }}
     >
-      {/* Ambient backdrop of the focused game */}
+      {/* Details-matched hero backdrop of the focused game */}
       {infoGame && (
-        <VideoBackdrop
-          game={infoGame}
-          theme={backdropTheme}
-          blurLevel="ambient"
-          className="pointer-events-none"
-          isPaused={isGameRunning}
-        />
-      )}
-      {infoGame?.background_image && (
-        <div className="absolute inset-0 z-0 pointer-events-none" style={{ backgroundColor: "rgba(0, 0, 0, 0.6)" }} />
+        <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+          <div className="absolute inset-x-0 top-0 h-[75vh]">
+            {backdropTheme?.enable_video_backdrop ? (
+              <VideoBackdrop
+                game={infoGame}
+                theme={backdropTheme}
+                blurLevel="none"
+                gradientOverlay="hero"
+                imageFit="cover"
+                objectPosition="center center"
+                className="pointer-events-none"
+                isPaused={isGameRunning}
+              />
+            ) : (
+              <ArtImage
+                sources={[infoGame.background_image, infoGame.cover_image]}
+                title={infoGame.title}
+                library={infoGame.library}
+                showFallbackTitle={false}
+              />
+            )}
+          </div>
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background:
+                "linear-gradient(to bottom, rgba(0, 0, 0, 0.25) 0%, rgba(0, 0, 0, 0.35) 35%, var(--bg-base) 75%), linear-gradient(to right, rgba(0, 0, 0, 0.6) 0%, transparent 60%)",
+            }}
+          />
+        </div>
       )}
 
       {/* TOP BAR: menu, category tabs, status */}
@@ -1005,7 +1102,6 @@ export default function FullscreenView({
         actualElapsed={actualElapsed}
         playtimeLabel={playtimeLabel}
         infoGame={infoGame}
-        focusedGame={focusedGame}
         t={t}
       />
 
@@ -1054,8 +1150,8 @@ export default function FullscreenView({
       <FullscreenStatsPage
         isOpen={consolePage === "stats"}
         games={allGames ?? filteredGames}
-        onClose={() => setConsolePage?.(null)}
         locale={locale}
+        onClose={() => setConsolePage?.(null)}
         t={t}
       />
 

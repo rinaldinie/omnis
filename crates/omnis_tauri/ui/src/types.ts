@@ -305,10 +305,6 @@ export const FILTER_ORDER = [
   "epic",
   "xbox",
   "switch",
-  "action",
-  "rpg",
-  "strategy",
-  "indie",
 ];
 
 export const BUILTIN_THEMES: ThemeConfig[] = [
