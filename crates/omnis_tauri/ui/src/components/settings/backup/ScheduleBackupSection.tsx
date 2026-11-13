@@ -4,6 +4,8 @@ import { useTranslation } from '../../../i18n';
 import { soundEffects } from '../../../utils/soundEffects';
 import type { BackupScheduleConfigDto } from '../../../types';
 import { ToggleSwitch } from '../SettingsControls';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 interface ScheduleBackupSectionProps {
   scheduleConfig: BackupScheduleConfigDto | null;
@@ -120,9 +122,10 @@ export const ScheduleBackupSection: React.FC<ScheduleBackupSectionProps> = ({
           {frequencyOptions.map((opt) => {
             const isSelected = (scheduleConfig?.frequency ?? 'disabled') === opt.key;
             return (
-              <button
+              <Button
                 key={opt.key}
                 type="button"
+                variant={isSelected ? 'default' : 'outline'}
                 onClick={() => {
                   soundEffects.playSelect();
                   setScheduleConfig((prev) =>
@@ -137,21 +140,17 @@ export const ScheduleBackupSection: React.FC<ScheduleBackupSectionProps> = ({
                 }}
                 style={
                   isSelected
-                    ? {
-                        backgroundColor: 'var(--accent-primary)',
-                        borderColor: 'var(--accent-primary)',
-                        boxShadow: '0 4px 14px var(--accent-glow)',
-                      }
+                    ? { boxShadow: '0 4px 14px var(--accent-glow)' }
                     : undefined
                 }
-                className={`px-3 py-2.5 rounded-xl text-xs font-semibold transition-all border text-center flex items-center justify-center gap-1.5 cursor-pointer ${
+                className={`px-3 py-2.5 h-auto ${
                   isSelected
-                    ? 'text-white font-bold'
+                    ? 'font-bold'
                     : 'bg-white/5 border-white/10 hover:bg-white/10 text-slate-300 hover:text-white'
                 }`}
               >
                 {opt.label}
-              </button>
+              </Button>
             );
           })}
         </div>
@@ -196,7 +195,7 @@ export const ScheduleBackupSection: React.FC<ScheduleBackupSectionProps> = ({
             className="flex-1 h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer"
             style={{ accentColor: 'var(--accent-primary)' }}
           />
-          <input
+          <Input
             id="maxRotationsInput"
             type="number"
             min={1}
@@ -214,8 +213,7 @@ export const ScheduleBackupSection: React.FC<ScheduleBackupSectionProps> = ({
                     }
               );
             }}
-            className="w-16 px-2.5 py-1.5 text-center bg-slate-900 border rounded-xl text-white font-bold font-mono text-xs focus:outline-hidden"
-            style={{ borderColor: 'var(--border-color)' }}
+            className="w-16 px-2.5 py-1.5 h-auto text-center bg-slate-900 font-bold font-mono text-xs"
           />
         </div>
         <p className="text-[11px] text-slate-400 leading-relaxed">
@@ -244,16 +242,17 @@ export const ScheduleBackupSection: React.FC<ScheduleBackupSectionProps> = ({
                 defaultValue: 'No folder selected (click Choose Folder to select where to save)...',
               })}
           </div>
-          <button
+          <Button
             type="button"
+            variant="outline"
             onClick={onPickAutoDestinationFolder}
-            className="px-4 py-2.5 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 text-white text-xs font-bold flex items-center gap-2 transition-all cursor-pointer hover:border-white/30 active:scale-95"
+            className="px-4 py-2.5 h-auto border-white/15 bg-white/5 hover:bg-white/10 text-white font-bold hover:border-white/30"
           >
             <FolderOpen className="w-4 h-4" style={{ color: 'var(--accent-primary)' }} />
             <span>
               {t('backup_settings.btn_choose_folder', { defaultValue: 'Choose Folder...' })}
             </span>
-          </button>
+          </Button>
         </div>
 
         {/* WARNING WHEN FREQUENCY ACTIVE BUT NO DESTINATION DIR */}
@@ -307,21 +306,14 @@ export const ScheduleBackupSection: React.FC<ScheduleBackupSectionProps> = ({
         </div>
 
         {/* SAVE SCHEDULE BUTTON */}
-        <button
+        <Button
           type="button"
           disabled={isSavingSchedule}
           onClick={onSaveSchedule}
-          className={`px-6 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-lg cursor-pointer ${
-            isSavingSchedule
-              ? 'bg-slate-700 text-slate-400 cursor-not-allowed opacity-60'
-              : 'text-white hover:brightness-110 hover:scale-[1.02] active:scale-95'
-          }`}
+          className="px-6 py-2.5 h-auto font-bold shadow-lg"
           style={
             !isSavingSchedule
-              ? {
-                  backgroundColor: 'var(--accent-primary)',
-                  boxShadow: '0 4px 14px var(--accent-glow)',
-                }
+              ? { boxShadow: '0 4px 14px var(--accent-glow)' }
               : undefined
           }
         >
@@ -340,7 +332,7 @@ export const ScheduleBackupSection: React.FC<ScheduleBackupSectionProps> = ({
               </span>
             </>
           )}
-        </button>
+        </Button>
       </div>
     </section>
   );

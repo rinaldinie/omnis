@@ -2,6 +2,9 @@ import React, { useState } from "react";
 import { RefreshCw, LogIn, LogOut, Loader2, Clock, CheckCircle2, AlertCircle, Key } from "lucide-react";
 import { StoreAccount, StoreSyncProgress, formatLastSync } from "./types";
 import { useTranslation } from "../../i18n";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 
 interface CloudStoreCardProps {
   account: StoreAccount;
@@ -93,14 +96,20 @@ export const CloudStoreCard: React.FC<CloudStoreCardProps> = ({
 
           <div className="shrink-0 pt-0.5">
             {account.is_connected ? (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 whitespace-nowrap">
+              <Badge
+                variant="outline"
+                className="gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border-emerald-500/40 whitespace-nowrap"
+              >
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 {t("store_accounts.connected_badge")}
-              </span>
+              </Badge>
             ) : (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-500/20 text-slate-400 border border-slate-500/30 whitespace-nowrap">
+              <Badge
+                variant="outline"
+                className="gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-500/20 text-slate-400 border-slate-500/30 whitespace-nowrap"
+              >
                 {t("store_accounts.not_connected")}
-              </span>
+              </Badge>
             )}
           </div>
         </div>
@@ -166,28 +175,31 @@ export const CloudStoreCard: React.FC<CloudStoreCardProps> = ({
                           ? t("store_accounts.key_active")
                           : t("store_accounts.key_needed")}
                       </p>
-                      <button
+                      <Button
                         type="button"
+                        variant="link"
+                        size="xs"
                         onClick={() => setShowKeyInput(true)}
-                        className="text-[10px] font-bold text-sky-400 hover:text-sky-300 underline underline-offset-2 shrink-0 ml-2"
+                        className="h-auto p-0 text-[10px] font-bold text-sky-400 hover:text-sky-300 underline-offset-2 shrink-0 ml-2"
                       >
                         {account.has_api_key ? t("store_accounts.edit_key") : t("store_accounts.enter_key")}
-                      </button>
+                      </Button>
                     </div>
                   )}
 
                   {showKeyInput && (
                     <div className="space-y-1.5 p-2 rounded-xl bg-black/40 border border-white/15 text-[11px]">
                       <div className="flex gap-1.5">
-                        <input
+                        <Input
                           type="password"
                           value={apiKey}
                           onChange={(e) => setApiKey(e.target.value)}
                           placeholder={t("store_accounts.key_paste_placeholder")}
-                          className="flex-1 min-w-0 bg-black/60 border border-white/20 rounded-lg px-2 py-1 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-400 font-mono"
+                          className="h-auto flex-1 min-w-0 bg-black/60 border-white/20 rounded-lg px-2 py-1 text-xs text-white placeholder:text-slate-500 focus-visible:border-sky-400 font-mono"
                         />
-                        <button
+                        <Button
                           type="button"
+                          size="xs"
                           disabled={!apiKey.trim() || isSavingKey}
                           onClick={async () => {
                             if (onSaveApiKey && apiKey.trim()) {
@@ -201,20 +213,22 @@ export const CloudStoreCard: React.FC<CloudStoreCardProps> = ({
                               }
                             }
                           }}
-                          className="px-3 py-1 bg-sky-500 hover:bg-sky-400 disabled:opacity-50 text-slate-950 font-bold rounded-lg text-xs transition-colors shrink-0 flex items-center gap-1"
+                          className="h-auto px-3 py-1 bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold rounded-lg text-xs shrink-0 gap-1"
                         >
                           {isSavingKey ? <Loader2 className="w-3 h-3 animate-spin" /> : t("common.save")}
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                           type="button"
+                          variant="ghost"
+                          size="xs"
                           onClick={() => {
                             setShowKeyInput(false);
                             setApiKey("");
                           }}
-                          className="px-2 py-1 bg-white/10 hover:bg-white/15 text-slate-300 rounded-lg text-xs transition-colors shrink-0"
+                          className="h-auto px-2 py-1 bg-white/10 hover:bg-white/15 text-slate-300 rounded-lg text-xs shrink-0"
                         >
                           ✕
-                        </button>
+                        </Button>
                       </div>
                       <div className="text-[10px] text-slate-400 flex items-center justify-between">
                         <span>{t("store_accounts.request_free_key")}</span>
@@ -279,32 +293,34 @@ export const CloudStoreCard: React.FC<CloudStoreCardProps> = ({
       <div className="pt-2 border-t border-white/10 flex items-center justify-between gap-2">
         {account.is_connected ? (
           <>
-            <button
+            <Button
               type="button"
+              variant="secondary"
               disabled={actionLoading || isSyncing}
               onClick={() => onSync(account.store_id)}
-              className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/15 text-white transition-all disabled:opacity-50"
+              className="h-auto flex-1 gap-1.5 py-1.5 px-3 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/15 text-white"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? "animate-spin" : ""}`} />
               <span>{isSyncing ? t("store_accounts.syncing_short") : t("store_accounts.sync_now")}</span>
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="outline"
               disabled={actionLoading || isSyncing}
               onClick={() => onDisconnect(account.store_id)}
-              className="flex items-center justify-center gap-1 py-1.5 px-3 rounded-xl text-xs font-medium text-rose-400 hover:bg-rose-500/20 border border-rose-500/30 transition-all disabled:opacity-50"
+              className="h-auto gap-1 py-1.5 px-3 rounded-xl text-xs font-medium text-rose-400 hover:bg-rose-500/20 hover:text-rose-300 border-rose-500/30 bg-transparent"
               title={t("store_accounts.disconnect_title")}
             >
               <LogOut className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">{t("store_accounts.disconnect")}</span>
-            </button>
+            </Button>
           </>
         ) : (
-          <button
+          <Button
             type="button"
             disabled={actionLoading}
             onClick={() => onConnect(account.store_id)}
-            className={`w-full flex items-center justify-center gap-2 py-2 px-4 rounded-xl text-xs shadow-lg transition-all hover:brightness-110 active:scale-98 disabled:opacity-50 ${isLightAccent ? "text-slate-950 font-black" : "text-white font-bold"
+            className={`h-auto w-full gap-2 py-2 px-4 rounded-xl text-xs shadow-lg hover:brightness-110 active:scale-98 ${isLightAccent ? "text-slate-950 font-black" : "text-white font-bold"
               }`}
             style={{
               backgroundColor: accentColor,
@@ -317,7 +333,7 @@ export const CloudStoreCard: React.FC<CloudStoreCardProps> = ({
               <LogIn className={`w-4 h-4 ${isLightAccent ? "text-slate-950" : "text-white"}`} />
             )}
             <span>{t("store_accounts.connect_account")}</span>
-          </button>
+          </Button>
         )}
       </div>
     </div>

@@ -4,6 +4,7 @@ import { useTranslation } from '../../../i18n';
 import { soundEffects } from '../../../utils/soundEffects';
 import type { BackupResultDto } from '../../../types';
 import { ToggleSwitch } from '../SettingsControls';
+import { Button } from '@/components/ui/button';
 
 interface ManualBackupSectionProps {
   selectedDestination: string;
@@ -79,14 +80,15 @@ export const ManualBackupSection: React.FC<ManualBackupSectionProps> = ({
                 defaultValue: 'No folder selected (click Choose Folder to select where to save)...',
               })}
           </div>
-          <button
+          <Button
             type="button"
+            variant="outline"
             onClick={onPickDestinationFolder}
-            className="px-4 py-2.5 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 text-white text-xs font-bold flex items-center gap-2 transition-all cursor-pointer hover:border-white/30 active:scale-95"
+            className="px-4 py-2.5 h-auto border-white/15 bg-white/5 hover:bg-white/10 text-white font-bold hover:border-white/30"
           >
             <FolderOpen className="w-4 h-4" style={{ color: 'var(--accent-primary)' }} />
             <span>{t('backup_settings.btn_choose_folder') || 'Scegli cartella...'}</span>
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -113,21 +115,14 @@ export const ManualBackupSection: React.FC<ManualBackupSectionProps> = ({
         </div>
 
         {/* BACKUP BUTTON */}
-        <button
+        <Button
           type="button"
           disabled={isCreatingBackup}
           onClick={onCreateBackup}
-          className={`px-6 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-lg cursor-pointer ${
-            isCreatingBackup
-              ? 'bg-slate-700 text-slate-400 cursor-not-allowed opacity-60'
-              : 'text-white hover:brightness-110 hover:scale-[1.02] active:scale-95'
-          }`}
+          className="px-6 py-2.5 h-auto font-bold shadow-lg"
           style={
             !isCreatingBackup
-              ? {
-                  backgroundColor: 'var(--accent-primary)',
-                  boxShadow: '0 4px 14px var(--accent-glow)',
-                }
+              ? { boxShadow: '0 4px 14px var(--accent-glow)' }
               : undefined
           }
         >
@@ -142,7 +137,7 @@ export const ManualBackupSection: React.FC<ManualBackupSectionProps> = ({
               <span>{t('backup_settings.btn_create_backup') || 'Crea Backup (.zip)'}</span>
             </>
           )}
-        </button>
+        </Button>
       </div>
 
       {/* LAST BACKUP SUMMARY BANNER */}

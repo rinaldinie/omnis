@@ -20,6 +20,17 @@ import { GameDto, formatImageUrl, TAURI_EVENTS } from "../../types";
 import { api } from "../../api";
 import { useTranslation } from "../../i18n";
 import { StoreBadge } from "../StoreBadge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 export type BatchPresetMode =
   | "all"
@@ -320,71 +331,59 @@ export default function BatchEnrichModal({
   const noTypesSelected = !fetchMetadata && !fetchHltb && !fetchAchievements;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div
-        className="w-full max-w-4xl max-h-[90vh] flex flex-col rounded-3xl border shadow-2xl overflow-hidden"
-        style={{
-          backgroundColor: "var(--bg-surface)",
-          borderColor: "var(--border-color)",
-          color: "var(--text-primary)",
-        }}
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open && !isRunning) {
+          onClose();
+        }
+      }}
+    >
+      <DialogContent
+        className="max-w-4xl w-full max-h-[90vh] p-0 flex flex-col rounded-3xl overflow-hidden gap-0 text-foreground"
+        closeButtonDisabled={isRunning}
       >
-        {/* HEADER */}
-        <div
-          className="flex items-center justify-between px-6 py-4 border-b shrink-0"
-          style={{
-            backgroundColor: "var(--bg-card)",
-            borderColor: "var(--border-color)",
-          }}
-        >
-          <div className="flex items-center gap-3">
-            <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg shrink-0"
-              style={{
-                backgroundColor: "var(--accent-primary)",
-                boxShadow: "0 0 15px var(--accent-glow)",
-              }}
-            >
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h2 className="text-base font-bold text-white tracking-tight">
-                {t("topbar.enrich_button")}
-              </h2>
-              <p className="text-xs text-slate-400">
-                {t("topbar.enrich_tooltip")}
-              </p>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={isRunning}
-            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-30 cursor-pointer"
+        <DialogHeader className="flex-row items-center gap-3 px-6 py-4 border-b border-border bg-card shrink-0 space-y-0 text-left pr-14">
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg shrink-0"
+            style={{
+              backgroundColor: "var(--accent-primary)",
+              boxShadow: "0 0 15px var(--accent-glow)",
+            }}
           >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+            <Sparkles className="w-5 h-5 text-white" />
+          </div>
+          <div className="min-w-0">
+            <DialogTitle className="text-base font-bold text-foreground tracking-tight">
+              {t("topbar.enrich_button")}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              {t("topbar.enrich_tooltip")}
+            </DialogDescription>
+          </div>
+        </DialogHeader>
 
         {/* CONTENT SCROLL */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-5 custom-scrollbar">
+        <ScrollArea className="flex-1 min-h-0">
+          <div className="p-6 space-y-5">
           {/* SECTION 1: DATA TYPES TO DOWNLOAD */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="text-xs font-black uppercase tracking-wider text-slate-300">
                 {t("batch_enrich.data_types")}
               </label>
-              <button
+              <Button
                 type="button"
+                variant="link"
+                size="sm"
                 disabled={isRunning}
                 onClick={handleSelectAllTypes}
-                className="text-xs font-bold text-sky-400 hover:text-sky-300 transition-colors cursor-pointer"
+                className="h-auto p-0 text-xs font-bold text-sky-400 hover:text-sky-300"
               >
                 {allTypesSelected
                   ? t("batch_enrich.deselect_all")
                   : t("batch_enrich.type_all")}
-              </button>
+              </Button>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
@@ -592,31 +591,35 @@ export default function BatchEnrichModal({
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1">
             <div className="relative flex-1 max-w-sm">
               <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-              <input
+              <Input
                 type="text"
                 disabled={isRunning}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={t("batch_enrich.search_placeholder")}
-                className="w-full h-8 pl-8 pr-7 rounded-xl text-xs bg-white/[0.04] border border-white/10 focus:border-sky-500 focus:outline-none text-white transition-all"
+                className="h-8 pl-8 pr-7 rounded-xl text-xs bg-white/[0.04] border-white/10 focus-visible:ring-sky-500 text-white"
               />
               {searchQuery && (
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="icon"
                   onClick={() => setSearchQuery("")}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 hover:text-white"
                 >
                   <X className="w-3 h-3" />
-                </button>
+                </Button>
               )}
             </div>
 
             <div className="flex items-center gap-3 justify-between sm:justify-end">
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="sm"
                 disabled={isRunning || displayedGames.length === 0}
                 onClick={handleToggleSelectAll}
-                className="text-xs font-bold text-slate-300 hover:text-white flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-40"
+                className="h-auto px-2 py-1 text-xs font-bold text-slate-300 hover:text-white gap-1.5"
               >
                 <Check className="w-3.5 h-3.5 text-sky-400" />
                 <span>
@@ -625,7 +628,7 @@ export default function BatchEnrichModal({
                     ? t("batch_enrich.deselect_all")
                     : t("batch_enrich.select_all")}
                 </span>
-              </button>
+              </Button>
 
               <span className="text-xs font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-lg">
                 {t("batch_enrich.download_selected", { count: selectedIds.size })}
@@ -808,36 +811,28 @@ export default function BatchEnrichModal({
               <span className="font-medium">{resultMessage.text}</span>
             </div>
           )}
-        </div>
+          </div>
+        </ScrollArea>
 
-        {/* FOOTER ACTIONS */}
-        <div
-          className="flex items-center justify-end gap-3 px-6 py-4 border-t shrink-0"
-          style={{
-            backgroundColor: "var(--bg-card)",
-            borderColor: "var(--border-color)",
-          }}
-        >
+        <DialogFooter className="px-6 py-4 border-t border-border bg-card shrink-0">
           {isRunning ? (
-            <button
+            <Button
               type="button"
+              variant="destructive"
               onClick={handleCancel}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-rose-600 hover:bg-rose-500 active:scale-95 transition-all shadow-md cursor-pointer"
+              className="px-4 py-2 h-auto font-bold shadow-md"
             >
               <Square className="w-3.5 h-3.5 fill-current" />
               <span>{t("batch_enrich.stop")}</span>
-            </button>
+            </Button>
           ) : (
             <>
-              <button
+              <Button
                 type="button"
                 onClick={handleStartEnrichment}
                 disabled={selectedIds.size === 0 || noTypesSelected}
-                className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-xs font-bold text-white transition-all shadow-lg hover:brightness-110 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-                style={{
-                  backgroundColor: "var(--accent-primary)",
-                  boxShadow: "0 0 15px var(--accent-glow)",
-                }}
+                className="px-5 py-2.5 h-auto font-bold shadow-lg"
+                style={{ boxShadow: "0 0 15px var(--accent-glow)" }}
               >
                 <Sparkles className="w-4 h-4" />
                 <span>
@@ -845,19 +840,20 @@ export default function BatchEnrichModal({
                     count: selectedIds.size,
                   })}
                 </span>
-              </button>
+              </Button>
 
-              <button
+              <Button
                 type="button"
+                variant="ghost"
                 onClick={onClose}
-                className="px-5 py-2.5 rounded-xl text-xs font-bold text-slate-300 hover:text-white hover:bg-white/5 transition-all cursor-pointer"
+                className="px-5 py-2.5 h-auto font-bold text-muted-foreground hover:text-foreground"
               >
                 {resultMessage ? t("common.close") : t("common.cancel")}
-              </button>
+              </Button>
             </>
           )}
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

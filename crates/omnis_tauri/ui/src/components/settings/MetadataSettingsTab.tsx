@@ -19,6 +19,8 @@ import {
   HltbSection,
   PipelineSection,
 } from "./metadata";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
 
 export type { MetadataSubTab };
 
@@ -65,7 +67,8 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
   } = useMetadataSettingsManager();
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6 custom-scrollbar text-white">
+    <ScrollArea className="flex-1 text-white">
+      <div className="p-6 md:p-8 space-y-6">
       {/* Optional Top Sub-tab Bar if not controlled by modal tree */}
       {!hideTabBar && (
         <div
@@ -86,19 +89,18 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
             const Icon = tab.icon;
             const isSel = activeSubTab === tab.id;
             return (
-              <button
+              <Button
                 key={tab.id}
+                type="button"
+                variant={isSel ? "default" : "ghost"}
                 onClick={() => onSelectSubTab?.(tab.id)}
-                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
-                  isSel ? "text-white shadow-md" : "text-slate-400 hover:text-white hover:bg-white/5"
+                className={`px-3.5 py-2 h-auto font-bold whitespace-nowrap ${
+                  isSel ? "shadow-md" : "text-muted-foreground hover:text-foreground"
                 }`}
-                style={{
-                  backgroundColor: isSel ? "var(--accent-primary)" : "transparent",
-                }}
               >
                 <Icon className="w-4 h-4" />
                 <span>{tab.label}</span>
-              </button>
+              </Button>
             );
           })}
         </div>
@@ -196,7 +198,8 @@ export const MetadataSettingsTab: React.FC<MetadataSettingsTabProps> = ({
           onApplyPreset={handleApplyPreset}
         />
       )}
-    </div>
+      </div>
+    </ScrollArea>
   );
 };
 

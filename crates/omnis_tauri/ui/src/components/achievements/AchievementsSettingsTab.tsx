@@ -16,6 +16,8 @@ import { useTranslation } from "../../i18n";
 import { api, TAURI_EVENTS } from "../../api";
 import { listen } from "@tauri-apps/api/event";
 import { SettingGroup, SettingRow, ToggleSwitch } from "../settings/SettingsControls";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export interface AchievementsConfig {
   // Provider sources
@@ -279,14 +281,16 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
           ).map((tab) => {
             const isSelected = activeSubTab === tab.id;
             return (
-              <button
+              <Button
                 key={tab.id}
                 type="button"
+                variant="ghost"
+                size="sm"
                 onClick={() => {
                   soundEffects.playNav();
                   setActiveSubTab(tab.id);
                 }}
-                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all relative cursor-pointer ${
+                className={`h-auto px-4 py-1.5 rounded-lg text-xs font-bold relative ${
                   isSelected ? "shadow-xs" : "text-slate-400 hover:text-white hover:bg-white/5"
                 }`}
                 style={
@@ -305,14 +309,15 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                     style={{ backgroundColor: "var(--accent-primary)" }}
                   />
                 )}
-              </button>
+              </Button>
             );
           })}
         </div>
       )}
 
       {/* Main SubTab Content Area */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
+      <ScrollArea className="flex-1 min-h-0">
+        <div className="p-6 space-y-6">
         {/* SUBTAB 1: SOURCES */}
         {activeSubTab === "sources" && (
           <div className="space-y-6 font-sans">
@@ -345,18 +350,20 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                       </span>
                     </div>
                     <div className="flex items-center gap-4">
-                      <button
+                      <Button
                         type="button"
+                        variant="ghost"
+                        size="icon-xs"
                         onClick={() =>
                           setActiveTooltip(
                             activeTooltip === "steam" ? null : "steam"
                           )
                         }
-                        className="text-slate-500 hover:text-white transition-colors cursor-pointer"
+                        className="h-auto w-auto p-0.5 text-slate-500 hover:text-white hover:bg-transparent"
                         title={t("achievements_settings.store_info_title", { store: "Steam" })}
                       >
                         <HelpCircle className="w-4 h-4" />
-                      </button>
+                      </Button>
                     </div>
                   </div>
 
@@ -373,16 +380,18 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                       </span>
                     </div>
                     <div className="flex items-center gap-4">
-                      <button
+                      <Button
                         type="button"
+                        variant="ghost"
+                        size="icon-xs"
                         onClick={() =>
                           setActiveTooltip(activeTooltip === "gog" ? null : "gog")
                         }
-                        className="text-slate-500 hover:text-white transition-colors cursor-pointer"
+                        className="h-auto w-auto p-0.5 text-slate-500 hover:text-white hover:bg-transparent"
                         title={t("achievements_settings.store_info_title", { store: "GOG" })}
                       >
                         <HelpCircle className="w-4 h-4" />
-                      </button>
+                      </Button>
                     </div>
                   </div>
 
@@ -399,16 +408,18 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                       </span>
                     </div>
                     <div className="flex items-center gap-4">
-                      <button
+                      <Button
                         type="button"
+                        variant="ghost"
+                        size="icon-xs"
                         onClick={() =>
                           setActiveTooltip(activeTooltip === "epic" ? null : "epic")
                         }
-                        className="text-slate-500 hover:text-white transition-colors cursor-pointer"
+                        className="h-auto w-auto p-0.5 text-slate-500 hover:text-white hover:bg-transparent"
                         title={t("achievements_settings.store_info_title", { store: "Epic Games" })}
                       >
                         <HelpCircle className="w-4 h-4" />
-                      </button>
+                      </Button>
                     </div>
                   </div>
 
@@ -425,16 +436,18 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                       </span>
                     </div>
                     <div className="flex items-center gap-4">
-                      <button
+                      <Button
                         type="button"
+                        variant="ghost"
+                        size="icon-xs"
                         onClick={() =>
                           setActiveTooltip(activeTooltip === "xbox" ? null : "xbox")
                         }
-                        className="text-slate-500 hover:text-white transition-colors cursor-pointer"
+                        className="h-auto w-auto p-0.5 text-slate-500 hover:text-white hover:bg-transparent"
                         title={t("achievements_settings.store_info_title", { store: "Xbox Live" })}
                       >
                         <HelpCircle className="w-4 h-4" />
-                      </button>
+                      </Button>
                     </div>
                   </div>
 
@@ -477,12 +490,15 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                   >
                     {t("achievements_settings.provider_info")}
                   </span>
-                  <button
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-xs"
                     onClick={() => setActiveTooltip(null)}
-                    className="text-slate-400 hover:text-white text-xs font-bold cursor-pointer"
+                    className="h-auto w-auto p-0.5 text-slate-400 hover:text-white hover:bg-transparent text-xs font-bold"
                   >
                     ✕
-                  </button>
+                  </Button>
                 </div>
                 {activeTooltip === "steam" && (
                   <p>
@@ -823,38 +839,44 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                     className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/10"
                   >
                     <span className="font-mono text-slate-300">{id}</span>
-                    <button
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-xs"
                       onClick={() =>
                         update(
                           "ignoredGameIds",
                           config.ignoredGameIds.filter((g) => g !== id)
                         )
                       }
-                      className="text-red-400 hover:text-red-300"
+                      className="h-auto w-auto p-1 text-red-400 hover:text-red-300 hover:bg-red-500/10"
                     >
                       <Trash2 className="w-4 h-4" />
-                    </button>
+                    </Button>
                   </div>
                 ))}
               </div>
             )}
           </div>
         )}
-      </div>
+        </div>
+      </ScrollArea>
 
       {/* Footer Actions exactly matching settings_01.jpg (Save / Cancel) */}
       <div
         className="flex items-center justify-between px-6 py-4 border-t bg-black/40 shrink-0"
         style={{ borderColor: "var(--border-color)" }}
       >
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="sm"
           onClick={handleReset}
-          className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200 transition-colors"
+          className="h-auto px-2 py-1 gap-1.5 text-xs text-slate-400 hover:text-slate-200 hover:bg-transparent"
         >
           <RotateCcw className="w-3.5 h-3.5" />
           <span>{t("achievements_settings.reset")}</span>
-        </button>
+        </Button>
 
         <div className="flex items-center gap-3">
           {savedSuccess && (
@@ -867,21 +889,22 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
             </span>
           )}
 
-          <button
+          <Button
             type="button"
             onClick={handleSave}
-            className="px-6 py-2 rounded-xl text-xs font-bold text-white shadow-md hover:brightness-110 active:opacity-90 flex items-center gap-2 cursor-pointer"
+            className="h-auto px-6 py-2 rounded-xl text-xs font-bold text-white shadow-md hover:brightness-110 active:opacity-90 gap-2"
             style={{ backgroundColor: "var(--accent-primary)" }}
           >
             <Save className="w-3.5 h-3.5" />
             <span>{t("common.save")}</span>
-          </button>
+          </Button>
 
           {onClose && (
-            <button
+            <Button
               type="button"
+              variant="outline"
               onClick={onClose}
-              className="px-5 py-2 rounded-xl text-xs font-bold border hover:bg-white/10 transition-colors"
+              className="h-auto px-5 py-2 rounded-xl text-xs font-bold hover:bg-white/10"
               style={{
                 backgroundColor: "var(--bg-card)",
                 borderColor: "var(--border-color)",
@@ -889,7 +912,7 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
               }}
             >
               {t("common.cancel")}
-            </button>
+            </Button>
           )}
         </div>
       </div>

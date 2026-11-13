@@ -4,6 +4,7 @@ import { useTranslation } from "../../../i18n";
 import { openExternalUrl } from "../../../utils/openUrl";
 import { ProviderInfo } from "../../../types";
 import { SettingGroup, SettingRow, ToggleSwitch } from "../SettingsControls";
+import { Button } from "@/components/ui/button";
 
 export interface OpenCriticSectionProps {
   provider?: ProviderInfo;
@@ -116,16 +117,16 @@ export const OpenCriticSection: React.FC<OpenCriticSectionProps> = ({
             defaultValue: "Changes take effect immediately on subsequent scrapes.",
           })}
         </span>
-        <button
+        <Button
           type="button"
           onClick={onSave}
           disabled={isSaving}
-          className="px-6 py-2 rounded-xl text-xs font-bold text-white shadow-md hover:brightness-110 active:opacity-90 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+          className="h-auto px-6 py-2 rounded-xl text-xs font-bold text-white shadow-md hover:brightness-110 active:opacity-90 gap-1.5"
           style={{ backgroundColor: "var(--accent-primary)" }}
         >
           {isSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
           <span>{t("common.save", { defaultValue: "Save" })}</span>
-        </button>
+        </Button>
       </div>
     </div>
   );

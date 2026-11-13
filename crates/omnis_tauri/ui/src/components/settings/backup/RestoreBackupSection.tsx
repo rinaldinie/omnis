@@ -1,6 +1,7 @@
 import React from 'react';
 import { RotateCcw, AlertTriangle, Loader2, FolderArchive } from 'lucide-react';
 import { useTranslation } from '../../../i18n';
+import { Button } from '@/components/ui/button';
 
 interface RestoreBackupSectionProps {
   isInspecting: boolean;
@@ -63,15 +64,12 @@ export const RestoreBackupSection: React.FC<RestoreBackupSectionProps> = ({
 
       {/* RESTORE TRIGGER BUTTON */}
       <div className="flex justify-end pt-2">
-        <button
+        <Button
           type="button"
           disabled={isInspecting || isRestoring}
           onClick={onPickFileToRestore}
-          className="px-6 py-2.5 rounded-xl text-white text-xs font-bold transition-all shadow-lg flex items-center gap-2 cursor-pointer hover:brightness-110 hover:scale-[1.02] active:scale-95 disabled:opacity-50"
-          style={{
-            backgroundColor: 'var(--accent-primary)',
-            boxShadow: '0 4px 14px var(--accent-glow)',
-          }}
+          className="px-6 py-2.5 h-auto font-bold shadow-lg"
+          style={{ boxShadow: '0 4px 14px var(--accent-glow)' }}
         >
           {isInspecting ? (
             <>
@@ -86,7 +84,7 @@ export const RestoreBackupSection: React.FC<RestoreBackupSectionProps> = ({
               </span>
             </>
           )}
-        </button>
+        </Button>
       </div>
     </section>
   );

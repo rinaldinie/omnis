@@ -4,6 +4,7 @@ import { useTranslation } from "../../../i18n";
 import { openExternalUrl } from "../../../utils/openUrl";
 import { ProviderInfo } from "../../../types";
 import { SettingGroup, SettingRow, ToggleSwitch } from "../SettingsControls";
+import { Button } from "@/components/ui/button";
 
 export interface HltbSectionProps {
   provider?: ProviderInfo;
@@ -139,25 +140,26 @@ export const HltbSection: React.FC<HltbSectionProps> = ({
         </div>
 
         <div className="flex items-center gap-2 self-end sm:self-auto">
-          <button
+          <Button
             type="button"
+            variant="outline"
             onClick={onTest}
             disabled={testStatus?.loading}
-            className="px-4 py-2 rounded-xl text-xs font-bold border border-white/20 bg-white/5 hover:bg-white/10 active:scale-95 text-white flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
+            className="h-auto px-4 py-2 rounded-xl text-xs font-bold border-white/20 bg-white/5 hover:bg-white/10 active:scale-95 text-white gap-1.5"
           >
             <Key className="w-3.5 h-3.5" />{" "}
             <span>{t("metadata_settings.btn_test_connection", { defaultValue: "Test Connection" })}</span>
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             onClick={onSave}
             disabled={isSaving}
-            className="px-6 py-2 rounded-xl text-xs font-bold text-white shadow-md hover:brightness-110 active:opacity-90 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+            className="h-auto px-6 py-2 rounded-xl text-xs font-bold text-white shadow-md hover:brightness-110 active:opacity-90 gap-1.5"
             style={{ backgroundColor: "var(--accent-primary)" }}
           >
             {isSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
             <span>{t("common.save", { defaultValue: "Save" })}</span>
-          </button>
+          </Button>
         </div>
       </div>
     </div>

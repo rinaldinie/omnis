@@ -3,6 +3,7 @@ import { ExternalLink } from "lucide-react";
 import { openExternalUrl } from "../../../utils/openUrl";
 import { useTranslation } from "../../../i18n/i18nContext";
 import { StoreIntegrationSettings } from "../../store_accounts/types";
+import { Input } from "@/components/ui/input";
 
 export interface SteamAuthFormProps {
   settings: StoreIntegrationSettings;
@@ -62,12 +63,12 @@ export const SteamAuthForm: React.FC<SteamAuthFormProps> = ({
             <ExternalLink className="w-3 h-3" />
           </a>
         </div>
-        <input
+        <Input
           type="text"
           value={settings.account_id || ""}
           onChange={(e) => updateSetting("account_id", e.target.value.trim())}
           placeholder={t("store_accounts.account_id_placeholder")}
-          className="w-full bg-slate-900/90 border border-white/20 rounded-xl px-3 py-2 text-xs font-mono text-white placeholder-slate-500 focus:outline-hidden shadow-inner"
+          className="h-auto w-full bg-slate-900/90 border-white/20 rounded-xl px-3 py-2 text-xs font-mono text-white placeholder:text-slate-500 shadow-inner"
           style={{ borderColor: "var(--border-color)" }}
         />
       </div>
@@ -93,12 +94,12 @@ export const SteamAuthForm: React.FC<SteamAuthFormProps> = ({
             <ExternalLink className="w-3 h-3" />
           </a>
         </div>
-        <input
+        <Input
           type="password"
           value={settings.api_key || ""}
           onChange={(e) => updateSetting("api_key", e.target.value.trim())}
           placeholder={t("store_accounts.api_key_placeholder")}
-          className="w-full bg-slate-900/90 border border-white/20 rounded-xl px-3 py-2 text-xs font-mono text-white placeholder-slate-500 focus:outline-hidden shadow-inner"
+          className="h-auto w-full bg-slate-900/90 border-white/20 rounded-xl px-3 py-2 text-xs font-mono text-white placeholder:text-slate-500 shadow-inner"
           style={{ borderColor: "var(--border-color)" }}
         />
       </div>

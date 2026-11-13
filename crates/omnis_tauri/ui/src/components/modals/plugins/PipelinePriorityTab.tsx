@@ -3,6 +3,9 @@ import { Sliders, ArrowUp, ArrowDown, Folder, Star, Scroll, ShieldCheck } from "
 import { ProviderInfo, MetadataPipelineConfig } from "../../../types";
 import { useTranslation } from "../../../i18n";
 import { PROVIDER_METAS, renderProviderIcon, getProviderColor } from "./constants";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 
 export interface PipelinePriorityTabProps {
   priorityOrder: string[];
@@ -91,33 +94,40 @@ export const PipelinePriorityTab: React.FC<PipelinePriorityTabProps> = ({
                       {meta.name}
                     </h4>
                     {isFirst && (
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shrink-0">
+                      <Badge
+                        variant="outline"
+                        className="px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shrink-0"
+                      >
                         {t("plugin_manager.top_priority")}
-                      </span>
+                      </Badge>
                     )}
                   </div>
                 </div>
 
                 {/* Order Control Buttons */}
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
+                    size="icon-xs"
                     disabled={isFirst}
                     onClick={() => movePriority(idx, "up")}
                     title={t("plugin_manager.move_up")}
-                    className="p-1 rounded-md border border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white disabled:opacity-20 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                    className="h-auto w-auto p-1 rounded-md border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white disabled:opacity-20"
                   >
                     <ArrowUp className="w-3.5 h-3.5" />
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
+                    variant="outline"
+                    size="icon-xs"
                     disabled={isLast}
                     onClick={() => movePriority(idx, "down")}
                     title={t("plugin_manager.move_down")}
-                    className="p-1 rounded-md border border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white disabled:opacity-20 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                    className="h-auto w-auto p-1 rounded-md border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white disabled:opacity-20"
                   >
                     <ArrowDown className="w-3.5 h-3.5" />
-                  </button>
+                  </Button>
                 </div>
               </div>
             );
@@ -281,39 +291,28 @@ export const PipelinePriorityTab: React.FC<PipelinePriorityTabProps> = ({
             {t("plugin_manager.preserve_desc")}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() =>
+        <Switch
+          checked={pipelineConfig.preserve_existing_artwork !== false}
+          onCheckedChange={(checked) =>
             setPipelineConfig({
               ...pipelineConfig,
-              preserve_existing_artwork:
-                pipelineConfig.preserve_existing_artwork !== false ? false : true,
+              preserve_existing_artwork: checked,
             })
           }
-          className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors ${
-            pipelineConfig.preserve_existing_artwork !== false
-              ? "bg-emerald-500"
-              : "bg-slate-700"
-          }`}
-        >
-          <div
-            className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
-              pipelineConfig.preserve_existing_artwork !== false
-                ? "translate-x-5"
-                : "translate-x-0"
-            }`}
-          />
-        </button>
+          aria-label={t("plugin_manager.preserve_title")}
+          className="h-6 w-11 data-[state=checked]:bg-emerald-500 data-[state=unchecked]:bg-slate-700"
+        />
       </div>
 
       <div className="flex justify-end pt-2">
-        <button
+        <Button
+          type="button"
           onClick={onSavePipelineConfig}
-          className="px-6 py-2.5 rounded-xl font-black text-xs text-white shadow-lg transition-all hover:brightness-110 active:opacity-90"
+          className="h-auto px-6 py-2.5 rounded-xl font-black text-xs text-white shadow-lg hover:brightness-110 active:opacity-90"
           style={{ backgroundColor: "var(--accent-primary)" }}
         >
           {t("plugin_manager.save_pipeline")}
-        </button>
+        </Button>
       </div>
     </div>
   );

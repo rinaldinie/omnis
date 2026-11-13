@@ -3,6 +3,7 @@ import { Layers, Library, Database, Puzzle } from "lucide-react";
 import { ProviderInfo } from "../../../types";
 import { useTranslation } from "../../../i18n";
 import { PluginCategory } from "./constants";
+import { Button } from "@/components/ui/button";
 
 export interface ProvidersTabProps {
   categoryFilter: PluginCategory;
@@ -29,54 +30,62 @@ export const ProvidersTab: React.FC<ProvidersTabProps> = ({
     <div className="space-y-5">
       {/* Category Filter Pills */}
       <div className="flex flex-wrap items-center gap-2 pb-2 border-b border-white/5">
-        <button
+        <Button
           type="button"
+          variant={categoryFilter === "all" ? "default" : "ghost"}
+          size="sm"
           onClick={() => setCategoryFilter("all")}
-          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+          className={`h-auto px-3 py-1.5 rounded-xl text-xs font-bold gap-1.5 ${
             categoryFilter === "all"
-              ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/20"
+              ? "bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-500/20"
               : "text-slate-400 hover:text-white hover:bg-white/5"
           }`}
         >
           <Layers className="w-3.5 h-3.5" />
           <span>{t("plugin_manager.filter_all", { count: allCount })}</span>
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          variant={categoryFilter === "libraries" ? "default" : "ghost"}
+          size="sm"
           onClick={() => setCategoryFilter("libraries")}
-          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+          className={`h-auto px-3 py-1.5 rounded-xl text-xs font-bold gap-1.5 ${
             categoryFilter === "libraries"
-              ? "bg-blue-600 text-white shadow-md shadow-blue-500/20"
+              ? "bg-blue-600 hover:bg-blue-500 text-white shadow-md shadow-blue-500/20"
               : "text-slate-400 hover:text-white hover:bg-white/5"
           }`}
         >
           <Library className="w-3.5 h-3.5" />
           <span>{t("plugin_manager.libraries", { count: libraryList.length })}</span>
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          variant={categoryFilter === "metadata" ? "default" : "ghost"}
+          size="sm"
           onClick={() => setCategoryFilter("metadata")}
-          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+          className={`h-auto px-3 py-1.5 rounded-xl text-xs font-bold gap-1.5 ${
             categoryFilter === "metadata"
-              ? "bg-purple-600 text-white shadow-md shadow-purple-500/20"
+              ? "bg-purple-600 hover:bg-purple-500 text-white shadow-md shadow-purple-500/20"
               : "text-slate-400 hover:text-white hover:bg-white/5"
           }`}
         >
           <Database className="w-3.5 h-3.5" />
           <span>{t("plugin_manager.metadata_sources", { count: metadataList.length })}</span>
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          variant={categoryFilter === "generic" ? "default" : "ghost"}
+          size="sm"
           onClick={() => setCategoryFilter("generic")}
-          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+          className={`h-auto px-3 py-1.5 rounded-xl text-xs font-bold gap-1.5 ${
             categoryFilter === "generic"
-              ? "bg-emerald-600 text-white shadow-md shadow-emerald-500/20"
+              ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-500/20"
               : "text-slate-400 hover:text-white hover:bg-white/5"
           }`}
         >
           <Puzzle className="w-3.5 h-3.5" />
           <span>{t("plugin_manager.generic_short", { count: genericList.length })}</span>
-        </button>
+        </Button>
       </div>
 
       {/* SECTIONS RENDERING */}

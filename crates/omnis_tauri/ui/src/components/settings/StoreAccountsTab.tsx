@@ -24,6 +24,15 @@ import {
   SteamAuthForm,
   OAuthStoreSection,
 } from "./store_accounts";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 export { STORE_LIST };
 export type { StoreAccount, StoreSyncProgress, StoreIntegrationSettings };
@@ -340,15 +349,16 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
 
             {/* Troubleshoot link */}
             <div>
-              <button
+              <Button
                 type="button"
+                variant="link"
+                size="sm"
                 onClick={() => setShowTroubleshoot(true)}
-                className="text-xs font-semibold hover:underline flex items-center gap-1 cursor-pointer"
-                style={{ color: "var(--accent-primary)" }}
+                className="h-auto p-0 text-xs font-semibold gap-1"
               >
                 <HelpCircle className="w-3.5 h-3.5" />
                 <span>{t("store_accounts.troubleshoot")}</span>
-              </button>
+              </Button>
             </div>
           </div>
         )}
@@ -364,104 +374,96 @@ export const StoreAccountsTab: React.FC<StoreAccountsTabProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="icon"
             onClick={() => handleManualSync(selectedStoreId)}
             disabled={isCurrentlySyncing || !currentAccount.is_connected}
             title={isCurrentlySyncing ? t("store_accounts.syncing") : t("store_accounts.sync_now")}
             aria-label={isCurrentlySyncing ? t("store_accounts.syncing") : t("store_accounts.sync_now")}
-            className="p-2.5 rounded-xl border border-white/20 bg-white/5 hover:bg-white/10 active:scale-95 transition-all text-white flex items-center justify-center cursor-pointer disabled:opacity-40"
+            className="h-9 w-9 rounded-xl border-white/20 bg-white/5 hover:bg-white/10"
           >
             <RefreshCw className={`w-4 h-4 ${isCurrentlySyncing ? "animate-spin text-sky-400" : ""}`} />
-          </button>
+          </Button>
 
-          <button
+          <Button
             type="button"
             onClick={() => handleSaveSettings(selectedStoreId)}
             disabled={isSaving}
-            className="px-6 py-2 rounded-xl text-xs font-bold text-white shadow-md hover:brightness-110 active:opacity-90 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-            style={{ backgroundColor: "var(--accent-primary)" }}
+            className="px-6 py-2 h-auto font-bold shadow-md"
           >
             {isSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
             <span>{t("common.save")}</span>
-          </button>
+          </Button>
 
           {onClose && (
-            <button
+            <Button
               type="button"
+              variant="outline"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl text-xs font-semibold border border-white/10 hover:bg-white/10 transition-colors text-slate-300 cursor-pointer"
+              className="px-4 py-2 h-auto font-semibold text-muted-foreground"
             >
               {t("common.cancel")}
-            </button>
+            </Button>
           )}
         </div>
       </div>
 
       {/* Troubleshooting Dialog Modal */}
-      {showTroubleshoot && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in">
-          <div
-            className="w-full max-w-lg rounded-2xl border p-6 space-y-4 shadow-2xl"
-            style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-color)" }}
-          >
-            <div className="flex items-center justify-between pb-2 border-b border-white/10">
-              <div className="flex items-center gap-2 text-sm font-bold text-white">
-                <HelpCircle className="w-4 h-4 text-sky-400" />
-                <span>{t("store_accounts.troubleshoot_title")}</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowTroubleshoot(false)}
-                className="text-slate-400 hover:text-white text-xs font-bold"
-              >
-                ✕
-              </button>
-            </div>
+      <Dialog open={showTroubleshoot} onOpenChange={setShowTroubleshoot}>
+        <DialogContent className="max-w-lg w-full rounded-2xl p-6 gap-4">
+          <DialogHeader className="pb-2 border-b border-white/10 pr-8">
+            <DialogTitle className="flex items-center gap-2 text-sm font-bold text-foreground">
+              <HelpCircle className="w-4 h-4 text-sky-400" />
+              <span>{t("store_accounts.troubleshoot_title")}</span>
+            </DialogTitle>
+            <DialogDescription className="sr-only">
+              {t("store_accounts.troubleshoot_step1_title")}
+            </DialogDescription>
+          </DialogHeader>
 
-            <div className="text-xs text-slate-300 space-y-3 leading-relaxed">
-              <p>
-                <strong>{t("store_accounts.troubleshoot_step1_title")}</strong>
-                <br />
-                {t("store_accounts.troubleshoot_step1_desc")}
-              </p>
-              <p>
-                <strong>{t("store_accounts.troubleshoot_step2_title")}</strong>
-                <br />
-                {t("store_accounts.troubleshoot_step2_desc")}{" "}
-                <a
-                  href="https://steamcommunity.com/dev/apikey"
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    openExternalUrl("https://steamcommunity.com/dev/apikey");
-                  }}
-                  className="text-sky-400 underline font-bold cursor-pointer"
-                >
-                  steamcommunity.com/dev/apikey
-                </a>
-              </p>
-              <p>
-                <strong>{t("store_accounts.troubleshoot_step3_title")}</strong>
-                <br />
-                {t("store_accounts.troubleshoot_step3_desc")}
-              </p>
-            </div>
-
-            <div className="pt-2 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setShowTroubleshoot(false)}
-                className="px-5 py-2 rounded-xl text-xs font-bold text-white transition-all cursor-pointer hover:brightness-110 active:scale-95"
-                style={{ backgroundColor: "var(--accent-primary)" }}
+          <div className="text-xs text-slate-300 space-y-3 leading-relaxed">
+            <p>
+              <strong>{t("store_accounts.troubleshoot_step1_title")}</strong>
+              <br />
+              {t("store_accounts.troubleshoot_step1_desc")}
+            </p>
+            <p>
+              <strong>{t("store_accounts.troubleshoot_step2_title")}</strong>
+              <br />
+              {t("store_accounts.troubleshoot_step2_desc")}{" "}
+              <a
+                href="https://steamcommunity.com/dev/apikey"
+                target="_blank"
+                rel="noreferrer"
+                onClick={(e) => {
+                  e.preventDefault();
+                  openExternalUrl("https://steamcommunity.com/dev/apikey");
+                }}
+                className="text-sky-400 underline font-bold cursor-pointer"
               >
-                {t("store_accounts.troubleshoot_got_it")}
-              </button>
-            </div>
+                steamcommunity.com/dev/apikey
+              </a>
+            </p>
+            <p>
+              <strong>{t("store_accounts.troubleshoot_step3_title")}</strong>
+              <br />
+              {t("store_accounts.troubleshoot_step3_desc")}
+            </p>
           </div>
-        </div>
-      )}
+
+          <DialogFooter className="pt-2">
+            <Button
+              type="button"
+              onClick={() => setShowTroubleshoot(false)}
+              className="px-5 py-2 h-auto font-bold"
+            >
+              {t("store_accounts.troubleshoot_got_it")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Disconnect confirmation modal with library cleanup options */}
       <DisconnectStoreModal

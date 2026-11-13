@@ -2,6 +2,7 @@ import React from "react";
 import { Sparkles, ShieldCheck, Square } from "lucide-react";
 import { MetadataPipelineConfig } from "../../../types";
 import { useTranslation } from "../../../i18n";
+import { Button } from "@/components/ui/button";
 
 export interface MassiveEnrichTabProps {
   gamesCount: number;
@@ -137,10 +138,11 @@ export const MassiveEnrichTab: React.FC<MassiveEnrichTabProps> = ({
         )}
 
         <div className="pt-2 flex items-center gap-3">
-          <button
+          <Button
+            type="button"
             onClick={onRunMassivePipeline}
             disabled={isPipelineEnriching}
-            className="flex-1 py-3 rounded-xl font-black text-xs text-white shadow-lg transition-all flex items-center justify-center gap-2 hover:brightness-110 active:opacity-90 disabled:opacity-75"
+            className="h-auto flex-1 py-3 rounded-xl font-black text-xs text-white shadow-lg gap-2 hover:brightness-110 active:opacity-90 disabled:opacity-75"
             style={{
               backgroundColor: "var(--accent-primary)",
               boxShadow: `0 0 20px var(--accent-glow)`,
@@ -156,18 +158,19 @@ export const MassiveEnrichTab: React.FC<MassiveEnrichTabProps> = ({
                 ? t("plugin_manager.downloading")
                 : t("plugin_manager.download_all")}
             </span>
-          </button>
+          </Button>
 
           {isPipelineEnriching && onCancelPipeline && (
-            <button
+            <Button
               type="button"
+              variant="destructive"
               onClick={onCancelPipeline}
-              className="px-5 py-3 rounded-xl font-black text-xs text-white bg-red-600 hover:bg-red-500 shadow-lg shadow-red-500/25 transition-all flex items-center justify-center gap-2 active:scale-95 animate-pulse"
+              className="h-auto px-5 py-3 rounded-xl font-black text-xs text-white bg-red-600 hover:bg-red-500 shadow-lg shadow-red-500/25 gap-2 active:scale-95 animate-pulse"
               title={t("plugin_manager.stop_title")}
             >
               <Square className="w-3.5 h-3.5 fill-current" />
               <span>{t("plugin_manager.stop")}</span>
-            </button>
+            </Button>
           )}
         </div>
       </div>

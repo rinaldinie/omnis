@@ -22,6 +22,16 @@ import {
   shouldShowOnboarding,
 } from "./onboardingState";
 import { buildImportSummary, needsMetadataKeys, ImportSummary } from "./onboardingSummary";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -275,24 +285,30 @@ export default function OnboardingModal({
   const noSourceFound = phase === "select" && !stores.some((s) => s.detected);
   const loginTipStores = stores.filter((s) => s.detected && LOGIN_STORES.has(s.id));
 
+  const isBusy = phase === "detecting" || phase === "importing";
+
   // ─── Render ──────────────────────────────────────────────────────────────────
   return (
-    <div
-      className="fixed inset-0 z-[200] flex items-center justify-center p-4"
-      style={{ backgroundColor: "rgba(0,0,0,0.75)", backdropFilter: "blur(6px)" }}
+    <Dialog
+      open={true}
+      onOpenChange={(open) => {
+        if (!open && !isBusy) {
+          if (phase === "summary") {
+            soundEffects.playSelect();
+            onComplete();
+          } else {
+            handleSkip();
+          }
+        }
+      }}
     >
-      <div
-        className="w-full max-w-lg rounded-2xl border shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300"
-        style={{
-          backgroundColor: "var(--bg-surface)",
-          borderColor: "var(--border-color)",
-        }}
+      <DialogContent
+        showCloseButton={false}
+        overlayClassName="z-[200] bg-black/75 backdrop-blur-sm"
+        className="z-[200] max-w-lg w-full p-0 rounded-2xl overflow-hidden gap-0"
       >
         {/* ── Header ─────────────────────────────────────────────────────────── */}
-        <div
-          className="flex items-center gap-3 px-6 pt-6 pb-4 border-b"
-          style={{ borderColor: "var(--border-color)" }}
-        >
+        <DialogHeader className="flex-row items-center gap-3 px-6 pt-6 pb-4 border-b border-border space-y-0 text-left">
           <div
             className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-lg"
             style={{
@@ -306,8 +322,8 @@ export default function OnboardingModal({
               <Zap className="w-4.5 h-4.5 text-white fill-white" />
             )}
           </div>
-          <div>
-            <h2 className="text-sm font-black text-white">
+          <div className="min-w-0">
+            <DialogTitle className="text-sm font-black text-foreground">
               {phase === "summary"
                 ? t("onboarding.summary_title")
                 : phase === "importing"
@@ -315,8 +331,8 @@ export default function OnboardingModal({
                 : phase === "keys"
                 ? t("onboarding.keys_title")
                 : t("onboarding.title")}
-            </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground mt-0.5">
               {phase === "summary"
                 ? summary && summary.total > 0
                   ? t("onboarding.summary_subtitle", { total: summary.total })
@@ -328,12 +344,13 @@ export default function OnboardingModal({
                 : phase === "keys"
                 ? t("onboarding.keys_subtitle")
                 : t("onboarding.subtitle")}
-            </p>
+            </DialogDescription>
           </div>
-        </div>
+        </DialogHeader>
 
         {/* ── Body ───────────────────────────────────────────────────────────── */}
-        <div className="px-6 py-4 space-y-2 max-h-[60vh] overflow-y-auto custom-scrollbar">
+        <ScrollArea className="max-h-[60vh]">
+          <div className="px-6 py-4 space-y-2">
           {phase === "welcome" && (
             <div className="space-y-3 py-1">
               <p className="text-xs text-slate-300 leading-relaxed">{t("onboarding.welcome_desc")}</p>
@@ -553,31 +570,36 @@ export default function OnboardingModal({
                 <div className="flex items-start gap-2 p-3 rounded-xl bg-sky-500/[0.06] border border-sky-500/20">
                   <KeyRound className="w-3.5 h-3.5 shrink-0 mt-0.5 text-sky-400" />
                   <span className="flex-1 text-[11px] text-slate-300">{t("onboarding.tip_keys")}</span>
-                  <button
+                  <Button
                     type="button"
+                    variant="ghost"
+                    size="sm"
                     onClick={() => openSettingsFromTip("metadata-igdb")}
-                    className="shrink-0 text-[10px] font-bold text-sky-300 hover:text-white cursor-pointer"
+                    className="h-auto px-1.5 py-0.5 shrink-0 text-[10px] font-bold text-sky-300 hover:text-white"
                   >
                     {t("onboarding.tip_keys_btn")}
-                  </button>
+                  </Button>
                 </div>
               )}
               {loginTipStores.length > 0 && onOpenSettings && (
                 <div className="flex items-start gap-2 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
                   <UserRound className="w-3.5 h-3.5 shrink-0 mt-0.5 text-slate-400" />
                   <span className="flex-1 text-[11px] text-slate-300">{t("onboarding.tip_login")}</span>
-                  <button
+                  <Button
                     type="button"
+                    variant="ghost"
+                    size="sm"
                     onClick={() => openSettingsFromTip("accounts")}
-                    className="shrink-0 text-[10px] font-bold text-slate-300 hover:text-white cursor-pointer"
+                    className="h-auto px-1.5 py-0.5 shrink-0 text-[10px] font-bold text-slate-300 hover:text-white"
                   >
                     {t("onboarding.tip_login_btn")}
-                  </button>
+                  </Button>
                 </div>
               )}
             </div>
           )}
-        </div>
+          </div>
+        </ScrollArea>
 
         {/* ── Auto-scan toggle ────────────────────────────────────────────────── */}
         {phase === "select" && !noSourceFound && (
@@ -602,87 +624,90 @@ export default function OnboardingModal({
         )}
 
         {/* ── Footer ─────────────────────────────────────────────────────────── */}
-        {phase !== "detecting" && phase !== "importing" && (
-          <div
-            className="flex items-center justify-between gap-3 px-6 py-4 border-t bg-black/20"
-            style={{ borderColor: "var(--border-color)" }}
-          >
+        {!isBusy && (
+          <DialogFooter className="sm:justify-between gap-3 px-6 py-4 border-t border-border bg-black/20">
             {phase === "welcome" || phase === "select" ? (
               <div className="flex items-center gap-4">
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="sm"
                   onClick={handleSkip}
-                  className="text-xs font-bold text-slate-400 hover:text-white transition-colors cursor-pointer"
+                  className="h-auto px-1.5 py-1 text-xs font-bold text-muted-foreground hover:text-foreground"
                 >
                   {t("onboarding.skip_btn")}
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="sm"
                   onClick={handleNeverShow}
-                  className="text-[10px] text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
+                  className="h-auto px-1.5 py-1 text-[10px] text-slate-500 hover:text-slate-300"
                 >
                   {t("onboarding.never_btn")}
-                </button>
+                </Button>
               </div>
             ) : phase === "keys" ? (
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="sm"
                 onClick={() => handleKeysChoice(false)}
-                className="text-xs font-bold text-slate-400 hover:text-white transition-colors cursor-pointer"
+                className="h-auto px-1.5 py-1 text-xs font-bold text-muted-foreground hover:text-foreground"
               >
                 {t("onboarding.keys_no")}
-              </button>
+              </Button>
             ) : (
               <span />
             )}
 
             {phase === "welcome" ? (
-              <button
+              <Button
                 type="button"
                 onClick={startDetection}
-                className="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold text-white transition-all hover:brightness-110 active:opacity-90 cursor-pointer shadow-lg"
-                style={{ backgroundColor: "var(--accent-primary)", boxShadow: "0 0 15px var(--accent-glow)" }}
+                className="px-5 py-2 h-auto font-bold shadow-lg"
+                style={{ boxShadow: "0 0 15px var(--accent-glow)" }}
               >
                 <span>{t("onboarding.start_scan_btn")}</span>
-              </button>
+              </Button>
             ) : phase === "keys" ? (
-              <button
+              <Button
                 type="button"
                 onClick={() => handleKeysChoice(true)}
-                className="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold text-white transition-all hover:brightness-110 active:opacity-90 cursor-pointer shadow-lg"
-                style={{ backgroundColor: "var(--accent-primary)", boxShadow: "0 0 15px var(--accent-glow)" }}
+                className="px-5 py-2 h-auto font-bold shadow-lg"
+                style={{ boxShadow: "0 0 15px var(--accent-glow)" }}
               >
                 <KeyRound className="w-3.5 h-3.5" />
                 <span>{t("onboarding.keys_yes")}</span>
-              </button>
+              </Button>
             ) : phase === "select" ? (
-              <button
+              <Button
                 type="button"
                 onClick={handleImport}
                 disabled={selected.size === 0}
-                className="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold text-white transition-all hover:brightness-110 active:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-lg"
-                style={{ backgroundColor: "var(--accent-primary)", boxShadow: "0 0 15px var(--accent-glow)" }}
+                className="px-5 py-2 h-auto font-bold shadow-lg"
+                style={{ boxShadow: "0 0 15px var(--accent-glow)" }}
               >
                 <span>{t("onboarding.import_btn")}</span>
-              </button>
+              </Button>
             ) : (
-              <button
+              <Button
                 type="button"
                 onClick={() => {
                   soundEffects.playSelect();
                   onComplete();
                 }}
-                className="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold text-white transition-all hover:brightness-110 active:opacity-90 cursor-pointer shadow-lg"
-                style={{ backgroundColor: "var(--accent-primary)", boxShadow: "0 0 15px var(--accent-glow)" }}
+                className="px-5 py-2 h-auto font-bold shadow-lg"
+                style={{ boxShadow: "0 0 15px var(--accent-glow)" }}
               >
                 {metadataState === "running" && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
                 <span>{t("onboarding.start_btn")}</span>
-              </button>
+              </Button>
             )}
-          </div>
+          </DialogFooter>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
