@@ -1,10 +1,11 @@
 import React from "react";
-import { Search, Play, CheckCircle2 } from "lucide-react";
+import { Search, Play, CheckCircle2, Trophy, Award } from "lucide-react";
 import { GameDto, ActiveGameSession } from "../../types";
 import { StoreIcon } from "../StoreBadge";
 import soundEffects from "../../utils/soundEffects";
 import { Slot } from "../common/Slot";
 import { Glyph } from "./ConsoleChrome";
+import { useGameAchievements } from "../achievements";
 import type { HomeFocusZone } from "../../hooks/useGamepadNavigation";
 import {
   CARD_GAP_REM,
@@ -70,6 +71,80 @@ export const FullscreenHomeContent: React.FC<FullscreenHomeContentProps> = ({
   focusedGame,
   t,
 }) => {
+  const currentGame = layout === "shelf" ? infoGame : focusedGame;
+  const { summary: achievementsSummary } = useGameAchievements(currentGame);
+
+  const renderHeroStats = (game: GameDto) => {
+    const hasScore = typeof game.critic_score === "number" && game.critic_score > 0;
+    const scoreTier =
+      hasScore && game.critic_score! >= 90
+        ? "Mighty"
+        : hasScore && game.critic_score! >= 84
+        ? "Strong"
+        : hasScore && game.critic_score! >= 75
+        ? "Fair"
+        : "Weak";
+
+    const hasAchievements =
+      !!achievementsSummary &&
+      achievementsSummary.game_id === game.id &&
+      achievementsSummary.total_count > 0;
+    const percent = hasAchievements ? Math.round(achievementsSummary.completion_percentage) : 0;
+
+    if (!hasScore && !hasAchievements) return null;
+
+    return (
+      <div className="flex items-center gap-3 shrink-0 self-start bg-white/[0.04] border border-white/10 rounded-xl p-2 backdrop-blur-md">
+        {hasScore && (
+          <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-black/40 border border-white/5">
+            <div className="w-7 h-7 rounded-md bg-amber-500/20 text-amber-300 flex items-center justify-center font-bold text-xs shrink-0">
+              ★
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[10px] uppercase tracking-wider text-white/50 leading-none">
+                OpenCritic
+              </span>
+              <span className="text-xs font-semibold text-white mt-0.5 whitespace-nowrap">
+                {game.critic_score}{" "}
+                <span className="text-amber-400/90 font-normal">· {scoreTier}</span>
+              </span>
+            </div>
+          </div>
+        )}
+
+        {hasScore && hasAchievements && <div className="w-px h-8 bg-white/10" />}
+
+        {hasAchievements && (
+          <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-black/40 border border-white/5 min-w-[135px]">
+            <div className="w-7 h-7 rounded-md bg-amber-400/20 text-amber-300 flex items-center justify-center shrink-0">
+              <Trophy className="w-4 h-4" />
+            </div>
+            <div className="flex flex-col flex-1 min-w-0">
+              <div className="flex justify-between items-baseline text-[10px] text-white/60">
+                <span className="uppercase tracking-wider truncate mr-2">
+                  {t("achievements.title")}
+                </span>
+                <span className="font-bold text-amber-300 tabular-nums">{percent}%</span>
+              </div>
+              <div className="w-full h-1.5 bg-white/10 rounded-full mt-1 overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-300"
+                  style={{
+                    width: `${percent}%`,
+                    backgroundColor: "var(--omnis-accent, var(--accent-primary, #f59e0b))",
+                  }}
+                />
+              </div>
+              <span className="text-[9px] text-white/45 mt-0.5 tabular-nums">
+                {achievementsSummary.unlocked_count} / {achievementsSummary.total_count}
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderMetaLine = (game: GameDto) => (
     <div className="flex items-center gap-4 h-6 mt-1.5 overflow-hidden whitespace-nowrap text-sm font-semibold uppercase tracking-wider text-white/65">
       {activeGame?.game_id === game.id ? (
@@ -197,15 +272,18 @@ export const FullscreenHomeContent: React.FC<FullscreenHomeContentProps> = ({
         </div>
 
         {infoGame && (
-          <div data-omnis="fullscreen.hero" className="px-10 mt-5 max-w-4xl">
+          <div data-omnis="fullscreen.hero" className="px-10 mt-3 max-w-5xl">
             <div key={infoGame.id} className="omnis-rise-in">
               <h1 data-omnis="fullscreen.title" className="h-8 text-2xl leading-8 font-semibold text-white truncate drop-shadow">
                 {infoGame.title}
               </h1>
               {renderMetaLine(infoGame)}
-              <p className="mt-3 h-[3.25rem] text-base leading-relaxed line-clamp-2 max-w-3xl text-white/70">
-                {infoGame.description}
-              </p>
+              <div className="mt-2.5 flex items-start justify-between gap-6">
+                <p className="h-[3.25rem] text-base leading-relaxed line-clamp-2 flex-1 max-w-3xl text-white/70">
+                  {infoGame.description}
+                </p>
+                {renderHeroStats(infoGame)}
+              </div>
             </div>
             <Slot name="fullscreen.hero" gameId={infoGame.id} />
           </div>
@@ -257,12 +335,25 @@ export const FullscreenHomeContent: React.FC<FullscreenHomeContentProps> = ({
       </div>
 
       {focusedGame && (
-        <div data-omnis="fullscreen.hero" className="px-10 pt-2 pb-5 shrink-0">
+        <div data-omnis="fullscreen.hero" className="px-10 pt-2 pb-5 shrink-0 max-w-5xl">
           <div key={focusedGame.id} className="omnis-rise-in">
             <h1 data-omnis="fullscreen.title" className="h-8 text-2xl leading-8 font-semibold text-white truncate drop-shadow">
               {focusedGame.title}
             </h1>
             {renderMetaLine(focusedGame)}
+            {focusedGame.description && (
+              <div className="mt-2.5 flex items-start justify-between gap-6">
+                <p className="text-base leading-relaxed line-clamp-2 flex-1 max-w-3xl text-white/70">
+                  {focusedGame.description}
+                </p>
+                {renderHeroStats(focusedGame)}
+              </div>
+            )}
+            {!focusedGame.description && (
+              <div className="mt-2 flex justify-end">
+                {renderHeroStats(focusedGame)}
+              </div>
+            )}
           </div>
           <Slot name="fullscreen.hero" gameId={focusedGame.id} />
         </div>
