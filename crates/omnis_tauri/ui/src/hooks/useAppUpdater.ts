@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect, createContext, useContext } from "react";
 import { useTranslation } from "../i18n";
+import packageJson from "../../package.json";
 
 export type UpdateStatus =
   | "idle"
@@ -33,7 +34,7 @@ function formatErrorMessage(err: unknown, fallback: string): string {
 const UPDATE_CHECK_TIMEOUT_MS = 15000;
 const UPDATE_DOWNLOAD_TIMEOUT_MS = 60000;
 
-export function useAppUpdater(defaultAppVersion: string = "0.2.0") {
+export function useAppUpdater(defaultAppVersion: string = packageJson.version) {
   // Latest translator for the long-lived callbacks below
   const { t } = useTranslation();
   const tRef = useRef(t);
