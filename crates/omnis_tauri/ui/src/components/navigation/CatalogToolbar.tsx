@@ -5,6 +5,7 @@ import FilterAndSortPopover from "./FilterAndSortPopover";
 import GroupByPopover from "./GroupByPopover";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Slider } from "@/components/ui/slider";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export interface CatalogToolbarProps {
@@ -247,44 +248,47 @@ export const CatalogToolbar: React.FC<CatalogToolbarProps> = ({
           <div className="flex items-center gap-2 pl-2 border-l border-white/[0.08]">
             <Tooltip>
               <TooltipTrigger asChild>
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="icon-xs"
                   onClick={() =>
                     setGridCardWidth((w) => Math.max(140, w - 20))
                   }
-                  className="p-1 hover:text-white transition-colors cursor-pointer"
+                  className="h-6 w-6 p-1 hover:text-white hover:bg-white/5"
                   style={{ color: "var(--text-muted)" }}
                   aria-label={t("tooltips.poster_smaller")}
                 >
                   <ZoomOut className="w-3.5 h-3.5" />
-                </button>
+                </Button>
               </TooltipTrigger>
               <TooltipContent>{t("tooltips.poster_smaller")}</TooltipContent>
             </Tooltip>
-            <input
-              type="range"
-              min="140"
-              max="320"
-              step="10"
-              value={gridCardWidth}
-              onChange={(e) => setGridCardWidth(Number(e.target.value))}
-              className="w-24 h-1.5 rounded-lg cursor-pointer accent-indigo-500"
-              style={{ backgroundColor: "var(--bg-card)" }}
+            <Slider
+              min={140}
+              max={320}
+              step={10}
+              value={[gridCardWidth]}
+              onValueChange={([val]) => setGridCardWidth(val)}
+              className="w-24 cursor-pointer"
               title={t("tooltips.poster_width", { width: gridCardWidth })}
+              aria-label={t("tooltips.poster_width", { width: gridCardWidth })}
             />
             <Tooltip>
               <TooltipTrigger asChild>
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="icon-xs"
                   onClick={() =>
                     setGridCardWidth((w) => Math.min(320, w + 20))
                   }
-                  className="p-1 hover:text-white transition-colors cursor-pointer"
+                  className="h-6 w-6 p-1 hover:text-white hover:bg-white/5"
                   style={{ color: "var(--text-muted)" }}
                   aria-label={t("tooltips.poster_larger")}
                 >
                   <ZoomIn className="w-3.5 h-3.5" />
-                </button>
+                </Button>
               </TooltipTrigger>
               <TooltipContent>{t("tooltips.poster_larger")}</TooltipContent>
             </Tooltip>

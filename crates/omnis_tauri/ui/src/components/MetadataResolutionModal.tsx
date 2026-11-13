@@ -31,6 +31,13 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export interface MetadataCandidateDto {
   provider_id: string;
@@ -555,27 +562,32 @@ export default function MetadataResolutionModal({
           </div>
 
           <div className="relative w-full md:w-60 shrink-0">
-            <select
+            <Select
               value={providerId}
-              onChange={(e) => {
-                const nextProv = e.target.value;
+              onValueChange={(nextProv) => {
                 setProviderId(nextProv);
                 handleSearch(searchTerm, nextProv);
               }}
-              className="w-full px-3.5 py-2.5 rounded-xl border text-xs font-medium outline-none cursor-pointer"
-              style={{
-                backgroundColor: "var(--bg-card)",
-                borderColor: "var(--border-color)",
-                color: "var(--text-primary)",
-              }}
             >
-              <option value="all">{t("metadata_resolution.opt_all")}</option>
-              {availableProviders.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger
+                className="w-full px-3.5 py-2.5 h-auto rounded-xl text-xs font-medium"
+                style={{
+                  backgroundColor: "var(--bg-card)",
+                  borderColor: "var(--border-color)",
+                  color: "var(--text-primary)",
+                }}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("metadata_resolution.opt_all")}</SelectItem>
+                {availableProviders.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <Button

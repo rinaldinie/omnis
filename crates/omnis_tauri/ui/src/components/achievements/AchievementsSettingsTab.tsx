@@ -18,6 +18,14 @@ import { listen } from "@tauri-apps/api/event";
 import { SettingGroup, SettingRow, ToggleSwitch } from "../settings/SettingsControls";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Slider } from "@/components/ui/slider";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export interface AchievementsConfig {
   // Provider sources
@@ -569,15 +577,21 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                 title={t("achievements_settings.icon_size")}
                 description={t("achievements_settings.icon_size_desc")}
               >
-                <select
+                <Select
                   value={config.badgeSize}
-                  onChange={(e) => update("badgeSize", e.target.value as "md" | "lg")}
-                  className="px-3 py-1.5 rounded-xl bg-slate-900 border text-white font-medium text-xs focus:outline-hidden"
-                  style={{ borderColor: "var(--border-color)" }}
+                  onValueChange={(val) => update("badgeSize", val as "md" | "lg")}
                 >
-                  <option value="md">{t("achievements_settings.opt_md")}</option>
-                  <option value="lg">{t("achievements_settings.opt_lg")}</option>
-                </select>
+                  <SelectTrigger
+                    className="h-auto w-auto min-w-[130px] px-3 py-1.5 rounded-xl bg-slate-900 text-white font-medium text-xs"
+                    style={{ borderColor: "var(--border-color)" }}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="md">{t("achievements_settings.opt_md")}</SelectItem>
+                    <SelectItem value="lg">{t("achievements_settings.opt_lg")}</SelectItem>
+                  </SelectContent>
+                </Select>
               </SettingRow>
             </SettingGroup>
           </div>
@@ -610,23 +624,29 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                   </div>
                 }
               >
-                <select
+                <Select
                   value={config.startupSyncInterval ?? "3"}
-                  onChange={(e) =>
+                  onValueChange={(val) =>
                     update(
                       "startupSyncInterval",
-                      e.target.value as AchievementsConfig["startupSyncInterval"]
+                      val as AchievementsConfig["startupSyncInterval"]
                     )
                   }
-                  className="px-3 py-1.5 rounded-xl bg-slate-900 border text-white font-medium text-xs focus:outline-hidden"
-                  style={{ borderColor: "var(--border-color)" }}
                 >
-                  <option value="always">{t("achievements_settings.opt_sync_always")}</option>
-                  <option value="1">{t("achievements_settings.opt_sync_1_day")}</option>
-                  <option value="3">{t("achievements_settings.opt_sync_3_days")}</option>
-                  <option value="7">{t("achievements_settings.opt_sync_7_days")}</option>
-                  <option value="never">{t("achievements_settings.opt_sync_never")}</option>
-                </select>
+                  <SelectTrigger
+                    className="h-auto w-auto min-w-[150px] px-3 py-1.5 rounded-xl bg-slate-900 text-white font-medium text-xs"
+                    style={{ borderColor: "var(--border-color)" }}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="always">{t("achievements_settings.opt_sync_always")}</SelectItem>
+                    <SelectItem value="1">{t("achievements_settings.opt_sync_1_day")}</SelectItem>
+                    <SelectItem value="3">{t("achievements_settings.opt_sync_3_days")}</SelectItem>
+                    <SelectItem value="7">{t("achievements_settings.opt_sync_7_days")}</SelectItem>
+                    <SelectItem value="never">{t("achievements_settings.opt_sync_never")}</SelectItem>
+                  </SelectContent>
+                </Select>
               </SettingRow>
 
               <SettingRow
@@ -673,14 +693,14 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                   </span>
                 }
               >
-                <input
-                  type="range"
+                <Slider
                   min={1}
                   max={16}
-                  value={config.concurrencyLimit}
-                  onChange={(e) => update("concurrencyLimit", Number(e.target.value))}
-                  style={{ accentColor: "var(--accent-primary)" }}
-                  className="w-28 cursor-pointer"
+                  step={1}
+                  value={[config.concurrencyLimit]}
+                  onValueChange={([val]) => update("concurrencyLimit", val)}
+                  className="w-28"
+                  aria-label={t("achievements_settings.threads", { count: config.concurrencyLimit })}
                 />
               </SettingRow>
 
@@ -722,15 +742,14 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                   </span>
                 }
               >
-                <input
-                  type="range"
+                <Slider
                   min={0.5}
                   max={15}
                   step={0.5}
-                  value={config.ultraRareThreshold}
-                  onChange={(e) => update("ultraRareThreshold", Number(e.target.value))}
-                  style={{ accentColor: "var(--accent-primary)" }}
-                  className="w-28 cursor-pointer"
+                  value={[config.ultraRareThreshold]}
+                  onValueChange={([val]) => update("ultraRareThreshold", val)}
+                  className="w-28"
+                  aria-label={t("achievements_settings.ultra_rare_threshold")}
                 />
               </SettingRow>
 
@@ -751,15 +770,14 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                   </span>
                 }
               >
-                <input
-                  type="range"
+                <Slider
                   min={5}
                   max={40}
                   step={1}
-                  value={config.rareThreshold}
-                  onChange={(e) => update("rareThreshold", Number(e.target.value))}
-                  style={{ accentColor: "var(--accent-primary)" }}
-                  className="w-28 cursor-pointer"
+                  value={[config.rareThreshold]}
+                  onValueChange={([val]) => update("rareThreshold", val)}
+                  className="w-28"
+                  aria-label={t("achievements_settings.rare_threshold")}
                 />
               </SettingRow>
 
@@ -780,15 +798,14 @@ export const AchievementsSettingsTab: React.FC<AchievementsSettingsTabProps> = (
                   </span>
                 }
               >
-                <input
-                  type="range"
+                <Slider
                   min={20}
                   max={80}
                   step={1}
-                  value={config.uncommonThreshold}
-                  onChange={(e) => update("uncommonThreshold", Number(e.target.value))}
-                  style={{ accentColor: "var(--accent-primary)" }}
-                  className="w-28 cursor-pointer"
+                  value={[config.uncommonThreshold]}
+                  onValueChange={([val]) => update("uncommonThreshold", val)}
+                  className="w-28"
+                  aria-label={t("achievements_settings.uncommon_threshold")}
                 />
               </SettingRow>
 

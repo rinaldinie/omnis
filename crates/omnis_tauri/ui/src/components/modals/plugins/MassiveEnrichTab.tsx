@@ -3,6 +3,7 @@ import { Sparkles, ShieldCheck, Square } from "lucide-react";
 import { MetadataPipelineConfig } from "../../../types";
 import { useTranslation } from "../../../i18n";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 
 export interface MassiveEnrichTabProps {
   gamesCount: number;
@@ -113,14 +114,15 @@ export const MassiveEnrichTab: React.FC<MassiveEnrichTabProps> = ({
                 {liveProgress.current} / {liveProgress.total} ({liveProgress.total > 0 ? Math.round((liveProgress.current / liveProgress.total) * 100) : 0}%)
               </span>
             </div>
-            <div className="w-full h-2.5 rounded-full bg-white/10 overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all duration-300 bg-gradient-to-r from-indigo-500 via-purple-500 to-amber-400 shadow-sm"
-                style={{
-                  width: `${liveProgress.total > 0 ? Math.round((liveProgress.current / liveProgress.total) * 100) : 0}%`,
-                }}
-              />
-            </div>
+            <Progress
+              value={
+                liveProgress.total > 0
+                  ? Math.round((liveProgress.current / liveProgress.total) * 100)
+                  : 0
+              }
+              className="h-2.5"
+              indicatorClassName="bg-gradient-to-r from-indigo-500 via-purple-500 to-amber-400 shadow-sm"
+            />
           </div>
         )}
 

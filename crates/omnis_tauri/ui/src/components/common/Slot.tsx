@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { slotsApi } from "../../api/slots";
 import { TAURI_EVENTS } from "../../api/events";
+import { Progress } from "@/components/ui/progress";
 
 export interface WidgetLink {
   title: string;
@@ -183,15 +184,13 @@ export const Slot: React.FC<SlotProps> = ({ name, gameId, className = "" }) => {
                   <span>{widget.label}</span>
                   <span className="font-mono">{widget.value}/{widget.max} ({pct}%)</span>
                 </div>
-                <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all duration-300"
-                    style={{
-                      width: `${pct}%`,
-                      backgroundColor: "var(--omnis-accent, var(--accent-primary, #6366f1))",
-                    }}
-                  />
-                </div>
+                <Progress
+                  value={pct}
+                  className="h-1.5"
+                  indicatorStyle={{
+                    backgroundColor: "var(--omnis-accent, var(--accent-primary, #6366f1))",
+                  }}
+                />
               </div>
             );
           }

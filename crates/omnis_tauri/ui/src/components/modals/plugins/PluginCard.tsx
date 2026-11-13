@@ -18,6 +18,13 @@ import { renderProviderIcon, getProviderColor } from "./constants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export interface PluginCardProps {
   prov: ProviderInfo;
@@ -295,31 +302,37 @@ export const PluginCard: React.FC<PluginCardProps> = ({
                   {(field as any).type === "Enum" ||
                   field.field_type?.type === "Enum" ||
                   (field as any).options ? (
-                    <select
+                    <Select
                       value={
                         settings[field.key] ||
                         (field as any).default ||
                         field.field_type?.default ||
-                        ""
+                        undefined
                       }
-                      onChange={(e) => onSettingChange(prov.id, field.key, e.target.value)}
-                      className="w-full h-8 px-3 rounded-lg text-xs border font-sans focus:outline-none"
-                      style={{
-                        backgroundColor: "var(--bg-card)",
-                        borderColor: "var(--border-color)",
-                        color: "var(--text-primary)",
-                      }}
+                      onValueChange={(value) => onSettingChange(prov.id, field.key, value)}
                     >
-                      {(
-                        (field as any).options ||
-                        field.field_type?.options ||
-                        []
-                      ).map((opt: string) => (
-                        <option key={opt} value={opt}>
-                          {opt}
-                        </option>
-                      ))}
-                    </select>
+                      <SelectTrigger
+                        className="w-full h-8 px-3 rounded-lg text-xs font-sans"
+                        style={{
+                          backgroundColor: "var(--bg-card)",
+                          borderColor: "var(--border-color)",
+                          color: "var(--text-primary)",
+                        }}
+                      >
+                        <SelectValue placeholder={t("plugin_manager.enter_value")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(
+                          (field as any).options ||
+                          field.field_type?.options ||
+                          []
+                        ).map((opt: string) => (
+                          <SelectItem key={opt} value={opt}>
+                            {opt}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   ) : (
                     <div className="relative flex items-center">
                       <Input

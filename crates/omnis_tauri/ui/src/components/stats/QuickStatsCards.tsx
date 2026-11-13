@@ -2,6 +2,7 @@ import React from "react";
 import { Clock, CheckCircle2, Calendar, Gamepad2, Flame } from "lucide-react";
 import { GlobalStatsDto } from "../../types";
 import { useTranslation } from "../../i18n";
+import { Card } from "../ui/card";
 
 export interface QuickStatsCardsProps {
   stats: GlobalStatsDto;
@@ -21,8 +22,8 @@ export default function QuickStatsCards({
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
       {/* Card 1: Lifetime Playtime */}
-      <div
-        className="p-4 rounded-2xl border transition-colors flex items-center gap-4"
+      <Card
+        className="p-4 transition-colors flex items-center gap-4 shadow-none"
         style={{
           backgroundColor: "var(--bg-card)",
           borderColor: "var(--border-color)",
@@ -50,11 +51,11 @@ export default function QuickStatsCards({
             {t("statistics.all_time") || "Totale Storico"}
           </span>
         </div>
-      </div>
+      </Card>
 
       {/* Card 2: Playtime in Selected Year */}
-      <div
-        className="p-4 rounded-2xl border transition-colors flex items-center gap-4"
+      <Card
+        className="p-4 transition-colors flex items-center gap-4 shadow-none"
         style={{
           backgroundColor: "var(--bg-card)",
           borderColor: "var(--border-color)",
@@ -85,11 +86,11 @@ export default function QuickStatsCards({
             })}
           </span>
         </div>
-      </div>
+      </Card>
 
       {/* Card 3: Days with Active Sessions */}
-      <div
-        className="p-4 rounded-2xl border transition-colors flex items-center gap-4"
+      <Card
+        className="p-4 transition-colors flex items-center gap-4 shadow-none"
         style={{
           backgroundColor: "var(--bg-card)",
           borderColor: "var(--border-color)",
@@ -112,11 +113,11 @@ export default function QuickStatsCards({
             })}
           </span>
         </div>
-      </div>
+      </Card>
 
       {/* Card 4: Backlog Completion Rate */}
-      <div
-        className="p-4 rounded-2xl border transition-colors flex items-center gap-4"
+      <Card
+        className="p-4 transition-colors flex items-center gap-4 shadow-none"
         style={{
           backgroundColor: "var(--bg-card)",
           borderColor: "var(--border-color)",
@@ -139,11 +140,11 @@ export default function QuickStatsCards({
             })}
           </span>
         </div>
-      </div>
+      </Card>
 
       {/* Card 5: Total Library Titles & In Progress */}
-      <div
-        className="p-4 rounded-2xl border transition-colors flex items-center gap-4"
+      <Card
+        className="p-4 transition-colors flex items-center gap-4 shadow-none"
         style={{
           backgroundColor: "var(--bg-card)",
           borderColor: "var(--border-color)",
@@ -165,7 +166,7 @@ export default function QuickStatsCards({
             })}
           </span>
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

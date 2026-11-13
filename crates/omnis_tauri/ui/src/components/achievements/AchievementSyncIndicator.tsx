@@ -2,6 +2,7 @@ import React from "react";
 import { CheckCircle2, RefreshCw } from "lucide-react";
 import { AchievementSyncProgress } from "../../types";
 import { useTranslation } from "../../i18n";
+import { Progress } from "@/components/ui/progress";
 
 interface AchievementSyncIndicatorProps {
   sync: AchievementSyncProgress;
@@ -36,9 +37,11 @@ export const AchievementSyncIndicator: React.FC<AchievementSyncIndicatorProps> =
         {icon}
         <span className="truncate">{label}</span>
         {isLibrary && !isDone && (
-          <span className="w-12 h-1 rounded-full bg-white/10 overflow-hidden shrink-0">
-            <span className="block h-full bg-amber-300 transition-all duration-300" style={{ width: `${percent}%` }} />
-          </span>
+          <Progress
+            value={percent}
+            className="w-12 h-1 shrink-0"
+            indicatorClassName="bg-amber-300"
+          />
         )}
       </span>
     );
@@ -54,9 +57,11 @@ export const AchievementSyncIndicator: React.FC<AchievementSyncIndicatorProps> =
       {icon}
       <span className="text-sm font-medium text-white/90 truncate">{label}</span>
       {isLibrary && !isDone && (
-        <span className="w-16 h-1 rounded-full bg-white/10 overflow-hidden shrink-0">
-          <span className="block h-full bg-amber-300 transition-all duration-300" style={{ width: `${percent}%` }} />
-        </span>
+        <Progress
+          value={percent}
+          className="w-16 h-1 shrink-0"
+          indicatorClassName="bg-amber-300"
+        />
       )}
     </div>
   );

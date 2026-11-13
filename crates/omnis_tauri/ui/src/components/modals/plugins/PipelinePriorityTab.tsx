@@ -6,6 +6,13 @@ import { PROVIDER_METAS, renderProviderIcon, getProviderColor } from "./constant
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export interface PipelinePriorityTabProps {
   priorityOrder: string[];
@@ -159,23 +166,29 @@ export const PipelinePriorityTab: React.FC<PipelinePriorityTabProps> = ({
               <Folder className="w-3.5 h-3.5 text-cyan-400" />
               <span>{t("plugin_manager.covers")}</span>
             </label>
-            <select
-              value={pipelineConfig.cover_source}
-              onChange={(e) =>
-                setPipelineConfig({ ...pipelineConfig, cover_source: e.target.value })
+            <Select
+              value={pipelineConfig.cover_source || "steam"}
+              onValueChange={(value) =>
+                setPipelineConfig({ ...pipelineConfig, cover_source: value })
               }
-              className="w-full h-8 px-3 rounded-lg text-xs border font-medium focus:outline-none"
-              style={{
-                backgroundColor: "var(--bg-surface)",
-                borderColor: "var(--border-color)",
-                color: "var(--text-primary)",
-              }}
             >
-              <option value="steam">Steam Store CDN ({t("plugin_manager.opt_official_zero_config")})</option>
-              <option value="gog">GOG Catalog ({t("plugin_manager.opt_official_zero_config")})</option>
-              <option value="steamgriddb">SteamGridDB (Artwork HD 600x900)</option>
-              <option value="igdb">IGDB (Twitch Database)</option>
-            </select>
+              <SelectTrigger
+                className="w-full h-8 px-3 rounded-lg text-xs font-medium"
+                style={{
+                  backgroundColor: "var(--bg-surface)",
+                  borderColor: "var(--border-color)",
+                  color: "var(--text-primary)",
+                }}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="steam">Steam Store CDN ({t("plugin_manager.opt_official_zero_config")})</SelectItem>
+                <SelectItem value="gog">GOG Catalog ({t("plugin_manager.opt_official_zero_config")})</SelectItem>
+                <SelectItem value="steamgriddb">SteamGridDB (Artwork HD 600x900)</SelectItem>
+                <SelectItem value="igdb">IGDB (Twitch Database)</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Hero Background Priority */}
@@ -190,26 +203,32 @@ export const PipelinePriorityTab: React.FC<PipelinePriorityTabProps> = ({
               <Folder className="w-3.5 h-3.5 text-purple-400" />
               <span>{t("plugin_manager.backgrounds")}</span>
             </label>
-            <select
-              value={pipelineConfig.background_source}
-              onChange={(e) =>
+            <Select
+              value={pipelineConfig.background_source || "steam"}
+              onValueChange={(value) =>
                 setPipelineConfig({
                   ...pipelineConfig,
-                  background_source: e.target.value,
+                  background_source: value,
                 })
               }
-              className="w-full h-8 px-3 rounded-lg text-xs border font-medium focus:outline-none"
-              style={{
-                backgroundColor: "var(--bg-surface)",
-                borderColor: "var(--border-color)",
-                color: "var(--text-primary)",
-              }}
             >
-              <option value="steam">Steam Store CDN ({t("plugin_manager.opt_official")})</option>
-              <option value="gog">GOG Catalog ({t("plugin_manager.opt_official_artwork")})</option>
-              <option value="steamgriddb">SteamGridDB (Hero 1920x1080 / 4K)</option>
-              <option value="igdb">IGDB (Screenshot HD)</option>
-            </select>
+              <SelectTrigger
+                className="w-full h-8 px-3 rounded-lg text-xs font-medium"
+                style={{
+                  backgroundColor: "var(--bg-surface)",
+                  borderColor: "var(--border-color)",
+                  color: "var(--text-primary)",
+                }}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="steam">Steam Store CDN ({t("plugin_manager.opt_official")})</SelectItem>
+                <SelectItem value="gog">GOG Catalog ({t("plugin_manager.opt_official_artwork")})</SelectItem>
+                <SelectItem value="steamgriddb">SteamGridDB (Hero 1920x1080 / 4K)</SelectItem>
+                <SelectItem value="igdb">IGDB (Screenshot HD)</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Critic Score Priority */}
@@ -224,22 +243,28 @@ export const PipelinePriorityTab: React.FC<PipelinePriorityTabProps> = ({
               <Star className="w-3.5 h-3.5 text-amber-400" />
               <span>{t("plugin_manager.critic_scores")}</span>
             </label>
-            <select
-              value={pipelineConfig.score_source}
-              onChange={(e) =>
-                setPipelineConfig({ ...pipelineConfig, score_source: e.target.value })
+            <Select
+              value={pipelineConfig.score_source || "steam"}
+              onValueChange={(value) =>
+                setPipelineConfig({ ...pipelineConfig, score_source: value })
               }
-              className="w-full h-8 px-3 rounded-lg text-xs border font-medium focus:outline-none"
-              style={{
-                backgroundColor: "var(--bg-surface)",
-                borderColor: "var(--border-color)",
-                color: "var(--text-primary)",
-              }}
             >
-              <option value="steam">Steam Metacritic ({t("plugin_manager.opt_steam_metacritic")})</option>
-              <option value="opencritic">OpenCritic (Top Critic Score)</option>
-              <option value="igdb">IGDB (Total Rating / Critic Score)</option>
-            </select>
+              <SelectTrigger
+                className="w-full h-8 px-3 rounded-lg text-xs font-medium"
+                style={{
+                  backgroundColor: "var(--bg-surface)",
+                  borderColor: "var(--border-color)",
+                  color: "var(--text-primary)",
+                }}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="steam">Steam Metacritic ({t("plugin_manager.opt_steam_metacritic")})</SelectItem>
+                <SelectItem value="opencritic">OpenCritic (Top Critic Score)</SelectItem>
+                <SelectItem value="igdb">IGDB (Total Rating / Critic Score)</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Descriptions and Details Priority */}
@@ -254,22 +279,28 @@ export const PipelinePriorityTab: React.FC<PipelinePriorityTabProps> = ({
               <Scroll className="w-3.5 h-3.5 text-emerald-400" />
               <span>{t("plugin_manager.details")}</span>
             </label>
-            <select
-              value={pipelineConfig.details_source}
-              onChange={(e) =>
-                setPipelineConfig({ ...pipelineConfig, details_source: e.target.value })
+            <Select
+              value={pipelineConfig.details_source || "steam"}
+              onValueChange={(value) =>
+                setPipelineConfig({ ...pipelineConfig, details_source: value })
               }
-              className="w-full h-8 px-3 rounded-lg text-xs border font-medium focus:outline-none"
-              style={{
-                backgroundColor: "var(--bg-surface)",
-                borderColor: "var(--border-color)",
-                color: "var(--text-primary)",
-              }}
             >
-              <option value="steam">Steam Store Engine ({t("plugin_manager.opt_localized")})</option>
-              <option value="gog">GOG Catalog ({t("plugin_manager.opt_drm_free_catalog")})</option>
-              <option value="igdb">IGDB (Twitch / {t("plugin_manager.badge_global_db")})</option>
-            </select>
+              <SelectTrigger
+                className="w-full h-8 px-3 rounded-lg text-xs font-medium"
+                style={{
+                  backgroundColor: "var(--bg-surface)",
+                  borderColor: "var(--border-color)",
+                  color: "var(--text-primary)",
+                }}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="steam">Steam Store Engine ({t("plugin_manager.opt_localized")})</SelectItem>
+                <SelectItem value="gog">GOG Catalog ({t("plugin_manager.opt_drm_free_catalog")})</SelectItem>
+                <SelectItem value="igdb">IGDB (Twitch / {t("plugin_manager.badge_global_db")})</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
       </div>

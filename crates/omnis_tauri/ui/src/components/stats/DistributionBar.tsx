@@ -15,6 +15,7 @@ import {
 import { Gamepad2 } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import { getLocalizedGenre } from "../../utils/genres";
+import { Card } from "../ui/card";
 
 interface DistributionBarProps {
   title: string;
@@ -105,8 +106,8 @@ export default function DistributionBar({ title, items, type }: DistributionBarP
   };
 
   return (
-    <div
-      className="flex flex-col gap-3 p-5 rounded-2xl border transition-colors duration-300"
+    <Card
+      className="flex flex-col gap-3 p-5 transition-colors duration-300 shadow-none"
       style={{
         backgroundColor: "var(--bg-card)",
         borderColor: "var(--border-color)",
@@ -193,6 +194,6 @@ export default function DistributionBar({ title, items, type }: DistributionBarP
           {t("statistics.no_data")}
         </div>
       )}
-    </div>
+    </Card>
   );
 }

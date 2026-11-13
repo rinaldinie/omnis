@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -533,17 +534,15 @@ export default function OnboardingModal({
                   </div>
                   {metadataState === "running" && (
                     <>
-                      <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
-                        <div
-                          className="h-full rounded-full transition-all duration-300"
-                          style={{
-                            width: metadataProgress?.total
-                              ? `${Math.round((metadataProgress.current / metadataProgress.total) * 100)}%`
-                              : "4%",
-                            backgroundColor: "var(--accent-primary)",
-                          }}
-                        />
-                      </div>
+                      <Progress
+                        value={
+                          metadataProgress?.total
+                            ? Math.round((metadataProgress.current / metadataProgress.total) * 100)
+                            : 4
+                        }
+                        className="h-1.5"
+                        indicatorStyle={{ backgroundColor: "var(--accent-primary)" }}
+                      />
                       <p className="text-[10px] text-slate-400 truncate">
                         {metadataProgress
                           ? t("onboarding.metadata_running", {

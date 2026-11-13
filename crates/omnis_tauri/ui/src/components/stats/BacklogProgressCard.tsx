@@ -2,6 +2,7 @@ import React from "react";
 import { Sparkles } from "lucide-react";
 import { BacklogSummaryDto } from "../../types";
 import { useTranslation } from "../../i18n";
+import { Card } from "@/components/ui/card";
 
 export interface BacklogProgressCardProps {
   backlogSummary: BacklogSummaryDto;
@@ -13,8 +14,8 @@ export default function BacklogProgressCard({
   const { t } = useTranslation();
 
   return (
-    <div
-      className="p-6 rounded-2xl border space-y-4 transition-colors duration-300"
+    <Card
+      className="p-6 space-y-4 transition-colors duration-300"
       style={{
         backgroundColor: "var(--bg-card)",
         borderColor: "var(--border-color)",
@@ -108,6 +109,6 @@ export default function BacklogProgressCard({
           </div>
         </div>
       )}
-    </div>
+    </Card>
   );
 }

@@ -3,6 +3,13 @@ import { Calendar, Star } from "lucide-react";
 import { GameEditorFormData, COMPLETION_STATUSES } from "./types";
 import { useTranslation } from "../../i18n";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface GeneralTabProps {
   formData: GameEditorFormData;
@@ -72,17 +79,21 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({ formData, onChange }) =>
           <label className="block text-xs font-medium mb-1.5 text-slate-300">
             {t("editor_general.completion")}
           </label>
-          <select
-            value={formData.completion_status}
-            onChange={(e) => onChange({ completion_status: e.target.value })}
-            className="w-full h-10 px-3.5 py-2.5 rounded-xl border border-input bg-card text-sm font-normal text-foreground outline-none cursor-pointer focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
+          <Select
+            value={formData.completion_status || undefined}
+            onValueChange={(value) => onChange({ completion_status: value })}
           >
-            {COMPLETION_STATUSES.map((status) => (
-              <option key={status.value} value={status.value}>
-                {t(`completion_status.${status.key}`)}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger className="w-full h-10 px-3.5 py-2.5 text-sm font-normal">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {COMPLETION_STATUSES.map((status) => (
+                <SelectItem key={status.value} value={status.value}>
+                  {t(`completion_status.${status.key}`)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 

@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 export type StoreCleanupMode = "keep" | "uninstalled_only" | "all";
 
@@ -114,29 +115,32 @@ export const DisconnectStoreModal: React.FC<DisconnectStoreModalProps> = ({
             <span>{t("store_accounts.disconnect_modal_desc", { store: storeName })}</span>
           </div>
 
-          <div className="space-y-2.5">
+          <RadioGroup
+            value={selectedMode}
+            onValueChange={(val) => {
+              soundEffects.playNav();
+              setSelectedMode(val as StoreCleanupMode);
+            }}
+            className="space-y-2.5 gap-0"
+          >
             {options.map((opt) => {
               const Icon = opt.icon;
               const isSelected = selectedMode === opt.mode;
+              const radioId = `cleanup-mode-${opt.mode}`;
               return (
                 <label
                   key={opt.mode}
-                  onClick={() => {
-                    soundEffects.playNav();
-                    setSelectedMode(opt.mode);
-                  }}
+                  htmlFor={radioId}
                   className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-start gap-3 ${
                     isSelected
                       ? `${opt.accent} shadow-md`
                       : "border-white/10 bg-black/20 hover:bg-white/[0.04] text-slate-400 hover:text-slate-200"
                   }`}
                 >
-                  <input
-                    type="radio"
-                    name="cleanup_mode"
-                    checked={isSelected}
-                    onChange={() => setSelectedMode(opt.mode)}
-                    className="mt-1 w-4 h-4 text-sky-500 cursor-pointer accent-primary"
+                  <RadioGroupItem
+                    id={radioId}
+                    value={opt.mode}
+                    className="mt-1 shrink-0"
                   />
                   <div className="flex-1 space-y-1">
                     <div className="flex items-center gap-2">
@@ -148,7 +152,7 @@ export const DisconnectStoreModal: React.FC<DisconnectStoreModalProps> = ({
                 </label>
               );
             })}
-          </div>
+          </RadioGroup>
         </div>
 
         <DialogFooter className="px-6 py-4 border-t border-border bg-black/40 shrink-0">
