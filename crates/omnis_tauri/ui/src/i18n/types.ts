@@ -323,6 +323,8 @@ export interface TranslationSchema {
     kb_clear: string;
     kb_done: string;
     results: string;
+    section_active_game?: string;
+    kill_active_game?: string;
     section_library: string;
     section_display: string;
     sort_by: string;

@@ -366,6 +366,42 @@ export default function FullscreenView({
       : focusedGame;
   const isInfoGameRunning = !!infoGame && activeGame?.game_id === infoGame.id;
 
+  // Global emergency gamepad combo: hold Start (9) + Select (8) for 2 seconds to kill active game
+  React.useEffect(() => {
+    if (!activeGame || !handleKillRunningGame) return;
+    let rafId = 0;
+    let comboStart: number | null = null;
+    let triggered = false;
+
+    const poll = () => {
+      const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+      let bothHeld = false;
+      for (const gp of gamepads) {
+        if (gp && gp.buttons[8]?.pressed && gp.buttons[9]?.pressed) {
+          bothHeld = true;
+          break;
+        }
+      }
+
+      if (bothHeld) {
+        if (comboStart === null) {
+          comboStart = performance.now();
+        } else if (!triggered && performance.now() - comboStart >= 2000) {
+          triggered = true;
+          handleKillRunningGame();
+        }
+      } else {
+        comboStart = null;
+        triggered = false;
+      }
+
+      rafId = requestAnimationFrame(poll);
+    };
+
+    rafId = requestAnimationFrame(poll);
+    return () => cancelAnimationFrame(rafId);
+  }, [activeGame, handleKillRunningGame]);
+
   // Power and Confirmation dialog states
   const [isPowerDialogOpen, setIsPowerDialogOpen] = React.useState(false);
   const [confirm, setConfirm] = React.useState<{ kind: ConfirmKind; game?: GameDto } | null>(null);
@@ -378,6 +414,10 @@ export default function FullscreenView({
     setConfirm({ kind, game });
     setConfirmFocus("cancel");
   };
+
+  const activeGameTitle = activeGame
+    ? ((allGames ?? filteredGames).find((g) => g.id === activeGame.game_id)?.title ?? activeGame.game_id)
+    : null;
 
   // Side menu hook
   const {
@@ -398,6 +438,8 @@ export default function FullscreenView({
     locale,
     setLocale,
     filteredGames,
+    activeGameTitle,
+    handleKillRunningGame,
     focusedIndex,
     setFocusedIndex,
     setHomeFocusZone,

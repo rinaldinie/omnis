@@ -307,6 +307,8 @@ export const ja: TranslationSchema = {
     kb_clear: 'クリア',
     kb_done: '完了',
     results: '{count} 件',
+    section_active_game: '実行中のゲーム',
+    kill_active_game: '実行中のゲームを終了: {title}',
     section_library: 'ライブラリ',
     section_display: '表示',
     sort_by: '並べ替え',

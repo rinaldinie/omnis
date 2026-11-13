@@ -19,6 +19,7 @@ export const FILTER_LABEL_KEYS: Record<string, string> = {
 };
 
 export const MENU_SECTION_LABEL_KEYS: Record<string, string> = {
+  active_game: "console_ui.section_active_game",
   library: "console_ui.section_library",
   display: "console_ui.section_display",
   system: "console_ui.system",

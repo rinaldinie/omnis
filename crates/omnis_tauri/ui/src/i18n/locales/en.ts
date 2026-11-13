@@ -307,6 +307,8 @@ export const en: TranslationSchema = {
     kb_clear: 'Clear',
     kb_done: 'Done',
     results: '{count} results',
+    section_active_game: 'Active game',
+    kill_active_game: 'Close active game: {title}',
     section_library: 'Library',
     section_display: 'Display',
     sort_by: 'Sort by',

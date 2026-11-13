@@ -21,6 +21,7 @@ import {
   Monitor,
   Power,
   BarChart3,
+  OctagonX,
 } from "lucide-react";
 import { GameDto, ThemeConfig } from "../../types";
 import { SUPPORTED_LOCALES } from "../../i18n/types";
@@ -66,6 +67,8 @@ export interface UseFullscreenMenuOptions {
   confirm: any;
   /** Opens the console statistics page */
   onOpenStatistics?: () => void;
+  activeGameTitle?: string | null;
+  handleKillRunningGame?: () => void;
   t: (key: string, params?: Record<string, any>) => string;
 }
 
@@ -98,6 +101,8 @@ export function useFullscreenMenu({
   handleToggleSound,
   styleSetting,
   effectiveFamily,
+  activeGameTitle,
+  handleKillRunningGame,
   cycleControllerStyle,
   onOpenPowerMenu,
   confirm,
@@ -171,6 +176,20 @@ export function useFullscreenMenu({
       : undefined;
 
   const menuItems: ConsoleMenuItem[] = [];
+
+  if (activeGameTitle && handleKillRunningGame) {
+    menuItems.push({
+      id: "kill-active-game",
+      icon: OctagonX,
+      tone: "danger",
+      section: "active_game",
+      label: t("console_ui.kill_active_game", { title: activeGameTitle }),
+      onActivate: () => {
+        setIsMenuOpen?.(false);
+        handleKillRunningGame();
+      },
+    });
+  }
 
   if (hasUpdate && updater) {
     menuItems.push({

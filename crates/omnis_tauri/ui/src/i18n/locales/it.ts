@@ -307,6 +307,8 @@ export const it: TranslationSchema = {
     kb_clear: 'Svuota',
     kb_done: 'Fatto',
     results: '{count} risultati',
+    section_active_game: 'Gioco attivo',
+    kill_active_game: 'Chiudi gioco attivo: {title}',
     section_library: 'Libreria',
     section_display: 'Aspetto',
     sort_by: 'Ordina per',
