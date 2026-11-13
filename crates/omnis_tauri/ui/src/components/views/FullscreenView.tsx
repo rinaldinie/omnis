@@ -41,7 +41,6 @@ import {
   ArtImage,
 } from "../fullscreen/FullscreenCards";
 import { FullscreenQuickMenu } from "../fullscreen/FullscreenQuickMenu";
-import { FullscreenPowerDialog } from "../fullscreen/FullscreenPowerDialog";
 import { FullscreenConfirmDialog, ConfirmKind } from "../fullscreen/FullscreenConfirmDialog";
 import { FullscreenDetailsOverlay } from "../fullscreen/FullscreenDetailsOverlay";
 import { FullscreenTopBar } from "../fullscreen/FullscreenTopBar";
@@ -58,6 +57,7 @@ import {
   MENU_SECTION_LABEL_KEYS,
   duration as defaultDuration,
 } from "../fullscreen/constants";
+import type { PowerActionId } from "../fullscreen/constants";
 
 interface FullscreenViewProps {
   focusedGame: GameDto | null;
@@ -410,8 +410,7 @@ export default function FullscreenView({
     return () => cancelAnimationFrame(rafId);
   }, [activeGame, handleKillRunningGame]);
 
-  // Power and Confirmation dialog states
-  const [isPowerDialogOpen, setIsPowerDialogOpen] = React.useState(false);
+  // Confirmation dialog state (game uninstall); system actions are confirmed inline in the menu
   const [confirm, setConfirm] = React.useState<{ kind: ConfirmKind; game?: GameDto } | null>(null);
   const [confirmFocus, setConfirmFocus] = React.useState<"cancel" | "confirm">("cancel");
   const confirmRef = React.useRef(confirm);
@@ -432,10 +431,13 @@ export default function FullscreenView({
     hasUpdate,
     backdropTheme,
     menuItems,
+    menuLevels,
     safeMenuIndex,
     setMenuFocusedIndex,
     focusedMenuItem,
     menuItemRefs,
+    goBackMenu,
+    selectParentMenuItem,
   } = useFullscreenMenu({
     updater,
     themes,
@@ -467,7 +469,7 @@ export default function FullscreenView({
     styleSetting,
     effectiveFamily,
     cycleControllerStyle,
-    onOpenPowerMenu: () => setIsPowerDialogOpen(true),
+    onPowerAction: (action) => runPowerAction(action),
     confirm,
     onOpenStatistics: setConsolePage ? () => setConsolePage("stats") : undefined,
     t,
@@ -598,6 +600,24 @@ export default function FullscreenView({
     const id = window.setTimeout(() => setNotice(null), 2600);
     return () => window.clearTimeout(id);
   }, [notice]);
+
+  /** System / session actions (confirmed inline in the menu or through the confirmation dialog) */
+  const runPowerAction = (action: PowerActionId) => {
+    setIsMenuOpen?.(false);
+    if (action === "exit") {
+      handleClose();
+    } else if (action === "desktop") {
+      toggleFullscreen();
+    } else if (action === "sleep") {
+      api.window.systemSleep().catch((e) => setNotice(String(e)));
+    } else if (action === "restart") {
+      api.window.systemRestart().catch((e) => setNotice(String(e)));
+    } else if (action === "shutdown") {
+      api.window.systemShutdown().catch((e) => setNotice(String(e)));
+    }
+  };
+  const runPowerActionRef = React.useRef(runPowerAction);
+  runPowerActionRef.current = runPowerAction;
 
   const [detailGame, setDetailGame] = React.useState<GameDto | null>(null);
   React.useEffect(() => {
@@ -807,21 +827,8 @@ export default function FullscreenView({
       const currentConfirm = confirmRef.current;
       setConfirm(null);
       if (currentFocus !== "confirm" || !currentConfirm) return;
-      if (currentConfirm.kind === "exit") {
-        setIsMenuOpen?.(false);
-        handleClose();
-      } else if (currentConfirm.kind === "desktop") {
-        setIsMenuOpen?.(false);
-        toggleFullscreen();
-      } else if (currentConfirm.kind === "sleep") {
-        setIsMenuOpen?.(false);
-        api.window.systemSleep().catch((e) => setNotice(String(e)));
-      } else if (currentConfirm.kind === "restart") {
-        setIsMenuOpen?.(false);
-        api.window.systemRestart().catch((e) => setNotice(String(e)));
-      } else if (currentConfirm.kind === "shutdown") {
-        setIsMenuOpen?.(false);
-        api.window.systemShutdown().catch((e) => setNotice(String(e)));
+      if (currentConfirm.kind !== "uninstall") {
+        runPowerActionRef.current(currentConfirm.kind);
       } else if (currentConfirm.game && onGameAction) {
         onGameAction("uninstall", currentConfirm.game.id);
         setNotice(t("console_ui.notice_uninstall"));
@@ -861,7 +868,7 @@ export default function FullscreenView({
       events.forEach(([name, fn]) => window.removeEventListener(name, fn));
       window.removeEventListener("keydown", handleKeyDown, true);
     };
-  }, [confirm, setIsMenuOpen, handleClose, toggleFullscreen, onGameAction, t]);
+  }, [confirm, onGameAction, t]);
 
   // Controller legend
   const legendLeft = [
@@ -906,7 +913,7 @@ export default function FullscreenView({
         },
       },
     ];
-  } else if (confirm || isPowerDialogOpen) {
+  } else if (confirm) {
     legendRight = [
       { kind: "a" as const, label: t("console_ui.select") },
       { kind: "b" as const, label: t("common.cancel") },
@@ -920,7 +927,7 @@ export default function FullscreenView({
         label: t("console_ui.back"),
         onClick: () => {
           soundEffects.playSelect();
-          setIsMenuOpen?.(false);
+          goBackMenu();
         },
       },
     ];
@@ -1152,7 +1159,7 @@ export default function FullscreenView({
         t={t}
       />
 
-      {/* SIDE MENU */}
+      {/* SIDE MENU (with Settings sub menus and inline-confirmed system actions) */}
       <FullscreenQuickMenu
         isMenuOpen={!!isMenuOpen}
         onClose={() => setIsMenuOpen?.(false)}
@@ -1165,21 +1172,9 @@ export default function FullscreenView({
         t={t}
         menuSectionLabelKeys={MENU_SECTION_LABEL_KEYS}
         menuItemRefs={menuItemRefs}
-      />
-
-      {/* POWER MENU DIALOG */}
-      <FullscreenPowerDialog
-        isOpen={isPowerDialogOpen}
-        onClose={() => {
-          setIsPowerDialogOpen(false);
-          setIsMenuOpen?.(true);
-        }}
-        onSelectAction={(actionId) => {
-          setIsPowerDialogOpen(false);
-          openConfirm(actionId);
-        }}
-        soundEffects={soundEffects}
-        t={t}
+        levels={menuLevels}
+        onBack={goBackMenu}
+        onSelectParentItem={selectParentMenuItem}
       />
 
       {/* CONFIRMATION DIALOG */}
@@ -1190,22 +1185,9 @@ export default function FullscreenView({
           const kind = confirm?.kind;
           const game = confirm?.game;
           setConfirm(null);
-          if (button === "cancel") return;
-          if (kind === "exit") {
-            setIsMenuOpen?.(false);
-            handleClose();
-          } else if (kind === "desktop") {
-            setIsMenuOpen?.(false);
-            toggleFullscreen();
-          } else if (kind === "sleep") {
-            setIsMenuOpen?.(false);
-            api.window.systemSleep().catch((e) => setNotice(String(e)));
-          } else if (kind === "restart") {
-            setIsMenuOpen?.(false);
-            api.window.systemRestart().catch((e) => setNotice(String(e)));
-          } else if (kind === "shutdown") {
-            setIsMenuOpen?.(false);
-            api.window.systemShutdown().catch((e) => setNotice(String(e)));
+          if (button === "cancel" || !kind) return;
+          if (kind !== "uninstall") {
+            runPowerAction(kind);
           } else if (game && onGameAction) {
             onGameAction("uninstall", game.id);
             setNotice(t("console_ui.notice_uninstall"));
