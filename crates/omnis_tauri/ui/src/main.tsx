@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import { I18nProvider } from "./i18n";
+import { ErrorBoundary } from "./components/common/ErrorBoundary";
 import "./index.css";
 
 // Prevent default webview context menu globally to eliminate browser inspect / reload menu
@@ -24,7 +25,9 @@ document.addEventListener("keydown", (e) => {
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <I18nProvider>
-      <App />
+      <ErrorBoundary scope="AppRoot" variant="page">
+        <App />
+      </ErrorBoundary>
     </I18nProvider>
   </React.StrictMode>
 );

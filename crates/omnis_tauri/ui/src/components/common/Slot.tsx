@@ -13,6 +13,7 @@ import {
 import { slotsApi } from "../../api/slots";
 import { TAURI_EVENTS } from "../../api/events";
 import { Progress } from "@/components/ui/progress";
+import { ErrorBoundary } from "./ErrorBoundary";
 
 export interface WidgetLink {
   title: string;
@@ -107,7 +108,7 @@ function subscribeSlotRefresh(cb: SlotSubscriber) {
   };
 }
 
-export const Slot: React.FC<SlotProps> = ({ name, gameId, className = "" }) => {
+const SlotInner: React.FC<SlotProps> = ({ name, gameId, className = "" }) => {
   const [widgets, setWidgets] = useState<SlotWidget[]>([]);
 
   useEffect(() => {
@@ -235,3 +236,13 @@ export const Slot: React.FC<SlotProps> = ({ name, gameId, className = "" }) => {
     </div>
   );
 };
+
+export const Slot: React.FC<SlotProps> = (props) => (
+  <ErrorBoundary
+    scope={`Slot:${props.name}`}
+    variant="silent"
+    resetKeys={[props.name, props.gameId]}
+  >
+    <SlotInner {...props} />
+  </ErrorBoundary>
+);

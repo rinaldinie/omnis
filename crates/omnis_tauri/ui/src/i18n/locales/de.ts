@@ -1689,4 +1689,12 @@ export const de: TranslationSchema = {
     privacy: 'Schlüssel werden während der Synchronisierung nur im Speicher aus dem Emulator-Ordner gelesen: Omnis kopiert, speichert oder überträgt sie niemals.',
     playtime_note: 'Von Eden, Citron und Ryujinx aufgezeichnete Spielzeiten werden immer importiert.',
   },
+  error_boundary: {
+    title: 'Etwas ist schiefgelaufen',
+    description: 'In diesem Bereich ist ein unerwarteter Fehler aufgetreten. Sie können es erneut versuchen, ohne die gesamte App neu zu starten.',
+    retry: 'Erneut versuchen',
+    reload: 'App neu laden',
+    back_to_grid: 'Zurück zum Raster',
+    exit_fullscreen: 'Zum Desktop wechseln',
+  },
 };

@@ -42,6 +42,7 @@ import {
 } from "./components/fullscreen/ConsoleChrome";
 import { GameSortMode, readSavedSortMode, saveSortMode, sortGames } from "./utils/sortGames";
 import OnboardingModal, { shouldShowOnboarding } from "./components/modals/OnboardingModal";
+import { ErrorBoundary } from "./components/common/ErrorBoundary";
 import { AppToasts, SessionToastInfo, SyncBannerInfo } from "./components/common/AppToasts";
 import { AppModals } from "./components/modals/AppModals";
 import { usePluginManager } from "./hooks/usePluginManager";
@@ -507,16 +508,23 @@ export default function App() {
     <ControllerTypeContext.Provider value={effectiveFamily}>
       {/* ONBOARDING WIZARD */}
       {showOnboarding && (
-        <OnboardingModal
-          onComplete={() => {
-            setShowOnboarding(false);
-            refreshLibrary();
-          }}
-          onSkip={() => setShowOnboarding(false)}
-          onLibraryImported={refreshLibrary}
-          onStartMetadataDownload={gameOps.handleDownloadAll}
-          onOpenSettings={handleOpenSettings}
-        />
+        <ErrorBoundary
+          scope="OnboardingModal"
+          variant="compact"
+          className="fixed bottom-4 left-4 right-4 z-[400] max-w-xl mx-auto shadow-xl"
+          onReset={() => setShowOnboarding(false)}
+        >
+          <OnboardingModal
+            onComplete={() => {
+              setShowOnboarding(false);
+              refreshLibrary();
+            }}
+            onSkip={() => setShowOnboarding(false)}
+            onLibraryImported={refreshLibrary}
+            onStartMetadataDownload={gameOps.handleDownloadAll}
+            onOpenSettings={handleOpenSettings}
+          />
+        </ErrorBoundary>
       )}
 
       <div
@@ -527,7 +535,18 @@ export default function App() {
         }}
       >
         {isFullscreen ? (
-          <FullscreenView
+          <ErrorBoundary
+            scope="FullscreenView"
+            variant="page"
+            resetKeys={[isFullscreen]}
+            secondaryAction={{
+              label: t("error_boundary.exit_fullscreen", { defaultValue: "Switch to desktop" }),
+              onClick: () => {
+                void toggleFullscreen();
+              },
+            }}
+          >
+            <FullscreenView
             focusedGame={focusedGame}
             filteredGames={fullscreenGames}
             focusedIndex={focusedIndex}
@@ -576,8 +595,14 @@ export default function App() {
             themes={themes}
             onSelectTheme={selectTheme}
           />
+          </ErrorBoundary>
         ) : (
-          <DesktopView
+          <ErrorBoundary
+            scope="DesktopView"
+            variant="page"
+            resetKeys={[isFullscreen]}
+          >
+            <DesktopView
             currentTheme={currentTheme}
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
@@ -642,40 +667,48 @@ export default function App() {
             handleToggleFavorite={handleToggleFavorite}
             handlePromoteCopy={handlePromoteCopy}
           />
+          </ErrorBoundary>
         )}
 
         {/* GLOBAL MODALS */}
-        <AppModals
-          themes={themes}
-          currentTheme={currentTheme}
-          selectTheme={selectTheme}
-          handleSaveCustomTheme={handleSaveCustomTheme}
-          handleOpenFolder={handleOpenFolder}
-          pluginManager={pluginManager}
-          handleLaunch={handleLaunch}
-          handleUpdateCompletionStatus={handleUpdateCompletionStatus}
-          handleOpenInstallDir={handleOpenInstallDir}
-          handleCreateShortcut={handleCreateShortcut}
-          handleVerifyFiles={handleVerifyFiles}
-          handleOpenUninstallModal={handleOpenUninstallModal}
-          handleRemoveFromLibrary={handleRemoveFromLibrary}
-          onToggleHidden={handleToggleHidden}
-          onToggleFavorite={handleToggleFavorite}
-          onPromoteCopy={handlePromoteCopy}
-          statusText={statusText}
-          filteredGames={filteredGames}
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          setFocusedIndex={setFocusedIndex}
-          fullscreenGamesCount={fullscreenGames.length}
-          handleConfirmUninstall={handleConfirmUninstall}
-          handleToggleSound={handleToggleSound}
-          confirmKillRunningGame={confirmKillRunningGame}
-          t={t}
-        />
+        <ErrorBoundary
+          scope="AppModals"
+          variant="compact"
+          className="fixed bottom-4 left-4 right-4 z-[400] max-w-xl mx-auto shadow-xl"
+        >
+          <AppModals
+            themes={themes}
+            currentTheme={currentTheme}
+            selectTheme={selectTheme}
+            handleSaveCustomTheme={handleSaveCustomTheme}
+            handleOpenFolder={handleOpenFolder}
+            pluginManager={pluginManager}
+            handleLaunch={handleLaunch}
+            handleUpdateCompletionStatus={handleUpdateCompletionStatus}
+            handleOpenInstallDir={handleOpenInstallDir}
+            handleCreateShortcut={handleCreateShortcut}
+            handleVerifyFiles={handleVerifyFiles}
+            handleOpenUninstallModal={handleOpenUninstallModal}
+            handleRemoveFromLibrary={handleRemoveFromLibrary}
+            onToggleHidden={handleToggleHidden}
+            onToggleFavorite={handleToggleFavorite}
+            onPromoteCopy={handlePromoteCopy}
+            statusText={statusText}
+            filteredGames={filteredGames}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            setFocusedIndex={setFocusedIndex}
+            fullscreenGamesCount={fullscreenGames.length}
+            handleConfirmUninstall={handleConfirmUninstall}
+            handleToggleSound={handleToggleSound}
+            confirmKillRunningGame={confirmKillRunningGame}
+            t={t}
+          />
+        </ErrorBoundary>
 
         {/* GLOBAL TOASTS & FLOATING NOTIFICATIONS */}
-        <AppToasts
+        <ErrorBoundary scope="AppToasts" variant="silent">
+          <AppToasts
           isFullscreen={isFullscreen}
           achievementSync={achievementSync}
           syncBanner={syncBanner}
@@ -691,6 +724,7 @@ export default function App() {
           onOpenSettings={handleOpenSettings}
           t={t}
         />
+        </ErrorBoundary>
       </div>
     </ControllerTypeContext.Provider>
     </InputPromptContext.Provider>

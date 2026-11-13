@@ -1706,4 +1706,12 @@ export interface TranslationSchema {
     privacy: string;
     playtime_note: string;
   };
+  error_boundary: {
+    title: string;
+    description: string;
+    retry: string;
+    reload: string;
+    back_to_grid: string;
+    exit_fullscreen: string;
+  };
 }
