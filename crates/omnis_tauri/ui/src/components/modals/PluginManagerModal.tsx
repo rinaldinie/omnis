@@ -86,7 +86,7 @@ export default function PluginManagerModal({
   isPipelineEnriching,
   handleRunMassivePipeline,
   handleCancelPipeline,
-  onPluginInstalled,
+  onPluginInstalled: _onPluginInstalled,
 }: PluginManagerModalProps) {
   const { t } = useTranslation();
   // Built-in descriptions and badges hold translation keys; external plugin text is shown as-is

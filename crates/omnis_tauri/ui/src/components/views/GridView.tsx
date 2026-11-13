@@ -1,7 +1,7 @@
 import React from "react";
 import { Gamepad2, ChevronRight, ChevronDown, Play, Download, Square, MoreHorizontal, Clock, EyeOff } from "lucide-react";
 import { ActiveGameSession, GameDto, GroupBy, ViewMode } from "../../types";
-import { StoreBadge, MultiStoreBadgeGroup } from "../StoreBadge";
+import { MultiStoreBadgeGroup } from "../StoreBadge";
 import { Slot } from "../common/Slot";
 import { GameCardCover } from "../common/GameCardCover";
 import EmptyGamesView from "../common/EmptyGamesView";
@@ -70,7 +70,7 @@ const GameCardItem = React.memo(
     onContextMenu,
     onLaunch,
     onKill,
-    onEdit,
+    onEdit: _onEdit,
   }: GameCardItemProps) {
     const { t } = useTranslation();
     const timerContextSeconds = useActiveGameTimer();

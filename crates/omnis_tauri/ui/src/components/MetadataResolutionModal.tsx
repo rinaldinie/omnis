@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Search,
   Sparkles,
@@ -336,6 +336,8 @@ export default function MetadataResolutionModal({
     }
   };
 
+  const handleSearchRef = useRef<(term: string, prov: string) => void>(() => {});
+
   // On open, pre-fill search and reset candidate state
   useEffect(() => {
     if (!isOpen || !game) return;
@@ -348,7 +350,7 @@ export default function MetadataResolutionModal({
     setApplyError(null);
     setApplySuccess(false);
 
-    handleSearch(game.title || "", "all");
+    handleSearchRef.current(game.title || "", "all");
   }, [isOpen, game]);
 
   useEffect(() => {
@@ -420,6 +422,7 @@ export default function MetadataResolutionModal({
       setIsSearching(false);
     }
   };
+  handleSearchRef.current = handleSearch;
 
   const toggleField = (key: string) => {
     if (selectedCandidate && !isCandidateFieldAvailable(selectedCandidate, key)) {

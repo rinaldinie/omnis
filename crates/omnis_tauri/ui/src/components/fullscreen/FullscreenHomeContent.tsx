@@ -1,5 +1,5 @@
 import React from "react";
-import { Search, Play, CheckCircle2, Trophy, Award } from "lucide-react";
+import { Search, Play, CheckCircle2, Trophy } from "lucide-react";
 import { GameDto, ActiveGameSession } from "../../types";
 import { StoreIcon } from "../StoreBadge";
 import soundEffects from "../../utils/soundEffects";

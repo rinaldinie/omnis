@@ -21,8 +21,6 @@ import {
   GameDto,
   ViewMode,
   GroupBy,
-  LibraryCounts,
-  ThemeConfig,
   formatImageUrl,
   normalizeGame,
   TAURI_EVENTS,
@@ -40,7 +38,6 @@ import {
   InputPromptContext,
   ControllerStyleSetting,
 } from "./components/fullscreen/ConsoleChrome";
-import { GameSortMode, readSavedSortMode, saveSortMode, sortGames } from "./utils/sortGames";
 import OnboardingModal, { shouldShowOnboarding } from "./components/modals/OnboardingModal";
 import { ErrorBoundary } from "./components/common/ErrorBoundary";
 import { AppToasts, SessionToastInfo, SyncBannerInfo } from "./components/common/AppToasts";
@@ -113,15 +110,16 @@ export default function App() {
 
   // ONLINE APP UPDATER
   const updater = useAppUpdater();
+  const { checkForUpdates } = updater;
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      updater.checkForUpdates(true).catch((err) => {
+      checkForUpdates(true).catch((err) => {
         console.warn("Silent background update check failed:", err);
       });
     }, 4000);
     return () => clearTimeout(timer);
-  }, [updater.checkForUpdates]);
+  }, [checkForUpdates]);
 
   // LOAD GAMES
   const loadGames = useCallback(async () => {
@@ -206,6 +204,13 @@ export default function App() {
   const carouselRef = useRef<HTMLDivElement>(null);
   const [fullscreenGridColumns, setFullscreenGridColumns] = useState<number>(0);
   const [fullscreenHasRecentRow, setFullscreenHasRecentRow] = useState<boolean>(false);
+  const fullscreenNavCallbacksRef = useRef<{
+    setFocusedIndex: (index: number) => void;
+    setShowFullscreenDetails: (show: boolean) => void;
+  }>({
+    setFocusedIndex: () => {},
+    setShowFullscreenDetails: () => {},
+  });
 
   // DETECT --fullscreen / --bigpicture CLI ARGUMENTS FROM TAURI & SINGLE-INSTANCE
   useEffect(() => {
@@ -222,8 +227,8 @@ export default function App() {
 
         if (isFsCli || isWindowFs) {
           setIsFullscreen(true);
-          setFocusedIndex(0);
-          setShowFullscreenDetails(false);
+          fullscreenNavCallbacksRef.current.setFocusedIndex(0);
+          fullscreenNavCallbacksRef.current.setShowFullscreenDetails(false);
           await api.window.setFullscreen(true);
         }
       } catch (err) {
@@ -238,8 +243,8 @@ export default function App() {
         const shouldBeFs = event.payload ?? true;
         setIsFullscreen(shouldBeFs);
         if (shouldBeFs) {
-          setFocusedIndex(0);
-          setShowFullscreenDetails(false);
+          fullscreenNavCallbacksRef.current.setFocusedIndex(0);
+          fullscreenNavCallbacksRef.current.setShowFullscreenDetails(false);
         }
       }).then((fn) => {
         unlistenEvent = fn;
@@ -365,17 +370,17 @@ export default function App() {
     setIsFullscreen(next);
     await api.window.setFullscreen(next);
     if (next) {
-      setFocusedIndex(0);
-      setShowFullscreenDetails(false);
+      fullscreenNavCallbacksRef.current.setFocusedIndex(0);
+      fullscreenNavCallbacksRef.current.setShowFullscreenDetails(false);
     }
-  }, [isFullscreen]);
+  }, [isFullscreen, setIsFullscreen]);
 
   // SOUND TOGGLE
   const handleToggleSound = useCallback(() => {
     const next = soundEffects.toggle();
     setSoundEnabled(next);
     if (next) soundEffects.playSelect();
-  }, []);
+  }, [setSoundEnabled]);
 
   // GAMEPAD NAVIGATION HOOK
   const {
@@ -407,6 +412,11 @@ export default function App() {
     fullscreenGridColumns: isFullscreen ? fullscreenGridColumns : 0,
     hasRecentRow: isFullscreen && fullscreenHasRecentRow,
   });
+
+  fullscreenNavCallbacksRef.current = {
+    setFocusedIndex,
+    setShowFullscreenDetails,
+  };
 
   // Controller style setting
   const [controllerStyleSetting, setControllerStyleSettingState] = useState<ControllerStyleSetting>(() => {
@@ -445,7 +455,7 @@ export default function App() {
         setSelectedGame(filteredGames[0]);
       }
     }
-  }, [filteredGames, selectedGame]);
+  }, [filteredGames, selectedGame, setSelectedGame]);
 
   useEffect(() => {
     const handleOpenSettingsEvent = (e: Event) => {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import soundEffects from "../../../utils/soundEffects";
 import { useTranslation } from "../../../i18n/i18nContext";
 import { api, TAURI_EVENTS } from "../../../api";
@@ -19,6 +19,8 @@ export interface VaultStatus {
 
 export function useStoreAccountsManager(onSyncComplete?: () => void) {
   const { t } = useTranslation();
+  const tRef = useRef(t);
+  tRef.current = t;
   const [accounts, setAccounts] = useState<StoreAccount[]>(DEFAULT_ACCOUNTS);
   const [settingsMap, setSettingsMap] = useState<Record<string, StoreIntegrationSettings>>({});
   const [vaultStatus, setVaultStatus] = useState<VaultStatus | null>(null);
@@ -104,7 +106,7 @@ export function useStoreAccountsManager(onSyncComplete?: () => void) {
       loadSettingsForStore(payload.store_id);
       setBanner({
         type: "success",
-        message: t("store_accounts.connected_success", { store: payload.store_id }),
+        message: tRef.current("store_accounts.connected_success", { store: payload.store_id }),
       });
       soundEffects.playSelect();
     }).then((fn) => {
@@ -115,7 +117,7 @@ export function useStoreAccountsManager(onSyncComplete?: () => void) {
       loadAccounts();
       setBanner({
         type: "info",
-        message: t("store_accounts.disconnected_success", { store: payload.store_id }),
+        message: tRef.current("store_accounts.disconnected_success", { store: payload.store_id }),
       });
     }).then((fn) => {
       unlistenDisconnected = fn;

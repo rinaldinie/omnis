@@ -13,7 +13,6 @@ import {
 } from "./useGameAchievements";
 import { RarityIcon, getRarityBadgeClasses } from "./RarityIcon";
 import { Button } from "@/components/ui/button";
-import { ActionTooltip } from "@/components/ui/tooltip";
 
 interface AchievementBadgeProps {
   achievement: Achievement;

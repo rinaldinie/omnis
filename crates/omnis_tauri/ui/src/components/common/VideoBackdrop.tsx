@@ -31,6 +31,12 @@ export const VideoBackdrop: React.FC<VideoBackdropProps> = ({
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const hlsRef = useRef<Hls | null>(null);
   const prevGameIdRef = useRef<string | undefined>(game?.id);
+  const gameRef = useRef(game);
+  gameRef.current = game;
+  const videoSrcRef = useRef(videoSrc);
+  videoSrcRef.current = videoSrc;
+  const isPausedRef = useRef(isPaused);
+  isPausedRef.current = isPaused;
 
   const isEnabled = forceEnable || !!theme.enable_video_backdrop;
   const effectiveVideoOpacity = videoOpacity ?? (theme.video_backdrop_opacity ?? 1.0);
@@ -38,8 +44,9 @@ export const VideoBackdrop: React.FC<VideoBackdropProps> = ({
 
   // 1. Resolve Game Trailer URL with Debounce
   useEffect(() => {
-    const gameChanged = prevGameIdRef.current !== game?.id;
-    prevGameIdRef.current = game?.id;
+    const activeGameData = gameRef.current;
+    const gameChanged = prevGameIdRef.current !== activeGameData?.id;
+    prevGameIdRef.current = activeGameData?.id;
 
     if (gameChanged) {
       setIsVideoPlaying(false);
@@ -51,12 +58,12 @@ export const VideoBackdrop: React.FC<VideoBackdropProps> = ({
       }
     }
 
-    if (!isEnabled || !game || isPaused) {
+    if (!isEnabled || !activeGameData || isPaused) {
       return;
     }
 
     // If video is already loaded for this game, no need to re-fetch
-    if (videoSrc && !gameChanged) {
+    if (videoSrcRef.current && !gameChanged) {
       return;
     }
 
@@ -65,12 +72,12 @@ export const VideoBackdrop: React.FC<VideoBackdropProps> = ({
     // Debounce video start to avoid stutter during rapid navigation
     const timer = setTimeout(async () => {
       try {
-        const trailerUrl = await fetchGameTrailerUrl(game);
-        if (isMounted && trailerUrl && !isPaused) {
+        const trailerUrl = await fetchGameTrailerUrl(activeGameData);
+        if (isMounted && trailerUrl && !isPausedRef.current) {
           setVideoSrc(trailerUrl);
         }
       } catch (err) {
-        console.warn(`[VideoBackdrop] Error resolving trailer for '${game.title}':`, err);
+        console.warn(`[VideoBackdrop] Error resolving trailer for '${activeGameData.title}':`, err);
       }
     }, delayMs);
 
@@ -106,7 +113,7 @@ export const VideoBackdrop: React.FC<VideoBackdropProps> = ({
       if (mp4FallbackUrl && videoEl) {
         console.debug("[VideoBackdrop] Falling back to direct MP4 stream:", mp4FallbackUrl);
         videoEl.src = mp4FallbackUrl;
-        if (!isPaused) {
+        if (!isPausedRef.current) {
           videoEl.play().catch(() => {
             setIsVideoPlaying(false);
           });
@@ -120,7 +127,7 @@ export const VideoBackdrop: React.FC<VideoBackdropProps> = ({
     // Tier 1: Native HLS (Safari / macOS WebKit)
     if (isHlsUrl && videoEl.canPlayType("application/vnd.apple.mpegurl")) {
       videoEl.src = videoSrc;
-      if (!isPaused) {
+      if (!isPausedRef.current) {
         videoEl.play().catch((err) => {
           console.debug("[VideoBackdrop] Native HLS play error, attempting MP4 fallback:", err);
           tryMp4Fallback();
@@ -139,7 +146,7 @@ export const VideoBackdrop: React.FC<VideoBackdropProps> = ({
       hls.attachMedia(videoEl);
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        if (!isPaused) {
+        if (!isPausedRef.current) {
           videoEl.play().catch((err) => {
             console.debug("[VideoBackdrop] Autoplay blocked:", err);
           });
@@ -160,7 +167,7 @@ export const VideoBackdrop: React.FC<VideoBackdropProps> = ({
     // Tier 3: Direct video file (MP4 / WebM)
     else {
       videoEl.src = videoSrc;
-      if (!isPaused) {
+      if (!isPausedRef.current) {
         videoEl.play().catch(() => {
           setIsVideoPlaying(false);
         });

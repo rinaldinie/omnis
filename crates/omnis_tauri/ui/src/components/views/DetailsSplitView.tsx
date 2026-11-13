@@ -77,7 +77,7 @@ export default function DetailsSplitView({
   handleOpenUninstallModal,
   handleRemoveFromLibrary,
   handlePromoteCopy,
-  handleToggleHidden,
+  handleToggleHidden: _handleToggleHidden,
   handleToggleFavorite,
 }: DetailsSplitViewProps) {
   return (

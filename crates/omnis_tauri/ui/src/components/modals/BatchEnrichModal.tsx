@@ -13,7 +13,6 @@ import {
   Search,
   Check,
   Trophy,
-  BookOpen,
 } from "lucide-react";
 import { listen } from "@tauri-apps/api/event";
 import { GameDto, formatImageUrl, TAURI_EVENTS } from "../../types";
@@ -145,10 +144,13 @@ export default function BatchEnrichModal({
     filteredGames,
   ]);
 
+  const presetGamesRef = useRef(presetGames);
+  presetGamesRef.current = presetGames;
+
   // Initial selection sync when preset changes or modal opens
   useEffect(() => {
     if (isOpen) {
-      const initialSet = new Set(presetGames.map((g) => g.id));
+      const initialSet = new Set(presetGamesRef.current.map((g) => g.id));
       setSelectedIds(initialSet);
     }
   }, [presetMode, isOpen]);

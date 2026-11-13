@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import React from "react";
 import { I18nProvider } from "../../../i18n/i18nContext";
-import { SettingsSidebar, SettingsSidebarProps } from "./SettingsSidebar";
+import { SettingsSidebar } from "./SettingsSidebar";
 import { TreeGroup } from "./settingsTreeConfig";
 
 const renderSidebar = (ui: React.ReactElement) =>

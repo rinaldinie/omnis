@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import type { MutableRefObject } from "react";
 import soundEffects from "../utils/soundEffects";
 import { GameDto } from "../types";
@@ -86,7 +86,10 @@ export function useGamepadNavigation({
   hasRecentRow = false,
 }: UseGamepadNavigationProps) {
   const isFullscreen = propIsFullscreen !== undefined ? propIsFullscreen : (propIsBigPicture ?? false);
-  const toggleFullscreen = propToggleFullscreen || propToggleBigPicture || (() => {});
+  const toggleFullscreen = useMemo(
+    () => propToggleFullscreen || propToggleBigPicture || (() => {}),
+    [propToggleFullscreen, propToggleBigPicture]
+  );
 
   const [gamepadConnected, setGamepadConnected] = useState<boolean>(false);
   const [gamepadName, setGamepadName] = useState<string>("");

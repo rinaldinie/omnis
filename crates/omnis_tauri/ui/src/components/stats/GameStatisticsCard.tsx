@@ -62,12 +62,6 @@ export default function GameStatisticsCard({ game }: GameStatisticsCardProps) {
     );
   }
 
-  const hasData =
-    stats &&
-    (stats.average_session_seconds > 0 ||
-      stats.longest_session_seconds > 0 ||
-      stats.last_4_weeks_bars.some((w) => w.duration_seconds > 0));
-
   // Compute total playtime: sum of primary and all other copies if present, or game's playtime
   const totalPlaytimeSeconds =
     game.other_copies && game.other_copies.length > 0

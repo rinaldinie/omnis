@@ -12,13 +12,16 @@ export function ActiveGameTimerProvider({
 }) {
   const [elapsed, setElapsed] = useState<number>(0);
 
+  const startedAt = activeGame?.started_at;
+  const processDetectedAt = activeGame?.process_detected_at;
+
   useEffect(() => {
-    if (!activeGame) {
+    if (!startedAt) {
       setElapsed(0);
       return;
     }
     const calcElapsed = () => {
-      const timeRef = activeGame.process_detected_at || activeGame.started_at;
+      const timeRef = processDetectedAt || startedAt;
       const started = new Date(timeRef).getTime();
       const now = Date.now();
       const diff = Math.max(0, Math.floor((now - started) / 1000));
@@ -27,7 +30,7 @@ export function ActiveGameTimerProvider({
     calcElapsed();
     const interval = setInterval(calcElapsed, 1000);
     return () => clearInterval(interval);
-  }, [activeGame?.started_at, activeGame?.process_detected_at]);
+  }, [startedAt, processDetectedAt]);
 
   return (
     <ActiveGameTimerContext.Provider value={elapsed}>

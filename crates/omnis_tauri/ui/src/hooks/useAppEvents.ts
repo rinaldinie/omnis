@@ -61,33 +61,67 @@ export function useAppEvents({
   activeGameRef.current = activeGame;
   const handleLaunchCallbackRef = useRef(handleLaunch);
   handleLaunchCallbackRef.current = handleLaunch;
+  const latestRef = useRef({
+    loadGames,
+    refreshLibrary,
+    loadThemes,
+    loadProvidersAndConfig,
+    handleOpenSettings,
+    statusText,
+    setPipelineProgress,
+    gamesRef,
+    setIsSyncing,
+    setStatusMessage,
+    setIsGameRunning,
+    setActiveGame,
+    setSessionToast,
+    setSyncBanner,
+    setAchievementSync,
+  });
+  latestRef.current = {
+    loadGames,
+    refreshLibrary,
+    loadThemes,
+    loadProvidersAndConfig,
+    handleOpenSettings,
+    statusText,
+    setPipelineProgress,
+    gamesRef,
+    setIsSyncing,
+    setStatusMessage,
+    setIsGameRunning,
+    setActiveGame,
+    setSessionToast,
+    setSyncBanner,
+    setAchievementSync,
+  };
 
   useEffect(() => {
     // The first-run state comes from the backend: load it before the library so an empty
     // library in a fresh data folder opens the wizard
     loadOnboardingState().finally(() => {
       // loadGames (not refreshLibrary) also opens the wizard when the library is empty
-      loadGames();
+      latestRef.current.loadGames();
 
       // Auto-scan on startup: silently sync library if user opted in and the wizard is done
       if (shouldAutoScanOnStartup() && !shouldShowOnboarding()) {
         api.games.syncLibrary()
-          .then(() => refreshLibrary())
+          .then(() => latestRef.current.refreshLibrary())
           .catch((err) => {
             console.warn("Auto-scan on startup failed:", err);
           });
       }
     });
-    loadThemes();
-    loadProvidersAndConfig();
+    latestRef.current.loadThemes();
+    latestRef.current.loadProvidersAndConfig();
 
     // Check if a game is already running on mount
     (async () => {
       try {
         const running = await api.games.getRunningGame();
         if (running) {
-          setIsGameRunning(true);
-          setActiveGame(running);
+          latestRef.current.setIsGameRunning(true);
+          latestRef.current.setActiveGame(running);
           soundEffects.setMuted(true);
         }
       } catch (err) {
@@ -157,63 +191,63 @@ export function useAppEvents({
               : p.store_id.toUpperCase();
 
           if (p.status === "syncing") {
-            setIsSyncing(true);
+            latestRef.current.setIsSyncing(true);
             if (syncBannerTimeoutRef.current) clearTimeout(syncBannerTimeoutRef.current);
             // Safety timeout: auto-dismiss and reset isSyncing if a background sync hangs for > 45s
             syncBannerTimeoutRef.current = setTimeout(() => {
-              setIsSyncing(false);
-              setSyncBanner(null);
+              latestRef.current.setIsSyncing(false);
+              latestRef.current.setSyncBanner(null);
             }, 45000);
-            setSyncBanner({
+            latestRef.current.setSyncBanner({
               storeId: p.store_id,
               storeName,
-              message: p.message || statusText("store_syncing", { store: storeName }),
+              message: p.message || latestRef.current.statusText("store_syncing", { store: storeName }),
               current: p.current,
               total: p.total,
               status: "syncing",
             });
-            setStatusMessage(
-              p.message || statusText("store_syncing_progress", { store: storeName, current: p.current, total: p.total })
+            latestRef.current.setStatusMessage(
+              p.message || latestRef.current.statusText("store_syncing_progress", { store: storeName, current: p.current, total: p.total })
             );
           } else if (p.status === "completed") {
-            setIsSyncing(false);
-            setSyncBanner({
+            latestRef.current.setIsSyncing(false);
+            latestRef.current.setSyncBanner({
               storeId: p.store_id,
               storeName,
-              message: p.message || statusText("store_sync_done", { store: storeName, total: p.total }),
+              message: p.message || latestRef.current.statusText("store_sync_done", { store: storeName, total: p.total }),
               current: p.current,
               total: p.total,
               status: "completed",
             });
-            setStatusMessage(
-              p.message || statusText("store_sync_done", { store: storeName, total: p.total })
+            latestRef.current.setStatusMessage(
+              p.message || latestRef.current.statusText("store_sync_done", { store: storeName, total: p.total })
             );
-            loadGames();
+            latestRef.current.loadGames();
             if (syncBannerTimeoutRef.current) clearTimeout(syncBannerTimeoutRef.current);
             syncBannerTimeoutRef.current = setTimeout(() => {
-              setSyncBanner(null);
+              latestRef.current.setSyncBanner(null);
             }, 6000);
           } else if (p.status === "error") {
-            setIsSyncing(false);
-            setSyncBanner({
+            latestRef.current.setIsSyncing(false);
+            latestRef.current.setSyncBanner({
               storeId: p.store_id,
               storeName,
-              message: p.message || statusText("store_sync_error", { store: storeName }),
+              message: p.message || latestRef.current.statusText("store_sync_error", { store: storeName }),
               current: 0,
               total: 0,
               status: "error",
             });
-            setStatusMessage(p.message || statusText("store_sync_error", { store: storeName }));
+            latestRef.current.setStatusMessage(p.message || latestRef.current.statusText("store_sync_error", { store: storeName }));
             if (syncBannerTimeoutRef.current) clearTimeout(syncBannerTimeoutRef.current);
             syncBannerTimeoutRef.current = setTimeout(() => {
-              setSyncBanner(null);
+              latestRef.current.setSyncBanner(null);
             }, 8000);
           }
         });
         if (uSync) unlistenFns.push(uSync);
 
         const uLib = await listenTauri(TAURI_EVENTS.LIBRARY_UPDATED, () => {
-          loadGames();
+          latestRef.current.loadGames();
         });
         if (uLib) unlistenFns.push(uLib);
 
@@ -224,8 +258,8 @@ export function useAppEvents({
           state?: string;
           started_at: string;
         }>(TAURI_EVENTS.GAME_STARTED, (payload) => {
-          setIsGameRunning(true);
-          setActiveGame({
+          latestRef.current.setIsGameRunning(true);
+          latestRef.current.setActiveGame({
             session_id: payload.session_id,
             game_id: payload.game_id,
             title: payload.title,
@@ -234,7 +268,7 @@ export function useAppEvents({
             process_detected_at: null,
           });
           soundEffects.suspendAudio();
-          setStatusMessage(statusText("game_launching", { title: payload.title }));
+          latestRef.current.setStatusMessage(latestRef.current.statusText("game_launching", { title: payload.title }));
         });
         if (uStarted) unlistenFns.push(uStarted);
 
@@ -246,14 +280,14 @@ export function useAppEvents({
         }>(TAURI_EVENTS.GAME_STATUS_CHANGED, (payload) => {
           if (activeGameRef.current && activeGameRef.current.session_id === payload.session_id) {
             const newState = payload.state as any;
-            setActiveGame((prev) => prev ? {
+            latestRef.current.setActiveGame((prev) => prev ? {
               ...prev,
               state: newState,
               pid: payload.pid ?? prev.pid,
               process_detected_at: newState === "running" ? (prev.process_detected_at || new Date().toISOString()) : prev.process_detected_at,
             } : null);
             if (newState === "running") {
-              setStatusMessage(statusText("game_running_pid", { title: activeGameRef.current.title, pid: payload.pid ?? "?" }));
+              latestRef.current.setStatusMessage(latestRef.current.statusText("game_running_pid", { title: activeGameRef.current.title, pid: payload.pid ?? "?" }));
             }
           }
         });
@@ -272,33 +306,33 @@ export function useAppEvents({
             return;
           }
 
-          setIsGameRunning(false);
-          setActiveGame(null);
+          latestRef.current.setIsGameRunning(false);
+          latestRef.current.setActiveGame(null);
           soundEffects.resumeAudio();
 
           const stoppedGameId = payload.game_id;
           const durationSec = payload.duration_seconds;
 
-          const currentGames = gamesRef?.current ?? useLibraryStore.getState().games;
+          const currentGames = latestRef.current.gamesRef?.current ?? useLibraryStore.getState().games;
           const found = currentGames.find((g) => g.id === stoppedGameId);
           const stoppedTitle = found?.title || activeGameRef.current?.title || "Gioco";
           const mins = Math.max(1, Math.round(durationSec / 60));
 
-          setStatusMessage(statusText("session_ended", { title: stoppedTitle, minutes: mins }));
+          latestRef.current.setStatusMessage(latestRef.current.statusText("session_ended", { title: stoppedTitle, minutes: mins }));
 
           if (toastTimeoutRef.current) {
             clearTimeout(toastTimeoutRef.current);
           }
-          setSessionToast({
+          latestRef.current.setSessionToast({
             title: stoppedTitle,
             durationSeconds: durationSec,
             gameId: stoppedGameId,
           });
           toastTimeoutRef.current = setTimeout(() => {
-            setSessionToast(null);
+            latestRef.current.setSessionToast(null);
           }, SESSION_TOAST_MS);
 
-          loadGames();
+          latestRef.current.loadGames();
         });
         if (uStopped) unlistenFns.push(uStopped);
 
@@ -308,8 +342,8 @@ export function useAppEvents({
           title: string;
         }>(TAURI_EVENTS.METADATA_PROGRESS, (payload) => {
           const { current, total, title } = payload;
-          setPipelineProgress(`Download dati (${current}/${total}): "${title}"...`);
-          setStatusMessage(statusText("metadata_batch_progress", { current, total, title }));
+          latestRef.current.setPipelineProgress(`Download dati (${current}/${total}): "${title}"...`);
+          latestRef.current.setStatusMessage(latestRef.current.statusText("metadata_batch_progress", { current, total, title }));
         });
         if (uMeta) unlistenFns.push(uMeta);
 
@@ -321,7 +355,7 @@ export function useAppEvents({
         if (uTrayLaunch) unlistenFns.push(uTrayLaunch);
 
         const uTraySettings = await listenTauri(TAURI_EVENTS.TRAY_OPEN_SETTINGS, () => {
-          handleOpenSettings("general");
+          latestRef.current.handleOpenSettings("general");
         });
         if (uTraySettings) unlistenFns.push(uTraySettings);
 
@@ -332,7 +366,7 @@ export function useAppEvents({
             achievementSyncTimeoutRef.current = null;
           }
           if (p.status === "syncing") {
-            setAchievementSync((prev) =>
+            latestRef.current.setAchievementSync((prev) =>
               p.scope === "game" && prev?.scope === "library" && prev.status === "syncing" ? prev : p
             );
             return;
@@ -346,10 +380,10 @@ export function useAppEvents({
             console.warn(`Background achievement sync (${p.scope}): ${p.failed} of ${p.total} games failed`);
           }
           if (p.updated > 0) {
-            setAchievementSync(p);
-            achievementSyncTimeoutRef.current = setTimeout(() => setAchievementSync(null), 4000);
+            latestRef.current.setAchievementSync(p);
+            achievementSyncTimeoutRef.current = setTimeout(() => latestRef.current.setAchievementSync(null), 4000);
           } else {
-            setAchievementSync(null);
+            latestRef.current.setAchievementSync(null);
           }
         });
         if (uAch) unlistenFns.push(uAch);
@@ -359,7 +393,7 @@ export function useAppEvents({
     })();
 
     const handleFocus = () => {
-      loadGames();
+      latestRef.current.loadGames();
     };
     window.addEventListener("focus", handleFocus);
 
