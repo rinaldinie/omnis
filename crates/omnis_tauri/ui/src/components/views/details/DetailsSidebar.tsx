@@ -1,6 +1,6 @@
 import React from "react";
 import { Search, X, ChevronLeft, ChevronRight } from "lucide-react";
-import { GameDto, ActiveGameSession } from "../../../types";
+import { GameDto, ActiveGameSession, TranslateFn } from "../../../types";
 import { StoreBadge } from "../../StoreBadge";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
@@ -52,7 +52,7 @@ export interface DetailsSidebarProps {
   activeFilter?: string;
   setActiveFilter?: (filter: string) => void;
   isFilterActive?: (filterId: string) => boolean;
-  t: (key: string, params?: Record<string, any>) => string;
+  t: TranslateFn;
 }
 
 export const DetailsSidebar: React.FC<DetailsSidebarProps> = ({

@@ -7,7 +7,7 @@ import {
   Sparkles,
   X,
 } from "lucide-react";
-import { ProviderInfo, MetadataPipelineConfig, TAURI_EVENTS } from "../../types";
+import { ProviderInfo, PluginSettingsMap, MetadataPipelineConfig, TAURI_EVENTS } from "../../types";
 import { listenTauri } from "../../api/client";
 import { useTranslation } from "../../i18n";
 import { BUILTIN_LIBRARIES, PluginCategory } from "./plugins/constants";
@@ -34,9 +34,9 @@ interface PluginManagerModalProps {
   providers: ProviderInfo[];
   pipelineConfig: MetadataPipelineConfig;
   setPipelineConfig: React.Dispatch<React.SetStateAction<MetadataPipelineConfig>>;
-  editingSettings: Record<string, Record<string, any>>;
+  editingSettings: Record<string, PluginSettingsMap>;
   setEditingSettings: React.Dispatch<
-    React.SetStateAction<Record<string, Record<string, any>>>
+    React.SetStateAction<Record<string, PluginSettingsMap>>
   >;
   showApiKey: Record<string, boolean>;
   setShowApiKey: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
@@ -249,7 +249,7 @@ export default function PluginManagerModal({
     }
   };
 
-  const handleSettingChange = (provId: string, key: string, val: any) => {
+  const handleSettingChange = (provId: string, key: string, val: string) => {
     setEditingSettings((prev) => ({
       ...prev,
       [provId]: {

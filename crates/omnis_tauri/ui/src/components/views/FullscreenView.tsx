@@ -11,6 +11,7 @@ import {
   GameDto,
   LibraryCounts,
   ThemeConfig,
+  TranslateFn,
 } from "../../types";
 import { api } from "../../api";
 import { useLibraryStore, useUiStore } from "../../stores";
@@ -91,7 +92,7 @@ interface FullscreenViewProps {
   /** Reports whether the "continue playing" row is shown, so gamepad navigation can reach it */
   onRecentRowChange?: (visible: boolean) => void;
   onGameAction?: (action: GameAction, gameId: string) => void;
-  t: (key: string, params?: Record<string, any>) => string;
+  t: TranslateFn;
   isGameRunning?: boolean;
   activeGame?: ActiveGameSession | null;
   elapsedSeconds?: number;

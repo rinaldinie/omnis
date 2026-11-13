@@ -1,5 +1,6 @@
 import React from "react";
 import { ChevronLeft, ChevronRight, LucideIcon } from "lucide-react";
+import type { TranslateFn } from "../../types";
 
 export interface MenuItemData {
   id: string;
@@ -22,7 +23,7 @@ export interface FullscreenQuickMenuProps {
   safeMenuIndex: number;
   setMenuFocusedIndex: (idx: number) => void;
   soundEffects: { playSelect: () => void };
-  t: (key: string, params?: Record<string, any>) => string;
+  t: TranslateFn;
   menuSectionLabelKeys: Record<string, string>;
   menuItemRefs: React.MutableRefObject<Record<string, HTMLElement | null>>;
 }

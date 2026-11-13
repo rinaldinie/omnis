@@ -67,7 +67,7 @@ let initPromise: Promise<void> | null = null;
 let unlisteners: Array<() => void> = [];
 
 async function ensureSlotGlobalListeners() {
-  if (initPromise || typeof window === "undefined" || !(window as any).__TAURI_INTERNALS__) {
+  if (initPromise || typeof window === "undefined" || !window.__TAURI_INTERNALS__) {
     return;
   }
   initPromise = (async () => {

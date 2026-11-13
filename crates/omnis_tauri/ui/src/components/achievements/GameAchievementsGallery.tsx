@@ -5,6 +5,7 @@ import { Trophy, Medal, RefreshCw, Sparkles, Award, Lock, CheckCircle2, AlertCir
 import { GameAchievementsSummary, GameDto } from "../../types";
 import { AchievementBadge } from "./AchievementBadge";
 import soundEffects from "../../utils/soundEffects";
+import { getErrorMessage } from "../../utils/errors";
 import { useTranslation } from "../../i18n";
 import { useAchievementsConfig } from "./AchievementsSettingsTab";
 import {
@@ -116,15 +117,11 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
           }, 4500);
         }
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (activeGameIdRef.current === targetGameId) {
         console.warn("Failed to load achievements:", err);
         if (isRefresh) {
-          const errorMsg =
-            typeof err === "string"
-              ? err
-              : err?.message || t("achievements.unknown_sync_error");
-          setSyncError(errorMsg);
+          setSyncError(getErrorMessage(err, t("achievements.unknown_sync_error")));
         }
       }
     } finally {

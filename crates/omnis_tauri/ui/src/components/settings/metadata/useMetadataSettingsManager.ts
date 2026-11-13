@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { api } from "../../../api";
 import { useTranslation } from "../../../i18n";
 import { soundEffects } from "../../../utils/soundEffects";
-import { ProviderInfo, MetadataPipelineConfig } from "../../../types";
+import { getErrorMessage } from "../../../utils/errors";
+import { ProviderInfo, PluginSettingsMap, MetadataPipelineConfig } from "../../../types";
 import {
   ALL_METADATA_SOURCES,
   getDefaultFieldRules,
@@ -23,7 +24,7 @@ export function useMetadataSettingsManager() {
     provider_priority: ALL_METADATA_SOURCES,
   });
 
-  const [settingsValues, setSettingsValues] = useState<Record<string, Record<string, any>>>({});
+  const [settingsValues, setSettingsValues] = useState<Record<string, PluginSettingsMap>>({});
   const [showSecret, setShowSecret] = useState<Record<string, boolean>>({});
   const [testStatus, setTestStatus] = useState<
     Record<string, { loading: boolean; success?: boolean; message?: string }>
@@ -44,7 +45,7 @@ export function useMetadataSettingsManager() {
 
       if (provList && Array.isArray(provList)) {
         setProviders(provList);
-        const map: Record<string, Record<string, any>> = {};
+        const map: Record<string, PluginSettingsMap> = {};
         provList.forEach((p) => {
           map[p.id] = { ...(p.settings_values || {}) };
         });
@@ -109,8 +110,8 @@ export function useMetadataSettingsManager() {
             })
       );
       await loadData();
-    } catch (err: any) {
-      showBannerMessage("error", String(err?.message || err));
+    } catch (err: unknown) {
+      showBannerMessage("error", getErrorMessage(err));
     }
   };
 
@@ -128,8 +129,8 @@ export function useMetadataSettingsManager() {
         })
       );
       await loadData();
-    } catch (err: any) {
-      showBannerMessage("error", String(err?.message || err));
+    } catch (err: unknown) {
+      showBannerMessage("error", getErrorMessage(err));
     } finally {
       setIsSaving((prev) => ({ ...prev, [providerId]: false }));
     }
@@ -156,13 +157,13 @@ export function useMetadataSettingsManager() {
         },
       }));
       await loadData();
-    } catch (err: any) {
+    } catch (err: unknown) {
       setTestStatus((prev) => ({
         ...prev,
         [providerId]: {
           loading: false,
           success: false,
-          message: String(err?.message || err),
+          message: getErrorMessage(err),
         },
       }));
     }
@@ -180,8 +181,8 @@ export function useMetadataSettingsManager() {
         })
       );
       await loadData();
-    } catch (err: any) {
-      showBannerMessage("error", String(err?.message || err));
+    } catch (err: unknown) {
+      showBannerMessage("error", getErrorMessage(err));
     } finally {
       setIsSavingPipeline(false);
     }
@@ -269,7 +270,7 @@ export function useMetadataSettingsManager() {
     }
 
     const currentFields = { ...(pipelineConfig.fields || getDefaultFieldRules()) };
-    const updatedFields: Record<string, any> = {};
+    const updatedFields: typeof currentFields = {};
 
     Object.entries(currentFields).forEach(([fieldKey, rule]) => {
       let sources = [...rule.sources];

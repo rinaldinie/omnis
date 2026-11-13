@@ -1,6 +1,7 @@
 import React from "react";
 import { CheckCircle2, Gamepad2, Sparkles, Type } from "lucide-react";
-import { GameDto } from "../../types";
+import { GameDto, TranslateFn } from "../../types";
+import type { AppUpdater } from "../../hooks/useAppUpdater";
 import { SESSION_TOAST_MS } from "../../hooks/useAppEvents";
 import { ArtImage } from "./FullscreenCards";
 import { ControllerLegend, LegendEntry } from "./ConsoleChrome";
@@ -15,12 +16,12 @@ export interface FullscreenOverlaysProps {
   /** Library entry of the game whose session just ended (artwork and total playtime) */
   sessionGame?: GameDto | null;
   onDismissToast?: () => void;
-  updater: any;
+  updater: AppUpdater | null;
   scaleHintVisible: boolean;
   scale: number;
   legendLeft: LegendEntry[];
   legendRight: LegendEntry[];
-  t: (key: string, params?: Record<string, any>) => string;
+  t: TranslateFn;
 }
 
 /** "2h 05m" / "42 min" / "< 1 min" */

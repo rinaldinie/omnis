@@ -2,7 +2,7 @@ import React from "react";
 import { BarChart3, CalendarDays, Clock, Flame, Hourglass } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { api } from "../../api";
-import { CategoryShareDto, DayActivityDto, GameDto, GlobalStatsDto } from "../../types";
+import { CategoryShareDto, DayActivityDto, GameDto, GlobalStatsDto, TranslateFn } from "../../types";
 import soundEffects from "../../utils/soundEffects";
 import { ArtImage } from "./FullscreenCards";
 import { Glyph } from "./ConsoleChrome";
@@ -43,7 +43,7 @@ export interface FullscreenStatsPageProps {
   games: GameDto[];
   onClose: () => void;
   locale: string;
-  t: (key: string, params?: Record<string, any>) => string;
+  t: TranslateFn;
 }
 
 export const FullscreenStatsPage: React.FC<FullscreenStatsPageProps> = ({ isOpen, games, onClose, locale, t }) => {

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import soundEffects from "../../../utils/soundEffects";
+import { getErrorMessage } from "../../../utils/errors";
 import { useTranslation } from "../../../i18n/i18nContext";
 import { api, TAURI_EVENTS } from "../../../api";
 import {
@@ -130,7 +131,11 @@ export function useStoreAccountsManager(onSyncComplete?: () => void) {
     };
   }, []);
 
-  const updateSetting = (storeId: string, key: keyof StoreIntegrationSettings, value: any) => {
+  const updateSetting = <K extends keyof StoreIntegrationSettings>(
+    storeId: string,
+    key: K,
+    value: StoreIntegrationSettings[K]
+  ) => {
     setSettingsMap((prev) => {
       const current = prev[storeId] || {
         store_id: storeId,
@@ -161,11 +166,11 @@ export function useStoreAccountsManager(onSyncComplete?: () => void) {
       soundEffects.playSelect();
       setBanner({ type: "success", message: t("store_accounts.saved_success") });
       setTimeout(() => setBanner(null), 3000);
-    } catch (e: any) {
+    } catch (e: unknown) {
       soundEffects.playSelect();
       setBanner({
         type: "error",
-        message: t("store_accounts.save_failed", { error: String(e) }),
+        message: t("store_accounts.save_failed", { error: getErrorMessage(e) }),
       });
     } finally {
       setIsSaving(false);
@@ -177,11 +182,11 @@ export function useStoreAccountsManager(onSyncComplete?: () => void) {
     try {
       soundEffects.playSelect();
       await api.stores.startStoreLogin(storeId);
-    } catch (e: any) {
+    } catch (e: unknown) {
       soundEffects.playSelect();
       setBanner({
         type: "error",
-        message: t("store_accounts.auth_failed", { error: String(e) }),
+        message: t("store_accounts.auth_failed", { error: getErrorMessage(e) }),
       });
       setActionLoading((prev) => ({ ...prev, [storeId]: false }));
     }
@@ -195,11 +200,11 @@ export function useStoreAccountsManager(onSyncComplete?: () => void) {
       soundEffects.playSelect();
       await loadAccounts();
       if (onSyncComplete) onSyncComplete();
-    } catch (e: any) {
+    } catch (e: unknown) {
       soundEffects.playSelect();
       setBanner({
         type: "error",
-        message: t("store_accounts.disconnect_failed", { error: String(e) }),
+        message: t("store_accounts.disconnect_failed", { error: getErrorMessage(e) }),
       });
     } finally {
       setActionLoading((prev) => ({ ...prev, [storeId]: false }));
@@ -223,11 +228,11 @@ export function useStoreAccountsManager(onSyncComplete?: () => void) {
       await loadAccounts();
       if (onSyncComplete) onSyncComplete();
       setTimeout(() => setBanner(null), 4000);
-    } catch (e: any) {
+    } catch (e: unknown) {
       soundEffects.playSelect();
       setBanner({
         type: "error",
-        message: t("store_accounts.sync_failed", { error: String(e) }),
+        message: t("store_accounts.sync_failed", { error: getErrorMessage(e) }),
       });
     } finally {
       setActionLoading((prev) => ({ ...prev, [storeId]: false }));

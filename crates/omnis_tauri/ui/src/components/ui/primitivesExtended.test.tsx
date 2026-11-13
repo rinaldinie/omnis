@@ -322,7 +322,7 @@ describe("Extended UI primitives & migrated views", () => {
     render(
       <I18nProvider initialLocale="en">
         <ListViewTable
-          games={[sampleGame as any]}
+          games={[sampleGame]}
           selectedGameId={null}
           onSelectGame={vi.fn()}
           onOpenDetails={vi.fn()}

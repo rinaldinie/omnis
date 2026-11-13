@@ -1,6 +1,6 @@
 import React from "react";
 import { Award, Lock, Sparkles, Trophy, Medal } from "lucide-react";
-import { Achievement, GameAchievementsSummary, GameDto } from "../../types";
+import { Achievement, GameAchievementsSummary, GameDto, TranslateFn } from "../../types";
 import {
   achievementIconSrc,
   useAchievementsConfig,
@@ -43,7 +43,7 @@ export interface FullscreenAchievementsPageProps {
   /** Reports whether A currently reveals a secret achievement, for the controller legend */
   onCanRevealChange?: (canReveal: boolean) => void;
   locale: string;
-  t: (key: string, params?: Record<string, any>) => string;
+  t: TranslateFn;
 }
 
 export const FullscreenAchievementsPage: React.FC<FullscreenAchievementsPageProps> = ({

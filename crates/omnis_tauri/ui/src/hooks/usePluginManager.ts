@@ -1,13 +1,14 @@
 import { useState, useCallback } from "react";
-import { ProviderInfo, MetadataPipelineConfig } from "../types";
+import { ProviderInfo, PluginSettingsMap, MetadataPipelineConfig, TranslateFn } from "../types";
 import { api } from "../api";
+import { getErrorMessage } from "../utils/errors";
 import { useLibraryStore, useUiStore } from "../stores";
 
 export interface UsePluginManagerOptions {
   setStatusMessage?: (msg: string) => void;
-  statusText: (key: string, params?: Record<string, any>) => string;
+  statusText: TranslateFn;
   refreshLibrary?: () => Promise<void>;
-  t: (key: string, params?: Record<string, any>) => string;
+  t: TranslateFn;
 }
 
 export function usePluginManager({
@@ -36,7 +37,7 @@ export function usePluginManager({
     details_source: "steam",
     preserve_existing_artwork: true,
   });
-  const [editingSettings, setEditingSettings] = useState<Record<string, Record<string, any>>>({});
+  const [editingSettings, setEditingSettings] = useState<Record<string, PluginSettingsMap>>({});
   const [showApiKey, setShowApiKey] = useState<Record<string, boolean>>({});
   const [testStatus, setTestStatus] = useState<
     Record<string, { loading: boolean; success?: boolean; message?: string }>
@@ -50,7 +51,7 @@ export function usePluginManager({
       const provs = await api.metadata.getProviders();
       if (provs) {
         setProviders(provs);
-        const settingsMap: Record<string, Record<string, any>> = {};
+        const settingsMap: Record<string, PluginSettingsMap> = {};
         provs.forEach((p) => {
           settingsMap[p.id] = { ...(p.settings_values || {}) };
         });
@@ -89,10 +90,10 @@ export function usePluginManager({
         ...prev,
         [providerId]: { loading: false, success: true, message: res || "Connessione riuscita" },
       }));
-    } catch (err: any) {
+    } catch (err: unknown) {
       setTestStatus((prev) => ({
         ...prev,
-        [providerId]: { loading: false, success: false, message: String(err) },
+        [providerId]: { loading: false, success: false, message: getErrorMessage(err) },
       }));
     }
     await loadProvidersAndConfig();
@@ -105,15 +106,15 @@ export function usePluginManager({
       const updated = await api.metadata.refreshProviders();
       if (updated) {
         setProviders(updated);
-        const settingsMap: Record<string, Record<string, any>> = {};
+        const settingsMap: Record<string, PluginSettingsMap> = {};
         updated.forEach((p) => {
           settingsMap[p.id] = { ...(p.settings_values || {}) };
         });
         setEditingSettings(settingsMap);
         setStatusMessage(statusText("plugins_scanned", { count: updated.length }));
       }
-    } catch (err: any) {
-      setStatusMessage(statusText("plugins_scan_error", { error: String(err) }));
+    } catch (err: unknown) {
+      setStatusMessage(statusText("plugins_scan_error", { error: getErrorMessage(err) }));
     } finally {
       setIsRefreshingPlugins(false);
     }
@@ -132,8 +133,8 @@ export function usePluginManager({
       const count = await api.metadata.downloadAllMetadata();
       setPipelineProgress(`Completato! ${count || 0} titoli aggiornati.`);
       await refreshLibrary();
-    } catch (err: any) {
-      setPipelineProgress(`Errore durante il download: ${err}`);
+    } catch (err: unknown) {
+      setPipelineProgress(`Errore durante il download: ${getErrorMessage(err)}`);
     } finally {
       setIsPipelineEnriching(false);
     }
@@ -144,7 +145,7 @@ export function usePluginManager({
       setPipelineProgress(t("app_misc.pipeline_stopping"));
       await api.metadata.cancelMetadataDownload();
       setStatusMessage(statusText("download_cancel_requested"));
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.warn("Failed to cancel metadata download:", err);
     }
   };

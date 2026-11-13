@@ -1,6 +1,6 @@
 import React from "react";
 import { Search, Play, CheckCircle2, Trophy } from "lucide-react";
-import { GameDto, ActiveGameSession } from "../../types";
+import { GameDto, ActiveGameSession, TranslateFn } from "../../types";
 import { StoreIcon } from "../StoreBadge";
 import soundEffects from "../../utils/soundEffects";
 import { Slot } from "../common/Slot";
@@ -41,7 +41,7 @@ export interface FullscreenHomeContentProps {
   playtimeLabel: (game: GameDto) => string;
   infoGame: GameDto | null;
   focusedGame: GameDto | null;
-  t: (key: string, params?: Record<string, any>) => string;
+  t: TranslateFn;
 }
 
 export const FullscreenHomeContent: React.FC<FullscreenHomeContentProps> = ({

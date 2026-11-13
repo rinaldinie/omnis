@@ -15,6 +15,10 @@ export const statsApi = {
     invokeIpc<GameStatsDto>("get_game_statistics", { gameId }),
 
   /** Reset statistics database records */
-  resetStatistics: (params?: { gameId?: string; scope?: string }): Promise<void> =>
+  resetStatistics: (params?: {
+    resetPlaytime?: boolean;
+    gameId?: string;
+    scope?: string;
+  }): Promise<void> =>
     invokeIpc<void>("reset_statistics", params as Record<string, unknown>),
 };

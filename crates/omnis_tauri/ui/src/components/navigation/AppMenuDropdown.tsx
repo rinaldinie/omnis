@@ -8,6 +8,7 @@ import {
   Settings,
   FolderArchive,
 } from "lucide-react";
+import type { TranslateFn } from "../../types";
 import soundEffects from "../../utils/soundEffects";
 import {
   DropdownMenu,
@@ -33,7 +34,7 @@ export interface AppMenuDropdownProps {
   soundEnabled: boolean;
   hasActiveProviders?: boolean;
   isUpdateAvailable?: boolean;
-  t?: (key: string, params?: Record<string, any>) => string;
+  t?: TranslateFn;
 }
 
 export default function AppMenuDropdown({

@@ -2,6 +2,7 @@ import React from "react";
 import {
   GameDto,
   ThemeConfig,
+  TranslateFn,
   normalizeGame,
 } from "../../types";
 import { useLibraryStore, useUiStore, ContextMenuState } from "../../stores";
@@ -45,7 +46,7 @@ export interface AppModalsProps {
   onPromoteCopy?: (copyId: string) => void;
 
   // Editor & Resolution Modals
-  statusText: (key: string, params?: Record<string, any>) => string;
+  statusText: TranslateFn;
 
   // Batch Enrich Modal
   filteredGames: GameDto[];
@@ -66,7 +67,7 @@ export interface AppModalsProps {
   confirmKillRunningGame: () => void;
 
   // Translation
-  t: (key: string, params?: Record<string, any>) => string;
+  t: TranslateFn;
 }
 
 export const AppModals: React.FC<AppModalsProps> = ({

@@ -1,6 +1,6 @@
 import React from "react";
 import { ChevronRight, Trophy } from "lucide-react";
-import { GameAchievementsSummary } from "../../types";
+import { GameAchievementsSummary, TranslateFn } from "../../types";
 import { achievementIconSrc } from "../achievements";
 import { Glyph } from "./ConsoleChrome";
 
@@ -12,7 +12,7 @@ export interface FullscreenAchievementsCardProps {
   library: string;
   isFocused: boolean;
   onOpen: () => void;
-  t: (key: string, params?: Record<string, any>) => string;
+  t: TranslateFn;
 }
 
 /** Compact achievement progress on the console details page; opens the full achievements page. */

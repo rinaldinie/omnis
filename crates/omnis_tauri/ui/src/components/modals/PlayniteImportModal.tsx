@@ -466,7 +466,7 @@ export default function PlayniteImportModal({
                     const file = e.dataTransfer.files[0];
                     if (file.name.toLowerCase().endsWith(".zip")) {
                       // Note: In browser context file.path might not exist, but pick_playnite_backup_file is primary
-                      const path = (file as any).path || file.name;
+                      const path = (file as File & { path?: string }).path || file.name;
                       setZipPath(path);
                       startInspection(path);
                     }

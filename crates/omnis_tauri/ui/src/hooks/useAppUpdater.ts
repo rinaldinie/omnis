@@ -1,5 +1,7 @@
 import { useState, useCallback, useRef, useEffect, createContext, useContext } from "react";
+import type { Update, DownloadEvent } from "@tauri-apps/plugin-updater";
 import { useTranslation } from "../i18n";
+import { getErrorMessage } from "../utils/errors";
 import packageJson from "../../package.json";
 
 export type UpdateStatus =
@@ -17,20 +19,6 @@ export interface DownloadProgress {
   percentage: number;
 }
 
-function formatErrorMessage(err: unknown, fallback: string): string {
-  if (!err) return fallback;
-  if (typeof err === "string") return err;
-  if (err instanceof Error && err.message) return err.message;
-  if (typeof err === "object" && "message" in err && typeof (err as any).message === "string") {
-    return (err as any).message;
-  }
-  try {
-    return JSON.stringify(err);
-  } catch {
-    return String(err) || fallback;
-  }
-}
-
 const UPDATE_CHECK_TIMEOUT_MS = 15000;
 const UPDATE_DOWNLOAD_TIMEOUT_MS = 60000;
 
@@ -45,7 +33,7 @@ export function useAppUpdater(defaultAppVersion: string = packageJson.version) {
   const [releaseNotes, setReleaseNotes] = useState<string | null>(null);
   const [progress, setProgress] = useState<DownloadProgress | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const updateRef = useRef<any>(null);
+  const updateRef = useRef<Update | null>(null);
 
   useEffect(() => {
     import("@tauri-apps/api/app")
@@ -82,11 +70,11 @@ export function useAppUpdater(defaultAppVersion: string = packageJson.version) {
         setStatus("upToDate");
         return false;
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Update check error:", err);
       updateRef.current = null;
       if (!silent) {
-        setErrorMessage(formatErrorMessage(err, tRef.current("updater.check_failed")));
+        setErrorMessage(getErrorMessage(err, tRef.current("updater.check_failed")));
         setStatus("error");
       } else {
         // In silent mode (at startup), fail gracefully without alerting
@@ -109,7 +97,7 @@ export function useAppUpdater(defaultAppVersion: string = packageJson.version) {
       let total = 0;
 
       await update.downloadAndInstall(
-        (event: any) => {
+        (event: DownloadEvent) => {
           if (event.event === "Started") {
             total = event.data.contentLength || 0;
           } else if (event.event === "Progress") {
@@ -124,9 +112,9 @@ export function useAppUpdater(defaultAppVersion: string = packageJson.version) {
       );
 
       setStatus("readyToInstall");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Update download/install error:", err);
-      setErrorMessage(formatErrorMessage(err, tRef.current("updater.download_failed")));
+      setErrorMessage(getErrorMessage(err, tRef.current("updater.download_failed")));
       setStatus("error");
     }
   }, []);

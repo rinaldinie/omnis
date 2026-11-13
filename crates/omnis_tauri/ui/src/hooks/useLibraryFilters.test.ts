@@ -10,20 +10,47 @@ vi.mock("../i18n", () => ({
   }),
 }));
 
-const originalWindow = (globalThis as any).window;
-const originalDocument = (globalThis as any).document;
+type MockWindow = EventTarget & { HTMLIFrameElement: typeof HTMLIFrameElement };
+type MockElement = EventTarget & {
+  nodeType: number;
+  tagName: string;
+  style: Record<string, string>;
+  ownerDocument?: MockDocument | Document;
+  setAttribute: () => void;
+  appendChild: () => void;
+  removeChild: () => void;
+  childNodes: unknown[];
+};
+type MockDocument = EventTarget & {
+  defaultView: MockWindow;
+  nodeType: number;
+  activeElement: null;
+  createElement: (tag: string) => MockElement;
+  createElementNS: (_ns: string, tag: string) => MockElement;
+  createTextNode: () => EventTarget;
+  createComment: () => EventTarget;
+};
+
+const globalMock = globalThis as unknown as {
+  window?: MockWindow | (Window & typeof globalThis);
+  document?: MockDocument | Document;
+  IS_REACT_ACT_ENVIRONMENT?: boolean;
+};
+
+const originalWindow = globalMock.window;
+const originalDocument = globalMock.document;
 
 beforeAll(() => {
-  const win = new EventTarget() as any;
-  win.HTMLIFrameElement = class HTMLIFrameElement {};
-  (globalThis as any).window = win;
+  const win = new EventTarget() as MockWindow;
+  win.HTMLIFrameElement = class HTMLIFrameElement {} as unknown as typeof HTMLIFrameElement;
+  globalMock.window = win;
 
-  const doc = new EventTarget() as any;
+  const doc = new EventTarget() as MockDocument;
   doc.defaultView = win;
   doc.nodeType = 9;
   doc.activeElement = null;
   doc.createElement = (tag: string) => {
-    const node = new EventTarget() as any;
+    const node = new EventTarget() as MockElement;
     node.nodeType = 1;
     node.tagName = tag.toUpperCase();
     node.style = {};
@@ -36,13 +63,13 @@ beforeAll(() => {
   doc.createElementNS = (_ns: string, tag: string) => doc.createElement(tag);
   doc.createTextNode = () => new EventTarget();
   doc.createComment = () => new EventTarget();
-  (globalThis as any).document = doc;
-  (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+  globalMock.document = doc;
+  globalMock.IS_REACT_ACT_ENVIRONMENT = true;
 });
 
 afterAll(() => {
-  (globalThis as any).window = originalWindow;
-  (globalThis as any).document = originalDocument;
+  globalMock.window = originalWindow;
+  globalMock.document = originalDocument;
 });
 
 function createMockGame(overrides: Partial<GameDto> = {}): GameDto {
@@ -75,14 +102,14 @@ function renderHook<T>(hook: () => T) {
     return null;
   }
 
-  const container = new EventTarget() as any;
+  const container = new EventTarget() as MockElement;
   container.nodeType = 1;
   container.tagName = "DIV";
-  container.ownerDocument = (globalThis as any).document;
+  container.ownerDocument = globalMock.document;
   container.appendChild = () => {};
   container.removeChild = () => {};
 
-  const root = ReactDOM.createRoot(container);
+  const root = ReactDOM.createRoot(container as unknown as Element);
   act(() => {
     root.render(React.createElement(TestComponent));
   });

@@ -18,6 +18,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { useTranslation } from "../i18n";
+import { getErrorMessage } from "../utils/errors";
 import { GameDto } from "../types";
 import { api } from "../api";
 import {
@@ -411,10 +412,8 @@ export default function MetadataResolutionModal({
         setSelectedFields([]);
         setSearchError(t("metadata_resolution.no_candidates"));
       }
-    } catch (err: any) {
-      setSearchError(
-        typeof err === "string" ? err : err.message || t("metadata_resolution.search_error")
-      );
+    } catch (err: unknown) {
+      setSearchError(getErrorMessage(err, t("metadata_resolution.search_error")));
       setCandidates([]);
       setSelectedCandidate(null);
       setSelectedFields([]);
@@ -484,10 +483,8 @@ export default function MetadataResolutionModal({
         onApply(updated);
         onClose();
       }, 500);
-    } catch (err: any) {
-      setApplyError(
-        typeof err === "string" ? err : err.message || t("metadata_resolution.apply_error")
-      );
+    } catch (err: unknown) {
+      setApplyError(getErrorMessage(err, t("metadata_resolution.apply_error")));
     } finally {
       setIsApplying(false);
     }

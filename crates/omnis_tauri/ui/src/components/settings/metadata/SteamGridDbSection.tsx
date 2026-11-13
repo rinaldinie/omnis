@@ -2,14 +2,14 @@ import React from "react";
 import { Image, Key, ExternalLink, RefreshCw, Check, AlertCircle, CheckCircle2, Eye, EyeOff } from "lucide-react";
 import { useTranslation } from "../../../i18n";
 import { openExternalUrl } from "../../../utils/openUrl";
-import { ProviderInfo } from "../../../types";
+import { ProviderInfo, PluginSettingsMap } from "../../../types";
 import { SettingGroup, SettingRow, ToggleSwitch } from "../SettingsControls";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 export interface SteamGridDbSectionProps {
   provider?: ProviderInfo;
-  settings: Record<string, any>;
+  settings: PluginSettingsMap;
   showSecret: boolean;
   onToggleSecret: () => void;
   onSettingChange: (key: string, value: string) => void;
