@@ -1,8 +1,18 @@
-import React, { useState } from 'react';
-import { Trash2, AlertTriangle, X, ShieldAlert, CheckCircle2 } from 'lucide-react';
-import { GameDto, formatImageUrl } from '../../types';
-import { useTranslation } from '../../i18n';
-import { soundEffects } from '../../utils/soundEffects';
+import React, { useState } from "react";
+import { Trash2, X, CheckCircle2 } from "lucide-react";
+import { GameDto, formatImageUrl } from "../../types";
+import { useTranslation } from "../../i18n";
+import { soundEffects } from "../../utils/soundEffects";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 interface UninstallModalProps {
   isOpen: boolean;
@@ -20,7 +30,7 @@ export const UninstallModal: React.FC<UninstallModalProps> = ({
   const { t } = useTranslation();
   const [isUninstalling, setIsUninstalling] = useState(false);
 
-  if (!isOpen || !game) return null;
+  if (!game) return null;
 
   const handleConfirm = async () => {
     soundEffects.playSelect();
@@ -29,59 +39,69 @@ export const UninstallModal: React.FC<UninstallModalProps> = ({
       await onConfirmUninstall(game.id);
       onClose();
     } catch (err) {
-      console.error('Failed to uninstall game:', err);
+      console.error("Failed to uninstall game:", err);
     } finally {
       setIsUninstalling(false);
     }
   };
 
+  const handleClose = () => {
+    if (isUninstalling) return;
+    soundEffects.playSelect();
+    onClose();
+  };
+
   const coverUrl = game.cover_image ? formatImageUrl(game.cover_image) : null;
 
   return (
-    <div className="fixed inset-0 z-[10000] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-      <div
-        className="relative max-w-lg w-full rounded-3xl border shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
-        style={{
-          backgroundColor: 'var(--bg-surface)',
-          borderColor: 'var(--border-color)',
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) handleClose();
+      }}
+    >
+      <DialogContent
+        showCloseButton={false}
+        overlayClassName="z-[10000] backdrop-blur-md"
+        className="z-[10000] max-w-lg rounded-3xl p-0 flex flex-col overflow-hidden gap-0"
+        onEscapeKeyDown={(e) => {
+          if (isUninstalling) e.preventDefault();
+        }}
+        onPointerDownOutside={(e) => {
+          if (isUninstalling) e.preventDefault();
         }}
       >
         {/* Header */}
-        <div
-          className="flex justify-between items-center px-6 py-4 border-b shrink-0"
-          style={{ borderColor: 'var(--border-color)' }}
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400 shadow-md">
+        <DialogHeader className="flex-row justify-between items-center px-6 py-4 border-b border-border shrink-0 space-y-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400 shadow-md shrink-0">
               <Trash2 className="w-5 h-5 stroke-[2.2]" />
             </div>
-            <div>
-              <h3 className="text-base font-black text-white">{t('uninstall_modal.title')}</h3>
-              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            <div className="min-w-0">
+              <DialogTitle className="text-base font-black text-foreground">
+                {t("uninstall_modal.title")}
+              </DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground truncate mt-0.5">
                 {game.library.toUpperCase()} • {game.title}
-              </p>
+              </DialogDescription>
             </div>
           </div>
-          <button
-            onClick={() => {
-              soundEffects.playSelect();
-              onClose();
-            }}
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={handleClose}
             disabled={isUninstalling}
-            className="w-8 h-8 rounded-full border flex items-center justify-center font-bold hover:bg-white/10 active:opacity-90 disabled:opacity-50"
-            style={{
-              backgroundColor: 'var(--bg-card)',
-              borderColor: 'var(--border-color)',
-              color: 'var(--text-muted)',
-            }}
+            className="rounded-full text-muted-foreground hover:text-foreground shrink-0"
+            aria-label={t("common.close")}
           >
             <X className="w-4 h-4" />
-          </button>
-        </div>
+          </Button>
+        </DialogHeader>
 
         {/* Body */}
         <div className="p-6 space-y-4">
-          <div className="flex gap-4 items-center p-3 rounded-2xl border bg-black/30" style={{ borderColor: 'var(--border-color)' }}>
+          <div className="flex gap-4 items-center p-3 rounded-2xl border border-border bg-black/30">
             {coverUrl ? (
               <img
                 src={coverUrl}
@@ -94,60 +114,61 @@ export const UninstallModal: React.FC<UninstallModalProps> = ({
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <h4 className="font-extrabold text-white text-sm truncate">{game.title}</h4>
-              <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                {t('common.details')}: {game.playtime_formatted} • {game.genres.slice(0, 2).join(', ') || 'N/A'}
+              <h4 className="font-extrabold text-foreground text-sm truncate">
+                {game.title}
+              </h4>
+              <p className="text-xs mt-0.5 text-muted-foreground">
+                {t("common.details")}: {game.playtime_formatted} •{" "}
+                {game.genres.slice(0, 2).join(", ") || "N/A"}
               </p>
-              <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-white/5 border border-white/10 text-slate-300">
-                <span>{game.library.toUpperCase()}</span>
-              </div>
+              <Badge variant="secondary" className="mt-2">
+                {game.library.toUpperCase()}
+              </Badge>
             </div>
           </div>
 
-          <p className="text-xs text-white/90 leading-relaxed font-medium">
-            {t('uninstall_modal.confirm_msg', { title: game.title })}
+          <p className="text-xs text-foreground/90 leading-relaxed font-medium">
+            {t("uninstall_modal.confirm_msg", { title: game.title })}
           </p>
 
-          {/* Reassurance Notice (Approach 1) */}
+          {/* Reassurance Notice */}
           <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-start gap-3">
             <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
             <div className="text-xs leading-relaxed text-emerald-200">
-              {t('uninstall_modal.reassurance_note', { playtime: game.playtime_formatted })}
+              {t("uninstall_modal.reassurance_note", {
+                playtime: game.playtime_formatted,
+              })}
             </div>
           </div>
         </div>
 
         {/* Footer */}
-        <div
-          className="flex items-center justify-end gap-3 px-6 py-4 border-t shrink-0"
-          style={{ borderColor: 'var(--border-color)' }}
-        >
-          <button
+        <DialogFooter className="flex-row items-center justify-end gap-3 px-6 py-4 border-t border-border shrink-0 sm:space-x-0">
+          <Button
             type="button"
+            variant="destructive"
             onClick={handleConfirm}
             disabled={isUninstalling}
-            className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-rose-600 hover:bg-rose-500 active:bg-rose-700 border border-rose-400/40 shadow-lg shadow-rose-950/40 transition-all hover:scale-105 active:opacity-90 disabled:opacity-50 cursor-pointer"
+            className="px-6 py-2.5 h-auto font-bold shadow-lg shadow-rose-950/40"
           >
             <Trash2 className="w-4 h-4" />
             <span>
               {isUninstalling
-                ? t('uninstall_modal.uninstalling')
-                : t('uninstall_modal.uninstall_btn')}
+                ? t("uninstall_modal.uninstalling")
+                : t("uninstall_modal.uninstall_btn")}
             </span>
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            onClick={() => {
-              soundEffects.playSelect();
-              onClose();
-            }}
+            variant="ghost"
+            onClick={handleClose}
             disabled={isUninstalling}
-            className="px-5 py-2.5 rounded-xl text-xs font-bold text-slate-300 hover:text-white hover:bg-white/5 transition-all disabled:opacity-50 cursor-pointer"
+            className="px-5 py-2.5 h-auto font-bold"
           >
-            {t('common.cancel')}
-          </button>
-        </div>
-      </div>
-    </div>
+            {t("common.cancel")}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };

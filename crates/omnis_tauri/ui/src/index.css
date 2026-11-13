@@ -19,6 +19,28 @@
   --surface-pill-hover: rgba(255, 255, 255, 0.10);
   --surface-overlay: rgba(14, 19, 32, 0.95);
   --border-subtle: rgba(255, 255, 255, 0.08);
+
+  /* --- Mapping Semantico shadcn/ui compatibile con Omnis Themes --- */
+  --background: var(--bg-base);
+  --foreground: var(--text-primary);
+  --card: var(--bg-card);
+  --card-foreground: var(--text-primary);
+  --popover: var(--bg-surface);
+  --popover-foreground: var(--text-primary);
+  --primary: var(--accent-primary);
+  --primary-foreground: #ffffff;
+  --secondary: rgba(255, 255, 255, 0.07);
+  --secondary-foreground: var(--text-primary);
+  --muted: var(--bg-surface);
+  --muted-foreground: var(--text-muted);
+  --accent: rgba(255, 255, 255, 0.05);
+  --accent-foreground: var(--text-primary);
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: var(--border-color);
+  --input: var(--border-color);
+  --ring: var(--accent-primary);
+  --radius: var(--card-radius);
 }
 
 body {

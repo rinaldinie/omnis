@@ -27,6 +27,9 @@ import { useUpdater } from '../../hooks/useAppUpdater';
 import { BackupSettingsTab } from './BackupSettingsTab';
 import { SettingGroup, SettingRow, SettingRadioOption, ToggleSwitch } from './SettingsControls';
 import { getRecentSettings, saveRecentSettings, RecentSettings } from '../../utils/recentSettings';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 export type GeneralSubTab = 'language' | 'audio' | 'window' | 'appearance' | 'recent' | 'data' | 'updates';
 
@@ -211,7 +214,7 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
       )}
 
       {/* Main SubTab Content Area */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
+      <ScrollArea className="flex-1" viewportClassName="p-6 space-y-6">
         {/* SUBTAB 1: LINGUA */}
         {activeSubTab === 'language' && (
           <div className="space-y-4">
@@ -289,35 +292,38 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
                 description={t('general_settings.sound_test_desc')}
               >
                 <div className="flex items-center gap-1.5">
-                  <button
+                  <Button
                     type="button"
+                    variant="secondary"
+                    size="xs"
                     disabled={!soundEnabled}
                     onClick={() => soundEffects.playSelect()}
-                    className="px-2.5 py-1.5 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 active:scale-95 text-xs font-semibold text-slate-200 transition-all disabled:opacity-30 disabled:pointer-events-none cursor-pointer flex items-center gap-1.5"
                   >
                     <Play className="w-3 h-3" style={{ color: 'var(--accent-primary)' }} />
                     <span>{t('general_settings.sound_select')}</span>
-                  </button>
+                  </Button>
 
-                  <button
+                  <Button
                     type="button"
+                    variant="secondary"
+                    size="xs"
                     disabled={!soundEnabled}
                     onClick={() => soundEffects.playNav()}
-                    className="px-2.5 py-1.5 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 active:scale-95 text-xs font-semibold text-slate-200 transition-all disabled:opacity-30 disabled:pointer-events-none cursor-pointer flex items-center gap-1.5"
                   >
                     <Play className="w-3 h-3" style={{ color: 'var(--accent-primary)' }} />
                     <span>{t('general_settings.sound_nav')}</span>
-                  </button>
+                  </Button>
 
-                  <button
+                  <Button
                     type="button"
+                    variant="secondary"
+                    size="xs"
                     disabled={!soundEnabled}
                     onClick={() => soundEffects.playLaunch()}
-                    className="px-2.5 py-1.5 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 active:scale-95 text-xs font-semibold text-slate-200 transition-all disabled:opacity-30 disabled:pointer-events-none cursor-pointer flex items-center gap-1.5"
                   >
                     <Play className="w-3 h-3" style={{ color: 'var(--accent-primary)' }} />
                     <span>{t('general_settings.sound_launch')}</span>
-                  </button>
+                  </Button>
                 </div>
               </SettingRow>
             </SettingGroup>
@@ -417,19 +423,16 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
                   </span>
                 }
               >
-                <button
+                <Button
                   type="button"
+                  variant="outline"
+                  size="sm"
                   onClick={onOpenThemes}
-                  className="px-3 py-1.5 rounded-xl text-xs font-bold border transition-all hover:bg-white/10 flex items-center gap-2 shrink-0 cursor-pointer"
-                  style={{
-                    backgroundColor: 'var(--bg-card)',
-                    borderColor: 'var(--border-color)',
-                    color: 'var(--text-primary)',
-                  }}
+                  className="font-bold shrink-0"
                 >
                   <SlidersHorizontal className="w-3.5 h-3.5" style={{ color: 'var(--accent-primary)' }} />
                   <span>{t('topbar.themes')}</span>
-                </button>
+                </Button>
               </SettingRow>
 
               <SettingRow
@@ -561,33 +564,23 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
                 title={t('general_settings.playnite_card_title') || 'Importazione Backup Playnite'}
                 description={t('general_settings.playnite_card_desc')}
                 badge={
-                  <span
-                    className="px-2 py-0.5 rounded text-[10px] font-bold border"
-                    style={{
-                      backgroundColor: 'color-mix(in srgb, var(--accent-primary) 15%, transparent)',
-                      borderColor: 'color-mix(in srgb, var(--accent-primary) 30%, transparent)',
-                      color: 'var(--accent-primary)',
-                    }}
-                  >
-                    Beta
-                  </span>
+                  <Badge className="rounded px-2 py-0.5">Beta</Badge>
                 }
               >
-                <button
+                <Button
                   type="button"
                   onClick={() => {
                     soundEffects.playSelect();
                     onOpenPlayniteImport?.();
                   }}
-                  className="px-4 py-2 rounded-xl text-white text-xs font-bold transition-all shadow-md flex items-center gap-2 cursor-pointer hover:brightness-110 active:opacity-90"
+                  className="font-bold shadow-md"
                   style={{
-                    backgroundColor: 'var(--accent-primary)',
                     boxShadow: '0 4px 14px var(--accent-glow)',
                   }}
                 >
                   <FolderArchive className="w-3.5 h-3.5" />
                   <span>{t('general_settings.playnite_card_btn') || 'Importa Backup...'}</span>
-                </button>
+                </Button>
               </SettingRow>
             </SettingGroup>
           </div>
@@ -726,21 +719,23 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
             </SettingGroup>
           </div>
         )}
-      </div>
+      </ScrollArea>
 
       {/* Footer Actions */}
       <div
         className="flex items-center justify-between px-6 py-4 border-t bg-black/40 shrink-0"
         style={{ borderColor: 'var(--border-color)' }}
       >
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="sm"
           onClick={handleReset}
-          className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+          className="px-2"
         >
           <RotateCcw className="w-3.5 h-3.5" />
           <span>{t('general_settings.reset_defaults')}</span>
-        </button>
+        </Button>
 
         <div className="flex items-center gap-3">
           {savedSuccess && (
@@ -753,32 +748,27 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
             </span>
           )}
 
-          <button
+          <Button
             type="button"
             onClick={handleSave}
-            className="px-6 py-2 rounded-xl text-xs font-bold text-white shadow-md hover:brightness-110 active:opacity-90 flex items-center gap-2 cursor-pointer"
+            className="px-6 font-bold shadow-md"
             style={{
-              backgroundColor: 'var(--accent-primary)',
               boxShadow: '0 4px 14px var(--accent-glow)',
             }}
           >
             <Save className="w-3.5 h-3.5" />
             <span>{t('common.save')}</span>
-          </button>
+          </Button>
 
           {onClose && (
-            <button
+            <Button
               type="button"
+              variant="outline"
               onClick={onClose}
-              className="px-5 py-2 rounded-xl text-xs font-bold border hover:bg-white/10 transition-colors cursor-pointer"
-              style={{
-                backgroundColor: 'var(--bg-card)',
-                borderColor: 'var(--border-color)',
-                color: 'var(--text-primary)',
-              }}
+              className="px-5 font-bold"
             >
               {t('common.cancel')}
-            </button>
+            </Button>
           )}
         </div>
       </div>

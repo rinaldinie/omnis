@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { Plus, Trash2, FolderOpen, Folder, Terminal } from "lucide-react";
 import { LaunchConfiguration } from "./types";
 import { useTranslation } from "../../i18n";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 interface PlayActionsTabProps {
   playActions: LaunchConfiguration[];
@@ -51,28 +53,21 @@ const PlayActionCard: React.FC<PlayActionCardProps> = ({
   const trackingTarget = (action.tracking_mode as any)?.target || "";
 
   return (
-    <div
-      className="p-5 rounded-2xl border space-y-4 shadow-sm"
-      style={{
-        backgroundColor: "var(--bg-card)",
-        borderColor: "var(--border-color)",
-      }}
-    >
-      <div
-        className="flex items-center justify-between border-b pb-2"
-        style={{ borderColor: "var(--border-color)" }}
-      >
+    <div className="p-5 rounded-2xl border border-border bg-card space-y-4 shadow-sm">
+      <div className="flex items-center justify-between border-b border-border pb-2">
         <span className="text-xs font-medium text-indigo-400">
           {t("play_actions.action_n", { n: idx + 1 })}
         </span>
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="xs"
           onClick={() => onRemoveAction(idx)}
-          className="flex items-center gap-1 text-xs text-rose-400 hover:text-rose-300"
+          className="text-rose-400 hover:text-rose-300 hover:bg-rose-500/10"
         >
           <Trash2 className="w-3.5 h-3.5" />
           <span>{t("play_actions.remove")}</span>
-        </button>
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -81,32 +76,24 @@ const PlayActionCard: React.FC<PlayActionCardProps> = ({
             {t("play_actions.executable")} *
           </label>
           <div className="flex gap-2">
-            <input
+            <Input
               type="text"
               value={action.executable || ""}
               onChange={(e) => onUpdateAction(idx, "executable", e.target.value)}
-              className="flex-1 px-3 py-2 rounded-xl border text-xs font-mono outline-none"
-              style={{
-                backgroundColor: "var(--bg-surface)",
-                borderColor: "var(--border-color)",
-                color: "var(--text-primary)",
-              }}
+              className="flex-1 h-9 bg-popover text-xs font-mono"
               placeholder={t("play_actions.executable_placeholder")}
             />
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={() => onPickExe(idx)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-medium hover:bg-white/10 transition-colors shrink-0"
-              style={{
-                backgroundColor: "var(--bg-surface)",
-                borderColor: "var(--border-color)",
-                color: "var(--text-primary)",
-              }}
+              className="h-9 bg-popover font-medium shrink-0"
               title={t("custom_game.browse_exe_title")}
             >
               <FolderOpen className="w-4 h-4 text-emerald-400" />
               <span>{t("custom_game.browse")}</span>
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -115,32 +102,26 @@ const PlayActionCard: React.FC<PlayActionCardProps> = ({
             {t("play_actions.working_dir")}
           </label>
           <div className="flex gap-2">
-            <input
+            <Input
               type="text"
               value={action.working_dir || ""}
-              onChange={(e) => onUpdateAction(idx, "working_dir", e.target.value || null)}
-              className="flex-1 px-3 py-2 rounded-xl border text-xs font-mono outline-none"
-              style={{
-                backgroundColor: "var(--bg-surface)",
-                borderColor: "var(--border-color)",
-                color: "var(--text-primary)",
-              }}
+              onChange={(e) =>
+                onUpdateAction(idx, "working_dir", e.target.value || null)
+              }
+              className="flex-1 h-9 bg-popover text-xs font-mono"
               placeholder={t("play_actions.working_dir_placeholder")}
             />
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={() => onPickDir(idx)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-medium hover:bg-white/10 transition-colors shrink-0"
-              style={{
-                backgroundColor: "var(--bg-surface)",
-                borderColor: "var(--border-color)",
-                color: "var(--text-primary)",
-              }}
+              className="h-9 bg-popover font-medium shrink-0"
               title={t("play_actions.pick_folder_title")}
             >
               <Folder className="w-4 h-4 text-sky-400" />
               <span>{t("play_actions.pick_folder")}</span>
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -149,17 +130,12 @@ const PlayActionCard: React.FC<PlayActionCardProps> = ({
         <label className="block text-xs font-medium mb-1 text-slate-300">
           {t("play_actions.arguments")}
         </label>
-        <input
+        <Input
           type="text"
           value={argsText}
           onChange={handleArgsChange}
           onBlur={() => setArgsText((action.arguments || []).join(" "))}
-          className="w-full px-3 py-2 rounded-xl border text-xs font-mono outline-none"
-          style={{
-            backgroundColor: "var(--bg-surface)",
-            borderColor: "var(--border-color)",
-            color: "var(--text-primary)",
-          }}
+          className="h-9 bg-popover text-xs font-mono"
           placeholder={t("play_actions.arguments_placeholder")}
         />
       </div>
@@ -174,7 +150,9 @@ const PlayActionCard: React.FC<PlayActionCardProps> = ({
             onChange={(e) => {
               const val = e.target.value;
               if (val === "KernelJobObject") {
-                onUpdateAction(idx, "tracking_mode", { type: "KernelJobObject" });
+                onUpdateAction(idx, "tracking_mode", {
+                  type: "KernelJobObject",
+                });
               } else if (val === "ProcessName") {
                 onUpdateAction(idx, "tracking_mode", {
                   type: "ProcessName",
@@ -187,20 +165,21 @@ const PlayActionCard: React.FC<PlayActionCardProps> = ({
                 });
               }
             }}
-            className="px-3 py-2 rounded-xl border text-xs font-medium outline-none cursor-pointer"
-            style={{
-              backgroundColor: "var(--bg-surface)",
-              borderColor: "var(--border-color)",
-              color: "var(--text-primary)",
-            }}
+            className="h-9 px-3 py-2 rounded-xl border border-input bg-popover text-xs font-medium text-foreground outline-none cursor-pointer focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
           >
-            <option value="KernelJobObject">{t("play_actions.tracking_kernel")}</option>
-            <option value="ProcessName">{t("play_actions.tracking_process")}</option>
-            <option value="WatchDirectory">{t("play_actions.tracking_directory")}</option>
+            <option value="KernelJobObject">
+              {t("play_actions.tracking_kernel")}
+            </option>
+            <option value="ProcessName">
+              {t("play_actions.tracking_process")}
+            </option>
+            <option value="WatchDirectory">
+              {t("play_actions.tracking_directory")}
+            </option>
           </select>
 
           {trackingType === "ProcessName" && (
-            <input
+            <Input
               type="text"
               value={trackingTarget}
               onChange={(e) =>
@@ -210,17 +189,12 @@ const PlayActionCard: React.FC<PlayActionCardProps> = ({
                 })
               }
               placeholder="e.g. game.exe"
-              className="flex-1 px-3 py-2 rounded-xl border text-xs font-mono outline-none"
-              style={{
-                backgroundColor: "var(--bg-surface)",
-                borderColor: "var(--border-color)",
-                color: "var(--text-primary)",
-              }}
+              className="flex-1 h-9 bg-popover text-xs font-mono"
             />
           )}
 
           {trackingType === "WatchDirectory" && (
-            <input
+            <Input
               type="text"
               value={trackingTarget}
               onChange={(e) =>
@@ -230,12 +204,7 @@ const PlayActionCard: React.FC<PlayActionCardProps> = ({
                 })
               }
               placeholder="e.g. ."
-              className="flex-1 px-3 py-2 rounded-xl border text-xs font-mono outline-none"
-              style={{
-                backgroundColor: "var(--bg-surface)",
-                borderColor: "var(--border-color)",
-                color: "var(--text-primary)",
-              }}
+              className="flex-1 h-9 bg-popover text-xs font-mono"
             />
           )}
         </div>
@@ -259,29 +228,18 @@ export const PlayActionsTab: React.FC<PlayActionsTabProps> = ({
         <span className="text-xs font-normal text-slate-400">
           {t("play_actions.intro")}
         </span>
-        <button
-          type="button"
-          onClick={onAddAction}
-          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-medium text-white transition-all shadow-md"
-          style={{
-            backgroundColor: "var(--accent-primary)",
-          }}
-        >
+        <Button type="button" size="sm" onClick={onAddAction} className="font-medium">
           <Plus className="w-3.5 h-3.5" />
           <span>{t("play_actions.add")}</span>
-        </button>
+        </Button>
       </div>
 
       {playActions.length === 0 ? (
-        <div
-          className="p-10 rounded-2xl border border-dashed text-center space-y-3"
-          style={{
-            backgroundColor: "var(--bg-card)",
-            borderColor: "var(--border-color)",
-          }}
-        >
+        <div className="p-10 rounded-2xl border border-dashed border-border bg-card text-center space-y-3">
           <Terminal className="w-10 h-10 text-slate-500 mx-auto" />
-          <p className="text-sm font-medium text-white">{t("play_actions.empty_title")}</p>
+          <p className="text-sm font-medium text-foreground">
+            {t("play_actions.empty_title")}
+          </p>
           <p className="text-xs text-slate-400">
             {t("play_actions.empty_desc")}
           </p>

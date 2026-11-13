@@ -2,6 +2,8 @@ import React from "react";
 import { Sparkles } from "lucide-react";
 import { GameEditorFormData } from "./types";
 import { useTranslation } from "../../i18n";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 interface DescriptionTabProps {
   formData: GameEditorFormData;
@@ -68,16 +70,11 @@ export const DescriptionTab: React.FC<DescriptionTabProps> = ({ formData, onChan
           <span className="text-[10px] text-slate-500">{t("editor_description.comma_separated")}</span>
         </div>
 
-        <input
+        <Input
           type="text"
           value={formData.featuresText}
           onChange={(e) => onChange({ featuresText: e.target.value })}
-          className="w-full px-4 py-2.5 rounded-xl border text-sm font-normal text-slate-100 placeholder:text-slate-500 outline-none transition-all focus:border-indigo-500"
-          style={{
-            backgroundColor: "var(--bg-card)",
-            borderColor: "var(--border-color)",
-            color: "var(--text-primary)",
-          }}
+          className="h-10 px-4 py-2.5"
           placeholder={t("editor_description.features_placeholder")}
         />
 
@@ -90,13 +87,15 @@ export const DescriptionTab: React.FC<DescriptionTabProps> = ({ formData, onChan
                 (f) => f.toLowerCase() === feature.toLowerCase()
               );
               return (
-                <button
+                <Button
                   key={feature}
                   type="button"
+                  variant="outline"
+                  size="xs"
                   onClick={() => toggleFeature(feature)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-all cursor-pointer flex items-center gap-1.5 ${
+                  className={`h-auto px-2.5 py-1 text-xs font-medium ${
                     isSelected
-                      ? "bg-indigo-600/30 border-indigo-500 text-indigo-200 shadow-sm"
+                      ? "bg-indigo-600/30 border-indigo-500 text-indigo-200 hover:bg-indigo-600/40 shadow-sm"
                       : "bg-white/[0.03] hover:bg-white/[0.08] border-white/[0.08] text-slate-300 hover:text-white"
                   }`}
                 >
@@ -106,7 +105,7 @@ export const DescriptionTab: React.FC<DescriptionTabProps> = ({ formData, onChan
                     }`}
                   />
                   <span>{feature}</span>
-                </button>
+                </Button>
               );
             })}
           </div>

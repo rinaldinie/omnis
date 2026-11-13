@@ -29,6 +29,17 @@ export type { CustomLink, ProcessTrackingMode, LaunchConfiguration, GameEditorFo
 
 import { GameDto } from "../types";
 import { api } from "../api";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
 
 export interface GameEditorModalProps {
   isOpen: boolean;
@@ -169,7 +180,7 @@ export default function GameEditorModal({
       });
   }, [isOpen, game]);
 
-  if (!isOpen || !game) return null;
+  if (!game) return null;
 
   const updateFormData = (fields: Partial<GameEditorFormData>) => {
     setFormData((prev) => ({ ...prev, ...fields }));
@@ -376,26 +387,28 @@ export default function GameEditorModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div
-        className="w-full max-w-4xl max-h-[92vh] flex flex-col rounded-2xl border shadow-2xl overflow-hidden"
-        style={{
-          backgroundColor: "var(--bg-surface)",
-          borderColor: "var(--border-color)",
-          color: "var(--text-primary)",
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open && !isSaving) onClose();
+      }}
+    >
+      <DialogContent
+        showCloseButton={false}
+        overlayClassName="backdrop-blur-md"
+        className="max-w-4xl max-h-[92vh] p-0 flex flex-col rounded-2xl overflow-hidden gap-0"
+        onEscapeKeyDown={(e) => {
+          if (isSaving) e.preventDefault();
+        }}
+        onPointerDownOutside={(e) => {
+          if (isSaving) e.preventDefault();
         }}
       >
         {/* HEADER */}
-        <div
-          className="flex items-center justify-between px-6 py-4 border-b shrink-0"
-          style={{
-            backgroundColor: "var(--bg-card)",
-            borderColor: "var(--border-color)",
-          }}
-        >
-          <div className="flex items-center gap-3">
+        <DialogHeader className="flex-row items-center justify-between px-6 py-4 border-b border-border bg-card shrink-0 space-y-0">
+          <div className="flex items-center gap-3 min-w-0">
             <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg"
+              className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg shrink-0"
               style={{
                 backgroundColor: "var(--accent-primary)",
                 boxShadow: "0 0 15px var(--accent-glow)",
@@ -403,187 +416,119 @@ export default function GameEditorModal({
             >
               <Gamepad2 className="w-5 h-5 text-white" />
             </div>
-            <div>
-              <h2 className="text-base font-semibold tracking-normal text-white">
-                {t('editor_modal.title')}
-              </h2>
-              <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+            <div className="min-w-0">
+              <DialogTitle className="text-base font-semibold tracking-normal text-foreground">
+                {t("editor_modal.title")}
+              </DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground truncate mt-0.5">
                 {formData.title || game.title} (ID: {game.id})
-              </p>
+              </DialogDescription>
             </div>
           </div>
 
-          <button
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            disabled={isSaving}
             onClick={onClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+            aria-label={t("common.close")}
           >
             <X className="w-5 h-5" />
-          </button>
-        </div>
+          </Button>
+        </DialogHeader>
 
-        {/* TABS NAVIGATION */}
-        <div
-          className="flex items-center px-6 border-b shrink-0 gap-1 overflow-x-auto"
-          style={{
-            backgroundColor: "var(--bg-surface)",
-            borderColor: "var(--border-color)",
-          }}
+        {/* TABS NAVIGATION & BODY */}
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) => setActiveTab(v as typeof activeTab)}
+          className="flex-1 min-h-0 flex flex-col overflow-hidden"
         >
-          <button
-            type="button"
-            onClick={() => setActiveTab("general")}
-            className={`flex items-center gap-2 py-3 px-3.5 text-xs font-medium border-b-2 transition-all ${
-              activeTab === "general"
-                ? "border-indigo-500 text-indigo-400"
-                : "border-transparent text-slate-400 hover:text-slate-200"
-            }`}
-            style={{
-              borderColor: activeTab === "general" ? "var(--accent-primary)" : "transparent",
-              color: activeTab === "general" ? "var(--accent-primary)" : undefined,
-            }}
-          >
-            <Sliders className="w-4 h-4" />
-            <span>{t('editor_modal.tab_general')}</span>
-          </button>
+          <TabsList>
+            <TabsTrigger value="general">
+              <Sliders className="w-4 h-4" />
+              <span>{t("editor_modal.tab_general")}</span>
+            </TabsTrigger>
+            <TabsTrigger value="description">
+              <FileText className="w-4 h-4" />
+              <span>{t("editor_modal.tab_description")}</span>
+            </TabsTrigger>
+            <TabsTrigger value="media">
+              <ImageIcon className="w-4 h-4" />
+              <span>{t("editor_modal.tab_media")}</span>
+            </TabsTrigger>
+            <TabsTrigger value="actions">
+              <Terminal className="w-4 h-4" />
+              <span>
+                {t("editor_modal.tab_launch")} ({formData.play_actions.length})
+              </span>
+            </TabsTrigger>
+            <TabsTrigger value="links">
+              <LinkIcon className="w-4 h-4" />
+              <span>
+                {t("editor_modal.tab_links")} ({formData.custom_links.length})
+              </span>
+            </TabsTrigger>
+          </TabsList>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab("description")}
-            className={`flex items-center gap-2 py-3 px-3.5 text-xs font-medium border-b-2 transition-all ${
-              activeTab === "description"
-                ? "border-indigo-500 text-indigo-400"
-                : "border-transparent text-slate-400 hover:text-slate-200"
-            }`}
-            style={{
-              borderColor: activeTab === "description" ? "var(--accent-primary)" : "transparent",
-              color: activeTab === "description" ? "var(--accent-primary)" : undefined,
-            }}
-          >
-            <FileText className="w-4 h-4" />
-            <span>{t('editor_modal.tab_description')}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab("media")}
-            className={`flex items-center gap-2 py-3 px-3.5 text-xs font-medium border-b-2 transition-all ${
-              activeTab === "media"
-                ? "border-indigo-500 text-indigo-400"
-                : "border-transparent text-slate-400 hover:text-slate-200"
-            }`}
-            style={{
-              borderColor: activeTab === "media" ? "var(--accent-primary)" : "transparent",
-              color: activeTab === "media" ? "var(--accent-primary)" : undefined,
-            }}
-          >
-            <ImageIcon className="w-4 h-4" />
-            <span>{t('editor_modal.tab_media')}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab("actions")}
-            className={`flex items-center gap-2 py-3 px-3.5 text-xs font-medium border-b-2 transition-all ${
-              activeTab === "actions"
-                ? "border-indigo-500 text-indigo-400"
-                : "border-transparent text-slate-400 hover:text-slate-200"
-            }`}
-            style={{
-              borderColor: activeTab === "actions" ? "var(--accent-primary)" : "transparent",
-              color: activeTab === "actions" ? "var(--accent-primary)" : undefined,
-            }}
-          >
-            <Terminal className="w-4 h-4" />
-            <span>{t('editor_modal.tab_launch')} ({formData.play_actions.length})</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab("links")}
-            className={`flex items-center gap-2 py-3 px-3.5 text-xs font-medium border-b-2 transition-all ${
-              activeTab === "links"
-                ? "border-indigo-500 text-indigo-400"
-                : "border-transparent text-slate-400 hover:text-slate-200"
-            }`}
-            style={{
-              borderColor: activeTab === "links" ? "var(--accent-primary)" : "transparent",
-              color: activeTab === "links" ? "var(--accent-primary)" : undefined,
-            }}
-          >
-            <LinkIcon className="w-4 h-4" />
-            <span>{t('editor_modal.tab_links')} ({formData.custom_links.length})</span>
-          </button>
-        </div>
-
-        {/* TAB CONTENTS */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {activeTab === "general" && (
-            <GeneralTab formData={formData} onChange={updateFormData} />
-          )}
-
-          {activeTab === "description" && (
-            <DescriptionTab formData={formData} onChange={updateFormData} />
-          )}
-
-          {activeTab === "media" && (
-            <MediaTab
-              formData={formData}
-              initialMedia={initialMedia}
-              onChange={updateFormData}
-              onPickImage={handlePickImage}
-            />
-          )}
-
-          {activeTab === "actions" && (
-            <PlayActionsTab
-              playActions={formData.play_actions}
-              onAddAction={handleAddAction}
-              onRemoveAction={handleRemoveAction}
-              onUpdateAction={handleUpdateAction}
-              onPickExe={handlePickExe}
-              onPickDir={handlePickDir}
-            />
-          )}
-
-          {activeTab === "links" && (
-            <CustomLinksTab
-              customLinks={formData.custom_links}
-              onAddLink={handleAddLink}
-              onRemoveLink={handleRemoveLink}
-              onUpdateLink={handleUpdateLink}
-            />
-          )}
-        </div>
+          <ScrollArea className="flex-1 min-h-0" viewportClassName="p-6 space-y-6">
+            <TabsContent value="general" className="mt-0">
+              <GeneralTab formData={formData} onChange={updateFormData} />
+            </TabsContent>
+            <TabsContent value="description" className="mt-0">
+              <DescriptionTab formData={formData} onChange={updateFormData} />
+            </TabsContent>
+            <TabsContent value="media" className="mt-0">
+              <MediaTab
+                formData={formData}
+                initialMedia={initialMedia}
+                onChange={updateFormData}
+                onPickImage={handlePickImage}
+              />
+            </TabsContent>
+            <TabsContent value="actions" className="mt-0">
+              <PlayActionsTab
+                playActions={formData.play_actions}
+                onAddAction={handleAddAction}
+                onRemoveAction={handleRemoveAction}
+                onUpdateAction={handleUpdateAction}
+                onPickExe={handlePickExe}
+                onPickDir={handlePickDir}
+              />
+            </TabsContent>
+            <TabsContent value="links" className="mt-0">
+              <CustomLinksTab
+                customLinks={formData.custom_links}
+                onAddLink={handleAddLink}
+                onRemoveLink={handleRemoveLink}
+                onUpdateLink={handleUpdateLink}
+              />
+            </TabsContent>
+          </ScrollArea>
+        </Tabs>
 
         {/* FEEDBACK STATUS */}
         {saveError && (
-          <div className="px-6 py-2.5 bg-rose-500/20 border-t border-rose-500/40 text-rose-300 text-xs font-bold flex items-center gap-2">
+          <div className="px-6 py-2.5 bg-rose-500/20 border-t border-rose-500/40 text-rose-300 text-xs font-bold flex items-center gap-2 shrink-0">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{saveError}</span>
           </div>
         )}
         {saveSuccess && (
-          <div className="px-6 py-2.5 bg-emerald-500/20 border-t border-emerald-500/40 text-emerald-300 text-xs font-bold flex items-center gap-2">
+          <div className="px-6 py-2.5 bg-emerald-500/20 border-t border-emerald-500/40 text-emerald-300 text-xs font-bold flex items-center gap-2 shrink-0">
             <Check className="w-4 h-4 shrink-0" />
             <span>{t("editor_modal.saved")}</span>
           </div>
         )}
 
         {/* FOOTER BUTTONS */}
-        <div
-          className="flex items-center justify-end gap-3 px-6 py-4 border-t shrink-0"
-          style={{
-            backgroundColor: "var(--bg-card)",
-            borderColor: "var(--border-color)",
-          }}
-        >
-          <button
+        <DialogFooter className="flex-row items-center justify-end gap-3 px-6 py-4 border-t border-border bg-card shrink-0 sm:space-x-0">
+          <Button
             type="button"
             onClick={handleSave}
             disabled={isSaving || !formData.title.trim()}
-            className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-medium text-white shadow-xl transition-all hover:brightness-110 active:opacity-90 disabled:opacity-50 cursor-pointer"
+            className="px-6 py-2.5 h-auto shadow-xl"
             style={{
-              backgroundColor: "var(--accent-primary)",
               boxShadow: "0 0 20px var(--accent-glow)",
             }}
           >
@@ -592,22 +537,22 @@ export default function GameEditorModal({
             ) : (
               <Save className="w-4 h-4" />
             )}
-            <span>{isSaving ? t('common.loading') : t('editor_modal.save_changes')}</span>
-          </button>
+            <span>
+              {isSaving ? t("common.loading") : t("editor_modal.save_changes")}
+            </span>
+          </Button>
 
-          <button
+          <Button
             type="button"
+            variant="outline"
             onClick={onClose}
             disabled={isSaving}
-            className="px-5 py-2.5 rounded-xl border text-xs font-medium text-slate-300 hover:bg-white/5 transition-all cursor-pointer"
-            style={{
-              borderColor: "var(--border-color)",
-            }}
+            className="px-5 py-2.5 h-auto"
           >
-            {t('common.cancel')}
-          </button>
-        </div>
-      </div>
-    </div>
+            {t("common.cancel")}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -10,6 +10,8 @@ import { AchievementsSettingsTab } from '../../achievements';
 import { BackupSettingsTab } from '../BackupSettingsTab';
 import { DuplicateHiderSettingsTab } from '../DuplicateHiderSettingsTab';
 import { SettingsTab } from './settingsTreeConfig';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 
 export interface SettingsContentPanelProps {
   activeTab: SettingsTab;
@@ -206,18 +208,7 @@ export const SettingsContentPanel: React.FC<SettingsContentPanelProps> = ({
                   <h4 className="text-base font-bold text-white flex items-center gap-2">
                     {t('general_settings.playnite_card_title') ||
                       'Importazione Backup Playnite'}
-                    <span
-                      className="px-2 py-0.5 rounded text-[10px] font-bold border"
-                      style={{
-                        backgroundColor:
-                          'color-mix(in srgb, var(--accent-primary) 15%, transparent)',
-                        borderColor:
-                          'color-mix(in srgb, var(--accent-primary) 30%, transparent)',
-                        color: 'var(--accent-primary)',
-                      }}
-                    >
-                      Beta
-                    </span>
+                    <Badge className="rounded px-2 py-0.5">Beta</Badge>
                   </h4>
                   <p className="text-xs text-slate-400 mt-0.5">
                     {t('general_settings.playnite_card_desc') ||
@@ -227,16 +218,15 @@ export const SettingsContentPanel: React.FC<SettingsContentPanelProps> = ({
               </div>
 
               {onOpenPlayniteImport && (
-                <button
+                <Button
                   type="button"
                   onClick={() => {
                     soundEffects.playSelect();
                     handleClose();
                     onOpenPlayniteImport();
                   }}
-                  className="px-5 py-2.5 rounded-xl text-xs font-bold text-white transition-all shadow-md flex items-center gap-2 cursor-pointer font-sans hover:brightness-110 active:scale-95"
+                  className="px-5 py-2.5 h-auto font-bold shadow-md font-sans"
                   style={{
-                    backgroundColor: 'var(--accent-primary)',
                     boxShadow: '0 4px 14px var(--accent-glow)',
                   }}
                 >
@@ -245,7 +235,7 @@ export const SettingsContentPanel: React.FC<SettingsContentPanelProps> = ({
                     {t('general_settings.playnite_card_btn') ||
                       'Avvia Importazione...'}
                   </span>
-                </button>
+                </Button>
               )}
             </div>
 

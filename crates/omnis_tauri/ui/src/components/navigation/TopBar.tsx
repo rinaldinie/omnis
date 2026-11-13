@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useState } from "react";
 import {
   Zap,
   ChevronDown,
@@ -9,7 +9,6 @@ import {
   X,
   Tv,
   RefreshCw,
-  Settings,
   Minus,
   Square,
   BarChart2,
@@ -20,6 +19,9 @@ import { useUpdater } from "../../hooks/useAppUpdater";
 import { useActiveGameTimer } from "../../context/ActiveGameTimerContext";
 import AppMenuDropdown from "./AppMenuDropdown";
 import type { SettingsTab } from "../settings";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export interface TopBarProps {
   currentTheme: ThemeConfig;
@@ -87,9 +89,44 @@ export default function TopBar({
   const updater = useUpdater();
   const isUpdateAvailable = updater?.status === "available";
   const [isAppMenuOpen, setIsAppMenuOpen] = useState(false);
-  const brandButtonRef = useRef<HTMLButtonElement>(null);
   const timerContextSeconds = useActiveGameTimer();
   const actualElapsed = elapsedSeconds ?? timerContextSeconds;
+
+  const brandTrigger = (
+    <button
+      type="button"
+      onClick={() => soundEffects.playSelect()}
+      className="w-full h-10 flex items-center justify-between px-2 rounded-lg hover:bg-white/5 active:bg-white/10 transition-colors cursor-pointer group text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      title="Omnis Menu"
+      data-no-drag="true"
+    >
+      <div className="flex items-center gap-2.5 min-w-0">
+        <div
+          className="w-7 h-7 rounded-lg flex items-center justify-center shadow-lg transition-transform group-hover:scale-105 shrink-0"
+          style={{
+            backgroundColor: "var(--accent-primary)",
+            boxShadow: `0 0 15px var(--accent-glow)`,
+          }}
+        >
+          <Zap className="w-3.5 h-3.5 text-white fill-white" />
+        </div>
+        <div className="flex flex-col leading-none truncate">
+          <span className="font-bold text-xs tracking-wider text-white">OMNIS</span>
+          <span
+            className="font-extrabold text-[8px] tracking-widest uppercase truncate"
+            style={{ color: "var(--accent-primary)" }}
+          >
+            {(currentTheme?.name || "Omnis").split(" ")[0]} EDITION
+          </span>
+        </div>
+      </div>
+      <ChevronDown
+        className={`w-3.5 h-3.5 text-slate-400 group-hover:text-white transition-transform duration-200 shrink-0 ${
+          isAppMenuOpen ? "rotate-180 text-white" : ""
+        }`}
+      />
+    </button>
+  );
 
   return (
     <header
@@ -103,56 +140,16 @@ export default function TopBar({
         borderColor: "var(--border-color)",
       }}
     >
-      {/* Brand Column: Perfectly aligned with Sidebar (w-52 min-w-[208px] max-w-[208px] border-r) */}
+      {/* Brand Column: Aligned with Sidebar */}
       <div
         className="w-52 min-w-[208px] max-w-[208px] h-full flex items-center px-2 border-r shrink-0 relative"
         style={{ borderColor: "var(--border-color)" }}
         data-no-drag="true"
       >
-        <button
-          ref={brandButtonRef}
-          type="button"
-          onClick={() => {
-            soundEffects.playSelect();
-            setIsAppMenuOpen((prev) => !prev);
-          }}
-          className="w-full h-10 flex items-center justify-between px-2 rounded-lg hover:bg-white/5 active:bg-white/10 transition-colors cursor-pointer group text-left"
-          title="Omnis Menu"
-          aria-haspopup="true"
-          aria-expanded={isAppMenuOpen}
-          data-no-drag="true"
-        >
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div
-              className="w-7 h-7 rounded-lg flex items-center justify-center shadow-lg transition-transform group-hover:scale-105 shrink-0"
-              style={{
-                backgroundColor: "var(--accent-primary)",
-                boxShadow: `0 0 15px var(--accent-glow)`,
-              }}
-            >
-              <Zap className="w-3.5 h-3.5 text-white fill-white" />
-            </div>
-            <div className="flex flex-col leading-none truncate">
-              <span className="font-bold text-xs tracking-wider text-white">OMNIS</span>
-              <span
-                className="font-extrabold text-[8px] tracking-widest uppercase truncate"
-                style={{ color: "var(--accent-primary)" }}
-              >
-                {(currentTheme?.name || "Omnis").split(" ")[0]} EDITION
-              </span>
-            </div>
-          </div>
-          <ChevronDown
-            className={`w-3.5 h-3.5 text-slate-400 group-hover:text-white transition-transform duration-200 shrink-0 ${
-              isAppMenuOpen ? "rotate-180 text-white" : ""
-            }`}
-          />
-        </button>
-
         <AppMenuDropdown
+          trigger={brandTrigger}
           isOpen={isAppMenuOpen}
-          onClose={() => setIsAppMenuOpen(false)}
-          triggerRef={brandButtonRef}
+          onOpenChange={setIsAppMenuOpen}
           onOpenThemeModal={() => setShowThemeModal(true)}
           onOpenPluginModal={() => {
             if (loadProvidersAndConfig) loadProvidersAndConfig();
@@ -175,15 +172,17 @@ export default function TopBar({
           }}
           onToggleSound={handleToggleSound}
           soundEnabled={soundEnabled}
-          hasActiveProviders={providers?.some((p) => p.has_configured_key || !p.requires_api_key)}
+          hasActiveProviders={providers?.some(
+            (p) => p.has_configured_key || !p.requires_api_key
+          )}
           isUpdateAvailable={isUpdateAvailable}
           t={t}
         />
       </div>
 
-      {/* Main TopBar Area: Aligned with Catalog Main Area */}
+      {/* Main TopBar Area */}
       <div className="flex-1 flex items-center justify-between px-3 h-full min-w-0">
-        {/* Left: Compact View Switcher Segmented Control */}
+        {/* Left: View Switcher Segmented Control */}
         <div className="flex items-center gap-3 shrink-0" data-no-drag="true">
           <div
             className="p-1 rounded-lg border flex items-center gap-1 shrink-0"
@@ -192,70 +191,41 @@ export default function TopBar({
               borderColor: "var(--surface-pill-border, var(--border-color))",
             }}
           >
-            <button
-              type="button"
-              onClick={() => {
-                soundEffects.playNav();
-                setViewMode("grid");
-              }}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold transition-all cursor-pointer"
-              style={{
-                backgroundColor: viewMode === "grid" ? "var(--accent-primary)" : "transparent",
-                color: viewMode === "grid" ? "#ffffff" : "var(--text-muted)",
-              }}
-              title={t("views.grid")}
-            >
-              <LayoutGrid className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">{t("views.grid")}</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                soundEffects.playNav();
-                setViewMode("details");
-              }}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold transition-all cursor-pointer"
-              style={{
-                backgroundColor: viewMode === "details" ? "var(--accent-primary)" : "transparent",
-                color: viewMode === "details" ? "#ffffff" : "var(--text-muted)",
-              }}
-              title={t("views.details")}
-            >
-              <PanelLeft className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">{t("views.details")}</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                soundEffects.playNav();
-                setViewMode("list");
-              }}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold transition-all cursor-pointer"
-              style={{
-                backgroundColor: viewMode === "list" ? "var(--accent-primary)" : "transparent",
-                color: viewMode === "list" ? "#ffffff" : "var(--text-muted)",
-              }}
-              title={t("views.list")}
-            >
-              <TableProperties className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">{t("views.list")}</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                soundEffects.playNav();
-                setViewMode("stats");
-              }}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold transition-all cursor-pointer"
-              style={{
-                backgroundColor: viewMode === "stats" ? "var(--accent-primary)" : "transparent",
-                color: viewMode === "stats" ? "#ffffff" : "var(--text-muted)",
-              }}
-              title={t("views.stats")}
-            >
-              <BarChart2 className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">{t("views.stats")}</span>
-            </button>
+            {(
+              [
+                { mode: "grid", icon: LayoutGrid, label: t("views.grid") },
+                { mode: "details", icon: PanelLeft, label: t("views.details") },
+                { mode: "list", icon: TableProperties, label: t("views.list") },
+                { mode: "stats", icon: BarChart2, label: t("views.stats") },
+              ] as const
+            ).map(({ mode, icon: Icon, label }) => {
+              const active = viewMode === mode;
+              return (
+                <Tooltip key={mode}>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        soundEffects.playNav();
+                        setViewMode(mode);
+                      }}
+                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold transition-all cursor-pointer"
+                      style={{
+                        backgroundColor: active
+                          ? "var(--accent-primary)"
+                          : "transparent",
+                        color: active ? "#ffffff" : "var(--text-muted)",
+                      }}
+                      aria-label={label}
+                    >
+                      <Icon className="w-3.5 h-3.5" />
+                      <span className="hidden md:inline">{label}</span>
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>{label}</TooltipContent>
+                </Tooltip>
+              );
+            })}
           </div>
         </div>
 
@@ -266,12 +236,12 @@ export default function TopBar({
               className="w-4 h-4 absolute left-3 pointer-events-none"
               style={{ color: "var(--text-muted)" }}
             />
-            <input
+            <Input
               type="text"
               placeholder={t("topbar.search_placeholder")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full h-8 pl-9 pr-8 rounded-lg text-xs focus:outline-none transition-all border"
+              className="w-full h-8 pl-9 pr-8 rounded-lg text-xs"
               style={{
                 backgroundColor: "var(--surface-pill-bg, var(--bg-card))",
                 borderColor: "var(--surface-pill-border, var(--border-color))",
@@ -284,6 +254,7 @@ export default function TopBar({
                 onClick={() => setSearchQuery("")}
                 className="absolute right-2.5 text-slate-400 hover:text-white transition-colors cursor-pointer"
                 title="Clear search"
+                aria-label="Clear search"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -291,91 +262,141 @@ export default function TopBar({
           </div>
         </div>
 
-        {/* Right Section: Active game, Fullscreen, Sync, Settings, Window Controls */}
-        <div className="flex items-center gap-2 shrink-0 ml-auto" data-no-drag="true">
-          {/* Active Running Game Pill in Desktop TopBar */}
+        {/* Right Section: Active game, Fullscreen, Sync, Window Controls */}
+        <div
+          className="flex items-center gap-2 shrink-0 ml-auto"
+          data-no-drag="true"
+        >
+          {/* Active Running Game Pill */}
           {activeGame && (
             <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/60 text-emerald-300 text-xs font-bold animate-pulse backdrop-blur-md shrink-0">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping shrink-0" />
               <span className="truncate max-w-[180px]" title={activeGame.title}>
-                ● {t("status.running")}: {activeGame.title} ({formatDuration ? formatDuration(actualElapsed || 0) : `${actualElapsed || 0}s`})
+                ● {t("status.running")}: {activeGame.title} (
+                {formatDuration
+                  ? formatDuration(actualElapsed || 0)
+                  : `${actualElapsed || 0}s`}
+                )
               </span>
               {handleKillRunningGame && (
-                <button
+                <Button
                   type="button"
+                  variant="destructive"
+                  size="xs"
                   onClick={handleKillRunningGame}
-                  className="px-2 py-0.5 rounded text-[10px] font-black bg-rose-600 hover:bg-rose-500 text-white transition-colors cursor-pointer shrink-0"
+                  className="h-auto px-2 py-0.5 rounded text-[10px] font-black shrink-0"
                   title={t("status.kill_game_title")}
                 >
                   {t("status.kill_game")}
-                </button>
+                </Button>
               )}
             </div>
           )}
 
           {/* Fullscreen Button */}
-          <button
-            type="button"
-            onClick={toggleFullscreen || toggleBigPicture}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold text-white transition-all shadow-md hover:brightness-110 active:opacity-90 shrink-0 cursor-pointer"
-            style={{
-              backgroundColor: "var(--accent-primary)",
-              boxShadow: `0 0 15px var(--accent-glow)`,
-            }}
-            title={t("topbar.fullscreen")}
-          >
-            <Tv className="w-3.5 h-3.5" />
-            <span className="hidden xl:inline">{t("topbar.fullscreen")}</span>
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                size="sm"
+                onClick={toggleFullscreen || toggleBigPicture}
+                className="h-7 px-2.5 py-1.5 rounded-lg text-xs font-bold shrink-0"
+                style={{
+                  boxShadow: `0 0 15px var(--accent-glow)`,
+                }}
+              >
+                <Tv className="w-3.5 h-3.5" />
+                <span className="hidden xl:inline">
+                  {t("topbar.fullscreen")}
+                </span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t("topbar.fullscreen")}</TooltipContent>
+          </Tooltip>
 
           {/* Sync External Libraries */}
-          <button
-            type="button"
-            onClick={handleSync}
-            disabled={isSyncing}
-            className="p-1.5 rounded-lg border transition-all shrink-0 hover:bg-white/10 disabled:opacity-50 cursor-pointer"
-            style={{
-              backgroundColor: "var(--surface-pill-bg, var(--bg-card))",
-              borderColor: "var(--surface-pill-border, var(--border-color))",
-              color: "var(--text-primary)",
-            }}
-            title={t("topbar.sync_tooltip") || t("topbar.sync")}
-          >
-            <RefreshCw className={`w-4 h-4 ${isSyncing ? "animate-spin text-white" : ""}`} />
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={handleSync}
+                disabled={isSyncing}
+                className="h-7 w-7 rounded-lg shrink-0"
+                style={{
+                  backgroundColor: "var(--surface-pill-bg, var(--bg-card))",
+                  borderColor:
+                    "var(--surface-pill-border, var(--border-color))",
+                  color: "var(--text-primary)",
+                }}
+                aria-label={t("topbar.sync_tooltip") || t("topbar.sync")}
+              >
+                <RefreshCw
+                  className={`w-4 h-4 ${isSyncing ? "animate-spin text-white" : ""}`}
+                />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {t("topbar.sync_tooltip") || t("topbar.sync")}
+            </TooltipContent>
+          </Tooltip>
 
           {/* Clean Native Title Bar Separator */}
           <div className="h-5 w-[1px] bg-white/10 mx-1 shrink-0" />
 
-          {/* Window Controls (Minimize, Maximize, Close) */}
+          {/* Window Controls */}
           <div className="flex items-center gap-0.5 shrink-0" data-no-drag="true">
-            <button
-              type="button"
-              onClick={handleMinimize}
-              className="w-8 h-8 rounded-lg hover:bg-white/10 active:bg-white/20 flex items-center justify-center transition-all cursor-pointer text-slate-400 hover:text-white"
-              title={t("tooltips.minimize")}
-              data-no-drag="true"
-            >
-              <Minus className="w-3.5 h-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={handleToggleMaximize}
-              className="w-8 h-8 rounded-lg hover:bg-white/10 active:bg-white/20 flex items-center justify-center transition-all cursor-pointer text-slate-400 hover:text-white"
-              title={t("tooltips.maximize")}
-              data-no-drag="true"
-            >
-              <Square className="w-3 h-3" />
-            </button>
-            <button
-              type="button"
-              onClick={handleClose}
-              className="w-8 h-8 rounded-lg hover:bg-rose-600 hover:text-white active:bg-rose-700 flex items-center justify-center transition-all cursor-pointer text-slate-400"
-              title={t("topbar.close_app")}
-              data-no-drag="true"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleMinimize}
+                  className="w-8 h-8 rounded-lg"
+                  aria-label={t("tooltips.minimize")}
+                  data-no-drag="true"
+                >
+                  <Minus className="w-3.5 h-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t("tooltips.minimize")}</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleToggleMaximize}
+                  className="w-8 h-8 rounded-lg"
+                  aria-label={t("tooltips.maximize")}
+                  data-no-drag="true"
+                >
+                  <Square className="w-3 h-3" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t("tooltips.maximize")}</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleClose}
+                  className="w-8 h-8 rounded-lg hover:bg-rose-600 hover:text-white active:bg-rose-700"
+                  aria-label={t("topbar.close_app")}
+                  data-no-drag="true"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t("topbar.close_app")}</TooltipContent>
+            </Tooltip>
           </div>
         </div>
       </div>

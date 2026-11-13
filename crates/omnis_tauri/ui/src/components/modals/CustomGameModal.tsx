@@ -2,6 +2,16 @@ import React, { useState } from "react";
 import { PlusCircle, X, FolderOpen, Folder } from "lucide-react";
 import { api } from "../../api";
 import { useTranslation } from "../../i18n";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 interface CustomGameModalProps {
   isOpen: boolean;
@@ -21,8 +31,6 @@ export default function CustomGameModal({
   const [customWorkingDir, setCustomWorkingDir] = useState<string | null>(null);
   const [customCoverPath, setCustomCoverPath] = useState<string>("");
   const [isAddingCustom, setIsAddingCustom] = useState<boolean>(false);
-
-  if (!isOpen) return null;
 
   const handlePickCustomExe = async () => {
     try {
@@ -44,7 +52,10 @@ export default function CustomGameModal({
             }
           }
         } catch (resolveErr) {
-          console.warn("Could not resolve shortcut details, using raw path:", resolveErr);
+          console.warn(
+            "Could not resolve shortcut details, using raw path:",
+            resolveErr
+          );
         }
 
         setCustomExePath(exeToSet);
@@ -53,9 +64,7 @@ export default function CustomGameModal({
 
         if (!customTitle.trim()) {
           if (suggestedName) {
-            const formatted = suggestedName
-              .replace(/[_-]/g, " ")
-              .trim();
+            const formatted = suggestedName.replace(/[_-]/g, " ").trim();
             setCustomTitle(formatted);
           } else {
             const sep = exeToSet.includes("\\") ? "\\" : "/";
@@ -136,46 +145,56 @@ export default function CustomGameModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div
-        className="w-full max-w-md rounded-2xl border shadow-2xl p-6"
-        style={{
-          backgroundColor: "var(--bg-card)",
-          borderColor: "var(--border-color)",
-          color: "var(--text-primary)",
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open && !isAddingCustom) onClose();
+      }}
+    >
+      <DialogContent
+        showCloseButton={false}
+        className="max-w-md rounded-2xl bg-card p-6 gap-0"
+        onEscapeKeyDown={(e) => {
+          if (isAddingCustom) e.preventDefault();
+        }}
+        onPointerDownOutside={(e) => {
+          if (isAddingCustom) e.preventDefault();
         }}
       >
-        <div
-          className="flex items-center justify-between pb-4 border-b"
-          style={{ borderColor: "var(--border-color)" }}
-        >
+        <DialogHeader className="flex-row items-center justify-between pb-4 border-b border-border space-y-0">
           <div className="flex items-center gap-2">
             <PlusCircle className="w-5 h-5 text-emerald-400" />
-            <h3 className="text-base font-semibold tracking-wide">
+            <DialogTitle className="text-base font-semibold tracking-wide text-foreground">
               {t("custom_game.title")}
-            </h3>
+            </DialogTitle>
           </div>
-          <button
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            disabled={isAddingCustom}
             onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-white/10 transition-colors text-slate-400 hover:text-white"
+            aria-label={t("common.close")}
           >
             <X className="w-4 h-4" />
-          </button>
-        </div>
+          </Button>
+        </DialogHeader>
+        <DialogDescription className="sr-only">
+          {t("custom_game.title")}
+        </DialogDescription>
 
         <form onSubmit={handleAddCustomGame} className="mt-4 space-y-4">
           <div>
             <label className="block text-xs font-medium mb-1.5 text-slate-300">
               {t("custom_game.field_title")} *
             </label>
-            <input
+            <Input
               type="text"
               required
               value={customTitle}
               onChange={(e) => setCustomTitle(e.target.value)}
               placeholder={t("custom_game.title_placeholder")}
-              className="w-full px-3 py-2 rounded-xl border bg-black/30 text-sm font-normal focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
-              style={{ borderColor: "var(--border-color)" }}
+              className="bg-black/30 focus-visible:ring-emerald-500/50"
             />
           </div>
 
@@ -184,36 +203,37 @@ export default function CustomGameModal({
               {t("custom_game.field_exe")} *
             </label>
             <div className="flex flex-col sm:flex-row gap-2">
-              <input
+              <Input
                 type="text"
                 required
                 value={customExePath}
                 onChange={(e) => setCustomExePath(e.target.value)}
                 placeholder={t("custom_game.exe_placeholder")}
-                className="flex-1 px-3 py-2 rounded-xl border bg-black/30 text-xs font-mono font-normal focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
-                style={{ borderColor: "var(--border-color)" }}
+                className="flex-1 bg-black/30 text-xs font-mono focus-visible:ring-emerald-500/50"
               />
               <div className="flex gap-1.5 shrink-0">
-                <button
+                <Button
                   type="button"
+                  variant="secondary"
+                  size="sm"
                   onClick={handlePickCustomExe}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl border bg-white/5 hover:bg-white/10 text-xs font-medium text-slate-200 transition-colors"
-                  style={{ borderColor: "var(--border-color)" }}
+                  className="h-9 border-border bg-white/5 hover:bg-white/10"
                   title={t("custom_game.browse_exe_title")}
                 >
                   <FolderOpen className="w-3.5 h-3.5 text-emerald-400" />
                   <span>{t("custom_game.browse_exe")}</span>
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  variant="secondary"
+                  size="sm"
                   onClick={handlePickCustomFolder}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl border bg-white/5 hover:bg-white/10 text-xs font-medium text-slate-200 transition-colors"
-                  style={{ borderColor: "var(--border-color)" }}
+                  className="h-9 border-border bg-white/5 hover:bg-white/10"
                   title={t("custom_game.browse_folder_title")}
                 >
                   <Folder className="w-3.5 h-3.5 text-sky-400" />
                   <span>{t("custom_game.browse_folder")}</span>
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -223,51 +243,51 @@ export default function CustomGameModal({
               {t("custom_game.field_cover")}
             </label>
             <div className="flex gap-2">
-              <input
+              <Input
                 type="text"
                 value={customCoverPath}
                 onChange={(e) => setCustomCoverPath(e.target.value)}
                 placeholder={t("custom_game.cover_placeholder")}
-                className="flex-1 px-3 py-2 rounded-xl border bg-black/30 text-xs font-mono font-normal focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
-                style={{ borderColor: "var(--border-color)" }}
+                className="flex-1 bg-black/30 text-xs font-mono focus-visible:ring-emerald-500/50"
               />
-              <button
+              <Button
                 type="button"
+                variant="secondary"
+                size="sm"
                 onClick={handlePickCustomCover}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl border bg-white/5 hover:bg-white/10 text-xs font-medium text-slate-200 transition-colors shrink-0"
-                style={{ borderColor: "var(--border-color)" }}
+                className="h-9 border-border bg-white/5 hover:bg-white/10 shrink-0"
                 title={t("custom_game.browse_cover_title")}
               >
                 <FolderOpen className="w-3.5 h-3.5 text-emerald-400" />
                 <span>{t("custom_game.browse")}</span>
-              </button>
+              </Button>
             </div>
           </div>
 
-          <div
-            className="flex justify-end gap-2 pt-4 border-t"
-            style={{ borderColor: "var(--border-color)" }}
-          >
-            <button
+          <DialogFooter className="flex-row justify-end gap-2 pt-4 border-t border-border sm:space-x-0">
+            <Button
               type="submit"
               disabled={isAddingCustom}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium text-white shadow-lg transition-all hover:brightness-110 active:opacity-90 cursor-pointer disabled:opacity-50"
-              style={{ backgroundColor: "var(--accent-primary)" }}
+              className="shadow-lg"
             >
               <PlusCircle className="w-4 h-4" />
-              <span>{isAddingCustom ? t("custom_game.adding") : t("custom_game.add")}</span>
-            </button>
-            <button
+              <span>
+                {isAddingCustom
+                  ? t("custom_game.adding")
+                  : t("custom_game.add")}
+              </span>
+            </Button>
+            <Button
               type="button"
+              variant="outline"
+              disabled={isAddingCustom}
               onClick={onClose}
-              className="px-4 py-2 rounded-xl border text-xs font-medium text-slate-300 hover:bg-white/5 transition-colors cursor-pointer"
-              style={{ borderColor: "var(--border-color)" }}
             >
               {t("common.cancel")}
-            </button>
-          </div>
+            </Button>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

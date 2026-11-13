@@ -19,6 +19,8 @@ import { api } from '../../api';
 import type { EmulatorSettings, EmulatorStatus } from '../../api/games';
 import type { GameDto } from '../../types';
 import soundEffects from '../../utils/soundEffects';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { SettingGroup, SettingRadioOption, SettingRow, ToggleSwitch } from './SettingsControls';
 
 export interface EmulatorsSettingsTabProps {
@@ -145,9 +147,7 @@ export const EmulatorsSettingsTab: React.FC<EmulatorsSettingsTabProps> = ({ onSy
     });
   };
 
-  const smallButton =
-    'flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer disabled:opacity-50 shrink-0';
-  const smallButtonStyle = { borderColor: 'var(--border-color)', color: 'var(--text-primary)' };
+  const compactBtnClass = 'h-7 px-2.5 rounded-lg text-[10px] font-bold shrink-0';
 
   const handleSync = async () => {
     soundEffects.playSelect();
@@ -162,26 +162,29 @@ export const EmulatorsSettingsTab: React.FC<EmulatorsSettingsTabProps> = ({ onSy
   };
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
-      <SettingGroup
-        title={t('emulators_settings.detected_title', { defaultValue: 'Emulatori rilevati' })}
-        description={t('emulators_settings.detected_desc', {
-          defaultValue:
-            'Omnis legge le cartelle dei giochi configurate negli emulatori: non serve impostare nulla qui.',
-        })}
-        icon={<Gamepad2 className="w-4 h-4" />}
-        action={
-          <button
-            onClick={handleSync}
-            disabled={busy}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold border transition-colors cursor-pointer disabled:opacity-50"
-            style={{ borderColor: 'var(--border-color)', color: 'var(--text-primary)' }}
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${busy ? 'animate-spin' : ''}`} />
-            {t('emulators_settings.sync', { defaultValue: 'Aggiorna libreria' })}
-          </button>
-        }
-      >
+    <ScrollArea className="flex-1">
+      <div className="p-6 space-y-6">
+        <SettingGroup
+          title={t('emulators_settings.detected_title', { defaultValue: 'Emulatori rilevati' })}
+          description={t('emulators_settings.detected_desc', {
+            defaultValue:
+              'Omnis legge le cartelle dei giochi configurate negli emulatori: non serve impostare nulla qui.',
+          })}
+          icon={<Gamepad2 className="w-4 h-4" />}
+          action={
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleSync}
+              disabled={busy}
+              className="h-8 px-3 text-[11px] font-bold"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${busy ? 'animate-spin' : ''}`} />
+              {t('emulators_settings.sync', { defaultValue: 'Aggiorna libreria' })}
+            </Button>
+          }
+        >
         {emulators === null ? null : emulators.length === 0 ? (
           <SettingRow
             title={t('emulators_settings.none_title', { defaultValue: 'Nessun emulatore Switch trovato' })}
@@ -229,21 +232,23 @@ export const EmulatorsSettingsTab: React.FC<EmulatorsSettingsTabProps> = ({ onSy
               }
             >
               {!emu.executable && (
-                <button onClick={handlePickExecutable} disabled={busy} className={smallButton} style={smallButtonStyle}>
+                <Button type="button" variant="outline" size="sm" onClick={handlePickExecutable} disabled={busy} className={compactBtnClass}>
                   <FileSearch className="w-3.5 h-3.5" />
                   {t('emulators_settings.pick_exe', { defaultValue: 'Scegli eseguibile…' })}
-                </button>
+                </Button>
               )}
               {emu.custom_executable && emu.executable && (
-                <button
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
                   onClick={() => handleRemoveExecutable(emu.executable!)}
                   disabled={busy}
-                  className={smallButton}
-                  style={smallButtonStyle}
+                  className={compactBtnClass}
                   title={t('emulators_settings.remove_exe', { defaultValue: 'Torna al rilevamento automatico' })}
                 >
                   <X className="w-3.5 h-3.5" />
-                </button>
+                </Button>
               )}
             </SettingRow>
           ))
@@ -263,10 +268,10 @@ export const EmulatorsSettingsTab: React.FC<EmulatorsSettingsTabProps> = ({ onSy
             )
           }
         >
-          <button onClick={handlePickExecutable} disabled={busy} className={smallButton} style={smallButtonStyle}>
+          <Button type="button" variant="outline" size="sm" onClick={handlePickExecutable} disabled={busy} className={compactBtnClass}>
             <FileSearch className="w-3.5 h-3.5" />
             {t('emulators_settings.pick_exe', { defaultValue: 'Scegli eseguibile…' })}
-          </button>
+          </Button>
         </SettingRow>
       </SettingGroup>
 
@@ -278,10 +283,10 @@ export const EmulatorsSettingsTab: React.FC<EmulatorsSettingsTabProps> = ({ onSy
         })}
         icon={<FolderPlus className="w-4 h-4" />}
         action={
-          <button onClick={handleAddFolder} disabled={busy} className={smallButton} style={smallButtonStyle}>
+          <Button type="button" variant="outline" size="sm" onClick={handleAddFolder} disabled={busy} className={compactBtnClass}>
             <FolderPlus className="w-3.5 h-3.5" />
             {t('emulators_settings.add_folder', { defaultValue: 'Aggiungi cartella…' })}
-          </button>
+          </Button>
         }
       >
         {(settings.switch_extra_game_dirs ?? []).length === 0 ? (
@@ -295,15 +300,17 @@ export const EmulatorsSettingsTab: React.FC<EmulatorsSettingsTabProps> = ({ onSy
               icon={<FolderOpen className="w-4 h-4" />}
               title={<span className="font-mono text-[11px] break-all">{dir}</span>}
             >
-              <button
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
                 onClick={() => handleRemoveFolder(dir)}
                 disabled={busy}
-                className={smallButton}
-                style={smallButtonStyle}
+                className={compactBtnClass}
                 title={t('emulators_settings.remove_folder', { defaultValue: 'Rimuovi cartella' })}
               >
                 <X className="w-3.5 h-3.5" />
-              </button>
+              </Button>
             </SettingRow>
           ))
         )}
@@ -435,6 +442,7 @@ export const EmulatorsSettingsTab: React.FC<EmulatorsSettingsTabProps> = ({ onSy
           </p>
         </div>
       </div>
-    </div>
+      </div>
+    </ScrollArea>
   );
 };
