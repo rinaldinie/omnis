@@ -2,6 +2,7 @@ import React from "react";
 import { LogIn, LogOut } from "lucide-react";
 import { useTranslation } from "../../../i18n/i18nContext";
 import { StoreAccount, formatLastSync } from "../../store_accounts/types";
+import { Button } from "@/components/ui/button";
 
 export interface OAuthStoreSectionProps {
   storeId: string;
@@ -81,26 +82,28 @@ export const OAuthStoreSection: React.FC<OAuthStoreSectionProps> = ({
             </div>
           </div>
 
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="sm"
             onClick={() => onRequestDisconnect(storeId, storeName)}
             disabled={isLoading}
-            className="px-3 py-1.5 rounded-lg border border-rose-500/30 text-rose-300 hover:bg-rose-500/15 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+            className="h-auto px-3 py-1.5 rounded-lg border border-rose-500/30 text-rose-300 hover:bg-rose-500/15 hover:text-rose-200 text-xs font-bold gap-1.5"
           >
             <LogOut className="w-3.5 h-3.5" />
             <span>{t("store_accounts.disconnect")}</span>
-          </button>
+          </Button>
         </div>
       ) : (
         <div className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/10">
           <p className="text-xs text-slate-400">
             {t("store_accounts.oauth_desc")}
           </p>
-          <button
+          <Button
             type="button"
             onClick={onConnect}
             disabled={isLoading}
-            className="px-4 py-2 rounded-xl text-white text-xs font-bold transition-all shadow-md flex items-center gap-1.5 shrink-0 cursor-pointer disabled:opacity-50 hover:brightness-110 active:scale-95"
+            className="h-auto px-4 py-2 rounded-xl text-white text-xs font-bold shadow-md gap-1.5 shrink-0 hover:brightness-110 active:scale-95"
             style={{
               backgroundColor: "var(--accent-primary)",
               boxShadow: "0 4px 14px var(--accent-glow)",
@@ -108,7 +111,7 @@ export const OAuthStoreSection: React.FC<OAuthStoreSectionProps> = ({
           >
             <LogIn className="w-3.5 h-3.5" />
             <span>{t("store_accounts.connect")}</span>
-          </button>
+          </Button>
         </div>
       )}
     </div>

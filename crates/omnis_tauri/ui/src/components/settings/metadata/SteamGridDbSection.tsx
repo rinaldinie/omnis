@@ -4,6 +4,8 @@ import { useTranslation } from "../../../i18n";
 import { openExternalUrl } from "../../../utils/openUrl";
 import { ProviderInfo } from "../../../types";
 import { SettingGroup, SettingRow, ToggleSwitch } from "../SettingsControls";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 export interface SteamGridDbSectionProps {
   provider?: ProviderInfo;
@@ -113,21 +115,23 @@ export const SteamGridDbSection: React.FC<SteamGridDbSectionProps> = ({
           }
         >
           <div className="relative w-full max-w-sm flex items-center">
-            <input
+            <Input
               type={showSecret ? "text" : "password"}
               value={settings.api_key || ""}
               onChange={(e) => onSettingChange("api_key", e.target.value.trim())}
               placeholder={hasKey && !settings.api_key ? "••••••••••••••••••••••••" : "es. d41d8cd98f00b204e9800998ecf8427e"}
-              className="w-full bg-slate-900/90 border rounded-xl pl-3 pr-10 py-2 text-xs font-mono text-white placeholder-slate-500 focus:outline-none"
+              className="h-auto w-full bg-slate-900/90 rounded-xl pl-3 pr-10 py-2 text-xs font-mono text-white placeholder:text-slate-500"
               style={{ borderColor: "var(--border-color)" }}
             />
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="icon-xs"
               onClick={onToggleSecret}
-              className="absolute right-2.5 text-slate-400 hover:text-white p-1"
+              className="absolute right-2 text-slate-400 hover:text-white hover:bg-transparent"
             >
               {showSecret ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-            </button>
+            </Button>
           </div>
         </SettingRow>
       </SettingGroup>
@@ -161,25 +165,26 @@ export const SteamGridDbSection: React.FC<SteamGridDbSectionProps> = ({
         </div>
 
         <div className="flex items-center gap-2 self-end sm:self-auto">
-          <button
+          <Button
             type="button"
+            variant="outline"
             onClick={onTest}
             disabled={testStatus?.loading}
-            className="px-4 py-2 rounded-xl text-xs font-bold border border-white/20 bg-white/5 hover:bg-white/10 active:scale-95 text-white flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
+            className="h-auto px-4 py-2 rounded-xl text-xs font-bold border-white/20 bg-white/5 hover:bg-white/10 active:scale-95 text-white gap-1.5"
           >
             <Key className="w-3.5 h-3.5" />{" "}
             <span>{t("metadata_settings.btn_test_connection", { defaultValue: "Test Connection" })}</span>
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             onClick={onSave}
             disabled={isSaving}
-            className="px-6 py-2 rounded-xl text-xs font-bold text-white shadow-md hover:brightness-110 active:opacity-90 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+            className="h-auto px-6 py-2 rounded-xl text-xs font-bold text-white shadow-md hover:brightness-110 active:opacity-90 gap-1.5"
             style={{ backgroundColor: "var(--accent-primary)" }}
           >
             {isSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
             <span>{t("common.save", { defaultValue: "Save" })}</span>
-          </button>
+          </Button>
         </div>
       </div>
     </div>

@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import {
   Search,
   Sparkles,
-  X,
   Check,
   CheckSquare,
   Square,
@@ -21,6 +20,17 @@ import {
 import { useTranslation } from "../i18n";
 import { GameDto } from "../types";
 import { api } from "../api";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 export interface MetadataCandidateDto {
   provider_id: string;
@@ -494,26 +504,22 @@ export default function MetadataResolutionModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div
-        className="w-full max-w-5xl max-h-[92vh] flex flex-col rounded-2xl border shadow-2xl overflow-hidden"
-        style={{
-          backgroundColor: "var(--bg-surface)",
-          borderColor: "var(--border-color)",
-          color: "var(--text-primary)",
-        }}
+    <Dialog
+      open={isOpen && Boolean(game)}
+      onOpenChange={(open) => {
+        if (!open && !isApplying) {
+          onClose();
+        }
+      }}
+    >
+      <DialogContent
+        className="max-w-5xl w-full max-h-[92vh] p-0 flex flex-col rounded-2xl overflow-hidden gap-0 text-foreground"
+        closeButtonDisabled={isApplying}
       >
-        {/* HEADER */}
-        <div
-          className="flex items-center justify-between px-6 py-4 border-b shrink-0"
-          style={{
-            backgroundColor: "var(--bg-card)",
-            borderColor: "var(--border-color)",
-          }}
-        >
-          <div className="flex items-center gap-3">
+        <DialogHeader className="flex-row items-center justify-between px-6 py-4 border-b border-border bg-card shrink-0 space-y-0 text-left pr-14">
+          <div className="flex items-center gap-3 min-w-0">
             <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg"
+              className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg shrink-0"
               style={{
                 backgroundColor: "var(--accent-primary)",
                 boxShadow: "0 0 15px var(--accent-glow)",
@@ -521,35 +527,22 @@ export default function MetadataResolutionModal({
             >
               <Sparkles className="w-5 h-5 text-white" />
             </div>
-            <div>
-              <h2 className="text-lg font-semibold tracking-wide text-white">
+            <div className="min-w-0">
+              <DialogTitle className="text-lg font-semibold tracking-wide text-foreground">
                 {t('game_details.identify_metadata')}
-              </h2>
-              <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                {t("metadata_resolution.current_title")} <span className="font-medium text-white">{game.title}</span> ({game.library})
-              </p>
+              </DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground mt-0.5 truncate">
+                {t("metadata_resolution.current_title")} <span className="font-medium text-foreground">{game.title}</span> ({game.library})
+              </DialogDescription>
             </div>
           </div>
-
-          <button
-            onClick={onClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+        </DialogHeader>
 
         {/* SEARCH BAR */}
-        <div
-          className="px-6 py-4 border-b shrink-0 flex flex-col md:flex-row gap-3 items-center"
-          style={{
-            backgroundColor: "var(--bg-surface)",
-            borderColor: "var(--border-color)",
-          }}
-        >
+        <div className="px-6 py-4 border-b border-border bg-popover shrink-0 flex flex-col md:flex-row gap-3 items-center">
           <div className="relative flex-1 w-full">
-            <Search className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
-            <input
+            <Search className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400 pointer-events-none" />
+            <Input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -557,12 +550,7 @@ export default function MetadataResolutionModal({
                 if (e.key === "Enter") handleSearch(searchTerm, providerId);
               }}
               placeholder={t("metadata_resolution.search_placeholder")}
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm font-normal outline-none transition-all focus:ring-1 focus:ring-indigo-500"
-              style={{
-                backgroundColor: "var(--bg-card)",
-                borderColor: "var(--border-color)",
-                color: "var(--text-primary)",
-              }}
+              className="pl-10 pr-4 py-2.5 h-auto rounded-xl text-sm font-normal bg-card"
             />
           </div>
 
@@ -590,14 +578,12 @@ export default function MetadataResolutionModal({
             </select>
           </div>
 
-          <button
+          <Button
+            type="button"
             onClick={() => handleSearch(searchTerm, providerId)}
             disabled={isSearching || !searchTerm.trim()}
-            className="w-full md:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-medium text-white shadow-md transition-all hover:brightness-110 active:opacity-90 disabled:opacity-50 cursor-pointer"
-            style={{
-              backgroundColor: "var(--accent-primary)",
-              boxShadow: "0 0 15px var(--accent-glow)",
-            }}
+            className="w-full md:w-auto px-5 py-2.5 h-auto font-medium shadow-md"
+            style={{ boxShadow: "0 0 15px var(--accent-glow)" }}
           >
             {isSearching ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -605,16 +591,14 @@ export default function MetadataResolutionModal({
               <Search className="w-4 h-4" />
             )}
             <span>{isSearching ? t('common.loading') : t('common.search')}</span>
-          </button>
+          </Button>
         </div>
 
         {/* MAIN BODY: 2-COLUMN LAYOUT (CANDIDATES & FIELD CHECKLIST) */}
-        <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
+        <div className="flex-1 min-h-0 overflow-hidden flex flex-col md:flex-row">
           {/* LEFT: CANDIDATES LIST */}
-          <div
-            className="flex-1 overflow-y-auto p-6 border-b md:border-b-0 md:border-r space-y-4"
-            style={{ borderColor: "var(--border-color)" }}
-          >
+          <ScrollArea className="flex-1 min-h-0 border-b md:border-b-0 md:border-r border-border">
+            <div className="p-6 space-y-4">
             <div className="flex items-center justify-between pb-1">
               <span className="text-xs font-medium tracking-wider uppercase text-slate-400">
                 {t("metadata_resolution.results", { count: candidates.length })}
@@ -745,46 +729,57 @@ export default function MetadataResolutionModal({
                 })}
               </div>
             )}
-          </div>
+            </div>
+          </ScrollArea>
 
           {/* RIGHT: CHECKLIST "CAMPI DA IMPORTARE" & PREVIEW */}
-          <div
-            className="w-full md:w-88 lg:w-96 overflow-y-auto p-6 space-y-5"
-            style={{ backgroundColor: "var(--bg-surface)" }}
-          >
+          <ScrollArea className="w-full md:w-88 lg:w-96 min-h-0 bg-popover">
+            <div className="p-6 space-y-5">
             <div>
               <div className="flex items-center justify-between pb-2 flex-wrap gap-1">
                 <span className="text-xs font-medium tracking-wider uppercase text-slate-300">
                   {t("metadata_resolution.fields_title")}
                 </span>
                 <div className="flex items-center gap-1.5 text-[11px] flex-wrap">
-                  <button
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
                     onClick={selectAllFields}
-                    className="text-indigo-400 hover:underline font-medium cursor-pointer"
+                    className="h-auto p-0 text-[11px] text-indigo-400 font-medium"
                   >
                     {t("metadata_resolution.select_all")}
-                  </button>
+                  </Button>
                   <span className="text-slate-600">•</span>
-                  <button
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
                     onClick={selectMissingFields}
-                    className="text-amber-400 hover:underline font-medium cursor-pointer"
+                    className="h-auto p-0 text-[11px] text-amber-400 font-medium"
                   >
                     {t("metadata_resolution.select_missing")}
-                  </button>
+                  </Button>
                   <span className="text-slate-600">•</span>
-                  <button
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
                     onClick={selectArtworkOnly}
-                    className="text-cyan-400 hover:underline font-medium cursor-pointer"
+                    className="h-auto p-0 text-[11px] text-cyan-400 font-medium"
                   >
                     {t("metadata_resolution.select_artwork")}
-                  </button>
+                  </Button>
                   <span className="text-slate-600">•</span>
-                  <button
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
                     onClick={deselectAllFields}
-                    className="text-slate-400 hover:underline font-medium cursor-pointer"
+                    className="h-auto p-0 text-[11px] text-muted-foreground font-medium"
                   >
                     {t("metadata_resolution.select_none")}
-                  </button>
+                  </Button>
                 </div>
               </div>
 
@@ -923,7 +918,8 @@ export default function MetadataResolutionModal({
                 </div>
               </div>
             )}
-          </div>
+            </div>
+          </ScrollArea>
         </div>
 
         {/* FEEDBACK STATUS */}
@@ -940,18 +936,11 @@ export default function MetadataResolutionModal({
           </div>
         )}
 
-        {/* FOOTER BUTTONS */}
-        <div
-          className="flex items-center justify-between px-6 py-4 border-t shrink-0"
-          style={{
-            backgroundColor: "var(--bg-card)",
-            borderColor: "var(--border-color)",
-          }}
-        >
-          <span className="text-xs text-slate-400">
+        <DialogFooter className="sm:justify-between items-center px-6 py-4 border-t border-border bg-card shrink-0">
+          <span className="text-xs text-muted-foreground">
             {selectedCandidate ? (
               <span>
-                {t("metadata_resolution.ready")} <strong className="font-semibold text-white">{selectedCandidate.title}</strong>
+                {t("metadata_resolution.ready")} <strong className="font-semibold text-foreground">{selectedCandidate.title}</strong>
               </span>
             ) : (
               <span>{t("metadata_resolution.select_to_continue")}</span>
@@ -959,14 +948,12 @@ export default function MetadataResolutionModal({
           </span>
 
           <div className="flex items-center gap-3">
-            <button
+            <Button
+              type="button"
               onClick={handleApply}
               disabled={!selectedCandidate || selectedFields.length === 0 || isApplying}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-medium text-white shadow-xl transition-all hover:brightness-110 active:opacity-90 disabled:opacity-50 cursor-pointer"
-              style={{
-                backgroundColor: "var(--accent-primary)",
-                boxShadow: "0 0 20px var(--accent-glow)",
-              }}
+              className="px-6 py-2.5 h-auto font-medium shadow-xl"
+              style={{ boxShadow: "0 0 20px var(--accent-glow)" }}
             >
               {isApplying ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -974,19 +961,20 @@ export default function MetadataResolutionModal({
                 <Check className="w-4 h-4" />
               )}
               <span>{isApplying ? t("metadata_resolution.applying") : t("metadata_resolution.apply")}</span>
-            </button>
+            </Button>
 
-            <button
+            <Button
+              type="button"
+              variant="outline"
               onClick={onClose}
               disabled={isApplying}
-              className="px-5 py-2.5 rounded-xl border text-xs font-medium text-slate-300 hover:bg-white/5 transition-all cursor-pointer"
-              style={{ borderColor: "var(--border-color)" }}
+              className="px-5 py-2.5 h-auto font-medium"
             >
               {t('common.cancel')}
-            </button>
+            </Button>
           </div>
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

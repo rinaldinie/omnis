@@ -30,6 +30,19 @@ import {
 } from "../../types";
 import { useTranslation } from "../../i18n";
 import soundEffects from "../../utils/soundEffects";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 
 export type PlayniteImportStep =
   | "idle"
@@ -228,66 +241,60 @@ export default function PlayniteImportModal({
       <div className="space-y-3 pt-1">
         {/* TAB BUTTONS & SEARCH */}
         <div className="flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
-          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-800/60 border border-white/5">
-            <button
-              type="button"
-              onClick={() => {
-                soundEffects.playSelect();
-                setPreviewTab("matched");
-              }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-                previewTab === "matched"
-                  ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shadow-sm"
-                  : "text-slate-400 hover:text-slate-200"
-              }`}
-            >
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>
-                {t("playnite_import.tab_matched_games", {
-                  count: inspection.matching_games_in_library,
-                })}
-              </span>
-            </button>
+          <Tabs
+            value={previewTab}
+            onValueChange={(v) => {
+              soundEffects.playSelect();
+              setPreviewTab(v as "matched" | "unmatched");
+            }}
+          >
+            <TabsList className="h-auto p-1 rounded-xl bg-slate-800/60 border border-white/5 gap-1">
+              <TabsTrigger
+                value="matched"
+                className="px-3 py-1.5 rounded-lg text-xs font-bold gap-1.5 border-0 data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-300 data-[state=active]:border data-[state=active]:border-emerald-500/30 data-[state=inactive]:text-slate-400"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>
+                  {t("playnite_import.tab_matched_games", {
+                    count: inspection.matching_games_in_library,
+                  })}
+                </span>
+              </TabsTrigger>
 
-            <button
-              type="button"
-              onClick={() => {
-                soundEffects.playSelect();
-                setPreviewTab("unmatched");
-              }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-                previewTab === "unmatched"
-                  ? "bg-amber-500/20 text-amber-300 border border-amber-500/30 shadow-sm"
-                  : "text-slate-400 hover:text-slate-200"
-              }`}
-            >
-              <AlertCircle className="w-3.5 h-3.5" />
-              <span>
-                {t("playnite_import.tab_unmatched_in_library", {
-                  count: unmatchedList.length,
-                })}
-              </span>
-            </button>
-          </div>
+              <TabsTrigger
+                value="unmatched"
+                className="px-3 py-1.5 rounded-lg text-xs font-bold gap-1.5 border-0 data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-300 data-[state=active]:border data-[state=active]:border-amber-500/30 data-[state=inactive]:text-slate-400"
+              >
+                <AlertCircle className="w-3.5 h-3.5" />
+                <span>
+                  {t("playnite_import.tab_unmatched_in_library", {
+                    count: unmatchedList.length,
+                  })}
+                </span>
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
 
           {/* Search input */}
           <div className="relative flex-1 sm:max-w-xs">
-            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <Input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={t("playnite_import.search_preview_placeholder")}
-              className="w-full pl-8 pr-7 py-1.5 rounded-xl bg-slate-800/80 border border-white/10 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-purple-500"
+              className="pl-8 pr-7 py-1.5 h-auto rounded-xl bg-slate-800/80 border-white/10 text-xs text-slate-200 placeholder:text-slate-500 focus-visible:ring-purple-500"
             />
             {searchQuery && (
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="icon"
                 onClick={() => setSearchQuery("")}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 hover:text-white"
               >
                 <X className="w-3 h-3" />
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -415,55 +422,36 @@ export default function PlayniteImportModal({
       : 0;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-      <div
-        className="relative max-w-3xl w-full rounded-3xl border shadow-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
-        style={{
-          backgroundColor: "var(--bg-surface)",
-          borderColor: "var(--border-color)",
-        }}
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open && step !== "importing") {
+          handleClose();
+        }
+      }}
+    >
+      <DialogContent
+        showCloseButton={step !== "importing"}
+        closeButtonDisabled={step === "importing"}
+        className="max-w-3xl w-full rounded-3xl max-h-[90vh] p-0 flex flex-col overflow-hidden gap-0"
       >
-        {/* HEADER */}
-        <div
-          className="flex justify-between items-center px-6 py-4 border-b shrink-0"
-          style={{ borderColor: "var(--border-color)" }}
-        >
-          <div className="flex items-center gap-3">
-            <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center border shadow-md"
-              style={{
-                backgroundColor: "var(--bg-card)",
-                borderColor: "var(--border-color)",
-              }}
-            >
-              <Archive className="w-5 h-5 text-purple-400" />
-            </div>
-            <div>
-              <h3 className="text-lg font-black text-white">
-                {t("playnite_import.modal_title")}
-              </h3>
-              <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                {t("playnite_import.modal_subtitle")}
-              </p>
-            </div>
+        <DialogHeader className="flex-row items-center gap-3 px-6 py-4 border-b border-border space-y-0 text-left pr-14 shrink-0">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center border border-border bg-card shadow-md shrink-0">
+            <Archive className="w-5 h-5 text-purple-400" />
           </div>
-          {step !== "importing" && (
-            <button
-              onClick={handleClose}
-              className="w-8 h-8 rounded-full border flex items-center justify-center font-bold hover:bg-white/10 active:opacity-90 cursor-pointer"
-              style={{
-                backgroundColor: "var(--bg-card)",
-                borderColor: "var(--border-color)",
-                color: "var(--text-muted)",
-              }}
-            >
-              <X className="w-4 h-4" />
-            </button>
-          )}
-        </div>
+          <div className="min-w-0">
+            <DialogTitle className="text-lg font-black text-foreground">
+              {t("playnite_import.modal_title")}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              {t("playnite_import.modal_subtitle")}
+            </DialogDescription>
+          </div>
+        </DialogHeader>
 
         {/* BODY */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
+        <ScrollArea className="flex-1 min-h-0">
+          <div className="p-6 space-y-6">
           {/* STEP 1: IDLE / FILE SELECTION */}
           {step === "idle" && (
             <div className="space-y-6">
@@ -502,15 +490,14 @@ export default function PlayniteImportModal({
                   {t("playnite_import.select_file_desc")}
                 </p>
 
-                <button
+                <Button
                   type="button"
                   onClick={handlePickFile}
-                  className="px-6 py-2.5 rounded-xl text-xs font-bold text-white shadow-lg flex items-center gap-2 cursor-pointer transition-all hover:brightness-110 active:opacity-90"
-                  style={{ backgroundColor: "var(--accent-primary)" }}
+                  className="px-6 py-2.5 h-auto font-bold shadow-lg"
                 >
                   <FolderOpen className="w-4 h-4" />
                   <span>{t("playnite_import.browse_button")}</span>
-                </button>
+                </Button>
               </div>
 
               {/* Informational tip */}
@@ -554,13 +541,15 @@ export default function PlayniteImportModal({
                     {zipPath}
                   </span>
                 </div>
-                <button
+                <Button
                   type="button"
+                  variant="link"
+                  size="sm"
                   onClick={handlePickFile}
-                  className="text-purple-400 hover:text-purple-300 transition-colors font-medium shrink-0 ml-3"
+                  className="h-auto p-0 text-purple-400 hover:text-purple-300 font-medium shrink-0 ml-3"
                 >
                   {t("playnite_import.change_file")}
-                </button>
+                </Button>
               </div>
 
               {/* Statistics Overview Cards */}
@@ -620,18 +609,9 @@ export default function PlayniteImportModal({
                 </span>
               </div>
 
-              {/* Import Options Checkboxes */}
+              {/* Import Options Switches */}
               <div className="p-4 rounded-xl border border-white/10 bg-slate-800/40 space-y-3">
-                <label className="flex items-start gap-3 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={updatePlaytime}
-                    onChange={(e) => {
-                      soundEffects.playSelect();
-                      setUpdatePlaytime(e.target.checked);
-                    }}
-                    className="mt-1 rounded border-slate-700 text-purple-600 focus:ring-purple-500"
-                  />
+                <div className="flex items-start justify-between gap-3">
                   <div>
                     <div className="text-xs font-bold text-white">
                       {t("playnite_import.option_update_playtime")}
@@ -640,20 +620,19 @@ export default function PlayniteImportModal({
                       {t("playnite_import.option_update_playtime_desc")}
                     </div>
                   </div>
-                </label>
+                  <Switch
+                    checked={updatePlaytime}
+                    onCheckedChange={(checked) => {
+                      soundEffects.playSelect();
+                      setUpdatePlaytime(checked);
+                    }}
+                    aria-label={t("playnite_import.option_update_playtime")}
+                  />
+                </div>
 
                 <div className="border-t border-white/5 my-2" />
 
-                <label className="flex items-start gap-3 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={importImages}
-                    onChange={(e) => {
-                      soundEffects.playSelect();
-                      setImportImages(e.target.checked);
-                    }}
-                    className="mt-1 rounded border-slate-700 text-purple-600 focus:ring-purple-500"
-                  />
+                <div className="flex items-start justify-between gap-3">
                   <div>
                     <div className="text-xs font-bold text-white">
                       {t("playnite_import.option_import_images")}
@@ -662,7 +641,15 @@ export default function PlayniteImportModal({
                       {t("playnite_import.option_import_images_desc")}
                     </div>
                   </div>
-                </label>
+                  <Switch
+                    checked={importImages}
+                    onCheckedChange={(checked) => {
+                      soundEffects.playSelect();
+                      setImportImages(checked);
+                    }}
+                    aria-label={t("playnite_import.option_import_images")}
+                  />
+                </div>
               </div>
 
               {/* Enhanced Matches & Unmatched Preview */}
@@ -778,114 +765,98 @@ export default function PlayniteImportModal({
               </div>
             </div>
           )}
-        </div>
+          </div>
+        </ScrollArea>
 
-        {/* FOOTER */}
-        <div
-          className="flex items-center justify-between px-6 py-4 border-t bg-black/40 shrink-0"
-          style={{ borderColor: "var(--border-color)" }}
-        >
+        <DialogFooter className="sm:justify-between items-center px-6 py-4 border-t border-border bg-black/40 shrink-0">
           <div>
             {step === "preview" && (
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="sm"
                 onClick={() => {
                   soundEffects.playSelect();
                   setStep("idle");
                 }}
-                className="text-xs text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+                className="h-auto px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
               >
                 {t("playnite_import.change_file")}
-              </button>
+              </Button>
             )}
           </div>
 
           <div className="flex items-center gap-3">
             {step === "idle" && (
-              <button
+              <Button
                 type="button"
+                variant="outline"
                 onClick={handleClose}
-                className="px-5 py-2 rounded-xl text-xs font-bold border hover:bg-white/10 transition-colors cursor-pointer"
-                style={{
-                  backgroundColor: "var(--bg-card)",
-                  borderColor: "var(--border-color)",
-                  color: "var(--text-primary)",
-                }}
+                className="px-5 py-2 h-auto font-bold"
               >
                 {t("common.cancel")}
-              </button>
+              </Button>
             )}
 
             {step === "preview" && (
               <>
-                <button
+                <Button
                   type="button"
+                  variant="outline"
                   onClick={handleClose}
-                  className="px-5 py-2 rounded-xl text-xs font-bold border hover:bg-white/10 transition-colors cursor-pointer"
-                  style={{
-                    backgroundColor: "var(--bg-card)",
-                    borderColor: "var(--border-color)",
-                    color: "var(--text-primary)",
-                  }}
+                  className="px-5 py-2 h-auto font-bold"
                 >
                   {t("playnite_import.btn_cancel")}
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
                   onClick={handleStartImport}
                   disabled={inspection?.matching_games_in_library === 0}
-                  className="px-6 py-2 rounded-xl text-xs font-bold text-white shadow-lg hover:brightness-110 active:opacity-90 flex items-center gap-2 cursor-pointer transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ backgroundColor: "var(--accent-primary)" }}
+                  className="px-6 py-2 h-auto font-bold shadow-lg"
                 >
                   <DownloadCloud className="w-4 h-4" />
                   <span>{t("playnite_import.btn_start_import")}</span>
-                </button>
+                </Button>
               </>
             )}
 
             {step === "completed" && (
-              <button
+              <Button
                 type="button"
                 onClick={handleClose}
-                className="px-6 py-2 rounded-xl text-xs font-bold text-white shadow-lg hover:brightness-110 active:opacity-90 flex items-center gap-2 cursor-pointer transition-all"
-                style={{ backgroundColor: "var(--accent-primary)" }}
+                className="px-6 py-2 h-auto font-bold shadow-lg"
               >
                 <Check className="w-4 h-4" />
                 <span>{t("playnite_import.btn_close")}</span>
-              </button>
+              </Button>
             )}
 
             {step === "error" && (
               <>
-                <button
+                <Button
                   type="button"
+                  variant="outline"
                   onClick={handleClose}
-                  className="px-5 py-2 rounded-xl text-xs font-bold border hover:bg-white/10 transition-colors cursor-pointer"
-                  style={{
-                    backgroundColor: "var(--bg-card)",
-                    borderColor: "var(--border-color)",
-                    color: "var(--text-primary)",
-                  }}
+                  className="px-5 py-2 h-auto font-bold"
                 >
                   {t("common.cancel")}
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
                   onClick={() => {
                     soundEffects.playSelect();
                     setStep("idle");
                   }}
-                  className="px-5 py-2 rounded-xl text-xs font-bold text-white shadow-md hover:brightness-110 active:opacity-90 flex items-center gap-2 cursor-pointer transition-all"
-                  style={{ backgroundColor: "var(--accent-primary)" }}
+                  className="px-5 py-2 h-auto font-bold shadow-md"
                 >
                   <RefreshCw className="w-4 h-4" />
                   <span>{t("playnite_import.btn_retry")}</span>
-                </button>
+                </Button>
               </>
             )}
           </div>
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

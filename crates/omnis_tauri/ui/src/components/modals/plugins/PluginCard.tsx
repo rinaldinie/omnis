@@ -15,6 +15,9 @@ import {
 import { ProviderInfo } from "../../../types";
 import { useTranslation } from "../../../i18n";
 import { renderProviderIcon, getProviderColor } from "./constants";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 
 export interface PluginCardProps {
   prov: ProviderInfo;
@@ -59,9 +62,12 @@ export const PluginCard: React.FC<PluginCardProps> = ({
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <h4 className="text-sm font-bold text-slate-300 truncate">{prov.name}</h4>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700/50">
+              <Badge
+                variant="outline"
+                className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-400 border-slate-700/50"
+              >
                 {t("plugin_manager.disabled")}
-              </span>
+              </Badge>
               {prov.version && (
                 <span className="text-[10px] font-mono text-slate-500">v{prov.version}</span>
               )}
@@ -74,10 +80,12 @@ export const PluginCard: React.FC<PluginCardProps> = ({
 
         <div className="flex items-center gap-2 shrink-0">
           {prov.is_builtin === false && (
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={() => onUninstall(prov.id)}
-              className="px-3 py-1.5 rounded-xl text-xs font-bold border transition-all text-rose-400 hover:text-white hover:border-rose-500/50 hover:bg-rose-500/10 flex items-center gap-1.5"
+              className="h-auto px-3 py-1.5 rounded-xl text-xs font-bold text-rose-400 hover:text-white hover:border-rose-500/50 hover:bg-rose-500/10 gap-1.5"
               style={{
                 backgroundColor: "var(--bg-card)",
                 borderColor: "var(--border-color)",
@@ -86,12 +94,14 @@ export const PluginCard: React.FC<PluginCardProps> = ({
             >
               <Trash2 className="w-3.5 h-3.5" />
               <span>{t("plugin_manager.uninstall")}</span>
-            </button>
+            </Button>
           )}
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={() => onToggle(prov.id, true)}
-            className="px-3.5 py-1.5 rounded-xl text-xs font-bold border transition-all text-slate-300 hover:text-white hover:border-emerald-500/50 hover:bg-emerald-500/10 flex items-center gap-1.5"
+            className="h-auto px-3.5 py-1.5 rounded-xl text-xs font-bold text-slate-300 hover:text-white hover:border-emerald-500/50 hover:bg-emerald-500/10 gap-1.5"
             style={{
               backgroundColor: "var(--bg-card)",
               borderColor: "var(--border-color)",
@@ -99,7 +109,7 @@ export const PluginCard: React.FC<PluginCardProps> = ({
           >
             <Power className="w-3 h-3 text-emerald-400" />
             <span>{t("plugin_manager.enable")}</span>
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -130,35 +140,53 @@ export const PluginCard: React.FC<PluginCardProps> = ({
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <h4 className="text-sm font-black text-white">{prov.name}</h4>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+              <Badge
+                variant="outline"
+                className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+              >
                 {t("plugin_manager.active")}
-              </span>
+              </Badge>
               {prov.is_builtin !== false ? (
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                <Badge
+                  variant="outline"
+                  className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/20 text-blue-300 border-blue-500/30"
+                >
                   {t("plugin_manager.builtin")}
-                </span>
+                </Badge>
               ) : (
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30 flex items-center gap-1">
+                <Badge
+                  variant="outline"
+                  className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/20 text-purple-300 border-purple-500/30 gap-1"
+                >
                   <Folder className="w-3 h-3 text-purple-400" />
                   <span>{t("plugin_manager.external", { version: prov.version || "1.0" })}</span>
-                </span>
+                </Badge>
               )}
               {prov.requires_api_key ? (
                 prov.has_configured_key ? (
-                  <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  <Badge
+                    variant="outline"
+                    className="gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+                  >
                     <CheckCircle2 className="w-3 h-3" />
                     <span>{t("plugin_manager.authenticated")}</span>
-                  </span>
+                  </Badge>
                 ) : (
-                  <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  <Badge
+                    variant="outline"
+                    className="gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border-amber-500/30"
+                  >
                     <Key className="w-3 h-3" />
                     <span>{t("plugin_manager.requires_key")}</span>
-                  </span>
+                  </Badge>
                 )
               ) : (
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                <Badge
+                  variant="outline"
+                  className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border-cyan-500/30"
+                >
                   Zero-Config
-                </span>
+                </Badge>
               )}
             </div>
 
@@ -179,10 +207,12 @@ export const PluginCard: React.FC<PluginCardProps> = ({
 
         <div className="flex items-center gap-2 shrink-0">
           {prov.is_builtin === false && (
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={() => onUninstall(prov.id)}
-              className="px-3 py-1.5 rounded-xl text-xs font-bold border transition-all text-rose-400 hover:text-white hover:border-rose-500/50 hover:bg-rose-500/10 flex items-center gap-1.5"
+              className="h-auto px-3 py-1.5 rounded-xl text-xs font-bold text-rose-400 hover:text-white hover:border-rose-500/50 hover:bg-rose-500/10 gap-1.5"
               style={{
                 backgroundColor: "var(--bg-card)",
                 borderColor: "var(--border-color)",
@@ -191,15 +221,17 @@ export const PluginCard: React.FC<PluginCardProps> = ({
             >
               <Trash2 className="w-3.5 h-3.5" />
               <span>{t("plugin_manager.uninstall")}</span>
-            </button>
+            </Button>
           )}
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={() => onToggle(prov.id, false)}
-            className="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all border bg-emerald-500/15 text-emerald-400 border-emerald-500/30 hover:bg-amber-500/20 hover:text-amber-300 hover:border-amber-500/40"
+            className="h-auto px-3.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-500/15 text-emerald-400 border-emerald-500/30 hover:bg-amber-500/20 hover:text-amber-300 hover:border-amber-500/40"
           >
             {t("plugin_manager.disable")}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -290,7 +322,7 @@ export const PluginCard: React.FC<PluginCardProps> = ({
                     </select>
                   ) : (
                     <div className="relative flex items-center">
-                      <input
+                      <Input
                         type={
                           ((field as any).type === "SecretString" ||
                             field.field_type?.type === "SecretString") &&
@@ -305,7 +337,7 @@ export const PluginCard: React.FC<PluginCardProps> = ({
                         }
                         value={settings[field.key] || ""}
                         onChange={(e) => onSettingChange(prov.id, field.key, e.target.value)}
-                        className="w-full h-8 px-3 pr-9 rounded-lg text-xs border font-mono focus:outline-none"
+                        className="w-full h-8 px-3 pr-9 rounded-lg text-xs font-mono"
                         style={{
                           backgroundColor: "var(--bg-card)",
                           borderColor: "var(--border-color)",
@@ -314,17 +346,19 @@ export const PluginCard: React.FC<PluginCardProps> = ({
                       />
                       {((field as any).type === "SecretString" ||
                         field.field_type?.type === "SecretString") && (
-                        <button
+                        <Button
                           type="button"
+                          variant="ghost"
+                          size="icon-xs"
                           onClick={() => onToggleApiKeyVisibility(prov.id)}
-                          className="absolute right-2.5 text-slate-400 hover:text-white"
+                          className="h-auto w-auto p-1 absolute right-2 text-slate-400 hover:text-white hover:bg-transparent"
                         >
                           {isApiKeyVisible ? (
                             <EyeOff className="w-3.5 h-3.5" />
                           ) : (
                             <Eye className="w-3.5 h-3.5" />
                           )}
-                        </button>
+                        </Button>
                       )}
                     </div>
                   )}
@@ -367,11 +401,13 @@ export const PluginCard: React.FC<PluginCardProps> = ({
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
-              <button
+              <Button
                 type="button"
+                variant="outline"
+                size="sm"
                 onClick={() => onTestConnection(prov.id)}
                 disabled={testInfo?.loading}
-                className="px-3 py-1.5 rounded-lg border text-xs font-bold transition-all flex items-center gap-1.5 hover:bg-white/5 active:opacity-80"
+                className="h-auto px-3 py-1.5 rounded-lg text-xs font-bold gap-1.5 hover:bg-white/5 active:opacity-80"
                 style={{
                   backgroundColor: "var(--bg-card)",
                   borderColor: "var(--border-color)",
@@ -380,15 +416,16 @@ export const PluginCard: React.FC<PluginCardProps> = ({
               >
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
                 <span>{t("plugins_modal.test_connection")}</span>
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                size="sm"
                 onClick={() => onSaveSettings(prov.id)}
-                className="px-4 py-1.5 rounded-lg text-xs font-black text-white shadow-md transition-all hover:brightness-110 active:opacity-90"
+                className="h-auto px-4 py-1.5 rounded-lg text-xs font-black text-white shadow-md hover:brightness-110 active:opacity-90"
                 style={{ backgroundColor: "var(--accent-primary)" }}
               >
                 {t("common.save")}
-              </button>
+              </Button>
             </div>
           </div>
         </div>

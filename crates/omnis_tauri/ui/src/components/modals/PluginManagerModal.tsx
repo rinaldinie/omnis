@@ -5,10 +5,9 @@ import {
   Folder,
   Sliders,
   Sparkles,
-  Store,
+  X,
 } from "lucide-react";
 import { ProviderInfo, MetadataPipelineConfig, TAURI_EVENTS } from "../../types";
-import { api } from "../../api";
 import { listenTauri } from "../../api/client";
 import { useTranslation } from "../../i18n";
 import { BUILTIN_LIBRARIES, PluginCategory } from "./plugins/constants";
@@ -16,6 +15,17 @@ import { PluginCard } from "./plugins/PluginCard";
 import { ProvidersTab } from "./plugins/ProvidersTab";
 import { PipelinePriorityTab } from "./plugins/PipelinePriorityTab";
 import { MassiveEnrichTab } from "./plugins/MassiveEnrichTab";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
 
 interface PluginManagerModalProps {
   isOpen: boolean;
@@ -140,8 +150,6 @@ export default function PluginManagerModal({
   const handleUninstall = async (_pluginId: string) => {
     // Tutti i provider sono integrati nativamente
   };
-
-  if (!isOpen) return null;
 
   const safeProviders = Array.isArray(providers) ? providers : [];
   const safePipelineConfig = pipelineConfig || {
@@ -282,47 +290,35 @@ export default function PluginManagerModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-      <div
-        className="relative max-w-4xl w-full rounded-3xl border shadow-2xl max-h-[88vh] flex flex-col overflow-hidden"
-        style={{
-          backgroundColor: "var(--bg-surface)",
-          borderColor: "var(--border-color)",
-        }}
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent
+        showCloseButton={false}
+        className="max-w-4xl w-full rounded-3xl max-h-[88vh] p-0 flex flex-col overflow-hidden gap-0"
       >
-        {/* Modal Header */}
-        <div
-          className="flex justify-between items-center px-6 py-4 border-b shrink-0"
-          style={{ borderColor: "var(--border-color)" }}
-        >
-          <div className="flex items-center gap-3">
-            <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center border shadow-lg"
-              style={{
-                backgroundColor: "var(--bg-card)",
-                borderColor: "var(--border-color)",
-              }}
-            >
+        <DialogHeader className="flex-row justify-between items-center px-6 py-4 border-b border-border space-y-0 text-left shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center border border-border bg-card shadow-lg shrink-0">
               <Puzzle className="w-5 h-5 text-indigo-400" />
             </div>
-            <div>
-              <h3 className="text-lg font-black text-white flex items-center gap-2">
+            <div className="min-w-0">
+              <DialogTitle className="text-lg font-black text-foreground flex items-center gap-2">
                 <span>{t("plugins_modal.title")}</span>
-              </h3>
-              <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+              </DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground">
                 {t("plugins_modal.subtitle")}
-              </p>
+              </DialogDescription>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
               onClick={handleRefreshPlugins}
               disabled={isRefreshingPlugins}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all hover:bg-white/10 active:opacity-80"
+              className="gap-1.5 px-3 py-1.5 h-auto rounded-lg text-xs font-bold"
               style={{
-                backgroundColor: "var(--bg-card)",
-                borderColor: "var(--border-color)",
                 color: isRefreshingPlugins ? "var(--accent-primary)" : "var(--text-muted)",
               }}
               title={t("plugin_manager.scan_title")}
@@ -333,123 +329,106 @@ export default function PluginManagerModal({
                 }`}
               />
               <span className="hidden sm:inline">{t("plugins_modal.refresh_plugins")}</span>
-            </button>
-            <button
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
               onClick={() => handleOpenFolder("plugins")}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all hover:bg-white/10 active:opacity-80"
-              style={{
-                backgroundColor: "var(--bg-card)",
-                borderColor: "var(--border-color)",
-                color: "var(--text-muted)",
-              }}
+              className="gap-1.5 px-3 py-1.5 h-auto rounded-lg text-xs font-bold text-muted-foreground"
               title={t("plugin_manager.open_folder_title")}
             >
               <Folder className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">{t("plugins_modal.plugins_folder")}</span>
-            </button>
-            <button
-              onClick={onClose}
-              className="w-8 h-8 rounded-full border flex items-center justify-center font-bold hover:bg-white/10 active:opacity-90"
-              style={{
-                backgroundColor: "var(--bg-card)",
-                borderColor: "var(--border-color)",
-                color: "var(--text-muted)",
-              }}
-            >
-              ✕
-            </button>
+            </Button>
+            <DialogClose asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="w-8 h-8 rounded-full text-muted-foreground"
+                aria-label={t("common.close", { defaultValue: "Close" })}
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </DialogClose>
           </div>
-        </div>
+        </DialogHeader>
 
-        {/* Tab Selector Header */}
-        <div className="px-6 pt-3 pb-2 shrink-0">
-          <div
-            className="flex p-1 rounded-xl border shrink-0"
-            style={{
-              backgroundColor: "var(--bg-card)",
-              borderColor: "var(--border-color)",
-            }}
-          >
-            <button
-              onClick={() => setPluginModalTab("providers")}
-              className="flex-1 py-2 rounded-lg text-xs font-bold transition-all text-center flex items-center justify-center gap-2"
-              style={{
-                backgroundColor:
-                  pluginModalTab === "providers" ? "var(--accent-primary)" : "transparent",
-                color: pluginModalTab === "providers" ? "#ffffff" : "var(--text-muted)",
-              }}
-            >
-              <Puzzle className="w-3.5 h-3.5" />
-              <span>{t("plugin_manager.tab_installed", { count: allCombined.length })}</span>
-            </button>
-            <button
-              onClick={() => setPluginModalTab("pipeline")}
-              className="flex-1 py-2 rounded-lg text-xs font-bold transition-all text-center flex items-center justify-center gap-2"
-              style={{
-                backgroundColor:
-                  pluginModalTab === "pipeline" ? "var(--accent-primary)" : "transparent",
-                color: pluginModalTab === "pipeline" ? "#ffffff" : "var(--text-muted)",
-              }}
-            >
-              <Sliders className="w-3.5 h-3.5" />
-              <span>{t("plugin_manager.tab_pipeline")}</span>
-            </button>
-            <button
-              onClick={() => setPluginModalTab("enrich")}
-              className="flex-1 py-2 rounded-lg text-xs font-bold transition-all text-center flex items-center justify-center gap-2"
-              style={{
-                backgroundColor:
-                  pluginModalTab === "enrich" ? "var(--accent-primary)" : "transparent",
-                color: pluginModalTab === "enrich" ? "#ffffff" : "var(--text-muted)",
-              }}
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>{t("plugin_manager.tab_enrich")}</span>
-            </button>
+        <Tabs
+          value={pluginModalTab}
+          onValueChange={(v) => setPluginModalTab(v as "providers" | "pipeline" | "enrich")}
+          className="flex-1 min-h-0 flex flex-col overflow-hidden"
+        >
+          <div className="px-6 pt-3 pb-2 shrink-0">
+            <TabsList className="w-full h-auto p-1 rounded-xl border border-border bg-card grid grid-cols-3">
+              <TabsTrigger
+                value="providers"
+                className="py-2 rounded-lg text-xs font-bold border-0 gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground"
+              >
+                <Puzzle className="w-3.5 h-3.5" />
+                <span>{t("plugin_manager.tab_installed", { count: allCombined.length })}</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="pipeline"
+                className="py-2 rounded-lg text-xs font-bold border-0 gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground"
+              >
+                <Sliders className="w-3.5 h-3.5" />
+                <span>{t("plugin_manager.tab_pipeline")}</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="enrich"
+                className="py-2 rounded-lg text-xs font-bold border-0 gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>{t("plugin_manager.tab_enrich")}</span>
+              </TabsTrigger>
+            </TabsList>
           </div>
-        </div>
 
-        {/* MODAL BODY (SCROLLABLE) */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5 custom-scrollbar">
-          {pluginModalTab === "providers" && (
-            <ProvidersTab
-              categoryFilter={categoryFilter}
-              setCategoryFilter={setCategoryFilter}
-              libraryList={libraryList}
-              metadataList={metadataList}
-              genericList={genericList}
-              allCount={allCombined.length}
-              renderPluginCard={renderPluginCard}
-            />
-          )}
+          <ScrollArea className="flex-1 min-h-0">
+            <div className="px-6 py-4 space-y-5">
+              <TabsContent value="providers" className="mt-0">
+                <ProvidersTab
+                  categoryFilter={categoryFilter}
+                  setCategoryFilter={setCategoryFilter}
+                  libraryList={libraryList}
+                  metadataList={metadataList}
+                  genericList={genericList}
+                  allCount={allCombined.length}
+                  renderPluginCard={renderPluginCard}
+                />
+              </TabsContent>
 
-          {pluginModalTab === "pipeline" && (
-            <PipelinePriorityTab
-              priorityOrder={priorityOrder}
-              movePriority={movePriority}
-              providers={providers}
-              pipelineConfig={pipelineConfig}
-              setPipelineConfig={setPipelineConfig}
-              onSavePipelineConfig={handleSavePipelineConfig}
-              tr={tr}
-            />
-          )}
+              <TabsContent value="pipeline" className="mt-0">
+                <PipelinePriorityTab
+                  priorityOrder={priorityOrder}
+                  movePriority={movePriority}
+                  providers={providers}
+                  pipelineConfig={pipelineConfig}
+                  setPipelineConfig={setPipelineConfig}
+                  onSavePipelineConfig={handleSavePipelineConfig}
+                  tr={tr}
+                />
+              </TabsContent>
 
-          {pluginModalTab === "enrich" && (
-            <MassiveEnrichTab
-              gamesCount={gamesCount}
-              gamesWithCoverCount={gamesWithCoverCount}
-              gamesWithScoreCount={gamesWithScoreCount}
-              pipelineConfig={pipelineConfig}
-              isPipelineEnriching={isPipelineEnriching}
-              liveProgress={liveProgress}
-              pipelineProgress={pipelineProgress}
-              onRunMassivePipeline={handleRunMassivePipeline}
-              onCancelPipeline={handleCancelPipeline}
-            />
-          )}
-        </div>
-      </div>
-    </div>
+              <TabsContent value="enrich" className="mt-0">
+                <MassiveEnrichTab
+                  gamesCount={gamesCount}
+                  gamesWithCoverCount={gamesWithCoverCount}
+                  gamesWithScoreCount={gamesWithScoreCount}
+                  pipelineConfig={pipelineConfig}
+                  isPipelineEnriching={isPipelineEnriching}
+                  liveProgress={liveProgress}
+                  pipelineProgress={pipelineProgress}
+                  onRunMassivePipeline={handleRunMassivePipeline}
+                  onCancelPipeline={handleCancelPipeline}
+                />
+              </TabsContent>
+            </div>
+          </ScrollArea>
+        </Tabs>
+      </DialogContent>
+    </Dialog>
   );
 }

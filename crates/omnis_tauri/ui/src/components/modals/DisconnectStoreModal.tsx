@@ -1,7 +1,16 @@
 import React, { useState } from "react";
-import { LogOut, Database, HardDrive, Trash2, Loader2, AlertTriangle, X } from "lucide-react";
+import { LogOut, Database, HardDrive, Trash2, Loader2, AlertTriangle } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import { soundEffects } from "../../utils/soundEffects";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 export type StoreCleanupMode = "keep" | "uninstalled_only" | "all";
 
@@ -70,44 +79,33 @@ export const DisconnectStoreModal: React.FC<DisconnectStoreModalProps> = ({
   ];
 
   return (
-    <div className="fixed inset-0 z-[10000] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 select-none">
-      <div
-        className="relative max-w-lg w-full rounded-3xl border shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
-        style={{
-          backgroundColor: "var(--bg-surface)",
-          borderColor: "var(--border-color)",
-        }}
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open && !isSubmitting) {
+          soundEffects.playSelect();
+          onClose();
+        }
+      }}
+    >
+      <DialogContent
+        overlayClassName="z-[10000] bg-black/80"
+        className="z-[10000] max-w-lg w-full p-0 rounded-3xl flex flex-col overflow-hidden gap-0 select-none"
+        closeButtonDisabled={isSubmitting}
       >
-        {/* Header */}
-        <div
-          className="flex justify-between items-center px-6 py-4 border-b shrink-0"
-          style={{ borderColor: "var(--border-color)" }}
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400 shadow-md">
-              <LogOut className="w-5 h-5 stroke-[2.2]" />
-            </div>
-            <div>
-              <h3 className="text-base font-black text-white">
-                {t("store_accounts.disconnect_modal_title", { store: storeName })}
-              </h3>
-              <p className="text-xs text-slate-400">
-                {storeName.toUpperCase()}
-              </p>
-            </div>
+        <DialogHeader className="px-6 py-4 border-b border-border flex-row items-center gap-3 space-y-0 text-left pr-14 shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400 shadow-md shrink-0">
+            <LogOut className="w-5 h-5 stroke-[2.2]" />
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              soundEffects.playSelect();
-              onClose();
-            }}
-            disabled={isSubmitting}
-            className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
+          <div className="min-w-0">
+            <DialogTitle className="text-base font-black text-foreground">
+              {t("store_accounts.disconnect_modal_title", { store: storeName })}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              {storeName.toUpperCase()}
+            </DialogDescription>
+          </div>
+        </DialogHeader>
 
         {/* Content */}
         <div className="p-6 space-y-4">
@@ -121,7 +119,7 @@ export const DisconnectStoreModal: React.FC<DisconnectStoreModalProps> = ({
               const Icon = opt.icon;
               const isSelected = selectedMode === opt.mode;
               return (
-                <div
+                <label
                   key={opt.mode}
                   onClick={() => {
                     soundEffects.playNav();
@@ -138,7 +136,7 @@ export const DisconnectStoreModal: React.FC<DisconnectStoreModalProps> = ({
                     name="cleanup_mode"
                     checked={isSelected}
                     onChange={() => setSelectedMode(opt.mode)}
-                    className="mt-1 w-4 h-4 text-sky-500 cursor-pointer"
+                    className="mt-1 w-4 h-4 text-sky-500 cursor-pointer accent-primary"
                   />
                   <div className="flex-1 space-y-1">
                     <div className="flex items-center gap-2">
@@ -147,33 +145,30 @@ export const DisconnectStoreModal: React.FC<DisconnectStoreModalProps> = ({
                     </div>
                     <p className="text-[11px] text-slate-400 leading-normal">{opt.desc}</p>
                   </div>
-                </div>
+                </label>
               );
             })}
           </div>
         </div>
 
-        {/* Footer */}
-        <div
-          className="flex items-center justify-end gap-3 px-6 py-4 border-t bg-black/40 shrink-0"
-          style={{ borderColor: "var(--border-color)" }}
-        >
-          <button
+        <DialogFooter className="px-6 py-4 border-t border-border bg-black/40 shrink-0">
+          <Button
             type="button"
+            variant="ghost"
             onClick={() => {
               soundEffects.playSelect();
               onClose();
             }}
             disabled={isSubmitting}
-            className="px-4 py-2 rounded-xl text-xs font-bold text-slate-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer disabled:opacity-50"
           >
             {t("store_accounts.cancel")}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="destructive"
             onClick={handleConfirm}
             disabled={isSubmitting}
-            className="px-5 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white transition-all shadow-lg flex items-center gap-2 cursor-pointer disabled:opacity-50"
+            className="px-5 font-bold shadow-lg"
           >
             {isSubmitting ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -181,9 +176,9 @@ export const DisconnectStoreModal: React.FC<DisconnectStoreModalProps> = ({
               <LogOut className="w-4 h-4" />
             )}
             <span>{t("store_accounts.confirm_disconnect")}</span>
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
