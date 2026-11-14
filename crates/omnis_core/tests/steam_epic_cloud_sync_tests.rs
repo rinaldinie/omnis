@@ -329,16 +329,15 @@ fn test_database_non_destructive_cloud_merge_steam_and_epic() {
         "Epic install_dir must remain intact after cloud sync"
     );
 
-    // Local play_actions must be preserved over remote cloud install action
+    // Local library_play_action must be preserved over remote cloud install action
+    let steam_action = steam_reloaded
+        .library_play_action
+        .as_ref()
+        .expect("Steam game must preserve library_play_action");
     assert_eq!(
-        steam_reloaded.play_actions.len(),
-        1,
-        "Steam game must preserve exactly 1 play_action"
-    );
-    assert_eq!(
-        steam_reloaded.play_actions[0].executable,
+        steam_action.executable,
         "steam://rungameid/730",
-        "play_actions for Steam must preserve local launch command 'steam://rungameid/730' and not overwrite with 'steam://install/...'"
+        "library_play_action for Steam must preserve local launch command 'steam://rungameid/730' and not overwrite with 'steam://install/...'"
     );
 
     // Enriched metadata from cloud

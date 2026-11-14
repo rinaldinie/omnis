@@ -6,8 +6,8 @@ import { formatImageUrl } from "../../types";
  * Cropping those to the 2:3 card would cut a third of the image, so they are shown whole,
  * centred, on the theme's card background colour.
  */
-export const SQUARE_ART_MIN_RATIO = 0.8;
-export const SQUARE_ART_MAX_RATIO = 1.25;
+export const SQUARE_ART_MIN_RATIO = 0.92;
+export const SQUARE_ART_MAX_RATIO = 1.12;
 
 export function isSquareArt(width: number, height: number): boolean {
   if (width <= 0 || height <= 0) return false;
@@ -53,9 +53,14 @@ export function GameCardCover({
     if (imgSrc && imgSrc.includes("library_600x900_2x.jpg") && !isFallback) {
       setIsFallback(true);
       setImgSrc(imgSrc.replace("library_600x900_2x.jpg", "header.jpg"));
-    } else if (backgroundImage && imgSrc !== backgroundImage && !isFallback) {
-      setIsFallback(true);
-      setImgSrc(backgroundImage);
+    } else if (backgroundImage && !isFallback) {
+      const formattedBg = formatImageUrl(backgroundImage) || backgroundImage;
+      if (imgSrc !== formattedBg) {
+        setIsFallback(true);
+        setImgSrc(formattedBg);
+      } else {
+        setHasError(true);
+      }
     } else {
       setHasError(true);
     }

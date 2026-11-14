@@ -152,7 +152,9 @@ impl AppBootstrap {
             SecretVault::ephemeral()
         }));
 
-        let store_account_manager = Arc::new(StoreAccountManager::new(db, vault));
+        let store_account_manager = Arc::new(
+            StoreAccountManager::new(db, vault).with_cache_dir(app_dir.join(storage::CACHE_DIR)),
+        );
         store_account_manager.register_plugin(Arc::new(store_plugins.gog.clone()));
         store_account_manager.register_plugin(Arc::new(store_plugins.xbox.clone()));
         store_account_manager.register_plugin(Arc::new(store_plugins.steam.clone()));

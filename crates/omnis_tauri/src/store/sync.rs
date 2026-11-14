@@ -1,11 +1,17 @@
 //! Library synchronization from connected cloud store accounts, progress reporting, and catalog batch updates
 
 use chrono::Utc;
+use omnis_core::metadata::{HttpMediaDownloader, MediaStorageManager};
 use omnis_sdk::constants::events;
 use omnis_sdk::models::{DiscoveredGame, StoreSyncProgressPayload};
 use omnis_sdk::plugin::{CloudStorePlugin, StoreAccountSession};
+use omnis_sdk::GameMetadataPatch;
 use std::collections::HashMap;
+use std::sync::Arc;
+use std::time::Duration;
 use tauri::{AppHandle, Emitter};
+use tokio::sync::Semaphore;
+use tokio::task::JoinSet;
 
 use super::manager::StoreAccountManager;
 
@@ -142,6 +148,9 @@ impl StoreAccountManager {
             }
         };
 
+        // 5b. Cache remote cover and background artwork locally so all stores behave like Steam
+        self.cache_store_artwork(app_handle, store_id).await;
+
         // 6. Update last sync timestamp and emit completion
         self.last_syncs
             .write()
@@ -269,6 +278,132 @@ impl StoreAccountManager {
 
         for (_, local) in local_map {
             remote_games.push(local);
+        }
+    }
+
+    /// Downloads and caches remote cover/background URLs locally for games belonging to `store_id`.
+    async fn cache_store_artwork(&self, app_handle: &AppHandle, store_id: &str) {
+        let Some(ref cache_dir) = self.cache_dir else {
+            return;
+        };
+
+        let games = match self.db.get_all_games() {
+            Ok(g) => g,
+            Err(e) => {
+                tracing::warn!("Failed to query games for artwork caching: {}", e);
+                return;
+            }
+        };
+
+        let is_remote = |opt: &Option<String>| -> bool {
+            opt.as_deref()
+                .map(|s| {
+                    let t = s.trim();
+                    t.starts_with("http://") || t.starts_with("https://")
+                })
+                .unwrap_or(false)
+        };
+
+        let pending: Vec<_> = games
+            .into_iter()
+            .filter(|g| {
+                g.library_id.eq_ignore_ascii_case(store_id)
+                    && (is_remote(&g.cover_image_path) || is_remote(&g.background_image_path))
+            })
+            .collect();
+
+        if pending.is_empty() {
+            return;
+        }
+
+        let total = pending.len();
+        Self::emit_sync_progress(
+            app_handle,
+            store_id,
+            0,
+            total,
+            "syncing",
+            Some(format!("Download copertine in locale (0/{})...", total)),
+        );
+
+        let client = reqwest::Client::builder()
+            .timeout(Duration::from_secs(20))
+            .build()
+            .unwrap_or_default();
+        let media = Arc::new(HttpMediaDownloader::new(client));
+        let semaphore = Arc::new(Semaphore::new(8));
+        let mut tasks = JoinSet::new();
+
+        for game in pending {
+            let media = Arc::clone(&media);
+            let db = Arc::clone(&self.db);
+            let cache_dir = cache_dir.clone();
+            let sem = Arc::clone(&semaphore);
+
+            tasks.spawn(async move {
+                let _permit = sem.acquire_owned().await.ok()?;
+                let mut patch = GameMetadataPatch::default();
+                if is_remote(&game.cover_image_path) {
+                    patch.cover_url = game.cover_image_path.clone();
+                }
+                if is_remote(&game.background_image_path) {
+                    patch.background_url = game.background_image_path.clone();
+                }
+
+                MediaStorageManager::cache_game_artwork(
+                    media.as_ref(),
+                    game.id,
+                    &game.library_id,
+                    &game.external_id,
+                    &cache_dir,
+                    &mut patch,
+                )
+                .await;
+
+                // Only persist fields that resolved to a local file path
+                let has_local_cover = patch
+                    .cover_url
+                    .as_deref()
+                    .map(|u| !u.starts_with("http://") && !u.starts_with("https://"))
+                    .unwrap_or(false);
+                let has_local_bg = patch
+                    .background_url
+                    .as_deref()
+                    .map(|u| !u.starts_with("http://") && !u.starts_with("https://"))
+                    .unwrap_or(false);
+
+                if !has_local_cover {
+                    patch.cover_url = None;
+                }
+                if !has_local_bg {
+                    patch.background_url = None;
+                }
+
+                if patch.cover_url.is_some() || patch.background_url.is_some() {
+                    if let Err(e) = db.apply_metadata_patch(game.id, &patch) {
+                        tracing::warn!("Failed to save cached artwork paths for {}: {}", game.id, e);
+                    }
+                }
+                Some(())
+            });
+        }
+
+        let mut completed = 0usize;
+        while tasks.join_next().await.is_some() {
+            completed += 1;
+            if completed % 10 == 0 || completed == total {
+                Self::emit_sync_progress(
+                    app_handle,
+                    store_id,
+                    completed,
+                    total,
+                    "syncing",
+                    Some(format!(
+                        "Download copertine in locale ({}/{})...",
+                        completed, total
+                    )),
+                );
+            }
         }
     }
 

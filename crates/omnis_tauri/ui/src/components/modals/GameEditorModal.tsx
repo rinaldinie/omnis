@@ -44,7 +44,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 
 export interface GameEditorModalProps {
@@ -476,7 +475,7 @@ export default function GameEditorModal({
             </TabsTrigger>
           </TabsList>
 
-          <ScrollArea className="flex-1 min-h-0" viewportClassName="p-6 space-y-6">
+          <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-6">
             <TabsContent value="general" className="mt-0">
               <GeneralTab formData={formData} onChange={updateFormData} />
             </TabsContent>
@@ -517,7 +516,7 @@ export default function GameEditorModal({
                 onUpdateLink={handleUpdateLink}
               />
             </TabsContent>
-          </ScrollArea>
+          </div>
         </Tabs>
 
         {/* FEEDBACK STATUS */}
