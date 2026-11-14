@@ -393,6 +393,10 @@ export interface TranslationSchema {
     settings_audio: string;
     settings_input: string;
     press_again_confirm: string;
+    show_clock: string;
+    show_battery: string;
+    show_battery_percent: string;
+    clear_filters_on_startup: string;
   };
   app_status: {
     theme_activated: string;

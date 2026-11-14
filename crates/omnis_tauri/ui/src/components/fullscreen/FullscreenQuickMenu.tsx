@@ -3,6 +3,7 @@ import { Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { BACK_PRIORITY, useBackHandler } from "../../hooks/useBackHandler";
 import type { TranslateFn } from "../../types";
 import type { ConsoleMenuItem, ConsoleMenuLevel } from "./constants";
+import { useConsolePrefs } from "../../utils/consolePrefs";
 
 export type MenuItemData = ConsoleMenuItem;
 
@@ -126,8 +127,10 @@ export const FullscreenQuickMenu: React.FC<FullscreenQuickMenuProps> = ({
     },
     BACK_PRIORITY.MENU
   );
+  const { showClock } = useConsolePrefs();
 
   if (!isMenuOpen) return null;
+  const visibleClock = showClock ? clock : null;
 
   const activeLevel = levels?.[levels.length - 1];
   const showPanel = !!levels && levels.length >= 2 && activeLevel?.layout === "panel";
@@ -160,7 +163,9 @@ export const FullscreenQuickMenu: React.FC<FullscreenQuickMenuProps> = ({
               <ChevronLeft className="w-7 h-7 shrink-0 text-white/60" />
               <span className="text-3xl font-light tracking-tight truncate">{sideTitle}</span>
             </button>
-            <span className="text-lg font-medium tabular-nums text-white/60 shrink-0">{clock}</span>
+            {visibleClock && (
+              <span className="text-lg font-medium tabular-nums text-white/60 shrink-0">{visibleClock}</span>
+            )}
           </div>
         ) : (
           <div className="flex items-baseline justify-between px-8 pb-6">
@@ -170,7 +175,7 @@ export const FullscreenQuickMenu: React.FC<FullscreenQuickMenuProps> = ({
                 <span className="ml-2 text-sm font-medium text-white/40">v{updater.currentVersion}</span>
               )}
             </span>
-            <span className="text-lg font-medium tabular-nums text-white/60">{clock}</span>
+            {visibleClock && <span className="text-lg font-medium tabular-nums text-white/60">{visibleClock}</span>}
           </div>
         )}
 

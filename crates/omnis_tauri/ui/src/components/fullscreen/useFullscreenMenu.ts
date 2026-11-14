@@ -27,7 +27,12 @@ import {
   LogOut,
   Moon,
   RotateCw,
+  Clock,
+  BatteryMedium,
+  Percent,
+  FilterX,
 } from "lucide-react";
+import { ConsolePrefs, getConsolePrefs, setConsolePref, useConsolePrefs } from "../../utils/consolePrefs";
 import { GameDto, ThemeConfig, TranslateFn } from "../../types";
 import { LocaleCode, SUPPORTED_LOCALES } from "../../i18n/types";
 import type { AppUpdater } from "../../hooks/useAppUpdater";
@@ -265,6 +270,24 @@ export function useFullscreenMenu({
 
   const scaleIdx = UI_SCALE_STEPS.indexOf(scale as (typeof UI_SCALE_STEPS)[number]);
 
+  // Console preferences (clock, battery, filters on startup)
+  const consolePrefs = useConsolePrefs();
+  const prefToggle = (
+    id: string,
+    icon: ConsoleMenuItem["icon"],
+    key: keyof ConsolePrefs,
+    label: string
+  ): ConsoleMenuItem => ({
+    id,
+    icon,
+    kind: "toggle",
+    section: "settings_general",
+    label,
+    checked: consolePrefs[key],
+    onActivate: () => setConsolePref(key, !getConsolePrefs()[key]),
+    onAdjust: () => setConsolePref(key, !getConsolePrefs()[key]),
+  });
+
   // ---- Page builders ----
   const settingsCategories: Array<{ id: SettingsCategoryId; icon: ConsoleMenuItem["icon"]; label: string }> = [
     { id: "general", icon: Settings, label: tr(t, "console_ui.settings_general", "General") },
@@ -457,6 +480,28 @@ export function useFullscreenMenu({
         onActivate: () => cycleLocale(1),
         onAdjust: cycleLocale,
       });
+      items.push(
+        prefToggle("show-clock", Clock, "showClock", tr(t, "console_ui.show_clock", "Show clock")),
+        prefToggle("show-battery", BatteryMedium, "showBattery", tr(t, "console_ui.show_battery", "Show battery status"))
+      );
+      if (consolePrefs.showBattery) {
+        items.push(
+          prefToggle(
+            "show-battery-percent",
+            Percent,
+            "showBatteryPercent",
+            tr(t, "console_ui.show_battery_percent", "Show battery percentage")
+          )
+        );
+      }
+      items.push(
+        prefToggle(
+          "clear-filters-startup",
+          FilterX,
+          "clearFiltersOnStartup",
+          tr(t, "console_ui.clear_filters_on_startup", "Clear filters on startup")
+        )
+      );
       if (updater) {
         items.push({
           id: "check-updates",
