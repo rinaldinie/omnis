@@ -10,6 +10,8 @@ export interface ConsolePrefs {
   showBatteryPercent: boolean;
   /** Start every session with no library filters (otherwise the last ones are restored) */
   clearFiltersOnStartup: boolean;
+  /** Quick filter tab IDs hidden from the fullscreen top bar */
+  hiddenQuickFilters: string[];
 }
 
 export const CONSOLE_PREFS_STORAGE_KEY = "omnis_fullscreen_prefs";
@@ -19,6 +21,7 @@ export const DEFAULT_CONSOLE_PREFS: ConsolePrefs = {
   showBattery: true,
   showBatteryPercent: true,
   clearFiltersOnStartup: true,
+  hiddenQuickFilters: [],
 };
 
 let cache: ConsolePrefs | null = null;
@@ -31,7 +34,13 @@ function readPrefs(): ConsolePrefs {
     const parsed = JSON.parse(raw) as Partial<ConsolePrefs>;
     const prefs = { ...DEFAULT_CONSOLE_PREFS };
     (Object.keys(DEFAULT_CONSOLE_PREFS) as Array<keyof ConsolePrefs>).forEach((key) => {
-      if (typeof parsed[key] === "boolean") prefs[key] = parsed[key] as boolean;
+      if (key === "hiddenQuickFilters") {
+        if (Array.isArray(parsed.hiddenQuickFilters)) {
+          prefs.hiddenQuickFilters = parsed.hiddenQuickFilters.filter((v): v is string => typeof v === "string");
+        }
+      } else if (typeof parsed[key] === "boolean") {
+        prefs[key] = parsed[key] as boolean;
+      }
     });
     return prefs;
   } catch {

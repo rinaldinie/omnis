@@ -131,7 +131,8 @@ describe("FullscreenQuickMenu sub menus", () => {
     expect(screen.getByTestId("depth").textContent).toBe("2");
     expect(screen.getByText("Audio")).toBeTruthy();
 
-    // Settings → Audio (4th category) with the D-pad, then enter it with Right
+    // Settings → Audio (5th category) with the D-pad, then enter it with Right
+    nav("down");
     nav("down");
     nav("down");
     nav("down");
@@ -193,5 +194,28 @@ describe("FullscreenQuickMenu sub menus", () => {
     pressA();
     expect(onPowerAction).not.toHaveBeenCalled();
     expect(screen.getByText("Press again to confirm")).toBeTruthy();
+  });
+
+  it("toggles quick filters visibility in Settings → Quick Filters and resets them", () => {
+    render(<Harness />);
+    fireEvent.click(screen.getByText("Settings"));
+    fireEvent.click(screen.getByText("Quick Filters"));
+    expect(screen.getByTestId("depth").textContent).toBe("3");
+
+    fireEvent.click(screen.getByText("installed"));
+    expect(getConsolePrefs().hiddenQuickFilters).toContain("installed");
+    expect(screen.getByText("Show all filters")).toBeTruthy();
+
+    fireEvent.click(screen.getByText("Show all filters"));
+    expect(getConsolePrefs().hiddenQuickFilters).toEqual([]);
+    expect(screen.queryByText("Show all filters")).toBeNull();
+  });
+
+  it("shows Clear filters in root menu when a filter is active", () => {
+    const onClearFilters = vi.fn();
+    render(<Harness activeCategory="installed" onClearFilters={onClearFilters} />);
+    fireEvent.click(screen.getByText("Clear filters"));
+    expect(onClearFilters).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("menu-state").textContent).toBe("closed");
   });
 });

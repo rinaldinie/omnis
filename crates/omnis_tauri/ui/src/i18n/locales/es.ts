@@ -381,6 +381,9 @@ export const es: TranslationSchema = {
     show_battery: 'Mostrar estado de la batería',
     show_battery_percent: 'Mostrar porcentaje de batería',
     clear_filters_on_startup: 'Borrar filtros al iniciar',
+    settings_quick_filters: 'Filtros rápidos',
+    reset_quick_filters: 'Mostrar todos los filtros',
+    clear_filters: 'Borrar filtros',
   },
   app_status: {
     theme_activated: 'Tema “{name}” activado.',

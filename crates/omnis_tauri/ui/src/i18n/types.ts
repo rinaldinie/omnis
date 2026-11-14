@@ -397,6 +397,9 @@ export interface TranslationSchema {
     show_battery: string;
     show_battery_percent: string;
     clear_filters_on_startup: string;
+    settings_quick_filters: string;
+    reset_quick_filters: string;
+    clear_filters: string;
   };
   app_status: {
     theme_activated: string;
