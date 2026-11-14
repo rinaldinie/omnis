@@ -21,6 +21,7 @@ import type { LucideIcon } from "lucide-react";
 import { ActiveGameSession, TranslateFn } from "../../types";
 import { StoreIcon } from "../common/StoreBadge";
 import soundEffects from "../../utils/soundEffects";
+import { useConsolePrefs } from "../../utils/consolePrefs";
 import { Glyph } from "./ConsoleChrome";
 import type { HomeFocusZone } from "../../hooks/useGamepadNavigation";
 import {
@@ -86,6 +87,7 @@ export const FullscreenTopBar: React.FC<FullscreenTopBarProps> = ({
   t,
 }) => {
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
+  const prefs = useConsolePrefs();
 
   useEffect(() => {
     let active = true;
@@ -255,29 +257,39 @@ export const FullscreenTopBar: React.FC<FullscreenTopBarProps> = ({
                 <WifiOff className="w-6 h-6 text-white/45" />
               )}
             </span>
-            {systemStatus.batteryPercent !== null && (
+            {prefs.showBattery && systemStatus.batteryPercent !== null && (
               <span
                 className="flex items-center gap-2 text-base font-semibold tabular-nums"
-                title={systemStatus.isCharging ? "Charging" : "Battery"}
+                title={
+                  systemStatus.isCharging
+                    ? `Charging (${systemStatus.batteryPercent}%)`
+                    : `Battery (${systemStatus.batteryPercent}%)`
+                }
               >
                 {renderBatteryIcon(systemStatus.batteryPercent, systemStatus.isCharging)}
-                <span
-                  className={
-                    systemStatus.isCharging
-                      ? "text-emerald-300"
-                      : systemStatus.batteryPercent <= 15
-                      ? "text-rose-400"
-                      : "text-white"
-                  }
-                >
-                  {systemStatus.batteryPercent}%
-                </span>
+                {prefs.showBatteryPercent && (
+                  <span
+                    className={
+                      systemStatus.isCharging
+                        ? "text-emerald-300"
+                        : systemStatus.batteryPercent <= 15
+                        ? "text-rose-400"
+                        : "text-white"
+                    }
+                  >
+                    {systemStatus.batteryPercent}%
+                  </span>
+                )}
               </span>
             )}
           </>
         )}
-        <span aria-hidden="true" className="w-px h-6 bg-white/20 shrink-0" />
-        <span className="text-xl font-semibold tabular-nums tracking-tight">{clock}</span>
+        {prefs.showClock && (
+          <>
+            <span aria-hidden="true" className="w-px h-6 bg-white/20 shrink-0" />
+            <span className="text-xl font-semibold tabular-nums tracking-tight">{clock}</span>
+          </>
+        )}
       </div>
     </header>
   );

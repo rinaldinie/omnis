@@ -4,6 +4,45 @@ import { GameDto, GroupBy, FILTER_ORDER } from "../types";
 import { sortGames, GameSortMode, readSavedSortMode, saveSortMode } from "../utils/sortGames";
 import { toCategoryId } from "../utils/consoleCategories";
 import { getRecentSettings, RecentSettings } from "../utils/recentSettings";
+import { getConsolePrefs } from "../utils/consolePrefs";
+
+const FILTERS_STORAGE_KEY = "omnis_library_filters";
+
+interface SavedFilters {
+  stores: string[];
+  statuses: string[];
+  flags: string[];
+  genres: string[];
+  features: string[];
+}
+
+const EMPTY_FILTERS: SavedFilters = { stores: [], statuses: [], flags: [], genres: [], features: [] };
+
+function readSavedFilters(): SavedFilters {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(FILTERS_STORAGE_KEY) ?? "null") as Partial<SavedFilters> | null;
+    if (!parsed || typeof parsed !== "object") return EMPTY_FILTERS;
+    const list = (value: unknown) =>
+      Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
+    return {
+      stores: list(parsed.stores),
+      statuses: list(parsed.statuses),
+      flags: list(parsed.flags),
+      genres: list(parsed.genres),
+      features: list(parsed.features),
+    };
+  } catch {
+    return EMPTY_FILTERS;
+  }
+}
+
+function saveFilters(filters: SavedFilters): void {
+  try {
+    localStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify(filters));
+  } catch {
+    // Not persisted: filters simply reset on the next start
+  }
+}
 
 export interface FilterChip {
   id: string;
@@ -35,20 +74,36 @@ function matchesGenre(g: GameDto, targetGenre: string): boolean {
 
 export function useLibraryFilters(games: GameDto[]) {
   const { t } = useTranslation();
+  // Last session's filters, unless the user asked to start clean every time
+  const [initialFilters] = useState<SavedFilters>(() =>
+    getConsolePrefs().clearFiltersOnStartup ? EMPTY_FILTERS : readSavedFilters()
+  );
+
   // Dimension 1: Selected Stores (e.g. ["steam", "gog"]) - OR within dimension
-  const [selectedStores, setSelectedStores] = useState<string[]>([]);
+  const [selectedStores, setSelectedStores] = useState<string[]>(initialFilters.stores);
 
   // Dimension 2: Selected Completion Statuses (e.g. ["Playing", "Completed"]) - OR within dimension
-  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>(initialFilters.statuses);
 
   // Dimension 3: Quick Flags (e.g. ["installed", "favorites", "recent"]) - AND within dimension
-  const [selectedFlags, setSelectedFlags] = useState<string[]>([]);
+  const [selectedFlags, setSelectedFlags] = useState<string[]>(initialFilters.flags);
 
   // Dimension 4: Selected Genres (e.g. ["Action", "RPG"]) - OR within dimension
-  const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
+  const [selectedGenres, setSelectedGenres] = useState<string[]>(initialFilters.genres);
 
   // Dimension 5: Selected Features (e.g. ["Single-player", "Co-op"]) - AND within dimension
-  const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
+  const [selectedFeatures, setSelectedFeatures] = useState<string[]>(initialFilters.features);
+
+  // Remember the current filters for the next start
+  useEffect(() => {
+    saveFilters({
+      stores: selectedStores,
+      statuses: selectedStatuses,
+      flags: selectedFlags,
+      genres: selectedGenres,
+      features: selectedFeatures,
+    });
+  }, [selectedStores, selectedStatuses, selectedFlags, selectedGenres, selectedFeatures]);
 
   // Dimension 6: Sort Mode
   const [sortMode, setSortModeState] = useState<GameSortMode>(readSavedSortMode);

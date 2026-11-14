@@ -377,6 +377,10 @@ export const fr: TranslationSchema = {
     settings_audio: 'Audio',
     settings_input: 'Commandes',
     press_again_confirm: 'Appuyez à nouveau pour confirmer',
+    show_clock: 'Afficher l\'horloge',
+    show_battery: 'Afficher l\'état de la batterie',
+    show_battery_percent: 'Afficher le pourcentage de batterie',
+    clear_filters_on_startup: 'Effacer les filtres au démarrage',
   },
   app_status: {
     theme_activated: 'Thème « {name} » activé !',

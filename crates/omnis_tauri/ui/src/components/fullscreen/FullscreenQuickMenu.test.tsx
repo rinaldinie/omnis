@@ -1,9 +1,10 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import React from "react";
 import { FullscreenQuickMenu } from "./FullscreenQuickMenu";
 import { useFullscreenMenu, UseFullscreenMenuOptions } from "./useFullscreenMenu";
 import { MENU_SECTION_LABEL_KEYS } from "./constants";
+import { CONSOLE_PREFS_STORAGE_KEY, getConsolePrefs, resetConsolePrefsCache } from "../../utils/consolePrefs";
 import type { GameDto, ThemeConfig } from "../../types";
 
 vi.mock("../../utils/soundEffects", () => ({
@@ -80,9 +81,40 @@ const pressA = () =>
   });
 
 describe("FullscreenQuickMenu sub menus", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    resetConsolePrefsCache();
+  });
+
+  it("toggles clock and battery preferences from Settings → General", () => {
+    render(<Harness />);
+    expect(screen.getByText("21:30")).toBeTruthy();
+
+    fireEvent.click(screen.getByText("Settings"));
+    nav("right"); // General is the first category
+    expect(screen.getByTestId("depth").textContent).toBe("3");
+    expect(screen.getByText("Show battery percentage")).toBeTruthy();
+
+    fireEvent.click(screen.getByText("Show clock"));
+    expect(getConsolePrefs().showClock).toBe(false);
+    expect(screen.queryByText("21:30")).toBeNull();
+
+    // The percentage option only makes sense while the battery is shown
+    fireEvent.click(screen.getByText("Show battery status"));
+    expect(getConsolePrefs().showBattery).toBe(false);
+    expect(screen.queryByText("Show battery percentage")).toBeNull();
+
+    fireEvent.click(screen.getByText("Clear filters on startup"));
+    expect(getConsolePrefs().clearFiltersOnStartup).toBe(false);
+    expect(JSON.parse(localStorage.getItem(CONSOLE_PREFS_STORAGE_KEY) ?? "{}")).toMatchObject({
+      showClock: false,
+      showBattery: false,
+      clearFiltersOnStartup: false,
+    });
+  });
   it("lists system actions directly in the root menu instead of a power dialog", () => {
     render(<Harness />);
-    expect(screen.getByText("console_ui.settings")).toBeTruthy();
+    expect(screen.getByText("Settings")).toBeTruthy();
     expect(screen.getByText("console_ui.desktop_mode")).toBeTruthy();
     expect(screen.getByText("console_ui.exit")).toBeTruthy();
     expect(screen.getByText("console_ui.sleep")).toBeTruthy();
@@ -95,9 +127,9 @@ describe("FullscreenQuickMenu sub menus", () => {
     const handleToggleSound = vi.fn();
     render(<Harness handleToggleSound={handleToggleSound} />);
 
-    fireEvent.click(screen.getByText("console_ui.settings"));
+    fireEvent.click(screen.getByText("Settings"));
     expect(screen.getByTestId("depth").textContent).toBe("2");
-    expect(screen.getByText("console_ui.settings_audio")).toBeTruthy();
+    expect(screen.getByText("Audio")).toBeTruthy();
 
     // Settings → Audio (4th category) with the D-pad, then enter it with Right
     nav("down");
@@ -125,11 +157,11 @@ describe("FullscreenQuickMenu sub menus", () => {
 
   it("switches category by clicking the parent list while a panel is open", () => {
     render(<Harness />);
-    fireEvent.click(screen.getByText("console_ui.settings"));
-    fireEvent.click(screen.getByText("console_ui.settings_audio"));
+    fireEvent.click(screen.getByText("Settings"));
+    fireEvent.click(screen.getByText("Audio"));
     expect(screen.getByText("console_ui.sound")).toBeTruthy();
 
-    fireEvent.click(screen.getByText("console_ui.settings_input"));
+    fireEvent.click(screen.getByText("Input"));
     expect(screen.getByTestId("depth").textContent).toBe("3");
     expect(screen.getByTestId("focused").textContent).toBe("controller-style");
     expect(screen.queryByText("console_ui.sound")).toBeNull();
@@ -141,7 +173,7 @@ describe("FullscreenQuickMenu sub menus", () => {
 
     fireEvent.click(screen.getByText("console_ui.shutdown"));
     expect(onPowerAction).not.toHaveBeenCalled();
-    expect(screen.getByText("console_ui.press_again_confirm")).toBeTruthy();
+    expect(screen.getByText("Press again to confirm")).toBeTruthy();
     expect(screen.getByTestId("focused").textContent).toBe("shutdown");
 
     pressA();
@@ -154,12 +186,12 @@ describe("FullscreenQuickMenu sub menus", () => {
     render(<Harness onPowerAction={onPowerAction} />);
 
     fireEvent.click(screen.getByText("console_ui.restart"));
-    expect(screen.getByText("console_ui.press_again_confirm")).toBeTruthy();
+    expect(screen.getByText("Press again to confirm")).toBeTruthy();
     nav("down");
-    expect(screen.queryByText("console_ui.press_again_confirm")).toBeNull();
+    expect(screen.queryByText("Press again to confirm")).toBeNull();
     nav("up");
     pressA();
     expect(onPowerAction).not.toHaveBeenCalled();
-    expect(screen.getByText("console_ui.press_again_confirm")).toBeTruthy();
+    expect(screen.getByText("Press again to confirm")).toBeTruthy();
   });
 });
