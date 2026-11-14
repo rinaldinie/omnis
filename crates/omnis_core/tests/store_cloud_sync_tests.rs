@@ -277,9 +277,12 @@ fn test_database_non_destructive_cloud_merge() {
         Some(PathBuf::from(r"C:\Games\Witcher3"))
     );
     assert_eq!(initial_game.playtime_seconds, 0);
-    assert_eq!(initial_game.play_actions.len(), 1);
+    let initial_action = initial_game
+        .library_play_action
+        .as_ref()
+        .expect("Initial game should have library_play_action");
     assert_eq!(
-        initial_game.play_actions[0].executable,
+        initial_action.executable,
         r"C:\Games\Witcher3\bin\x64\witcher3.exe"
     );
 
@@ -341,15 +344,14 @@ fn test_database_non_destructive_cloud_merge() {
         "Cover image path should be enriched from cloud sync"
     );
 
-    // Local play_actions must be preserved
+    // Local library_play_action must be preserved
+    let merged_action = merged_game
+        .library_play_action
+        .as_ref()
+        .expect("library_play_action must be preserved");
     assert_eq!(
-        merged_game.play_actions.len(),
-        1,
-        "play_actions must have 1 entry preserved"
-    );
-    assert_eq!(
-        merged_game.play_actions[0].executable, r"C:\Games\Witcher3\bin\x64\witcher3.exe",
-        "Local executable play_action must be preserved over remote cloud protocol URI"
+        merged_action.executable, r"C:\Games\Witcher3\bin\x64\witcher3.exe",
+        "Local executable library_play_action must be preserved over remote cloud protocol URI"
     );
 }
 
