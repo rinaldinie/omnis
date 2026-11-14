@@ -10,6 +10,7 @@ use omnis_core::{Database, SecretVault};
 use omnis_sdk::plugin::{CloudStorePlugin, StoreAccountSession};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 use tauri::{AppHandle, Emitter};
 
@@ -49,6 +50,7 @@ pub struct StoreAccountManager {
     pub(crate) local_cache: Arc<RwLock<HashMap<String, StoreAccountSession>>>,
     pub(crate) last_syncs: Arc<tokio::sync::RwLock<HashMap<String, DateTime<Utc>>>>,
     pub(crate) syncing_stores: Arc<RwLock<std::collections::HashSet<String>>>,
+    pub(crate) cache_dir: Option<PathBuf>,
 }
 
 impl StoreAccountManager {
@@ -61,10 +63,17 @@ impl StoreAccountManager {
             local_cache: Arc::new(RwLock::new(HashMap::new())),
             last_syncs: Arc::new(tokio::sync::RwLock::new(HashMap::new())),
             syncing_stores: Arc::new(RwLock::new(std::collections::HashSet::new())),
+            cache_dir: None,
         };
         // Migrate legacy keyring entries to envelope-encrypted SQLite vault
         mgr.migrate_legacy_keyring();
         mgr
+    }
+
+    /// Configure the local media cache directory used to download store artwork on sync
+    pub fn with_cache_dir(mut self, cache_dir: PathBuf) -> Self {
+        self.cache_dir = Some(cache_dir);
+        self
     }
 
     pub fn register_plugin(&self, plugin: Arc<dyn CloudStorePlugin>) {
