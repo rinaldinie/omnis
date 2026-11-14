@@ -92,7 +92,10 @@ export const BatchEnrichGameListSection: React.FC<BatchEnrichGameListSectionProp
             {t("batch_enrich.no_games_matched")}
           </div>
         ) : (
-          <ScrollArea className="max-h-[300px]">
+          <ScrollArea
+            className="max-h-[300px]"
+            viewportClassName="max-h-[300px]"
+          >
             <div className="divide-y divide-white/[0.06]">
               {displayedGames.map((game) => {
                 const isSelected = selectedIds.has(game.id);
@@ -110,13 +113,13 @@ export const BatchEnrichGameListSection: React.FC<BatchEnrichGameListSectionProp
                   <div
                     key={game.id}
                     onClick={() => !isRunning && onToggleGame(game.id)}
-                    className={`flex items-center justify-between px-3.5 py-2.5 transition-colors cursor-pointer select-none ${
+                    className={`flex items-center justify-between gap-2 px-3 py-1.5 transition-colors cursor-pointer select-none ${
                       isSelected
                         ? "bg-sky-500/[0.07] hover:bg-sky-500/[0.12]"
                         : "hover:bg-white/[0.02] opacity-70"
                     }`}
                   >
-                    <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex items-center gap-2.5 min-w-0">
                       <Checkbox
                         checked={isSelected}
                         disabled={isRunning}
@@ -127,7 +130,7 @@ export const BatchEnrichGameListSection: React.FC<BatchEnrichGameListSectionProp
                       />
 
                       {/* Thumbnail */}
-                      <div className="w-8 h-10 rounded-md overflow-hidden bg-slate-800 shrink-0 border border-white/10 flex items-center justify-center">
+                      <div className="w-6 h-8 rounded overflow-hidden bg-slate-800 shrink-0 border border-white/10 flex items-center justify-center">
                         {resolvedCover ? (
                           <img
                             src={resolvedCover}
@@ -136,29 +139,21 @@ export const BatchEnrichGameListSection: React.FC<BatchEnrichGameListSectionProp
                             loading="lazy"
                           />
                         ) : (
-                          <span className="text-[10px] font-black text-slate-500 uppercase">
+                          <span className="text-[9px] font-black text-slate-500 uppercase">
                             {(game.title || "??").slice(0, 2)}
                           </span>
                         )}
                       </div>
 
-                      {/* Title & Store */}
-                      <div className="min-w-0">
+                      {/* Store Logo & Title */}
+                      <div className="flex items-center gap-2 min-w-0">
+                        <StoreBadge
+                          library={game.library || "custom"}
+                          className="shrink-0"
+                        />
                         <h4 className="text-xs font-bold text-white truncate max-w-sm sm:max-w-md">
                           {game.title}
                         </h4>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <StoreBadge
-                            library={game.library || "custom"}
-                            showName
-                            className="text-[10px] px-1.5 py-0.2"
-                          />
-                          {game.developers && game.developers.length > 0 && (
-                            <span className="text-[10px] text-slate-400 truncate max-w-[150px]">
-                              {game.developers[0]}
-                            </span>
-                          )}
-                        </div>
                       </div>
                     </div>
 

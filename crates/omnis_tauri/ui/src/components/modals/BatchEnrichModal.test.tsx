@@ -201,4 +201,23 @@ describe("BatchEnrichModal IPC flow", () => {
     fireEvent.click(checkbox);
     expect(checkbox.getAttribute("data-state")).toBe("unchecked");
   });
+
+  it("applies max-height constraint to the game list scroll viewport so long lists can scroll", () => {
+    render(
+      <I18nProvider initialLocale="en">
+        <BatchEnrichModal
+          isOpen={true}
+          onClose={vi.fn()}
+          allGames={games}
+          filteredGames={games}
+          onComplete={vi.fn(async () => {})}
+        />
+      </I18nProvider>
+    );
+
+    const gameItem = screen.getByText("Hollow Knight");
+    const viewport = gameItem.closest("[data-radix-scroll-area-viewport]");
+    expect(viewport).not.toBeNull();
+    expect(viewport?.className).toContain("max-h-[300px]");
+  });
 });

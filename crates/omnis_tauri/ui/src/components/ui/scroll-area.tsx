@@ -15,7 +15,10 @@ const ScrollArea = React.forwardRef<
     {...props}
   >
     <RadixScrollArea.Viewport
-      className={cn("h-full w-full rounded-[inherit]", viewportClassName)}
+      className={cn(
+        "h-full w-full max-h-[inherit] rounded-[inherit]",
+        viewportClassName
+      )}
     >
       {children}
     </RadixScrollArea.Viewport>
