@@ -18,6 +18,7 @@ import GridView from "./GridView";
 import EmptyGamesView from "../common/EmptyGamesView";
 import { ErrorBoundary } from "../common/ErrorBoundary";
 import { StatusBar } from "../navigation/StatusBar";
+import { cancelBackgroundMetadataDownload } from "../../services/metadataBackgroundRunner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 const DetailsSplitView = lazy(() => import("./DetailsSplitView"));
@@ -176,6 +177,8 @@ export const DesktopView: React.FC<DesktopViewProps> = ({
     setShowResolutionModal,
     statusMessage,
     achievementSync,
+    metadataDownload,
+    enrichingGameIds,
   } = useUiStore();
   const totalGamesCount = games.length;
   const onOpenSettings = handleOpenSettings;
@@ -355,7 +358,10 @@ export const DesktopView: React.FC<DesktopViewProps> = ({
                     handleLaunch={handleLaunch}
                     handleEnrichSingleGame={handleEnrichSingleGame}
                     handleRefreshHltb={handleRefreshHltb}
-                    isEnrichingSingle={isEnrichingSingle}
+                    isEnrichingSingle={
+                      enrichingGameIds.includes(selectedGame.id) ||
+                      (enrichingGameIds.length === 0 && isEnrichingSingle)
+                    }
                     setGameToEdit={setGameToEdit}
                     setShowEditorModal={setShowEditorModal}
                     setGameToResolve={setGameToResolve}
@@ -435,6 +441,10 @@ export const DesktopView: React.FC<DesktopViewProps> = ({
         isSyncing={isSyncing}
         statusMessage={statusMessage}
         achievementSync={achievementSync}
+        metadataDownload={metadataDownload}
+        onCancelMetadataDownload={() => {
+          void cancelBackgroundMetadataDownload();
+        }}
         currentThemeName={currentTheme.name}
         t={t}
       />

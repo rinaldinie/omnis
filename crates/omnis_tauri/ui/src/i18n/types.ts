@@ -425,6 +425,9 @@ export interface TranslationSchema {
     game_running_pid: string;
     session_ended: string;
     metadata_batch_progress: string;
+    metadata_bar_progress: string;
+    metadata_bar_running: string;
+    metadata_bar_cancelled: string;
     library_scanning: string;
     library_scanned_count: string;
     library_scanned: string;
@@ -1238,6 +1241,7 @@ export interface TranslationSchema {
     hltb_missing: string;
     achievements_synced: string;
     achievements_missing: string;
+    running_in_background: string;
   };
   uninstall_modal: {
     title: string;

@@ -3,6 +3,10 @@ import { ProviderInfo, PluginSettingsMap, MetadataPipelineConfig, TranslateFn } 
 import { api } from "../api";
 import { getErrorMessage } from "../utils/errors";
 import { useLibraryStore, useUiStore } from "../stores";
+import {
+  cancelBackgroundMetadataDownload,
+  startAllMetadataEnrichment,
+} from "../services/metadataBackgroundRunner";
 
 export interface UsePluginManagerOptions {
   setStatusMessage?: (msg: string) => void;
@@ -42,7 +46,9 @@ export function usePluginManager({
   const [testStatus, setTestStatus] = useState<
     Record<string, { loading: boolean; success?: boolean; message?: string }>
   >({});
-  const [isPipelineEnriching, setIsPipelineEnriching] = useState<boolean>(false);
+  const metadataDownload = useUiStore((s) => s.metadataDownload);
+  const isPipelineEnriching =
+    metadataDownload?.status === "running" && metadataDownload.mode !== "single";
   const [pipelineProgress, setPipelineProgress] = useState<string | null>(null);
 
   const loadProvidersAndConfig = useCallback(async () => {
@@ -105,23 +111,24 @@ export function usePluginManager({
   };
 
   const handleRunMassivePipeline = async () => {
+    const task = startAllMetadataEnrichment({
+      preparingLabel: t("app_misc.pipeline_starting"),
+      onComplete: refreshLibrary,
+    });
+    if (!task) return;
+    setPipelineProgress(t("app_misc.pipeline_starting"));
     try {
-      setIsPipelineEnriching(true);
-      setPipelineProgress(t("app_misc.pipeline_starting"));
-      const count = await api.metadata.downloadAllMetadata();
+      const count = await task;
       setPipelineProgress(`Completato! ${count || 0} titoli aggiornati.`);
-      await refreshLibrary();
     } catch (err: unknown) {
       setPipelineProgress(`Errore durante il download: ${getErrorMessage(err)}`);
-    } finally {
-      setIsPipelineEnriching(false);
     }
   };
 
   const handleCancelPipeline = async () => {
     try {
       setPipelineProgress(t("app_misc.pipeline_stopping"));
-      await api.metadata.cancelMetadataDownload();
+      await cancelBackgroundMetadataDownload();
       setStatusMessage(statusText("download_cancel_requested"));
     } catch (err: unknown) {
       console.warn("Failed to cancel metadata download:", err);

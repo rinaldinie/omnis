@@ -1,10 +1,12 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { Sparkles, CheckCircle2, AlertCircle, Square, RefreshCw } from "lucide-react";
-import { listen } from "@tauri-apps/api/event";
-import { GameDto, TAURI_EVENTS } from "../../types";
-import { api } from "../../api";
-import { getErrorMessage } from "../../utils/errors";
+import { Sparkles, Square, RefreshCw } from "lucide-react";
+import { GameDto } from "../../types";
 import { useTranslation } from "../../i18n";
+import { useUiStore } from "../../stores";
+import {
+  cancelBackgroundMetadataDownload,
+  startBatchEnrichment,
+} from "../../services/metadataBackgroundRunner";
 import {
   Dialog,
   DialogContent,
@@ -22,12 +24,6 @@ import {
 import { BatchEnrichGameListSection } from "./batch_enrich/BatchEnrichGameListSection";
 
 export type { BatchPresetMode };
-
-interface MetadataProgressPayload {
-  current: number;
-  total: number;
-  title: string;
-}
 
 export interface BatchEnrichModalProps {
   isOpen: boolean;
@@ -65,15 +61,9 @@ export default function BatchEnrichModal({
   // Selected Game IDs
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  // Execution state
-  const [isRunning, setIsRunning] = useState<boolean>(false);
-  const [progress, setProgress] = useState<MetadataProgressPayload | null>(null);
-  const [resultMessage, setResultMessage] = useState<{
-    type: "success" | "error" | "info";
-    text: string;
-  } | null>(null);
-
-  const isCancelledRef = useRef<boolean>(false);
+  const metadataDownload = useUiStore((s) => s.metadataDownload);
+  const isBackgroundRunning =
+    metadataDownload?.status === "running" && metadataDownload.mode !== "single";
 
   const missingArtworkGames = useMemo(
     () => allGames.filter((g) => !g.cover_image),
@@ -140,29 +130,6 @@ export default function BatchEnrichModal({
     );
   }, [presetGames, searchQuery]);
 
-  // Listen to Tauri progress events during batch enrichment
-  useEffect(() => {
-    if (!isOpen) return;
-
-    let unlisten: (() => void) | undefined;
-    (async () => {
-      try {
-        unlisten = await listen<MetadataProgressPayload>(
-          TAURI_EVENTS.METADATA_PROGRESS,
-          (event) => {
-            setProgress(event.payload);
-          }
-        );
-      } catch (err) {
-        console.warn("Failed to attach metadata-progress listener:", err);
-      }
-    })();
-
-    return () => {
-      if (unlisten) unlisten();
-    };
-  }, [isOpen]);
-
   if (!isOpen) return null;
 
   const handleToggleSelectAll = () => {
@@ -196,107 +163,34 @@ export default function BatchEnrichModal({
     setFetchAchievements(!allActive);
   };
 
-  const handleStartEnrichment = async () => {
+  const handleStartEnrichment = () => {
     const targetGameList = allGames.filter((g) => selectedIds.has(g.id));
     if (targetGameList.length === 0) return;
     if (!fetchMetadata && !fetchHltb && !fetchAchievements) return;
+    if (isBackgroundRunning) return;
 
-    try {
-      setIsRunning(true);
-      isCancelledRef.current = false;
-      setResultMessage(null);
-      const totalSteps = targetGameList.length;
-
-      setProgress({
-        current: 0,
-        total: totalSteps,
-        title: t("batch_enrich.preparing"),
-      });
-
-      // Step 1: Metadata & Artwork Batch Download
-      if (fetchMetadata && !isCancelledRef.current) {
-        await api.metadata.downloadBatchMetadata(targetGameList.map((g) => g.id));
-      }
-
-      // Step 2: HowLongToBeat when metadata was skipped (metadata pipeline already includes HLTB)
-      if (fetchHltb && !fetchMetadata && !isCancelledRef.current) {
-        for (let i = 0; i < targetGameList.length; i++) {
-          if (isCancelledRef.current) break;
-          const game = targetGameList[i];
-          setProgress({
-            current: i + 1,
-            total: totalSteps,
-            title: `HowLongToBeat: ${game.title}`,
-          });
-          try {
-            await api.games.refreshGameHowlongtobeat(game.id);
-          } catch (e) {
-            console.debug(`HLTB fetch skipped for ${game.title}:`, e);
-          }
-        }
-      }
-
-      // Step 3: Store Achievements
-      if (fetchAchievements && !isCancelledRef.current) {
-        const achievementEligible = targetGameList.filter((g) =>
-          supportsStoreAchievements(g.library)
-        );
-
-        for (let i = 0; i < achievementEligible.length; i++) {
-          if (isCancelledRef.current) break;
-          const game = achievementEligible[i];
-          setProgress({
-            current: i + 1,
-            total: achievementEligible.length,
-            title: `${t("batch_enrich.type_achievements")}: ${game.title}`,
-          });
-          try {
-            await api.achievements.refreshGameAchievements(game.id);
-          } catch (e) {
-            console.debug(`Achievements fetch skipped for ${game.title}:`, e);
-          }
-        }
-      }
-
-      if (isCancelledRef.current) {
-        setResultMessage({
-          type: "info",
-          text: t("batch_enrich.cancel_requested"),
-        });
-      } else {
-        setResultMessage({
-          type: "success",
-          text: t("batch_enrich.completed", { count: targetGameList.length }),
-        });
-      }
-
-      await onComplete();
-    } catch (err: unknown) {
-      setResultMessage({
-        type: "error",
-        text: t("batch_enrich.error", { error: getErrorMessage(err) }),
-      });
-    } finally {
-      setIsRunning(false);
-    }
+    startBatchEnrichment({
+      games: targetGameList,
+      fetchMetadata,
+      fetchHltb,
+      fetchAchievements,
+      preparingLabel: t("batch_enrich.preparing"),
+      achievementsLabel: t("batch_enrich.type_achievements"),
+      onComplete,
+    });
+    onClose();
   };
 
-  const handleCancel = async () => {
-    isCancelledRef.current = true;
-    try {
-      await api.metadata.cancelMetadataDownload();
-      setResultMessage({
-        type: "info",
-        text: t("batch_enrich.cancel_requested"),
-      });
-    } catch (err) {
-      console.warn("Failed to cancel metadata download:", err);
-    }
+  const handleCancelBackground = async () => {
+    await cancelBackgroundMetadataDownload();
   };
 
-  const percent =
-    progress && progress.total > 0
-      ? Math.min(100, Math.round((progress.current / progress.total) * 100))
+  const bgPercent =
+    isBackgroundRunning && metadataDownload && metadataDownload.total > 0
+      ? Math.min(
+          100,
+          Math.round((metadataDownload.current / metadataDownload.total) * 100)
+        )
       : 0;
 
   const noTypesSelected = !fetchMetadata && !fetchHltb && !fetchAchievements;
@@ -305,14 +199,13 @@ export default function BatchEnrichModal({
     <Dialog
       open={isOpen}
       onOpenChange={(open) => {
-        if (!open && !isRunning) {
+        if (!open) {
           onClose();
         }
       }}
     >
       <DialogContent
         className="max-w-4xl w-full max-h-[90vh] p-0 flex flex-col rounded-3xl overflow-hidden gap-0 text-foreground"
-        closeButtonDisabled={isRunning}
       >
         <DialogHeader className="flex-row items-center gap-3 px-6 py-4 border-b border-border bg-card shrink-0 space-y-0 text-left pr-14">
           <div
@@ -354,7 +247,7 @@ export default function BatchEnrichModal({
                 all: allGames.length,
                 filtered: filteredGames.length,
               }}
-              isRunning={isRunning}
+              isRunning={isBackgroundRunning}
               t={t}
             />
 
@@ -365,64 +258,63 @@ export default function BatchEnrichModal({
               onSearchChange={setSearchQuery}
               onToggleSelectAll={handleToggleSelectAll}
               onToggleGame={handleToggleGame}
-              isRunning={isRunning}
+              isRunning={isBackgroundRunning}
               t={t}
             />
 
-            {/* PROGRESS BAR & STATUS */}
-            {isRunning && progress && (
+            {/* ACTIVE BACKGROUND JOB NOTICE (when reopened while downloading) */}
+            {isBackgroundRunning && metadataDownload && (
               <div className="p-4 rounded-2xl border border-sky-500/40 bg-sky-500/10 space-y-2.5 animate-in fade-in">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-semibold text-sky-300 truncate max-w-sm sm:max-w-md flex items-center gap-2">
+                <div className="flex items-center justify-between text-xs gap-2">
+                  <span className="font-semibold text-sky-300 truncate flex items-center gap-2">
                     <RefreshCw className="w-3.5 h-3.5 animate-spin text-sky-400 shrink-0" />
-                    <span className="truncate">{progress.title}</span>
+                    <span className="truncate">
+                      {t("batch_enrich.running_in_background", {
+                        current: metadataDownload.current,
+                        total: metadataDownload.total,
+                      })}
+                    </span>
                   </span>
-                  <span className="font-bold text-white font-mono shrink-0">
-                    {progress.current} / {progress.total} ({percent}%)
-                  </span>
+                  {metadataDownload.total > 0 && (
+                    <span className="font-bold text-white font-mono shrink-0">
+                      {metadataDownload.current} / {metadataDownload.total} ({bgPercent}%)
+                    </span>
+                  )}
                 </div>
-                <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all duration-300 bg-gradient-to-r from-sky-500 via-indigo-500 to-amber-400"
-                    style={{ width: `${percent}%` }}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* RESULT FEEDBACK */}
-            {resultMessage && (
-              <div
-                className={`p-3.5 rounded-2xl border flex items-center gap-2.5 text-xs ${
-                  resultMessage.type === "error"
-                    ? "border-rose-500/40 bg-rose-500/10 text-rose-300"
-                    : resultMessage.type === "success"
-                    ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
-                    : "border-sky-500/40 bg-sky-500/10 text-sky-300"
-                }`}
-              >
-                {resultMessage.type === "error" ? (
-                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
-                ) : (
-                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+                {metadataDownload.total > 0 && (
+                  <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-300 bg-gradient-to-r from-sky-500 via-indigo-500 to-amber-400"
+                      style={{ width: `${bgPercent}%` }}
+                    />
+                  </div>
                 )}
-                <span className="font-medium">{resultMessage.text}</span>
               </div>
             )}
           </div>
         </ScrollArea>
 
         <DialogFooter className="px-6 py-4 border-t border-border bg-card shrink-0">
-          {isRunning ? (
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={handleCancel}
-              className="px-4 py-2 h-auto font-bold shadow-md"
-            >
-              <Square className="w-3.5 h-3.5 fill-current" />
-              <span>{t("batch_enrich.stop")}</span>
-            </Button>
+          {isBackgroundRunning ? (
+            <>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={handleCancelBackground}
+                className="px-4 py-2 h-auto font-bold shadow-md"
+              >
+                <Square className="w-3.5 h-3.5 fill-current" />
+                <span>{t("batch_enrich.stop")}</span>
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={onClose}
+                className="px-5 py-2.5 h-auto font-bold text-muted-foreground hover:text-foreground"
+              >
+                {t("common.close")}
+              </Button>
+            </>
           ) : (
             <>
               <Button
@@ -446,7 +338,7 @@ export default function BatchEnrichModal({
                 onClick={onClose}
                 className="px-5 py-2.5 h-auto font-bold text-muted-foreground hover:text-foreground"
               >
-                {resultMessage ? t("common.close") : t("common.cancel")}
+                {t("common.cancel")}
               </Button>
             </>
           )}

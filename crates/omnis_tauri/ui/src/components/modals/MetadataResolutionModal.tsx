@@ -4,6 +4,7 @@ import { useTranslation } from "../../i18n";
 import { getErrorMessage } from "../../utils/errors";
 import { GameDto } from "../../types";
 import { api } from "../../api";
+import { setSingleGameMetadataStatus } from "../../services/metadataBackgroundRunner";
 import {
   Dialog,
   DialogContent,
@@ -95,6 +96,8 @@ export default function MetadataResolutionModal({
   };
 
   const handleSearchRef = useRef<(term: string, prov: string) => void>(() => {});
+  const isOpenRef = useRef(isOpen);
+  isOpenRef.current = isOpen;
 
   // On open, pre-fill search and reset candidate state
   useEffect(() => {
@@ -220,6 +223,13 @@ export default function MetadataResolutionModal({
     try {
       setIsApplying(true);
       setApplyError(null);
+      setSingleGameMetadataStatus({
+        status: "running",
+        mode: "single",
+        current: 0,
+        total: 0,
+        title: game.title,
+      });
 
       const updated = await api.metadata.applyMetadataCandidate(
         game.id,
@@ -231,15 +241,42 @@ export default function MetadataResolutionModal({
         throw new Error(t("metadata_resolution.save_failed"));
       }
 
-      setApplySuccess(true);
-      setTimeout(() => {
+      setSingleGameMetadataStatus({
+        status: "completed",
+        mode: "single",
+        current: 1,
+        total: 1,
+        title: updated.title || game.title,
+      });
+
+      if (isOpenRef.current) {
+        setApplySuccess(true);
+        setTimeout(() => {
+          onApply(updated);
+          if (isOpenRef.current) {
+            onClose();
+          }
+        }, 500);
+      } else {
         onApply(updated);
-        onClose();
-      }, 500);
+      }
     } catch (err: unknown) {
-      setApplyError(getErrorMessage(err, t("metadata_resolution.apply_error")));
+      const msg = getErrorMessage(err, t("metadata_resolution.apply_error"));
+      setSingleGameMetadataStatus({
+        status: "error",
+        mode: "single",
+        current: 0,
+        total: 0,
+        title: game.title,
+        error: msg,
+      });
+      if (isOpenRef.current) {
+        setApplyError(msg);
+      }
     } finally {
-      setIsApplying(false);
+      if (isOpenRef.current) {
+        setIsApplying(false);
+      }
     }
   };
 
@@ -247,14 +284,13 @@ export default function MetadataResolutionModal({
     <Dialog
       open={isOpen && Boolean(game)}
       onOpenChange={(open) => {
-        if (!open && !isApplying) {
+        if (!open) {
           onClose();
         }
       }}
     >
       <DialogContent
         className="max-w-5xl w-full max-h-[92vh] p-0 flex flex-col rounded-2xl overflow-hidden gap-0 text-foreground"
-        closeButtonDisabled={isApplying}
       >
         <DialogHeader className="flex-row items-center justify-between px-6 py-4 border-b border-border bg-card shrink-0 space-y-0 text-left pr-14">
           <div className="flex items-center gap-3 min-w-0">
@@ -412,7 +448,6 @@ export default function MetadataResolutionModal({
               type="button"
               variant="outline"
               onClick={onClose}
-              disabled={isApplying}
               className="px-5 py-2.5 h-auto font-medium"
             >
               {t("common.cancel")}

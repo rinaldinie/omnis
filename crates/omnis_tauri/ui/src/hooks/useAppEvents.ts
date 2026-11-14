@@ -55,6 +55,7 @@ export function useAppEvents({
   const setSyncBanner = useUiStore((s) => s.setSyncBanner);
   const achievementSync = useUiStore((s) => s.achievementSync);
   const setAchievementSync = useUiStore((s) => s.setAchievementSync);
+  const setMetadataDownload = useUiStore((s) => s.setMetadataDownload);
   const storeOpenSettings = useUiStore((s) => s.openSettings);
   const handleOpenSettings = propHandleOpenSettings ?? storeOpenSettings;
 
@@ -81,6 +82,7 @@ export function useAppEvents({
     setSessionToast,
     setSyncBanner,
     setAchievementSync,
+    setMetadataDownload,
   });
   latestRef.current = {
     loadGames,
@@ -98,6 +100,7 @@ export function useAppEvents({
     setSessionToast,
     setSyncBanner,
     setAchievementSync,
+    setMetadataDownload,
   };
 
   useEffect(() => {
@@ -347,7 +350,13 @@ export function useAppEvents({
         }>(TAURI_EVENTS.METADATA_PROGRESS, (payload) => {
           const { current, total, title } = payload;
           latestRef.current.setPipelineProgress(`Download dati (${current}/${total}): "${title}"...`);
-          latestRef.current.setStatusMessage(latestRef.current.statusText("metadata_batch_progress", { current, total, title }));
+          latestRef.current.setMetadataDownload((prev) => ({
+            status: "running",
+            mode: prev?.status === "running" && prev.mode !== "single" ? prev.mode : "all",
+            current,
+            total,
+            title,
+          }));
         });
         if (uMeta) unlistenFns.push(uMeta);
 

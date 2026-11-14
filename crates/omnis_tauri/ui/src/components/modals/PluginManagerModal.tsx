@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Puzzle,
   Folder,
@@ -6,8 +6,8 @@ import {
   Sparkles,
   X,
 } from "lucide-react";
-import { ProviderInfo, PluginSettingsMap, MetadataPipelineConfig, TAURI_EVENTS } from "../../types";
-import { listenTauri } from "../../api/client";
+import { ProviderInfo, PluginSettingsMap, MetadataPipelineConfig } from "../../types";
+import { useUiStore } from "../../stores/useUiStore";
 import { useTranslation } from "../../i18n";
 import { BUILTIN_LIBRARIES, PluginCategory } from "./plugins/constants";
 import { PluginCard } from "./plugins/PluginCard";
@@ -90,25 +90,15 @@ export default function PluginManagerModal({
     "providers" | "pipeline" | "enrich"
   >("providers");
   const [categoryFilter, setCategoryFilter] = useState<PluginCategory>("all");
-  const [liveProgress, setLiveProgress] = useState<{ current: number; total: number; title: string } | null>(null);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    let unlisten: (() => void) | null = null;
-    (async () => {
-      try {
-        unlisten = await listenTauri<{ current: number; total: number; title: string }>(
-          TAURI_EVENTS.METADATA_PROGRESS,
-          (payload) => setLiveProgress(payload)
-        );
-      } catch (err) {
-        console.warn("Failed to attach metadata-progress listener in PluginManagerModal:", err);
-      }
-    })();
-    return () => {
-      if (unlisten) unlisten();
-    };
-  }, [isOpen]);
+  const metadataDownload = useUiStore((s) => s.metadataDownload);
+  const liveProgress =
+    metadataDownload && metadataDownload.status === "running" && metadataDownload.total > 0
+      ? {
+          current: metadataDownload.current,
+          total: metadataDownload.total,
+          title: metadataDownload.title,
+        }
+      : null;
 
   const [libraryToggles, setLibraryToggles] = useState<Record<string, boolean>>(() => {
     try {

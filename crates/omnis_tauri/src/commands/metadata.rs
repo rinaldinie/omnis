@@ -61,7 +61,7 @@ pub async fn download_batch_metadata(
     downloader
         .download_for_games(db, uuids, &cache_dir, move |cur, tot, title| {
             let _ = handle.emit(
-                "metadata-progress",
+                events::METADATA_PROGRESS,
                 MetadataProgressPayload {
                     current: cur,
                     total: tot,

@@ -1,9 +1,13 @@
-import { useState, useCallback } from "react";
+import { useCallback } from "react";
 import { GameDto, ActiveGameSession, TranslateFn, normalizeGame } from "../types";
 import { api } from "../api";
 import soundEffects from "../utils/soundEffects";
 import { getErrorMessage } from "../utils/errors";
 import { useLibraryStore, useUiStore } from "../stores";
+import {
+  setSingleGameMetadataStatus,
+  startAllMetadataEnrichment,
+} from "../services/metadataBackgroundRunner";
 
 export interface UseGameOperationsOptions {
   games?: GameDto[];
@@ -53,6 +57,10 @@ export function useGameOperations({
   const setGameToUninstall = useUiStore((s) => s.setGameToUninstall);
   const showUninstallModal = useUiStore((s) => s.showUninstallModal);
   const setShowUninstallModal = useUiStore((s) => s.setShowUninstallModal);
+  const enrichingGameIds = useUiStore((s) => s.enrichingGameIds);
+  const addEnrichingGameId = useUiStore((s) => s.addEnrichingGameId);
+  const removeEnrichingGameId = useUiStore((s) => s.removeEnrichingGameId);
+  const metadataDownload = useUiStore((s) => s.metadataDownload);
 
   const games = propGames ?? storeGames;
   const setGames = propSetGames ?? storeSetGames;
@@ -64,8 +72,9 @@ export function useGameOperations({
   const setIsGameRunning = propSetIsGameRunning ?? storeSetIsGameRunning;
   const setActiveGame = propSetActiveGame ?? storeSetActiveGame;
 
-  const [isDownloading, setIsDownloading] = useState<boolean>(false);
-  const [isEnrichingSingle, setIsEnrichingSingle] = useState<boolean>(false);
+  const isDownloading =
+    metadataDownload?.status === "running" && metadataDownload.mode !== "single";
+  const isEnrichingSingle = enrichingGameIds.length > 0;
 
   const handleSync = useCallback(async () => {
     try {
@@ -87,17 +96,17 @@ export function useGameOperations({
   }, [setIsSyncing, setStatusMessage, statusText, refreshLibrary]);
 
   const handleDownloadAll = useCallback(async () => {
-    setIsDownloading(true);
-    setStatusMessage(statusText("metadata_downloading"));
     try {
-      await api.metadata.downloadAllMetadata();
-      await refreshLibrary();
-      setStatusMessage(statusText("metadata_updated"));
+      const task = startAllMetadataEnrichment({
+        preparingLabel: statusText("metadata_downloading"),
+        onComplete: refreshLibrary,
+      });
+      if (task) {
+        await task;
+      }
     } catch (err: unknown) {
       console.warn("Download metadata error:", err);
       setStatusMessage(statusText("metadata_error", { error: getErrorMessage(err) }));
-    } finally {
-      setIsDownloading(false);
     }
   }, [setStatusMessage, statusText, refreshLibrary]);
 
@@ -210,41 +219,75 @@ export function useGameOperations({
   }, [games, t, statusText, setStatusMessage, refreshLibrary, selectedGame, setSelectedGame]);
 
   const handleEnrichSingleGame = useCallback(async (gameId: string) => {
+    const targetTitle = games.find((g) => g.id === gameId)?.title || "";
     try {
-      setIsEnrichingSingle(true);
-      setStatusMessage(statusText("metadata_downloading_game"));
+      addEnrichingGameId(gameId);
+      setSingleGameMetadataStatus({
+        status: "running",
+        mode: "single",
+        current: 0,
+        total: 0,
+        title: targetTitle,
+      });
       const updated = await api.games.enrichSingleGame(gameId);
       if (updated) {
         const normalized = normalizeGame(updated);
-        setSelectedGame(normalized);
+        setSelectedGame((prev) => (prev && prev.id === normalized.id ? normalized : prev));
         setGames((prev) => prev.map((g) => (g.id === normalized.id ? normalized : g)));
-        setStatusMessage(statusText("metadata_updated_game", { title: normalized.title }));
+        setSingleGameMetadataStatus({
+          status: "completed",
+          mode: "single",
+          current: 1,
+          total: 1,
+          title: normalized.title,
+        });
       }
     } catch (err: unknown) {
-      setStatusMessage(statusText("metadata_download_error", { error: getErrorMessage(err) }));
+      const errorMsg = getErrorMessage(err);
+      setSingleGameMetadataStatus({
+        status: "error",
+        mode: "single",
+        current: 0,
+        total: 0,
+        title: targetTitle,
+        error: errorMsg,
+      });
     } finally {
-      setIsEnrichingSingle(false);
+      removeEnrichingGameId(gameId);
     }
-  }, [setStatusMessage, statusText, setSelectedGame, setGames]);
+  }, [games, addEnrichingGameId, removeEnrichingGameId, setSelectedGame, setGames]);
 
   const handleRefreshHltb = useCallback(async (gameId: string) => {
+    const targetTitle = games.find((g) => g.id === gameId)?.title || "";
     try {
-      setIsEnrichingSingle(true);
-      setStatusMessage(statusText("hltb_refreshing"));
+      addEnrichingGameId(gameId);
+      setSingleGameMetadataStatus({
+        status: "running",
+        mode: "single",
+        current: 0,
+        total: 0,
+        title: targetTitle,
+      });
       const updated = await api.games.refreshGameHowlongtobeat(gameId);
       if (updated) {
         const normalized = normalizeGame(updated);
-        setSelectedGame(normalized);
+        setSelectedGame((prev) => (prev && prev.id === normalized.id ? normalized : prev));
         setGames((prev) => prev.map((g) => (g.id === normalized.id ? normalized : g)));
-        setStatusMessage(statusText("hltb_updated", { title: normalized.title }));
+        setSingleGameMetadataStatus({
+          status: "completed",
+          mode: "single",
+          current: 1,
+          total: 1,
+          title: normalized.title,
+        });
       }
     } catch (err: unknown) {
       console.warn("Direct HLTB refresh error, falling back to full enrichment:", err);
       await handleEnrichSingleGame(gameId);
     } finally {
-      setIsEnrichingSingle(false);
+      removeEnrichingGameId(gameId);
     }
-  }, [setStatusMessage, statusText, setSelectedGame, setGames, handleEnrichSingleGame]);
+  }, [games, addEnrichingGameId, removeEnrichingGameId, setSelectedGame, setGames, handleEnrichSingleGame]);
 
   const handleUpdateCompletionStatus = useCallback(async (game: GameDto, newStatus: string) => {
     try {

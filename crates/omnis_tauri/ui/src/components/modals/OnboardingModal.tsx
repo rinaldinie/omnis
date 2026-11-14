@@ -13,7 +13,8 @@ import {
 } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import soundEffects from "../../utils/soundEffects";
-import { api, TAURI_EVENTS, listenTauri } from "../../api";
+import { api } from "../../api";
+import { useUiStore } from "../../stores/useUiStore";
 import { SteamIcon, EpicIcon, GogIcon, XboxIcon, SwitchIcon } from "../common/StoreBadge";
 import type { SettingsTab } from "../settings";
 import {
@@ -105,11 +106,18 @@ export default function OnboardingModal({
   const [summary, setSummary] = useState<ImportSummary | null>(null);
   const [showKeyTip, setShowKeyTip] = useState(false);
   const [metadataState, setMetadataState] = useState<MetadataState>("idle");
-  const [metadataProgress, setMetadataProgress] = useState<{
-    current: number;
-    total: number;
-    title: string;
-  } | null>(null);
+  const metadataDownload = useUiStore((s) => s.metadataDownload);
+  const metadataProgress =
+    phase === "summary" &&
+    metadataDownload &&
+    metadataDownload.status === "running" &&
+    metadataDownload.total > 0
+      ? {
+          current: metadataDownload.current,
+          total: metadataDownload.total,
+          title: metadataDownload.title,
+        }
+      : null;
   const [autoScan, setAutoScan] = useState<boolean>(() => {
     try {
       const saved = localStorage.getItem(AUTO_SCAN_KEY);
@@ -143,23 +151,6 @@ export default function OnboardingModal({
       if (mounted.current) setPhase("select");
     }
   };
-
-  // ── Live metadata progress while the summary is open ──────────────────────
-  useEffect(() => {
-    if (phase !== "summary") return;
-    let unlisten: (() => void) | null = null;
-    listenTauri<{ current: number; total: number; title: string }>(
-      TAURI_EVENTS.METADATA_PROGRESS,
-      (payload) => {
-        if (mounted.current) setMetadataProgress(payload);
-      }
-    ).then((fn) => {
-      unlisten = fn;
-    });
-    return () => {
-      if (unlisten) unlisten();
-    };
-  }, [phase]);
 
   // ── Toggle source selection ─────────────────────────────────────────────────
   const toggleStore = (id: string, detected: boolean) => {

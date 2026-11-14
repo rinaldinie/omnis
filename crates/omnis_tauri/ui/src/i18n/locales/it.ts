@@ -409,6 +409,9 @@ export const it: TranslationSchema = {
     game_running_pid: '“{title}” in esecuzione (PID: {pid})',
     session_ended: 'Sessione terminata: {title} (+{minutes} min)',
     metadata_batch_progress: 'Scaricamento dati e copertine ({current}/{total}): {title}',
+    metadata_bar_progress: 'Metadati ({current}/{total}): {title}',
+    metadata_bar_running: 'Metadati: {title}',
+    metadata_bar_cancelled: 'Scaricamento metadati annullato',
     library_scanning: 'Scansione e sincronizzazione delle librerie in corso (Steam, Epic, store collegati)…',
     library_scanned_count: 'Scansione completata! {count} giochi nel catalogo.',
     library_scanned: 'Scansione della libreria completata!',
@@ -1222,6 +1225,7 @@ export const it: TranslationSchema = {
     hltb_missing: 'Dati HLTB mancanti',
     achievements_synced: 'Obiettivi sincronizzati',
     achievements_missing: 'Nessun obiettivo',
+    running_in_background: 'È già in corso uno scaricamento dei metadati in background ({current}/{total}).',
   },
   uninstall_modal: {
     title: 'Disinstalla Gioco',

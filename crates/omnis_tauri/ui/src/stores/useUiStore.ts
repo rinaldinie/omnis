@@ -15,6 +15,15 @@ export interface ContextMenuState {
   game: GameDto;
 }
 
+export interface MetadataDownloadState {
+  status: "running" | "completed" | "cancelled" | "error";
+  mode: "batch" | "all" | "single";
+  current: number;
+  total: number;
+  title: string;
+  error?: string;
+}
+
 export interface UiState {
   // Views
   viewMode: ViewMode;
@@ -52,6 +61,8 @@ export interface UiState {
   sessionToast: SessionToastInfo | null;
   syncBanner: SyncBannerInfo | null;
   achievementSync: AchievementSyncProgress | null;
+  metadataDownload: MetadataDownloadState | null;
+  enrichingGameIds: string[];
 
   // Actions
   setViewMode: (mode: ViewMode) => void;
@@ -99,6 +110,14 @@ export interface UiState {
       | null
       | ((prev: AchievementSyncProgress | null) => AchievementSyncProgress | null)
   ) => void;
+  setMetadataDownload: (
+    updater:
+      | MetadataDownloadState
+      | null
+      | ((prev: MetadataDownloadState | null) => MetadataDownloadState | null)
+  ) => void;
+  addEnrichingGameId: (gameId: string) => void;
+  removeEnrichingGameId: (gameId: string) => void;
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -137,6 +156,8 @@ export const useUiStore = create<UiState>((set) => ({
   sessionToast: null,
   syncBanner: null,
   achievementSync: null,
+  metadataDownload: null,
+  enrichingGameIds: [],
 
   setViewMode: (viewMode) => set({ viewMode }),
   setIsFullscreen: (isFullscreen) => set({ isFullscreen }),
@@ -200,5 +221,20 @@ export const useUiStore = create<UiState>((set) => ({
     set((state) => ({
       achievementSync:
         typeof updater === "function" ? updater(state.achievementSync) : updater,
+    })),
+  setMetadataDownload: (updater) =>
+    set((state) => ({
+      metadataDownload:
+        typeof updater === "function" ? updater(state.metadataDownload) : updater,
+    })),
+  addEnrichingGameId: (gameId) =>
+    set((state) =>
+      state.enrichingGameIds.includes(gameId)
+        ? state
+        : { enrichingGameIds: [...state.enrichingGameIds, gameId] }
+    ),
+  removeEnrichingGameId: (gameId) =>
+    set((state) => ({
+      enrichingGameIds: state.enrichingGameIds.filter((id) => id !== gameId),
     })),
 }));

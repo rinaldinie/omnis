@@ -409,6 +409,9 @@ export const ja: TranslationSchema = {
     game_running_pid: '「{title}」を実行中 (PID: {pid})',
     session_ended: 'セッション終了：{title} (+{minutes} 分)',
     metadata_batch_progress: 'データとカバーをダウンロード中 ({current}/{total})：{title}',
+    metadata_bar_progress: 'メタデータ ({current}/{total})：{title}',
+    metadata_bar_running: 'メタデータ：{title}',
+    metadata_bar_cancelled: 'メタデータのダウンロードをキャンセルしました',
     library_scanning: 'ライブラリをスキャン・同期しています（Steam、Epic、連携ストア）…',
     library_scanned_count: 'スキャン完了！カタログに {count} 本のゲーム',
     library_scanned: 'ライブラリのスキャンが完了しました',
@@ -1222,6 +1225,7 @@ export const ja: TranslationSchema = {
     hltb_missing: 'HLTB データなし',
     achievements_synced: '実績を同期済み',
     achievements_missing: '実績なし',
+    running_in_background: 'バックグラウンドでメタデータのダウンロードが進行中です ({current}/{total})。',
   },
   uninstall_modal: {
     title: 'ゲームをアンインストール',

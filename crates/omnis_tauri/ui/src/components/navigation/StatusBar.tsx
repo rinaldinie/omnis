@@ -3,6 +3,8 @@ import { RefreshCw } from "lucide-react";
 import { ActiveGameSession, AchievementSyncProgress, TranslateFn } from "../../types";
 import { ActiveGameStatusBarTicker } from "../../context/ActiveGameTimerContext";
 import { AchievementSyncIndicator } from "../achievements";
+import { MetadataDownloadIndicator } from "./MetadataDownloadIndicator";
+import type { MetadataDownloadState } from "../../stores";
 import { Button } from "@/components/ui/button";
 import { ActionTooltip } from "@/components/ui/tooltip";
 
@@ -15,6 +17,8 @@ export interface StatusBarProps {
   isSyncing: boolean;
   statusMessage: string;
   achievementSync: AchievementSyncProgress | null;
+  metadataDownload?: MetadataDownloadState | null;
+  onCancelMetadataDownload?: () => void;
   currentThemeName: string;
   t: TranslateFn;
 }
@@ -28,6 +32,8 @@ export const StatusBar: React.FC<StatusBarProps> = ({
   isSyncing,
   statusMessage,
   achievementSync,
+  metadataDownload,
+  onCancelMetadataDownload,
   currentThemeName,
   t,
 }) => {
@@ -40,7 +46,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
         color: "var(--text-muted)",
       }}
     >
-      <div className="flex items-center gap-3 truncate">
+      <div className="flex items-center gap-3 truncate min-w-0">
         {gamepadConnected && (
           <div className="flex items-center gap-1.5 shrink-0">
             <span
@@ -75,14 +81,31 @@ export const StatusBar: React.FC<StatusBarProps> = ({
                 {t("app_misc.kill_short")}
               </Button>
             </ActionTooltip>
+            {metadataDownload && (
+              <MetadataDownloadIndicator
+                download={metadataDownload}
+                onCancel={onCancelMetadataDownload}
+              />
+            )}
           </div>
         ) : isSyncing ? (
-          <div className="flex items-center gap-2 truncate">
+          <div className="flex items-center gap-3 truncate">
             <span className="text-sky-300 font-bold flex items-center gap-1.5 truncate">
               <RefreshCw className="w-3.5 h-3.5 animate-spin text-sky-400 shrink-0" />
               <span className="truncate">{statusMessage || t("store_accounts.syncing")}</span>
             </span>
+            {metadataDownload && (
+              <MetadataDownloadIndicator
+                download={metadataDownload}
+                onCancel={onCancelMetadataDownload}
+              />
+            )}
           </div>
+        ) : metadataDownload ? (
+          <MetadataDownloadIndicator
+            download={metadataDownload}
+            onCancel={onCancelMetadataDownload}
+          />
         ) : (
           <span className="truncate">{statusMessage || t("app_status.ready")}</span>
         )}

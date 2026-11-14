@@ -409,6 +409,9 @@ export const fr: TranslationSchema = {
     game_running_pid: '« {title} » en cours d’exécution (PID : {pid})',
     session_ended: 'Session terminée : {title} (+{minutes} min)',
     metadata_batch_progress: 'Téléchargement des données et jaquettes ({current}/{total}) : {title}',
+    metadata_bar_progress: 'Métadonnées ({current}/{total}) : {title}',
+    metadata_bar_running: 'Métadonnées : {title}',
+    metadata_bar_cancelled: 'Téléchargement des métadonnées annulé',
     library_scanning: 'Analyse et synchronisation des bibliothèques (Steam, Epic, boutiques liées)…',
     library_scanned_count: 'Analyse terminée ! {count} jeux dans le catalogue.',
     library_scanned: 'Analyse de la bibliothèque terminée !',
@@ -1222,6 +1225,7 @@ export const fr: TranslationSchema = {
     hltb_missing: 'Données HLTB manquantes',
     achievements_synced: 'Succès synchronisés',
     achievements_missing: 'Aucun succès',
+    running_in_background: 'Un téléchargement de métadonnées est déjà en cours en arrière-plan ({current}/{total}).',
   },
   uninstall_modal: {
     title: 'Désinstaller le jeu',

@@ -3,24 +3,12 @@ import { render, screen, fireEvent, waitFor, act } from "@testing-library/react"
 import BatchEnrichModal from "./BatchEnrichModal";
 import { I18nProvider } from "@/i18n";
 import { api } from "@/api";
-import { TAURI_EVENTS, type GameDto } from "@/types";
-
-let progressListener: ((event: { payload: { current: number; total: number; title: string } }) => void) | null = null;
-const unlistenMock = vi.fn();
-
-vi.mock("@tauri-apps/api/event", () => ({
-  listen: vi.fn(
-    async (
-      event: string,
-      cb: (payload: { payload: { current: number; total: number; title: string } }) => void
-    ) => {
-      if (event === TAURI_EVENTS.METADATA_PROGRESS) {
-        progressListener = cb;
-      }
-      return unlistenMock;
-    }
-  ),
-}));
+import { useUiStore } from "@/stores";
+import {
+  cancelBackgroundMetadataDownload,
+  resetMetadataDownloadRunner,
+} from "@/services/metadataBackgroundRunner";
+import { type GameDto } from "@/types";
 
 vi.mock("@/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/api")>();
@@ -90,14 +78,16 @@ const games: GameDto[] = [
   },
 ];
 
-describe("BatchEnrichModal IPC flow", () => {
+describe("BatchEnrichModal background IPC flow", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    progressListener = null;
+    resetMetadataDownloadRunner();
+    useUiStore.setState({ metadataDownload: null });
   });
 
-  it("runs batch metadata download with live progress and supports cancellation", async () => {
+  it("closes immediately on start, runs batch download in background, and supports cancellation", async () => {
     const onComplete = vi.fn().mockResolvedValue(undefined);
+    const onClose = vi.fn();
     let resolveDownload!: (updated: number) => void;
     vi.mocked(api.metadata.downloadBatchMetadata).mockImplementationOnce(
       () =>
@@ -106,11 +96,11 @@ describe("BatchEnrichModal IPC flow", () => {
         })
     );
 
-    render(
+    const { rerender } = render(
       <I18nProvider initialLocale="en">
         <BatchEnrichModal
           isOpen={true}
-          onClose={vi.fn()}
+          onClose={onClose}
           allGames={games}
           filteredGames={[games[0]]}
           onComplete={onComplete}
@@ -122,41 +112,58 @@ describe("BatchEnrichModal IPC flow", () => {
     fireEvent.click(screen.getByRole("button", { name: /Entire Library/i }));
     fireEvent.click(screen.getByRole("button", { name: /Download Selected Data \(2\)/i }));
 
+    // Modal closes immediately so the user is never blocked
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(useUiStore.getState().metadataDownload).toMatchObject({
+      status: "running",
+      mode: "batch",
+      current: 0,
+      total: 2,
+    });
+
     await waitFor(() => {
       expect(api.metadata.downloadBatchMetadata).toHaveBeenCalledWith(["g1", "g2"]);
-      expect(progressListener).not.toBeNull();
     });
 
-    act(() => {
-      progressListener?.({ payload: { current: 1, total: 2, title: "Enriching Hollow Knight" } });
-    });
-    expect(screen.getByText("Enriching Hollow Knight")).toBeTruthy();
-    expect(screen.getByText("1 / 2 (50%)")).toBeTruthy();
-
-    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-    await waitFor(() => {
-      expect(api.metadata.cancelMetadataDownload).toHaveBeenCalledTimes(1);
-    });
+    // Reopening the modal while background download is active shows non-blocking status + Cancel
+    rerender(
+      <I18nProvider initialLocale="en">
+        <BatchEnrichModal
+          isOpen={true}
+          onClose={onClose}
+          allGames={games}
+          filteredGames={[games[0]]}
+          onComplete={onComplete}
+        />
+      </I18nProvider>
+    );
+    expect(screen.getByText(/already running in the background/i)).toBeTruthy();
 
     await act(async () => {
-      resolveDownload(2);
+      await cancelBackgroundMetadataDownload();
+    });
+    expect(api.metadata.cancelMetadataDownload).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveDownload(1);
     });
 
     await waitFor(() => {
-      expect(screen.getByText("Cancellation request sent...")).toBeTruthy();
+      expect(useUiStore.getState().metadataDownload?.status).toBe("cancelled");
     });
     expect(onComplete).toHaveBeenCalledTimes(1);
   });
 
-  it("skips metadata download when disabled, runs HLTB + store-eligible achievements, and handles IPC error", async () => {
+  it("reports IPC errors in background state and runs HLTB + store-eligible achievements when metadata is disabled", async () => {
     const onComplete = vi.fn().mockResolvedValue(undefined);
+    const onClose = vi.fn();
     vi.mocked(api.metadata.downloadBatchMetadata).mockRejectedValueOnce(new Error("Pipeline crashed"));
 
     render(
       <I18nProvider initialLocale="en">
         <BatchEnrichModal
           isOpen={true}
-          onClose={vi.fn()}
+          onClose={onClose}
           allGames={games}
           filteredGames={games}
           onComplete={onComplete}
@@ -164,11 +171,16 @@ describe("BatchEnrichModal IPC flow", () => {
       </I18nProvider>
     );
 
-    // Select Entire Library (2), then verify IPC error reporting
+    // Select Entire Library (2), start download -> modal closes & error recorded in store
     fireEvent.click(screen.getByRole("button", { name: /Entire Library/i }));
     fireEvent.click(screen.getByRole("button", { name: /Download Selected Data \(2\)/i }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+
     await waitFor(() => {
-      expect(screen.getByText("Error during data download: Pipeline crashed")).toBeTruthy();
+      expect(useUiStore.getState().metadataDownload).toMatchObject({
+        status: "error",
+        error: "Pipeline crashed",
+      });
     });
 
     // Disable metadata, leaving HLTB and Achievements active
@@ -180,6 +192,7 @@ describe("BatchEnrichModal IPC flow", () => {
       expect(api.achievements.refreshGameAchievements).toHaveBeenCalledTimes(1);
       expect(api.achievements.refreshGameAchievements).toHaveBeenCalledWith("g1");
       expect(onComplete).toHaveBeenCalledTimes(1);
+      expect(useUiStore.getState().metadataDownload?.status).toBe("completed");
     });
   });
 
