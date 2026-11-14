@@ -6,7 +6,7 @@ use rusqlite::{params, Result};
 use std::path::PathBuf;
 use uuid::Uuid;
 
-use crate::db::Database;
+use crate::db::{normalize_genres, parse_and_normalize_genres, Database};
 
 /// Focused repository trait for core Game catalog CRUD operations
 pub trait GameRepository: Send + Sync {
@@ -104,12 +104,7 @@ pub(crate) fn map_row_to_game(row: &rusqlite::Row) -> rusqlite::Result<Game> {
 
     let genres_str: Option<String> = row.get(18)?;
     let genres: Vec<String> = genres_str
-        .map(|s| {
-            s.split(',')
-                .map(|g| g.trim().to_string())
-                .filter(|g| !g.is_empty())
-                .collect()
-        })
+        .map(|s| parse_and_normalize_genres(&s))
         .unwrap_or_default();
 
     let devs_str: Option<String> = row.get(19)?;
@@ -399,10 +394,11 @@ impl GameRepository for Database {
             Some(st) if !st.trim().is_empty() => st.clone(),
             _ => update.title.to_lowercase(),
         };
-        let genres_str = if update.genres.is_empty() {
+        let normalized_genres = normalize_genres(&update.genres);
+        let genres_str = if normalized_genres.is_empty() {
             None
         } else {
-            Some(update.genres.join(", "))
+            Some(normalized_genres.join(", "))
         };
         let devs_str = if update.developers.is_empty() {
             None
@@ -509,8 +505,9 @@ impl GameRepository for Database {
         let conn = self.writer();
         let now = Utc::now().to_rfc3339();
 
-        let genres_joined = if !patch.genres.is_empty() {
-            Some(patch.genres.join(", "))
+        let normalized_genres = normalize_genres(&patch.genres);
+        let genres_joined = if !normalized_genres.is_empty() {
+            Some(normalized_genres.join(", "))
         } else {
             None
         };

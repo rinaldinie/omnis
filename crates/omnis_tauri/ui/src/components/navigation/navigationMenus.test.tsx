@@ -85,6 +85,55 @@ describe("Phase 3 Popover, Dropdown & Tooltip", () => {
     expect(onSortChange).toHaveBeenCalledWith("title");
   });
 
+  it("deduplicates equivalent genres in FilterAndSortPopover and aggregates counts", () => {
+    const onToggleGenre = vi.fn();
+
+    render(
+      <I18nProvider initialLocale="it">
+        <FilterAndSortPopover
+          trigger={<button type="button">Filter</button>}
+          isOpen={true}
+          onOpenChange={vi.fn()}
+          sortMode="recent"
+          onSortChange={vi.fn()}
+          selectedFlags={[]}
+          onToggleFlag={vi.fn()}
+          selectedStatuses={[]}
+          onToggleStatus={vi.fn()}
+          selectedStores={[]}
+          onToggleStore={vi.fn()}
+          selectedGenres={["action"]}
+          onToggleGenre={onToggleGenre}
+          selectedFeatures={[]}
+          onToggleFeature={vi.fn()}
+          onClearAll={vi.fn()}
+          totalActiveFilters={1}
+          filterCounts={{
+            total: 10,
+            installed: 5,
+            favorites: 2,
+            recent: 3,
+            stores: { steam: 5 },
+            statuses: {},
+            genres: { Action: 2, Azione: 3, "Role-Playing": 1, GDR: 4 },
+            features: {},
+          }}
+          availableGenres={["Action", "Azione", "Role-Playing", "GDR"]}
+          availableFeatures={[]}
+        />
+      </I18nProvider>
+    );
+
+    const actionLabels = screen.getAllByText("Azione");
+    expect(actionLabels).toHaveLength(1);
+    const rpgLabels = screen.getAllByText("GDR");
+    expect(rpgLabels).toHaveLength(1);
+    expect(screen.getAllByText("5").length).toBeGreaterThanOrEqual(2);
+
+    fireEvent.click(actionLabels[0]);
+    expect(onToggleGenre).toHaveBeenCalledWith("Action");
+  });
+
   it("renders GroupByPopover and selects a group mode", () => {
     const onSelectGroup = vi.fn();
     const onOpenChange = vi.fn();

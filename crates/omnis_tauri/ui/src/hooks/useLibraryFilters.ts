@@ -5,6 +5,7 @@ import { sortGames, GameSortMode, readSavedSortMode, saveSortMode } from "../uti
 import { toCategoryId } from "../utils/consoleCategories";
 import { getRecentSettings, RecentSettings } from "../utils/recentSettings";
 import { getConsolePrefs } from "../utils/consolePrefs";
+import { getCanonicalGenre, getLocalizedGenre } from "../utils/genres";
 
 const FILTERS_STORAGE_KEY = "omnis_library_filters";
 
@@ -18,6 +19,19 @@ interface SavedFilters {
 
 const EMPTY_FILTERS: SavedFilters = { stores: [], statuses: [], flags: [], genres: [], features: [] };
 
+function normalizeSavedGenres(genres: string[]): string[] {
+  const seen = new Set<string>();
+  const normalized: string[] = [];
+  for (const genre of genres) {
+    const canonical = getCanonicalGenre(genre);
+    if (canonical && !seen.has(canonical)) {
+      seen.add(canonical);
+      normalized.push(canonical);
+    }
+  }
+  return normalized;
+}
+
 function readSavedFilters(): SavedFilters {
   try {
     const parsed = JSON.parse(localStorage.getItem(FILTERS_STORAGE_KEY) ?? "null") as Partial<SavedFilters> | null;
@@ -28,7 +42,7 @@ function readSavedFilters(): SavedFilters {
       stores: list(parsed.stores),
       statuses: list(parsed.statuses),
       flags: list(parsed.flags),
-      genres: list(parsed.genres),
+      genres: normalizeSavedGenres(list(parsed.genres)),
       features: list(parsed.features),
     };
   } catch {
@@ -51,29 +65,13 @@ export interface FilterChip {
 }
 
 function matchesGenre(g: GameDto, targetGenre: string): boolean {
-  const tLower = targetGenre.toLowerCase().trim();
-  if (tLower === "action") {
-    return g.genres.some((x) => x.toLowerCase().includes("azione") || x.toLowerCase().includes("action"));
-  }
-  if (tLower === "rpg") {
-    return g.genres.some((x) => x.toLowerCase().includes("gdr") || x.toLowerCase().includes("rpg"));
-  }
-  if (tLower === "strategy") {
-    return g.genres.some(
-      (x) =>
-        x.toLowerCase().includes("strategia") ||
-        x.toLowerCase().includes("puzzle") ||
-        x.toLowerCase().includes("strategy")
-    );
-  }
-  if (tLower === "indie") {
-    return g.genres.some((x) => x.toLowerCase().includes("indie"));
-  }
-  return g.genres.some((x) => x.toLowerCase().trim() === tLower || x.toLowerCase().includes(tLower));
+  const targetCanonical = getCanonicalGenre(targetGenre);
+  if (!targetCanonical) return false;
+  return g.genres.some((x) => getCanonicalGenre(x) === targetCanonical);
 }
 
 export function useLibraryFilters(games: GameDto[]) {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   // Last session's filters, unless the user asked to start clean every time
   const [initialFilters] = useState<SavedFilters>(() =>
     getConsolePrefs().clearFiltersOnStartup ? EMPTY_FILTERS : readSavedFilters()
@@ -156,11 +154,13 @@ export function useLibraryFilters(games: GameDto[]) {
   };
 
   const toggleGenre = (genre: string) => {
-    const gClean = genre.startsWith("genre:") ? genre.slice(6).trim() : genre.trim();
+    const raw = genre.startsWith("genre:") ? genre.slice(6).trim() : genre.trim();
+    const canonical = getCanonicalGenre(raw);
+    if (!canonical) return;
     setSelectedGenres((prev) =>
-      prev.some((g) => g.toLowerCase() === gClean.toLowerCase())
-        ? prev.filter((g) => g.toLowerCase() !== gClean.toLowerCase())
-        : [...prev, gClean]
+      prev.some((g) => getCanonicalGenre(g) === canonical)
+        ? prev.filter((g) => getCanonicalGenre(g) !== canonical)
+        : [...prev, canonical]
     );
   };
 
@@ -192,8 +192,8 @@ export function useLibraryFilters(games: GameDto[]) {
       const flag = chipId.slice(5);
       setSelectedFlags((prev) => prev.filter((f) => f !== flag));
     } else if (chipId.startsWith("genre:")) {
-      const genre = chipId.slice(6);
-      setSelectedGenres((prev) => prev.filter((g) => g.toLowerCase() !== genre.toLowerCase()));
+      const canonical = getCanonicalGenre(chipId.slice(6));
+      setSelectedGenres((prev) => prev.filter((g) => getCanonicalGenre(g) !== canonical));
     } else if (chipId.startsWith("feature:")) {
       const feat = chipId.slice(8);
       setSelectedFeatures((prev) => prev.filter((f) => f.toLowerCase() !== feat.toLowerCase()));
@@ -222,15 +222,15 @@ export function useLibraryFilters(games: GameDto[]) {
       return selectedStatuses.some((s) => s.toLowerCase().trim() === st);
     }
     if (id.startsWith("genre:")) {
-      const g = id.slice(6).toLowerCase().trim();
-      return selectedGenres.some((x) => x.toLowerCase().trim() === g);
+      const canonical = getCanonicalGenre(id.slice(6));
+      return canonical !== "" && selectedGenres.some((x) => getCanonicalGenre(x) === canonical);
     }
     if (id.startsWith("feature:")) {
       const feat = id.slice(8).toLowerCase().trim();
       return selectedFeatures.some((x) => x.toLowerCase().trim() === feat);
     }
     if (["action", "rpg", "strategy", "indie"].includes(idLower)) {
-      return selectedGenres.some((x) => x.toLowerCase() === idLower);
+      return selectedGenres.some((x) => getCanonicalGenre(x) === idLower);
     }
     return false;
   };
@@ -356,10 +356,14 @@ export function useLibraryFilters(games: GameDto[]) {
     });
 
     // Genres
+    const seenGenres = new Set<string>();
     selectedGenres.forEach((g) => {
+      const canonical = getCanonicalGenre(g);
+      if (!canonical || seenGenres.has(canonical)) return;
+      seenGenres.add(canonical);
       chips.push({
-        id: `genre:${g}`,
-        label: t("filter_chips.genre", { genre: g }),
+        id: `genre:${canonical}`,
+        label: t("filter_chips.genre", { genre: getLocalizedGenre(canonical, locale) }),
         type: "genre",
       });
     });
@@ -374,7 +378,7 @@ export function useLibraryFilters(games: GameDto[]) {
     });
 
     return chips;
-  }, [selectedStores, selectedStatuses, selectedFlags, selectedGenres, selectedFeatures, t]);
+  }, [selectedStores, selectedStatuses, selectedFlags, selectedGenres, selectedFeatures, t, locale]);
 
   const filteredGames = useMemo(() => {
     const showHiddenOnly = selectedFlags.includes("hidden");
@@ -479,9 +483,11 @@ export function useLibraryFilters(games: GameDto[]) {
         case "installed":
           key = game.is_installed ? t("sidebar.installed") : t("library_groups.downloadable");
           break;
-        case "genre":
-          key = game.genres && game.genres.length > 0 ? game.genres[0] : t("library_groups.no_genre");
+        case "genre": {
+          const firstGenre = game.genres?.find((g) => g.trim().length > 0);
+          key = firstGenre ? getLocalizedGenre(firstGenre, locale) : t("library_groups.no_genre");
           break;
+        }
         case "developer":
           key = game.developers && game.developers.length > 0 ? game.developers[0] : t("library_groups.unknown");
           break;
@@ -519,7 +525,7 @@ export function useLibraryFilters(games: GameDto[]) {
     });
 
     return groups;
-  }, [filteredGames, groupBy, t]);
+  }, [filteredGames, groupBy, t, locale]);
 
   const toggleGroup = (groupKey: string) => {
     setCollapsedGroups((prev) => ({
@@ -574,11 +580,15 @@ export function useLibraryFilters(games: GameDto[]) {
       const st = (g.completion_status || "NotPlayed").toLowerCase();
       statusCounts[st] = (statusCounts[st] || 0) + 1;
 
+      const gameGenres = new Set<string>();
       g.genres.forEach((genre) => {
-        const trimmed = genre.trim();
-        if (trimmed) {
-          genreCounts[trimmed] = (genreCounts[trimmed] || 0) + 1;
+        const canonical = getCanonicalGenre(genre);
+        if (canonical) {
+          gameGenres.add(canonical);
         }
+      });
+      gameGenres.forEach((canonical) => {
+        genreCounts[canonical] = (genreCounts[canonical] || 0) + 1;
       });
 
       if (g.features) {

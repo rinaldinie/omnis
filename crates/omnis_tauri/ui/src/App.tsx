@@ -3,6 +3,7 @@ import type { SettingsTab } from "./components/settings";
 import { listen } from "@tauri-apps/api/event";
 import { api } from "./api";
 import { useTranslation } from "./i18n";
+import { getLocalizedGenre } from "./utils/genres";
 import soundEffects from "./utils/soundEffects";
 import { openExternalUrl } from "./utils/openUrl";
 import {
@@ -103,7 +104,7 @@ export default function App() {
   } = useUiStore();
 
   // I18N
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const tRef = useRef(t);
   tRef.current = t;
   const statusText = useCallback<TranslateFn>(
@@ -326,15 +327,12 @@ export default function App() {
     cycleFilter(direction, onCycle, visibleCategories), [cycleFilter, visibleCategories]);
 
   const availableGenres = useMemo(() => {
-    const set = new Set<string>();
-    games.forEach((g) =>
-      g.genres.forEach((genre) => {
-        const tr = genre.trim();
-        if (tr) set.add(tr);
-      })
-    );
-    return Array.from(set).sort((a, b) => (filterCounts.genres[b] || 0) - (filterCounts.genres[a] || 0));
-  }, [games, filterCounts.genres]);
+    return Object.keys(filterCounts.genres).sort((a, b) => {
+      const diff = (filterCounts.genres[b] || 0) - (filterCounts.genres[a] || 0);
+      if (diff !== 0) return diff;
+      return getLocalizedGenre(a, locale).localeCompare(getLocalizedGenre(b, locale));
+    });
+  }, [filterCounts.genres, locale]);
 
   const availableFeatures = useMemo(() => {
     const set = new Set<string>();

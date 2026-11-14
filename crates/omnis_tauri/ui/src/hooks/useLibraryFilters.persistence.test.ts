@@ -36,4 +36,22 @@ describe("useLibraryFilters startup filters", () => {
     const second = renderHook(() => useLibraryFilters([]));
     expect(second.result.current.activeFilter).toBe("steam");
   });
+
+  it("normalizes and deduplicates legacy localized genres loaded from storage", () => {
+    setConsolePref("clearFiltersOnStartup", false);
+    localStorage.setItem(
+      "omnis_library_filters",
+      JSON.stringify({
+        stores: [],
+        statuses: [],
+        flags: [],
+        genres: ["Azione", "Action", "Role-Playing"],
+        features: [],
+      })
+    );
+
+    const { result } = renderHook(() => useLibraryFilters([]));
+    expect(result.current.selectedGenres).toEqual(["action", "rpg"]);
+    expect(result.current.activeChips.map((c) => c.id)).toEqual(["genre:action", "genre:rpg"]);
+  });
 });

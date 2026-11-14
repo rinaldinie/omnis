@@ -5,7 +5,7 @@ import type { GameAction } from "../views/FullscreenView";
 import { ArtImage } from "./FullscreenCards";
 import { FullscreenAchievementsCard } from "./FullscreenAchievementsCard";
 import { useTranslation } from "../../i18n";
-import { getLocalizedGenre } from "../../utils/genres";
+import { dedupeGenres, getLocalizedGenre } from "../../utils/genres";
 import { BACK_PRIORITY, useBackHandler } from "../../hooks/useBackHandler";
 
 export interface HeroActionDefinition {
@@ -114,7 +114,7 @@ export const FullscreenDetailsOverlay: React.FC<FullscreenDetailsOverlayProps> =
             <span>{storeLabels[activeDetailGame.library] ?? activeDetailGame.library}</span>
             {activeDetailGame.genres.length > 0 && (
               <span>
-                · {activeDetailGame.genres.slice(0, 3).map((g) => getLocalizedGenre(g, locale)).join(" · ")}
+                · {dedupeGenres(activeDetailGame.genres).slice(0, 3).map((g) => getLocalizedGenre(g, locale)).join(" · ")}
               </span>
             )}
           </div>

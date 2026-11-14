@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getLocalizedGenre, normalizeGenreKey } from "./genres";
+import { dedupeGenres, getCanonicalGenre, getLocalizedGenre, normalizeGenreKey } from "./genres";
 
 describe("genre localization utility", () => {
   it("normalizes Italian genre strings to canonical keys", () => {
@@ -49,5 +49,37 @@ describe("genre localization utility", () => {
     expect(getLocalizedGenre("cyberpunk", "en")).toBe("Cyberpunk");
     expect(getLocalizedGenre("unknown genre", "it")).toBe("Unknown genre");
     expect(getLocalizedGenre("", "en")).toBe("");
+  });
+
+  it("canonicalizes and deduplicates equivalent store and localized genres", () => {
+    expect(getCanonicalGenre("Action")).toBe("action");
+    expect(getCanonicalGenre("Azione")).toBe("action");
+    expect(getCanonicalGenre("Role-playing (RPG)")).toBe("rpg");
+    expect(getCanonicalGenre("GDR")).toBe("rpg");
+    expect(getCanonicalGenre("Simulator")).toBe("simulation");
+    expect(getCanonicalGenre("Simulazione")).toBe("simulation");
+    expect(getCanonicalGenre("Point-and-click")).toBe("point_and_click");
+    expect(getCanonicalGenre("Punta e clicca")).toBe("point_and_click");
+    expect(getCanonicalGenre("Free To Play")).toBe("free_to_play");
+    expect(getCanonicalGenre("Free-to-play")).toBe("free_to_play");
+    expect(getCanonicalGenre("Accesso anticipato")).toBe("early_access");
+    expect(getCanonicalGenre("Early Access")).toBe("early_access");
+    expect(getCanonicalGenre("Multigiocatore di massa")).toBe("massively_multiplayer");
+    expect(getCanonicalGenre("Massively Multiplayer")).toBe("massively_multiplayer");
+    expect(getCanonicalGenre("Action-Adventure")).toBe("action_adventure");
+    expect(getCanonicalGenre("Action Adventure")).toBe("action_adventure");
+    expect(getCanonicalGenre("Card & Board Game")).toBe("card_game");
+    expect(getCanonicalGenre("Metroidvania")).toBe("metroidvania");
+    expect(getCanonicalGenre("metroidvania")).toBe("metroidvania");
+
+    // Canonical keys with underscores remain idempotent and localize properly
+    expect(getLocalizedGenre("action_rpg", "it")).toBe("GDR d'azione");
+    expect(getLocalizedGenre("point_and_click", "it")).toBe("Punta e clicca");
+    expect(getLocalizedGenre("early_access", "it")).toBe("Accesso anticipato");
+    expect(getLocalizedGenre("action_adventure", "it")).toBe("Azione e avventura");
+
+    expect(
+      dedupeGenres(["Action", "Azione", "Role-playing (RPG)", "GDR", "Metroidvania", "metroidvania"])
+    ).toEqual(["Action", "Role-playing (RPG)", "Metroidvania"]);
   });
 });

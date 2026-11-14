@@ -1,9 +1,9 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { X, ChevronDown, ChevronUp, Check, SlidersHorizontal } from "lucide-react";
 import { GameSortMode } from "../../utils/sortGames";
 import { SteamIcon, EpicIcon, GogIcon, XboxIcon, SwitchIcon } from "../common/StoreBadge";
 import { useTranslation } from "../../i18n";
-import { getLocalizedGenre } from "../../utils/genres";
+import { getCanonicalGenre, getLocalizedGenre } from "../../utils/genres";
 import {
   Popover,
   PopoverContent,
@@ -71,6 +71,34 @@ export default function FilterAndSortPopover({
   availableFeatures,
 }: FilterAndSortPopoverProps) {
   const { t, locale } = useTranslation();
+
+  const genreEntries = useMemo(() => {
+    const map = new Map<string, { key: string; count: number }>();
+    for (const genre of availableGenres) {
+      const canonical = getCanonicalGenre(genre);
+      if (!canonical) continue;
+      const rawCount = filterCounts.genres[genre];
+      const existing = map.get(canonical);
+      if (existing) {
+        if (typeof rawCount === "number") {
+          existing.count += rawCount;
+        }
+      } else {
+        map.set(canonical, {
+          key: genre,
+          count:
+            typeof rawCount === "number"
+              ? rawCount
+              : filterCounts.genres[canonical] || 0,
+        });
+      }
+    }
+    return Array.from(map.entries()).map(([canonical, entry]) => ({
+      canonical,
+      key: entry.key,
+      count: entry.count,
+    }));
+  }, [availableGenres, filterCounts.genres]);
 
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     sort: true,
@@ -441,7 +469,7 @@ export default function FilterAndSortPopover({
           </div>
 
           {/* SECTION 4: GENRE */}
-          {availableGenres.length > 0 && (
+          {genreEntries.length > 0 && (
             <div>
               <Button
                 type="button"
@@ -460,17 +488,16 @@ export default function FilterAndSortPopover({
               {openSections.genre && (
                 <ScrollArea className="max-h-48 px-4 pb-3">
                   <div className="grid grid-cols-2 gap-1.5">
-                  {availableGenres.map((genre) => {
+                  {genreEntries.map(({ canonical, key, count }) => {
                     const isChecked = selectedGenres.some(
-                      (g) => g.toLowerCase() === genre.toLowerCase()
+                      (g) => getCanonicalGenre(g) === canonical
                     );
-                    const count = filterCounts.genres[genre] || 0;
                     return (
                       <Button
-                        key={genre}
+                        key={canonical}
                         type="button"
                         variant="ghost"
-                        onClick={() => onToggleGenre(genre)}
+                        onClick={() => onToggleGenre(key)}
                         className="h-auto justify-between px-2 py-1.5 rounded-lg text-left hover:bg-white/[0.04] group truncate"
                       >
                         <div className="flex items-center gap-2.5 truncate">
@@ -492,7 +519,7 @@ export default function FilterAndSortPopover({
                                 : "text-slate-300 group-hover:text-white"
                             }`}
                           >
-                            {getLocalizedGenre(genre, locale)}
+                            {getLocalizedGenre(key, locale)}
                           </span>
                         </div>
                         {count > 0 && (

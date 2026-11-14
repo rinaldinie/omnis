@@ -1,4 +1,28 @@
 import type { TranslateFn } from "../../../types";
+import { getCanonicalGenre } from "../../../utils/genres";
+
+export function getGenreFilterTarget(genre: string): string {
+  const canonical = getCanonicalGenre(genre);
+  return `genre:${canonical || genre.trim()}`;
+}
+
+export function isGenreFilterActive(
+  genre: string,
+  activeFilter?: string,
+  isFilterActive?: (filterId: string) => boolean
+): boolean {
+  const canonical = getCanonicalGenre(genre);
+  const target = getGenreFilterTarget(genre);
+
+  if (isFilterActive) {
+    return isFilterActive(target) || isFilterActive(genre.trim());
+  }
+  if (!activeFilter) return false;
+  if (activeFilter === target) return true;
+  if (!canonical) return false;
+  const activeRaw = activeFilter.startsWith("genre:") ? activeFilter.slice(6) : activeFilter;
+  return getCanonicalGenre(activeRaw) === canonical;
+}
 
 export interface CompletionStatusInfo {
   label: string;

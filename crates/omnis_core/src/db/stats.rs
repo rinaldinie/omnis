@@ -3,44 +3,11 @@ use rusqlite::params;
 use std::collections::HashMap;
 use uuid::Uuid;
 
-use crate::db::{Database, DatabaseError};
+use crate::db::{parse_and_normalize_genres, Database, DatabaseError};
 use omnis_sdk::{
     BacklogSummaryDto, CategoryShareDto, DayActivityDto, DaySessionDto, GameStatsDto,
     GlobalStatsDto, WeekPlaytimeDto,
 };
-
-/// Helper to parse genres whether stored as JSON array `["Action", "RPG"]` or comma-separated string `"Action, RPG"`
-fn parse_genres_field(raw: &str) -> Vec<String> {
-    let trimmed = raw.trim();
-    if trimmed.is_empty() {
-        return Vec::new();
-    }
-
-    if trimmed.starts_with('[') && trimmed.ends_with(']') {
-        if let Ok(list) = serde_json::from_str::<Vec<String>>(trimmed) {
-            let res: Vec<String> = list
-                .into_iter()
-                .map(|g| g.trim().to_string())
-                .filter(|g| !g.is_empty())
-                .collect();
-            if !res.is_empty() {
-                return res;
-            }
-        }
-    }
-
-    trimmed
-        .split(',')
-        .map(|g| {
-            g.trim()
-                .trim_matches('"')
-                .trim_matches('\'')
-                .trim()
-                .to_string()
-        })
-        .filter(|g| !g.is_empty())
-        .collect()
-}
 
 // ---------------------------------------------------------------------------
 // Focused Query Helpers for Global Statistics
@@ -313,7 +280,7 @@ fn query_genre_distribution(
 
     for row_res in genre_rows {
         let (genres_raw, playtime) = row_res?;
-        let parsed_genres = parse_genres_field(&genres_raw);
+        let parsed_genres = parse_and_normalize_genres(&genres_raw);
         for g in parsed_genres {
             *genre_playtimes.entry(g).or_insert(0) += playtime;
         }

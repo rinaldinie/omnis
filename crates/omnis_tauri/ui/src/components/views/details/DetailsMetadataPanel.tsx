@@ -12,9 +12,9 @@ import { Slot } from "../../common/Slot";
 import { GameAchievementsGallery } from "../../achievements";
 import GameStatisticsCard from "../../stats/GameStatisticsCard";
 import { StoreIcon } from "../../common/StoreBadge";
-import { getCompletionStatusInfo } from "./helpers";
+import { getCompletionStatusInfo, getGenreFilterTarget, isGenreFilterActive } from "./helpers";
 import { useTranslation } from "../../../i18n";
-import { getLocalizedGenre } from "../../../utils/genres";
+import { getLocalizedGenre, dedupeGenres } from "../../../utils/genres";
 import { Button } from "../../ui/button";
 import { Badge } from "../../ui/badge";
 import { Card } from "../../ui/card";
@@ -52,35 +52,11 @@ export const DetailsMetadataPanel: React.FC<DetailsMetadataPanelProps> = ({
   const { locale } = useTranslation();
   const handleFilterByGenre = (genre: string) => {
     if (!setActiveFilter) return;
-    const gLower = genre.toLowerCase().trim();
-    let target = `genre:${genre.trim()}`;
-    if (gLower === "azione" || gLower === "action") target = "action";
-    else if (gLower === "gdr" || gLower === "rpg") target = "rpg";
-    else if (gLower === "strategia" || gLower === "strategy") target = "strategy";
-    else if (gLower === "indie") target = "indie";
-
-    setActiveFilter(target);
+    setActiveFilter(getGenreFilterTarget(genre));
   };
 
-  const isGenreActive = (genre: string) => {
-    const gLower = genre.toLowerCase().trim();
-    let target = `genre:${genre.trim()}`;
-    if (gLower === "azione" || gLower === "action") target = "action";
-    else if (gLower === "gdr" || gLower === "rpg") target = "rpg";
-    else if (gLower === "strategia" || gLower === "strategy") target = "strategy";
-    else if (gLower === "indie") target = "indie";
-
-    if (isFilterActive) {
-      return isFilterActive(target) || isFilterActive(genre.trim());
-    }
-    if (!activeFilter) return false;
-    if (activeFilter === target) return true;
-    if (activeFilter === "action" && (gLower === "azione" || gLower === "action")) return true;
-    if (activeFilter === "rpg" && (gLower === "gdr" || gLower === "rpg")) return true;
-    if (activeFilter === "strategy" && (gLower === "strategia" || gLower === "strategy")) return true;
-    if (activeFilter === "indie" && gLower === "indie") return true;
-    return false;
-  };
+  const isGenreActive = (genre: string) =>
+    isGenreFilterActive(genre, activeFilter, isFilterActive);
 
   const handleFilterByCompletion = (status?: string | null) => {
     if (!setActiveFilter) return;
@@ -237,10 +213,11 @@ export const DetailsMetadataPanel: React.FC<DetailsMetadataPanelProps> = ({
             </span>
             <div className="flex flex-wrap gap-1.5 pt-0.5">
               {selectedGame.genres && selectedGame.genres.length > 0 ? (
-                selectedGame.genres.map((genre) => {
+                dedupeGenres(selectedGame.genres).map((genre) => {
                   const active = isGenreActive(genre);
+                  const localizedGenre = getLocalizedGenre(genre, locale);
                   return (
-                    <ActionTooltip key={genre} label={t("tooltips.filter_genre", { genre })}>
+                    <ActionTooltip key={genre} label={t("tooltips.filter_genre", { genre: localizedGenre })}>
                       <Button
                         type="button"
                         variant="ghost"
@@ -251,14 +228,14 @@ export const DetailsMetadataPanel: React.FC<DetailsMetadataPanelProps> = ({
                             ? "bg-[var(--accent-primary)]/20 border-[var(--accent-primary)] text-white shadow-xs"
                             : ""
                         }`}
-                        aria-label={t("tooltips.filter_genre", { genre })}
+                        aria-label={t("tooltips.filter_genre", { genre: localizedGenre })}
                       >
                         <span
                           className={`w-1.5 h-1.5 rounded-full ${
                             active ? "bg-[var(--accent-primary)]" : "bg-slate-400"
                           }`}
                         />
-                        <span>{getLocalizedGenre(genre, locale)}</span>
+                        <span>{localizedGenre}</span>
                       </Button>
                     </ActionTooltip>
                   );

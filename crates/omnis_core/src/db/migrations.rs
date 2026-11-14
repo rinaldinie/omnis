@@ -1,6 +1,8 @@
-use rusqlite::{Connection, Result};
+use rusqlite::{params, Connection, Result};
 
-pub const CURRENT_SCHEMA_VERSION: i32 = 8;
+use crate::db::parse_and_normalize_genres;
+
+pub const CURRENT_SCHEMA_VERSION: i32 = 9;
 
 pub fn run_migrations(conn: &Connection) -> Result<()> {
     let current_version: i32 = conn.query_row("PRAGMA user_version;", [], |r| r.get(0))?;
@@ -339,6 +341,39 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
             [],
         );
         conn.execute_batch("PRAGMA user_version = 8;")?;
+    }
+
+    // Version 9: Normalize and deduplicate stored game genres into canonical English names
+    if current_version < 9 {
+        let tx = conn.unchecked_transaction()?;
+        let rows: Vec<(String, String)> = {
+            let mut stmt = tx.prepare(
+                "SELECT id, genres FROM games WHERE genres IS NOT NULL AND TRIM(genres) != '';",
+            )?;
+            let mapped = stmt.query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })?;
+            mapped.collect::<Result<Vec<_>>>()?
+        };
+
+        {
+            let mut update_stmt =
+                tx.prepare("UPDATE games SET genres = ?2 WHERE id = ?1;")?;
+            for (id, raw_genres) in rows {
+                let normalized = parse_and_normalize_genres(&raw_genres);
+                let next_val: Option<String> = if normalized.is_empty() {
+                    None
+                } else {
+                    Some(normalized.join(", "))
+                };
+                if next_val.as_deref() != Some(raw_genres.as_str()) {
+                    update_stmt.execute(params![id, next_val])?;
+                }
+            }
+        }
+
+        tx.execute_batch("PRAGMA user_version = 9;")?;
+        tx.commit()?;
     }
 
     conn.execute_batch(&format!(

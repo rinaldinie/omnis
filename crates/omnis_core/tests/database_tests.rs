@@ -98,7 +98,7 @@ fn test_seed_and_metadata_patch() {
         fetched.cover_image_path.as_deref(),
         Some("/cache/covers/test.jpg")
     );
-    assert_eq!(fetched.genres, vec!["GDR", "Azione"]);
+    assert_eq!(fetched.genres, vec!["RPG", "Action"]);
     assert_eq!(fetched.features, vec!["Single-player", "Achievements"]);
     assert_eq!(fetched.developers, vec!["CD PROJEKT RED"]);
     assert_eq!(fetched.publishers, vec!["CD PROJEKT"]);
@@ -765,4 +765,119 @@ fn test_achievements_sync_status_persistence() {
         db.get_game_achievements(game_id).unwrap().sync_status,
         omnis_sdk::AchievementsSyncStatus::Available
     );
+}
+
+#[test]
+fn test_genre_normalization_on_write_and_v9_migration() {
+    let db = Database::open_in_memory().expect("Failed to open DB");
+    db.seed_sample_games().expect("Failed to seed games");
+    let games = db.get_all_games().expect("Failed to get games");
+    let g1 = games[0].id;
+    let g2 = games[1].id;
+
+    // 1. Metadata patch normalizes and deduplicates mixed localized/store genres
+    let patch = GameMetadataPatch {
+        genres: vec![
+            "Action".to_string(),
+            "Azione".to_string(),
+            "Role-playing (RPG)".to_string(),
+            "GDR".to_string(),
+            "Point-and-click".to_string(),
+            "Punta e clicca".to_string(),
+        ],
+        ..Default::default()
+    };
+    db.apply_metadata_patch(g1, &patch)
+        .expect("Failed to apply patch");
+
+    let fetched1 = db.get_game_by_id(g1).unwrap().unwrap();
+    assert_eq!(fetched1.genres, vec!["Action", "RPG", "Point & Click"]);
+
+    // Verify raw SQL column is also normalized on disk
+    let raw_g1: String = db
+        .reader()
+        .query_row(
+            "SELECT genres FROM games WHERE id = ?1",
+            rusqlite::params![g1.to_string()],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(raw_g1, "Action, RPG, Point & Click");
+
+    // 2. Manual update_game normalizes and deduplicates genres
+    let mut update_dto = GameUpdateDto {
+        id: g2,
+        title: games[1].title.clone(),
+        sorting_title: Some(games[1].sorting_title.clone()),
+        release_date: games[1].release_date.clone(),
+        description: games[1].description.clone(),
+        user_score: games[1].user_score,
+        critic_score: games[1].critic_score,
+        community_score: games[1].community_score,
+        series: games[1].series.clone(),
+        age_rating: games[1].age_rating.clone(),
+        completion_status: games[1].completion_status.clone(),
+        user_notes: games[1].user_notes.clone(),
+        genres: vec![
+            "Simulazione".to_string(),
+            "Simulator".to_string(),
+            "metroidvania".to_string(),
+            "Metroidvania".to_string(),
+        ],
+        developers: games[1].developers.clone(),
+        publishers: games[1].publishers.clone(),
+        tags: games[1].tags.clone(),
+        features: games[1].features.clone(),
+        cover_image_path: games[1].cover_image_path.clone(),
+        background_image_path: games[1].background_image_path.clone(),
+        icon_image_path: games[1].icon_image_path.clone(),
+        play_actions: games[1].play_actions.clone(),
+        use_library_integration: games[1].use_library_integration,
+        custom_links: games[1].custom_links.clone(),
+        extra_metadata: games[1].extra_metadata.clone(),
+    };
+    let updated2 = db.update_game(&update_dto).expect("Failed to update game");
+    assert_eq!(updated2.genres, vec!["Simulation", "Metroidvania"]);
+
+    // 3. Simulate pre-v9 database rows with unnormalized/JSON/duplicate genres and run v9 migration
+    {
+        let conn = db.writer();
+        conn.execute(
+            "UPDATE games SET genres = ?1 WHERE id = ?2",
+            rusqlite::params!["Azione, Action, Giochi di ruolo, Role-Playing", g1.to_string()],
+        )
+        .unwrap();
+        conn.execute(
+            "UPDATE games SET genres = ?1 WHERE id = ?2",
+            rusqlite::params![r#"["Corse", "Racing", "Accesso anticipato"]"#, g2.to_string()],
+        )
+        .unwrap();
+        conn.execute_batch("PRAGMA user_version = 8;").unwrap();
+    }
+
+    db.migrate().expect("Migration v9 failed");
+
+    let raw_after_g1: String = db
+        .reader()
+        .query_row(
+            "SELECT genres FROM games WHERE id = ?1",
+            rusqlite::params![g1.to_string()],
+            |r| r.get(0),
+        )
+        .unwrap();
+    let raw_after_g2: String = db
+        .reader()
+        .query_row(
+            "SELECT genres FROM games WHERE id = ?1",
+            rusqlite::params![g2.to_string()],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(raw_after_g1, "Action, RPG");
+    assert_eq!(raw_after_g2, "Racing, Early Access");
+
+    // Empty/whitespace genres in update_game clear column to NULL
+    update_dto.genres = vec!["   ".to_string()];
+    let cleared = db.update_game(&update_dto).unwrap();
+    assert!(cleared.genres.is_empty());
 }

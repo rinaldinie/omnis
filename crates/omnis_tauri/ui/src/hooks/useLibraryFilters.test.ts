@@ -251,3 +251,107 @@ describe("useLibraryFilters - Duplicate Hider and Hidden Games integration", () 
     expect(result.current.filteredGames.every((g) => !g.is_hidden)).toBe(true);
   });
 });
+
+describe("useLibraryFilters - Genre canonicalization and deduplication", () => {
+  const mixedLocaleGames: GameDto[] = [
+    createMockGame({
+      id: "g-en-action",
+      title: "Doom Eternal",
+      genres: ["Action", "Shooter"],
+    }),
+    createMockGame({
+      id: "g-it-action",
+      title: "Devil May Cry 5",
+      genres: ["Azione", "Action"],
+    }),
+    createMockGame({
+      id: "g-igdb-rpg",
+      title: "The Witcher 3",
+      genres: ["Role-playing (RPG)", "Adventure"],
+    }),
+    createMockGame({
+      id: "g-it-rpg",
+      title: "Baldur's Gate 3",
+      genres: ["GDR", "Avventura"],
+    }),
+    createMockGame({
+      id: "g-arpg",
+      title: "Elden Ring",
+      genres: ["Action RPG"],
+    }),
+    createMockGame({
+      id: "g-custom",
+      title: "Hollow Knight",
+      genres: ["Metroidvania"],
+    }),
+    createMockGame({
+      id: "g-custom-lower",
+      title: "Ori",
+      genres: ["metroidvania"],
+    }),
+  ];
+
+  it("merges localized and alias genres into single canonical filter counts without double-counting", () => {
+    const { result } = renderHook(() => useLibraryFilters(mixedLocaleGames));
+
+    expect(result.current.filterCounts.genres).toEqual({
+      action: 2,
+      shooter: 1,
+      rpg: 2,
+      adventure: 2,
+      action_rpg: 1,
+      metroidvania: 2,
+    });
+  });
+
+  it("matches all equivalent genre variants regardless of raw genre string or alias toggled", () => {
+    const { result } = renderHook(() => useLibraryFilters(mixedLocaleGames));
+
+    act(() => {
+      result.current.toggleGenre("Azione");
+    });
+
+    expect(result.current.selectedGenres).toEqual(["action"]);
+    expect(result.current.isFilterActive("genre:Action")).toBe(true);
+    expect(result.current.isFilterActive("genre:Azione")).toBe(true);
+    expect(result.current.filteredGames.map((g) => g.id)).toEqual(["g-en-action", "g-it-action"]);
+
+    act(() => {
+      result.current.toggleGenre("Action"); // toggles off
+      result.current.toggleGenre("Role-Playing");
+    });
+
+    expect(result.current.selectedGenres).toEqual(["rpg"]);
+    expect(result.current.filteredGames.map((g) => g.id)).toEqual(["g-igdb-rpg", "g-it-rpg"]);
+
+    act(() => {
+      result.current.clearAllFilters();
+      result.current.toggleGenre("Metroidvania");
+    });
+
+    expect(result.current.filteredGames.map((g) => g.id)).toEqual(["g-custom", "g-custom-lower"]);
+  });
+
+  it("groups games with equivalent localized genres into a single group", () => {
+    const { result } = renderHook(() => useLibraryFilters(mixedLocaleGames));
+
+    act(() => {
+      result.current.setGroupBy("genre");
+    });
+
+    expect(Object.keys(result.current.groupedGames)).toEqual([
+      "Action",
+      "RPG",
+      "Action RPG",
+      "Metroidvania",
+    ]);
+    expect(result.current.groupedGames["Action"].map((g) => g.id)).toEqual([
+      "g-en-action",
+      "g-it-action",
+    ]);
+    expect(result.current.groupedGames["RPG"].map((g) => g.id)).toEqual([
+      "g-igdb-rpg",
+      "g-it-rpg",
+    ]);
+  });
+});
