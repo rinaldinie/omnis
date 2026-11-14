@@ -381,6 +381,9 @@ export const de: TranslationSchema = {
     show_battery: 'Akkustatus anzeigen',
     show_battery_percent: 'Akkuprozentsatz anzeigen',
     clear_filters_on_startup: 'Filter beim Start zurücksetzen',
+    settings_quick_filters: 'Schnellfilter',
+    reset_quick_filters: 'Alle Filter anzeigen',
+    clear_filters: 'Filter zurücksetzen',
   },
   app_status: {
     theme_activated: 'Design „{name}“ aktiviert!',

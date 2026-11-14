@@ -31,9 +31,11 @@ import {
   BatteryMedium,
   Percent,
   FilterX,
+  Filter,
+  RotateCcw,
 } from "lucide-react";
-import { ConsolePrefs, getConsolePrefs, setConsolePref, useConsolePrefs } from "../../utils/consolePrefs";
-import { GameDto, ThemeConfig, TranslateFn } from "../../types";
+import { getConsolePrefs, setConsolePref, useConsolePrefs } from "../../utils/consolePrefs";
+import { FILTER_ORDER, GameDto, ThemeConfig, TranslateFn } from "../../types";
 import { LocaleCode, SUPPORTED_LOCALES } from "../../i18n/types";
 import type { AppUpdater } from "../../hooks/useAppUpdater";
 import type { ConfirmState } from "./FullscreenConfirmDialog";
@@ -42,13 +44,19 @@ import { UI_SCALE_STEPS } from "../../hooks/useUiScale";
 import soundEffects from "../../utils/soundEffects";
 import type { ControllerType, HomeFocusZone } from "../../hooks/useGamepadNavigation";
 import type { ControllerStyleSetting } from "./ConsoleChrome";
-import { ConsoleMenuItem, ConsoleMenuLevel, PowerActionId } from "./constants";
+import {
+  ConsoleMenuItem,
+  ConsoleMenuLevel,
+  FILTER_LABEL_KEYS,
+  PowerActionId,
+  STORE_LABELS,
+} from "./constants";
 
 const TRAILERS_STORAGE_KEY = "omnis_fullscreen_trailers";
 /** How long a system action stays armed waiting for the confirming press */
 const ARM_TIMEOUT_MS = 4000;
 
-type SettingsCategoryId = "general" | "library" | "visual" | "audio" | "input";
+type SettingsCategoryId = "general" | "library" | "quick_filters" | "visual" | "audio" | "input";
 type MenuPageId = "root" | "settings" | `settings:${SettingsCategoryId}`;
 
 interface MenuStackEntry {
@@ -94,6 +102,8 @@ export interface UseFullscreenMenuOptions {
   onOpenStatistics?: () => void;
   activeGameTitle?: string | null;
   handleKillRunningGame?: () => void;
+  activeCategory?: string;
+  onClearFilters?: () => void;
   t: TranslateFn;
 }
 
@@ -133,6 +143,8 @@ export function useFullscreenMenu({
   effectiveFamily,
   activeGameTitle,
   handleKillRunningGame,
+  activeCategory,
+  onClearFilters,
   cycleControllerStyle,
   onPowerAction,
   confirm,
@@ -275,7 +287,7 @@ export function useFullscreenMenu({
   const prefToggle = (
     id: string,
     icon: ConsoleMenuItem["icon"],
-    key: keyof ConsolePrefs,
+    key: "showClock" | "showBattery" | "showBatteryPercent" | "clearFiltersOnStartup",
     label: string
   ): ConsoleMenuItem => ({
     id,
@@ -292,6 +304,7 @@ export function useFullscreenMenu({
   const settingsCategories: Array<{ id: SettingsCategoryId; icon: ConsoleMenuItem["icon"]; label: string }> = [
     { id: "general", icon: Settings, label: tr(t, "console_ui.settings_general", "General") },
     { id: "library", icon: Library, label: tr(t, "console_ui.settings_library", "Library") },
+    { id: "quick_filters", icon: Filter, label: tr(t, "console_ui.settings_quick_filters", "Quick Filters") },
     { id: "visual", icon: MonitorPlay, label: tr(t, "console_ui.settings_visual", "Visuals") },
     { id: "audio", icon: Volume2, label: tr(t, "console_ui.settings_audio", "Audio") },
     { id: "input", icon: Gamepad2, label: tr(t, "console_ui.settings_input", "Input") },
@@ -360,6 +373,18 @@ export function useFullscreenMenu({
         label: t("console_ui.clear_search"),
         onActivate: () => {
           onClearSearch();
+          setIsMenuOpen?.(false);
+        },
+      });
+    }
+    if (activeCategory && activeCategory !== "all" && onClearFilters) {
+      items.push({
+        id: "clear-filters",
+        icon: FilterX,
+        section: "library",
+        label: tr(t, "console_ui.clear_filters", "Clear filters"),
+        onActivate: () => {
+          onClearFilters();
           setIsMenuOpen?.(false);
         },
       });
@@ -540,6 +565,36 @@ export function useFullscreenMenu({
           value: t(`console_ui.sort_${sortMode}`),
           onActivate: () => cycleSort(1),
           onAdjust: cycleSort,
+        });
+      }
+    } else if (cat === "quick_filters") {
+      const toggleQuickFilter = (id: string) => {
+        const current = getConsolePrefs().hiddenQuickFilters;
+        const next = current.includes(id) ? current.filter((x) => x !== id) : [...current, id];
+        setConsolePref("hiddenQuickFilters", next);
+      };
+      FILTER_ORDER.filter((id) => id !== "all").forEach((id) => {
+        const labelKey = FILTER_LABEL_KEYS[id];
+        const label = STORE_LABELS[id] ?? (labelKey ? tr(t, labelKey, id) : id);
+        const visible = !consolePrefs.hiddenQuickFilters.includes(id);
+        items.push({
+          id: `qf-${id}`,
+          icon: Filter,
+          kind: "toggle",
+          section,
+          label,
+          checked: visible,
+          onActivate: () => toggleQuickFilter(id),
+          onAdjust: () => toggleQuickFilter(id),
+        });
+      });
+      if (consolePrefs.hiddenQuickFilters.length > 0) {
+        items.push({
+          id: "qf-reset",
+          icon: RotateCcw,
+          section,
+          label: tr(t, "console_ui.reset_quick_filters", "Show all filters"),
+          onActivate: () => setConsolePref("hiddenQuickFilters", []),
         });
       }
     } else if (cat === "visual") {

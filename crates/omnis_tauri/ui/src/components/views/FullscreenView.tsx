@@ -24,6 +24,7 @@ import { useActiveGameTimer } from "../../context/ActiveGameTimerContext";
 import { GameSortMode } from "../../utils/sortGames";
 import { useUpdater } from "../../hooks/useAppUpdater";
 import { useUiScale } from "../../hooks/useUiScale";
+import { useConsolePrefs } from "../../utils/consolePrefs";
 import { BACK_PRIORITY, useBackHandler } from "../../hooks/useBackHandler";
 import type { ConsolePage, HomeFocusZone } from "../../hooks/useGamepadNavigation";
 import {
@@ -450,6 +451,8 @@ export default function FullscreenView({
     filteredGames,
     activeGameTitle,
     handleKillRunningGame,
+    activeCategory: toCategoryId(activeFilter),
+    onClearFilters: toCategoryId(activeFilter) !== "all" ? () => setActiveFilter("all") : undefined,
     focusedIndex,
     setFocusedIndex,
     setHomeFocusZone,
@@ -568,7 +571,11 @@ export default function FullscreenView({
     return id;
   };
   const filterCount = (id: string) => categoryCount(counts, id);
-  const visibleFilters = React.useMemo(() => getVisibleCategories(counts, activeFilter), [counts, activeFilter]);
+  const { hiddenQuickFilters } = useConsolePrefs();
+  const visibleFilters = React.useMemo(
+    () => getVisibleCategories(counts, activeFilter, hiddenQuickFilters),
+    [counts, activeFilter, hiddenQuickFilters]
+  );
 
   const cycleFilter = React.useCallback(
     (direction: number, onCycle?: (nextFilter: string) => void) => {

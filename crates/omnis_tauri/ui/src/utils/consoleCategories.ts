@@ -17,9 +17,15 @@ export function categoryCount(counts: LibraryCounts, id: string): number {
  * Categories the console view shows and LB / RB cycles through, in FILTER_ORDER.
  * Libraries without games (e.g. stores not configured) are skipped.
  */
-export function getVisibleCategories(counts: LibraryCounts, activeFilter: string): string[] {
+export function getVisibleCategories(
+  counts: LibraryCounts,
+  activeFilter: string,
+  hiddenQuickFilters: string[] = []
+): string[] {
   const activeId = toCategoryId(activeFilter);
-  return FILTER_ORDER.filter(
-    (id) => PINNED_CATEGORIES.includes(id) || id === activeId || categoryCount(counts, id) > 0
-  );
+  return FILTER_ORDER.filter((id) => {
+    if (id === "all" || id === activeId) return true;
+    if (hiddenQuickFilters.includes(id)) return false;
+    return PINNED_CATEGORIES.includes(id) || categoryCount(counts, id) > 0;
+  });
 }

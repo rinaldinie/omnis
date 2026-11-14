@@ -381,6 +381,9 @@ export const ja: TranslationSchema = {
     show_battery: 'バッテリー状態を表示',
     show_battery_percent: 'バッテリー残量（%）を表示',
     clear_filters_on_startup: '起動時にフィルターをクリア',
+    settings_quick_filters: 'クイックフィルター',
+    reset_quick_filters: 'すべてのフィルターを表示',
+    clear_filters: 'フィルターをクリア',
   },
   app_status: {
     theme_activated: 'テーマ「{name}」を適用しました',
