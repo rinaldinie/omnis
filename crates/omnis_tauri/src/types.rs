@@ -5,6 +5,10 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+fn default_true() -> bool {
+    true
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GameDto {
     pub id: String,
@@ -43,6 +47,8 @@ pub struct GameDto {
     pub custom_links: Vec<omnis_sdk::CustomLink>,
     #[serde(default)]
     pub play_actions: Vec<omnis_sdk::LaunchConfiguration>,
+    #[serde(default = "default_true")]
+    pub use_library_integration: bool,
     #[serde(default)]
     pub extra_metadata: Option<String>,
     #[serde(default)]
@@ -156,6 +162,7 @@ pub fn game_to_dto(g: Game) -> GameDto {
         tags: g.tags,
         custom_links: g.custom_links,
         play_actions: g.play_actions,
+        use_library_integration: g.use_library_integration,
         extra_metadata: g.extra_metadata,
         last_activity: g.last_activity.map(|t| t.to_rfc3339()),
         is_hidden: g.is_hidden,

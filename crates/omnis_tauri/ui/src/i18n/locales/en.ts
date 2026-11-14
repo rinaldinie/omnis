@@ -726,6 +726,9 @@ export const en: TranslationSchema = {
     tracking_kernel: 'Kernel Job Object (native Windows, no CPU load)',
     tracking_process: 'Process name',
     tracking_directory: 'Install folder',
+    library_integration_title: 'Library actions',
+    library_integration_on_hint: 'Runs the standard library integration command together with any custom actions below.',
+    library_integration_off_hint: 'Library integration is disabled: only the custom actions below will be executed.',
   },
   theme_modal: {
     draft_name: 'My new theme',

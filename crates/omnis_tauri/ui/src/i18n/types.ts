@@ -742,6 +742,9 @@ export interface TranslationSchema {
     tracking_kernel: string;
     tracking_process: string;
     tracking_directory: string;
+    library_integration_title: string;
+    library_integration_on_hint: string;
+    library_integration_off_hint: string;
   },
   theme_modal: {
     draft_name: string;

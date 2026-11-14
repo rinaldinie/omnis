@@ -36,6 +36,7 @@ export interface GameEditorFormData {
   background_image_path: string;
   icon_image_path: string;
   play_actions: LaunchConfiguration[];
+  use_library_integration: boolean;
   custom_links: CustomLink[];
 }
 

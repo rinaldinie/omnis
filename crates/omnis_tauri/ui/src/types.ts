@@ -85,6 +85,7 @@ export interface GameDto {
   tags?: string[];
   custom_links?: Array<{ title: string; url: string }>;
   play_actions?: LaunchConfiguration[];
+  use_library_integration?: boolean;
   extra_metadata?: string | null;
   genres: string[];
   developers: string[];
@@ -280,6 +281,7 @@ export const normalizeGame = (g: RawGameDto): GameDto => {
     icon_image: formatImageUrl(rawIcon),
     playtime_formatted: playtimeFormatted || "0m",
     play_actions: Array.isArray(g.play_actions) ? g.play_actions : [],
+    use_library_integration: g.use_library_integration ?? true,
   };
 };
 

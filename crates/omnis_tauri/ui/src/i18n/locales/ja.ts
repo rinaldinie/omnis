@@ -726,6 +726,9 @@ export const ja: TranslationSchema = {
     tracking_kernel: 'Kernel Job Object（Windows ネイティブ、CPU 負荷なし）',
     tracking_process: 'プロセス名',
     tracking_directory: 'インストールフォルダー',
+    library_integration_title: 'ライブラリ連携アクション',
+    library_integration_on_hint: '標準のライブラリ連携コマンドと下記のカスタムアクションの両方を実行します。',
+    library_integration_off_hint: 'ライブラリ連携は無効です：下記のカスタムアクションのみが実行されます。',
   },
   theme_modal: {
     draft_name: '新しいテーマ',

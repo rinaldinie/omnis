@@ -405,6 +405,8 @@ mod tests {
             user_notes: None,
             custom_links: vec![],
             play_actions: vec![],
+            library_play_action: None,
+            use_library_integration: true,
             extra_metadata: None,
             added_timestamp: Utc::now(),
             modified_timestamp: Utc::now(),

@@ -1,6 +1,6 @@
 use rusqlite::{Connection, Result};
 
-pub const CURRENT_SCHEMA_VERSION: i32 = 5;
+pub const CURRENT_SCHEMA_VERSION: i32 = 7;
 
 pub fn run_migrations(conn: &Connection) -> Result<()> {
     let current_version: i32 = conn.query_row("PRAGMA user_version;", [], |r| r.get(0))?;
@@ -42,6 +42,8 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
                 user_notes TEXT,
                 custom_links TEXT,
                 play_actions TEXT,
+                library_play_action TEXT,
+                use_library_integration INTEGER NOT NULL DEFAULT 1,
                 extra_metadata TEXT,
                 added_timestamp TEXT NOT NULL,
                 modified_timestamp TEXT NOT NULL
@@ -279,6 +281,41 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
             PRAGMA user_version = 5;
             ",
         )?;
+    }
+
+    // Version 6: Separate library-discovered play action from user custom play_actions
+    if current_version < 6 {
+        let _ = conn.execute("ALTER TABLE games ADD COLUMN library_play_action TEXT;", []);
+        let _ = conn.execute(
+            "UPDATE games
+             SET library_play_action = json_extract(play_actions, '$[0]'),
+                 play_actions = '[]'
+             WHERE library_id != 'custom'
+               AND play_actions IS NOT NULL
+               AND TRIM(play_actions) != ''
+               AND TRIM(play_actions) != '[]'
+               AND json_valid(play_actions) = 1
+               AND json_array_length(play_actions) = 1
+               AND (
+                   json_extract(play_actions, '$[0].executable') LIKE 'steam://%'
+                   OR json_extract(play_actions, '$[0].executable') LIKE 'com.epicgames.launcher://%'
+                   OR json_extract(play_actions, '$[0].executable') LIKE 'goggalaxy://%'
+                   OR json_extract(play_actions, '$[0].executable') LIKE 'shell:AppsFolder%'
+                   OR library_id = 'switch'
+                   OR library_id LIKE 'emulator_%'
+               );",
+            [],
+        );
+        conn.execute_batch("PRAGMA user_version = 6;")?;
+    }
+
+    // Version 7: Game-level library integration toggle
+    if current_version < 7 {
+        let _ = conn.execute(
+            "ALTER TABLE games ADD COLUMN use_library_integration INTEGER NOT NULL DEFAULT 1;",
+            [],
+        );
+        conn.execute_batch("PRAGMA user_version = 7;")?;
     }
 
     conn.execute_batch(&format!(

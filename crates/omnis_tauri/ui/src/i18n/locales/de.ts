@@ -726,6 +726,9 @@ export const de: TranslationSchema = {
     tracking_kernel: 'Kernel Job Object (Windows-nativ, keine CPU-Last)',
     tracking_process: 'Prozessname',
     tracking_directory: 'Installationsordner',
+    library_integration_title: 'Bibliotheksaktionen',
+    library_integration_on_hint: 'Führt den Standard-Bibliotheksbefehl zusammen mit den untenstehenden benutzerdefinierten Aktionen aus.',
+    library_integration_off_hint: 'Bibliotheksintegration deaktiviert: Es werden nur die untenstehenden benutzerdefinierten Aktionen ausgeführt.',
   },
   theme_modal: {
     draft_name: 'Mein neues Design',

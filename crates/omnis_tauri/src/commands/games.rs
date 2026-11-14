@@ -482,7 +482,13 @@ pub async fn open_game_install_dir(
 
     let target_dir = if let Some(ref dir) = game.install_dir {
         Some(dir.clone())
-    } else if let Some(first_action) = game.play_actions.first() {
+    } else if let Some(first_action) = if !game.use_library_integration {
+        game.play_actions.first()
+    } else {
+        game.library_play_action
+            .as_ref()
+            .or_else(|| game.play_actions.first())
+    } {
         let p = PathBuf::from(&first_action.executable);
         p.parent().map(|parent| parent.to_path_buf())
     } else {

@@ -164,10 +164,14 @@ impl ActiveGameManager {
                 continue;
             }
 
-            let target_name: Option<String> =
-                game.play_actions
-                    .first()
-                    .and_then(|action| match &action.tracking_mode {
+            let target_name: Option<String> = if !game.use_library_integration {
+                game.play_actions.first()
+            } else {
+                game.library_play_action
+                    .as_ref()
+                    .or_else(|| game.play_actions.first())
+            }
+            .and_then(|action| match &action.tracking_mode {
                         omnis_sdk::ProcessTrackingMode::ProcessName(name) => {
                             Some(omnis_core::launcher::process_file_name(name).to_string())
                         }

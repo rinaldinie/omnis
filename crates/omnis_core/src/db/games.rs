@@ -69,7 +69,8 @@ pub(crate) const GAME_COLUMNS: &str = "
     series, age_rating, completion_status, user_notes,
     custom_links, play_actions, extra_metadata,
     added_timestamp, modified_timestamp,
-    is_hidden, hidden_by_duplicate_hider, duplicate_group_id, is_favorite
+    is_hidden, hidden_by_duplicate_hider, duplicate_group_id, is_favorite,
+    library_play_action, use_library_integration
 ";
 
 pub(crate) fn map_row_to_game(row: &rusqlite::Row) -> rusqlite::Result<Game> {
@@ -184,6 +185,11 @@ pub(crate) fn map_row_to_game(row: &rusqlite::Row) -> rusqlite::Result<Game> {
     let hidden_by_duplicate_hider = row.get::<_, Option<i32>>(33)?.unwrap_or(0) != 0;
     let duplicate_group_id: Option<String> = row.get(34)?;
     let is_favorite = row.get::<_, Option<i32>>(35)?.unwrap_or(0) != 0;
+    let library_play_action: Option<LaunchConfiguration> = row
+        .get::<_, Option<String>>(36)?
+        .as_deref()
+        .and_then(|s| serde_json::from_str(s).ok());
+    let use_library_integration = row.get::<_, Option<i32>>(37)?.unwrap_or(1) != 0;
 
     Ok(Game {
         id,
@@ -216,6 +222,8 @@ pub(crate) fn map_row_to_game(row: &rusqlite::Row) -> rusqlite::Result<Game> {
         user_notes,
         extra_metadata,
         play_actions,
+        library_play_action,
+        use_library_integration,
         custom_links,
         is_hidden,
         is_favorite,
@@ -441,7 +449,8 @@ impl GameRepository for Database {
                     play_actions = ?21,
                     custom_links = ?22,
                     extra_metadata = COALESCE(?23, extra_metadata),
-                    modified_timestamp = ?24
+                    modified_timestamp = ?24,
+                    use_library_integration = ?25
                 WHERE id = ?1
                 ",
                 params![
@@ -469,6 +478,7 @@ impl GameRepository for Database {
                     custom_links_json,
                     update.extra_metadata,
                     now,
+                    update.use_library_integration as i32,
                 ],
             )?;
 

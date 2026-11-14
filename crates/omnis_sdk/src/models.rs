@@ -114,6 +114,10 @@ pub struct CustomLink {
     pub url: String,
 }
 
+fn default_true() -> bool {
+    true
+}
+
 /// Persistent Game entity stored in Omnis's high-performance SQLite database
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Game {
@@ -150,6 +154,13 @@ pub struct Game {
     pub extra_metadata: Option<String>,
     #[serde(default)]
     pub play_actions: Vec<LaunchConfiguration>,
+    /// Launch configuration automatically discovered by the library plugin
+    #[serde(default)]
+    pub library_play_action: Option<LaunchConfiguration>,
+    /// When true (default), launches using the library integration command alongside any custom play_actions.
+    /// When false, bypasses the library integration command and executes only play_actions.
+    #[serde(default = "default_true")]
+    pub use_library_integration: bool,
     #[serde(default)]
     pub custom_links: Vec<CustomLink>,
     #[serde(default)]
@@ -199,6 +210,8 @@ impl Game {
             user_notes: None,
             extra_metadata: None,
             play_actions: Vec::new(),
+            library_play_action: None,
+            use_library_integration: true,
             custom_links: Vec::new(),
             is_hidden: false,
             is_favorite: false,
@@ -249,6 +262,8 @@ pub struct GameUpdateDto {
     pub icon_image_path: Option<String>,
     #[serde(default)]
     pub play_actions: Vec<LaunchConfiguration>,
+    #[serde(default = "default_true")]
+    pub use_library_integration: bool,
     #[serde(default)]
     pub custom_links: Vec<CustomLink>,
 }

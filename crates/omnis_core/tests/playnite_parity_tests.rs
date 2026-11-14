@@ -173,6 +173,7 @@ fn test_2_game_update_dto_persistence() {
             working_dir: Some(PathBuf::from("C:\\Games\\The Witcher 3")),
             tracking_mode: ProcessTrackingMode::KernelJobObject,
         }],
+        use_library_integration: true,
         custom_links: vec![
             CustomLink {
                 title: "Official Wiki".to_string(),
