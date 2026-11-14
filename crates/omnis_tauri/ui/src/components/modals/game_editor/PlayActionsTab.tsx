@@ -15,6 +15,9 @@ import {
 
 interface PlayActionsTabProps {
   playActions: LaunchConfiguration[];
+  isCustomGame?: boolean;
+  useLibraryIntegration?: boolean;
+  onToggleLibraryIntegration?: (enabled: boolean) => void;
   onAddAction: () => void;
   onRemoveAction: (index: number) => void;
   onUpdateAction: <K extends keyof LaunchConfiguration>(
@@ -241,6 +244,9 @@ const PlayActionCard: React.FC<PlayActionCardProps> = ({
 
 export const PlayActionsTab: React.FC<PlayActionsTabProps> = ({
   playActions,
+  isCustomGame,
+  useLibraryIntegration = true,
+  onToggleLibraryIntegration,
   onAddAction,
   onRemoveAction,
   onUpdateAction,
@@ -259,6 +265,29 @@ export const PlayActionsTab: React.FC<PlayActionsTabProps> = ({
           <span>{t("play_actions.add")}</span>
         </Button>
       </div>
+
+      {!isCustomGame && (
+        <div className="p-4 rounded-2xl border border-border bg-card shadow-sm">
+          <label className="flex items-start gap-3 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={useLibraryIntegration}
+              onChange={(e) => onToggleLibraryIntegration?.(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-border bg-popover text-indigo-500 focus:ring-indigo-500"
+            />
+            <div className="space-y-0.5">
+              <span className="block text-sm font-medium text-foreground">
+                {t("play_actions.library_integration_title")}
+              </span>
+              <span className="block text-xs text-slate-400">
+                {useLibraryIntegration
+                  ? t("play_actions.library_integration_on_hint")
+                  : t("play_actions.library_integration_off_hint")}
+              </span>
+            </div>
+          </label>
+        </div>
+      )}
 
       {playActions.length === 0 ? (
         <div className="p-10 rounded-2xl border border-dashed border-border bg-card text-center space-y-3">

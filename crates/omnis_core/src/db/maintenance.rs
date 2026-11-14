@@ -49,10 +49,10 @@ impl CatalogMaintenanceRepository for Database {
             let last_activity_str = g.last_activity.map(|t| t.to_rfc3339());
             let sorting_title = g.title.to_lowercase();
             let new_id = Uuid::new_v4().to_string();
-            let play_actions_json = g
+            let library_play_action_json = g
                 .play_action
                 .as_ref()
-                .and_then(|pa| serde_json::to_string(&vec![pa.clone()]).ok());
+                .and_then(|pa| serde_json::to_string(pa).ok());
 
             tx.execute(
                 "
@@ -60,7 +60,7 @@ impl CatalogMaintenanceRepository for Database {
                     id, library_id, external_id, title, sorting_title,
                     install_dir, is_installed, playtime_seconds, play_count,
                     last_activity, cover_image_path, background_image_path,
-                    play_actions, added_timestamp, modified_timestamp
+                    library_play_action, added_timestamp, modified_timestamp
                 )
                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?14)
                 ON CONFLICT(library_id, external_id) DO UPDATE SET
@@ -95,10 +95,10 @@ impl CatalogMaintenanceRepository for Database {
                         THEN excluded.background_image_path
                         ELSE COALESCE(games.background_image_path, excluded.background_image_path)
                     END,
-                    play_actions = CASE
-                        WHEN games.is_installed = 1 AND games.play_actions IS NOT NULL AND TRIM(games.play_actions) != '' AND TRIM(games.play_actions) != '[]' AND excluded.is_installed = 0
-                        THEN games.play_actions
-                        ELSE COALESCE(excluded.play_actions, games.play_actions)
+                    library_play_action = CASE
+                        WHEN games.is_installed = 1 AND games.library_play_action IS NOT NULL AND TRIM(games.library_play_action) != '' AND excluded.is_installed = 0
+                        THEN games.library_play_action
+                        ELSE COALESCE(excluded.library_play_action, games.library_play_action)
                     END,
                     modified_timestamp = excluded.modified_timestamp
                 ",
@@ -115,7 +115,7 @@ impl CatalogMaintenanceRepository for Database {
                     last_activity_str,
                     g.cover_image_path,
                     g.background_image_path,
-                    play_actions_json,
+                    library_play_action_json,
                     now
                 ],
             )?;

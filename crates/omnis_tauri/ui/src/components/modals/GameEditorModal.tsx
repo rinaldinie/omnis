@@ -86,6 +86,7 @@ export default function GameEditorModal({
     background_image_path: "",
     icon_image_path: "",
     play_actions: [],
+    use_library_integration: true,
     custom_links: [],
   });
 
@@ -151,6 +152,7 @@ export default function GameEditorModal({
               tracking_mode: a.tracking_mode || { type: "KernelJobObject" },
             }))
           : [],
+        use_library_integration: g.use_library_integration ?? true,
         custom_links: Array.isArray(g.custom_links) ? g.custom_links : [],
       });
 
@@ -238,6 +240,7 @@ export default function GameEditorModal({
         background_image_path: formData.background_image_path.trim() || null,
         icon_image_path: formData.icon_image_path.trim() || null,
         play_actions: cleanedPlayActions,
+        use_library_integration: formData.use_library_integration,
         custom_links: formData.custom_links,
       };
 
@@ -491,6 +494,14 @@ export default function GameEditorModal({
             <TabsContent value="actions" className="mt-0">
               <PlayActionsTab
                 playActions={formData.play_actions}
+                isCustomGame={game.library === "custom"}
+                useLibraryIntegration={formData.use_library_integration}
+                onToggleLibraryIntegration={(val) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    use_library_integration: val,
+                  }))
+                }
                 onAddAction={handleAddAction}
                 onRemoveAction={handleRemoveAction}
                 onUpdateAction={handleUpdateAction}

@@ -726,6 +726,9 @@ export const es: TranslationSchema = {
     tracking_kernel: 'Kernel Job Object (nativo de Windows, sin carga de CPU)',
     tracking_process: 'Nombre del proceso',
     tracking_directory: 'Carpeta de instalación',
+    library_integration_title: 'Acciones de biblioteca',
+    library_integration_on_hint: 'Ejecuta la integración estándar de la biblioteca junto con las acciones personalizadas siguientes.',
+    library_integration_off_hint: 'Integración de biblioteca desactivada: solo se ejecutarán las acciones personalizadas siguientes.',
   },
   theme_modal: {
     draft_name: 'Mi nuevo tema',

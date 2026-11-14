@@ -113,6 +113,7 @@ fn test_unified_search_fuzzy_and_fts5_trigram() {
         background_image_path: None,
         icon_image_path: None,
         play_actions: vec![],
+        use_library_integration: true,
         custom_links: vec![],
         extra_metadata: None,
     };
@@ -143,6 +144,7 @@ fn test_unified_search_fuzzy_and_fts5_trigram() {
         background_image_path: None,
         icon_image_path: None,
         play_actions: vec![],
+        use_library_integration: true,
         custom_links: vec![],
         extra_metadata: None,
     };

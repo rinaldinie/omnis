@@ -143,6 +143,7 @@ fn test_update_game_extended_metadata_and_json_fields() {
             working_dir: Some(PathBuf::from("C:\\Games\\Cyberpunk 2077")),
             tracking_mode: omnis_sdk::ProcessTrackingMode::KernelJobObject,
         }],
+        use_library_integration: true,
         custom_links: vec![CustomLink {
             title: "Official Wiki".to_string(),
             url: "https://cyberpunk.fandom.com".to_string(),
@@ -262,6 +263,7 @@ fn test_search_games() {
         background_image_path: None,
         icon_image_path: None,
         play_actions: vec![],
+        use_library_integration: true,
         custom_links: vec![],
         extra_metadata: None,
     };
@@ -314,6 +316,7 @@ fn test_update_nonexistent_game_returns_error() {
         background_image_path: None,
         icon_image_path: None,
         play_actions: vec![],
+        use_library_integration: true,
         custom_links: vec![],
         extra_metadata: None,
     };
