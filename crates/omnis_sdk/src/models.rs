@@ -171,6 +171,8 @@ pub struct Game {
     pub hidden_by_duplicate_hider: bool,
     #[serde(default)]
     pub duplicate_group_id: Option<String>,
+    #[serde(default)]
+    pub achievements_sync_status: crate::achievements::AchievementsSyncStatus,
     pub added_timestamp: DateTime<Utc>,
     pub modified_timestamp: DateTime<Utc>,
 }
@@ -217,6 +219,7 @@ impl Game {
             is_favorite: false,
             hidden_by_duplicate_hider: false,
             duplicate_group_id: None,
+            achievements_sync_status: crate::achievements::AchievementsSyncStatus::Unknown,
             added_timestamp: now,
             modified_timestamp: now,
         }

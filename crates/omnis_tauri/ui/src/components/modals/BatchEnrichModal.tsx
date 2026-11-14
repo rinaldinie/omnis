@@ -81,6 +81,8 @@ export default function BatchEnrichModal({
       allGames.filter(
         (g) =>
           supportsStoreAchievements(g.library) &&
+          g.achievements_sync_status !== "available" &&
+          g.achievements_sync_status !== "none" &&
           (!g.extra_metadata || !g.extra_metadata.includes("achievements"))
       ),
     [allGames]

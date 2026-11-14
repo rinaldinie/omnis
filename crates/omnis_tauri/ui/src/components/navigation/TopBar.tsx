@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import {
-  Zap,
   ChevronDown,
   LayoutGrid,
   PanelLeft,
@@ -135,10 +134,9 @@ export default function TopBar({
           </span>
         </div>
       </div>
-        <ChevronDown
-        className={`w-3.5 h-3.5 text-slate-400 group-hover:text-white transition-transform duration-200 shrink-0 ${
-          isAppMenuOpen ? "rotate-180 text-white" : ""
-        }`}
+      <ChevronDown
+        className={`w-3.5 h-3.5 text-slate-400 group-hover:text-white transition-transform duration-200 shrink-0 ${isAppMenuOpen ? "rotate-180 text-white" : ""
+          }`}
       />
     </Button>
   );

@@ -223,6 +223,7 @@ export function achievements(gameId: string): GameAchievementsSummary {
     completion_percentage: total ? Math.round((unlocked / total) * 1000) / 10 : 0,
     total_points: 0,
     earned_points: 0,
+    sync_status: total > 0 ? "available" : "none",
     achievements: list,
   };
 }

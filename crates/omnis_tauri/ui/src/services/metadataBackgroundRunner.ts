@@ -109,10 +109,12 @@ export function startBatchEnrichment({
         }
       }
 
-      // Step 3: Store Achievements
+      // Step 3: Store Achievements (skip games already confirmed to have no trophies)
       if (fetchAchievements && !isBatchCancelled) {
-        const achievementEligible = games.filter((g) =>
-          supportsStoreAchievements(g.library)
+        const achievementEligible = games.filter(
+          (g) =>
+            supportsStoreAchievements(g.library) &&
+            g.achievements_sync_status !== "none"
         );
         for (let i = 0; i < achievementEligible.length; i++) {
           if (isBatchCancelled) break;

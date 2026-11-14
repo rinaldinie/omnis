@@ -233,4 +233,44 @@ describe("BatchEnrichModal background IPC flow", () => {
     expect(viewport).not.toBeNull();
     expect(viewport?.className).toContain("max-h-[300px]");
   });
+
+  it("skips games with achievements_sync_status === 'none' in missing preset and batch achievement sync", async () => {
+    const gamesWithNoTrophies: GameDto[] = [
+      games[0],
+      {
+        ...games[0],
+        id: "g3",
+        external_id: "3",
+        title: "No Trophies Game",
+        achievements_sync_status: "none",
+      },
+    ];
+
+    render(
+      <I18nProvider initialLocale="en">
+        <BatchEnrichModal
+          isOpen={true}
+          onClose={vi.fn()}
+          allGames={gamesWithNoTrophies}
+          filteredGames={gamesWithNoTrophies}
+          onComplete={vi.fn().mockResolvedValue(undefined)}
+        />
+      </I18nProvider>
+    );
+
+    // Missing Achievements preset should count only g1 (1), excluding g3 ('none')
+    expect(screen.getByRole("button", { name: /Missing Achievements/i }).textContent).toContain("1");
+
+    // Disable metadata & HLTB, switch to Entire Library (2), and run achievements-only batch
+    fireEvent.click(screen.getByRole("button", { name: /Game Info & Artwork/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Story and 100% completion times/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Entire Library/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Download Selected Data \(2\)/i }));
+
+    await waitFor(() => {
+      expect(api.achievements.refreshGameAchievements).toHaveBeenCalledTimes(1);
+      expect(api.achievements.refreshGameAchievements).toHaveBeenCalledWith("g1");
+      expect(api.achievements.refreshGameAchievements).not.toHaveBeenCalledWith("g3");
+    });
+  });
 });

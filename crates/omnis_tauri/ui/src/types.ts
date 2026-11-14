@@ -59,6 +59,8 @@ export interface LaunchConfiguration {
   tracking_mode: ProcessTrackingMode;
 }
 
+export type AchievementsSyncStatus = "unknown" | "available" | "none";
+
 export interface GameDto {
   id: string;
   external_id?: string;
@@ -96,6 +98,7 @@ export interface GameDto {
   hidden_by_duplicate_hider?: boolean;
   duplicate_group_id?: string | null;
   other_copies?: DuplicateCopyDto[];
+  achievements_sync_status?: AchievementsSyncStatus;
 }
 
 export interface LibraryCounts {
@@ -665,6 +668,7 @@ export interface GameAchievementsSummary {
   completion_percentage: number;
   total_points: number;
   earned_points: number;
+  sync_status?: AchievementsSyncStatus;
   achievements: Achievement[];
 }
 

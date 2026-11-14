@@ -1,7 +1,7 @@
 //! Tauri IPC commands for game achievements and icon caching
 
 use crate::types::AppState;
-use omnis_sdk::GameAchievementsSummary;
+use omnis_sdk::{AchievementsSyncStatus, GameAchievementsSummary};
 use tauri::State;
 use tracing::debug;
 use uuid::Uuid;
@@ -19,7 +19,7 @@ pub async fn get_game_achievements(
         .get_game_achievements(gid)
         .map_err(|e| format!("Database error: {e}"))?;
 
-    if summary.total_count > 0 {
+    if summary.total_count > 0 || summary.sync_status == AchievementsSyncStatus::None {
         return Ok(summary);
     }
 
@@ -35,7 +35,9 @@ pub async fn get_game_achievements(
             .await
         {
             Ok(refreshed) => {
-                if refreshed.total_count > 0 {
+                if refreshed.total_count > 0
+                    || refreshed.sync_status == AchievementsSyncStatus::None
+                {
                     use omnis_sdk::constants::events;
                     use tauri::Emitter;
                     let _ = app_handle.emit(

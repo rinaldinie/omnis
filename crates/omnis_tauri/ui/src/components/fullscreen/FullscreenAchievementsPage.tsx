@@ -306,7 +306,9 @@ export const FullscreenAchievementsPage: React.FC<FullscreenAchievementsPageProp
           <p className="py-16 text-center text-lg text-white/60">{t("achievements.loading")}</p>
         ) : !summary || summary.total_count === 0 ? (
           <p className="py-16 text-center text-lg text-white/60">
-            {t("achievements.no_achievements", { store: game.library.toUpperCase() })}
+            {summary?.sync_status === "none"
+              ? t("achievements.confirmed_no_achievements", { store: game.library.toUpperCase() })
+              : t("achievements.no_achievements", { store: game.library.toUpperCase() })}
           </p>
         ) : visible.length === 0 ? (
           <p className="py-16 text-center text-lg text-white/60">{t("achievements.empty_filter")}</p>

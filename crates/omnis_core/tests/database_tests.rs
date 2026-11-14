@@ -687,3 +687,82 @@ fn test_get_games_paginated() {
     assert_eq!(page3[0].title, "Game 08");
     assert_eq!(page3[1].title, "Game 09");
 }
+
+#[test]
+fn test_achievements_sync_status_persistence() {
+    let db = Database::open_in_memory().expect("Failed to open DB");
+    let sample = DiscoveredGame {
+        library_id: "steam".to_string(),
+        external_id: "400".to_string(),
+        title: "Portal".to_string(),
+        install_dir: None,
+        is_installed: true,
+        play_action: None,
+        playtime_seconds: 600,
+        play_count: 1,
+        last_activity: Some(Utc::now()),
+        cover_image_path: None,
+        background_image_path: None,
+    };
+    db.ingest_discovered_batch(&[sample])
+        .expect("Failed ingest");
+    let game_id = db.get_all_games().unwrap()[0].id;
+
+    // Newly ingested game starts as Unknown
+    assert_eq!(
+        db.get_game_by_id(game_id)
+            .unwrap()
+            .unwrap()
+            .achievements_sync_status,
+        omnis_sdk::AchievementsSyncStatus::Unknown
+    );
+    assert_eq!(
+        db.get_game_achievements(game_id).unwrap().sync_status,
+        omnis_sdk::AchievementsSyncStatus::Unknown
+    );
+
+    // Successful empty sync marks game as None
+    db.upsert_achievements(game_id, &[])
+        .expect("Failed empty upsert");
+    assert_eq!(
+        db.get_game_by_id(game_id)
+            .unwrap()
+            .unwrap()
+            .achievements_sync_status,
+        omnis_sdk::AchievementsSyncStatus::None
+    );
+    assert_eq!(
+        db.get_game_achievements(game_id).unwrap().sync_status,
+        omnis_sdk::AchievementsSyncStatus::None
+    );
+
+    // Subsequent sync finding achievements transitions to Available
+    let ach = omnis_sdk::Achievement {
+        id: format!("steam_{}_ach_1", game_id),
+        game_id,
+        api_name: "ach_1".to_string(),
+        display_name: "Test".to_string(),
+        description: None,
+        icon_unlocked_url: "https://example.com/1.png".to_string(),
+        icon_locked_url: None,
+        local_icon_path: None,
+        is_unlocked: false,
+        unlock_time: None,
+        rarity_percentage: None,
+        points: None,
+        is_hidden: false,
+    };
+    db.upsert_achievements(game_id, &[ach])
+        .expect("Failed non-empty upsert");
+    assert_eq!(
+        db.get_game_by_id(game_id)
+            .unwrap()
+            .unwrap()
+            .achievements_sync_status,
+        omnis_sdk::AchievementsSyncStatus::Available
+    );
+    assert_eq!(
+        db.get_game_achievements(game_id).unwrap().sync_status,
+        omnis_sdk::AchievementsSyncStatus::Available
+    );
+}

@@ -7,7 +7,9 @@ use omnis_plugin_gog::GogCloudPlugin;
 use omnis_plugin_steam::SteamPlugin;
 use omnis_plugin_xbox::XboxCloudPlugin;
 use omnis_sdk::constants::{storage, stores};
-use omnis_sdk::{Achievement, AchievementProvider, Game, GameAchievementsSummary};
+use omnis_sdk::{
+    Achievement, AchievementProvider, AchievementsSyncStatus, Game, GameAchievementsSummary,
+};
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -82,6 +84,7 @@ impl AchievementService {
             .map_err(|e| format!("Database error listing games: {e}"))?
             .into_iter()
             .filter(|g| configured.contains(g.library_id.as_str()))
+            .filter(|g| g.achievements_sync_status != AchievementsSyncStatus::None)
             .filter(|g| g.playtime_seconds > 0 || g.play_count > 0 || g.last_activity.is_some())
             .collect();
         games.sort_by_key(|g| std::cmp::Reverse(g.last_activity));
@@ -178,20 +181,24 @@ impl AchievementService {
         db.upsert_achievements(game_id, &achievements)
             .map_err(|e| format!("Database error saving achievements: {e}"))?;
 
-        let db_clone = Arc::clone(db);
-        let cache_dir = app_dir
-            .join(storage::CACHE_DIR)
-            .join(storage::ACHIEVEMENTS_DIR);
-        let cache_manager = AchievementCacheManager::new(cache_dir);
-        let game_title = game.title.clone();
-        tokio::spawn(async move {
-            if let Err(e) = cache_manager
-                .cache_achievements_for_game(&db_clone, game_id, &achievements)
-                .await
-            {
-                warn!("Achievement icon caching had errors for '{game_title}' ({game_id}): {e}");
-            }
-        });
+        if !achievements.is_empty() {
+            let db_clone = Arc::clone(db);
+            let cache_dir = app_dir
+                .join(storage::CACHE_DIR)
+                .join(storage::ACHIEVEMENTS_DIR);
+            let cache_manager = AchievementCacheManager::new(cache_dir);
+            let game_title = game.title.clone();
+            tokio::spawn(async move {
+                if let Err(e) = cache_manager
+                    .cache_achievements_for_game(&db_clone, game_id, &achievements)
+                    .await
+                {
+                    warn!(
+                        "Achievement icon caching had errors for '{game_title}' ({game_id}): {e}"
+                    );
+                }
+            });
+        }
 
         db.get_game_achievements(game_id)
             .map_err(|e| format!("Database error reading achievement summary: {e}"))
@@ -413,5 +420,122 @@ mod tests {
         // And verify session was updated in storage
         let refreshed = store_mgr.load_session("retry_store").unwrap().unwrap();
         assert_eq!(refreshed.access_token, "refreshed_token_456");
+    }
+
+    struct MockEmptyAndErrorProvider;
+    #[async_trait::async_trait]
+    impl AchievementProvider for MockEmptyAndErrorProvider {
+        fn provider_id(&self) -> &'static str {
+            "empty_or_err_store"
+        }
+        async fn fetch_achievements(
+            &self,
+            game: &Game,
+            _session: Option<&omnis_sdk::StoreAccountSession>,
+        ) -> Result<Vec<Achievement>, String> {
+            if game.external_id == "no_trophies" {
+                Ok(Vec::new())
+            } else {
+                Err("Temporary network failure".to_string())
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_sync_marks_none_on_empty_success_preserves_unknown_on_error_and_skips_candidates() {
+        let mut service = AchievementService::new();
+        service.register_provider(Box::new(MockEmptyAndErrorProvider));
+
+        let db = Arc::new(Database::open_in_memory().unwrap());
+        let vault = Arc::new(omnis_core::SecretVault::from_key([0x55; 32]));
+        let store_mgr = StoreAccountManager::new(Arc::clone(&db), vault);
+        store_mgr
+            .save_session(
+                "empty_or_err_store",
+                &omnis_sdk::StoreAccountSession {
+                    store_id: "empty_or_err_store".to_string(),
+                    user_id: "u1".to_string(),
+                    username: "User".to_string(),
+                    avatar_url: None,
+                    access_token: "tok".to_string(),
+                    refresh_token: None,
+                    expires_at: None,
+                },
+            )
+            .unwrap();
+
+        db.ingest_discovered_batch(&[
+            omnis_sdk::DiscoveredGame {
+                library_id: "empty_or_err_store".to_string(),
+                external_id: "no_trophies".to_string(),
+                title: "Game Without Trophies".to_string(),
+                install_dir: None,
+                is_installed: true,
+                play_action: None,
+                playtime_seconds: 100,
+                play_count: 1,
+                last_activity: Some(chrono::Utc::now()),
+                cover_image_path: None,
+                background_image_path: None,
+            },
+            omnis_sdk::DiscoveredGame {
+                library_id: "empty_or_err_store".to_string(),
+                external_id: "transient_fail".to_string(),
+                title: "Game With Transient Error".to_string(),
+                install_dir: None,
+                is_installed: true,
+                play_action: None,
+                playtime_seconds: 100,
+                play_count: 1,
+                last_activity: Some(chrono::Utc::now()),
+                cover_image_path: None,
+                background_image_path: None,
+            },
+        ])
+        .unwrap();
+
+        let all_games = db.get_all_games().unwrap();
+        let no_trophies_id = all_games
+            .iter()
+            .find(|g| g.external_id == "no_trophies")
+            .unwrap()
+            .id;
+        let err_game_id = all_games
+            .iter()
+            .find(|g| g.external_id == "transient_fail")
+            .unwrap()
+            .id;
+
+        let temp_dir = std::env::temp_dir().join(format!("omnis_ach_test_{}", Uuid::new_v4()));
+
+        // Empty store response succeeds and marks game as None
+        let summary = service
+            .sync_game_achievements(&db, &store_mgr, &temp_dir, no_trophies_id)
+            .await
+            .expect("Empty result should succeed");
+        assert_eq!(summary.total_count, 0);
+        assert_eq!(summary.sync_status, AchievementsSyncStatus::None);
+
+        // Error response does NOT mark game as None
+        let err_res = service
+            .sync_game_achievements(&db, &store_mgr, &temp_dir, err_game_id)
+            .await;
+        assert!(err_res.is_err());
+        assert_eq!(
+            db.get_game_by_id(err_game_id)
+                .unwrap()
+                .unwrap()
+                .achievements_sync_status,
+            AchievementsSyncStatus::Unknown
+        );
+
+        // Library sync candidates skips the confirmed-none game, keeps the Unknown one
+        let candidates = service
+            .library_sync_candidates(&db, &store_mgr)
+            .expect("Candidates query failed");
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(candidates[0].id, err_game_id);
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
     }
 }

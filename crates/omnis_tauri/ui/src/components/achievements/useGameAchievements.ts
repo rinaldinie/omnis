@@ -2,9 +2,31 @@ import { useEffect, useState } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { api, TAURI_EVENTS } from "../../api";
-import { Achievement, GameAchievementsSummary, GameDto } from "../../types";
+import { useLibraryStore } from "../../stores";
+import { Achievement, AchievementsSyncStatus, GameAchievementsSummary, GameDto } from "../../types";
 
 const ACHIEVEMENT_STORES = ["steam", "xbox", "gog", "epic"];
+
+/** Updates a single game's cached `achievements_sync_status` in the library store when it changes. */
+export function syncLibraryGameAchievementStatus(
+  gameId: string,
+  syncStatus?: AchievementsSyncStatus
+): void {
+  if (!syncStatus) return;
+  const { setGames, setSelectedGame } = useLibraryStore.getState();
+  setGames((prev) =>
+    prev.some((g) => g.id === gameId && g.achievements_sync_status !== syncStatus)
+      ? prev.map((g) =>
+          g.id === gameId ? { ...g, achievements_sync_status: syncStatus } : g
+        )
+      : prev
+  );
+  setSelectedGame((prev) =>
+    prev && prev.id === gameId && prev.achievements_sync_status !== syncStatus
+      ? { ...prev, achievements_sync_status: syncStatus }
+      : prev
+  );
+}
 
 export type RarityTier = "ultra_rare" | "rare" | "uncommon" | "common";
 
@@ -128,7 +150,10 @@ export function useGameAchievements(game: GameDto | null | undefined) {
       api.achievements
         .getGameAchievements(gameId)
         .then((result) => {
-          if (!disposed) setSummary(result);
+          if (!disposed) {
+            setSummary(result);
+            syncLibraryGameAchievementStatus(gameId, result.sync_status);
+          }
         })
         .catch((err) => console.warn("Failed to load achievements:", err))
         .finally(() => {

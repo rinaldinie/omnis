@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
-use omnis_sdk::{Achievement, GameAchievementsSummary};
-use rusqlite::{params, Result};
+use omnis_sdk::{Achievement, AchievementsSyncStatus, GameAchievementsSummary};
+use rusqlite::{params, OptionalExtension, Result};
 use uuid::Uuid;
 
 use crate::db::{Database, DatabaseError};
@@ -92,6 +92,19 @@ impl AchievementRepository for Database {
             }
         }
 
+        let sync_status = if achievements.is_empty() {
+            AchievementsSyncStatus::None
+        } else {
+            AchievementsSyncStatus::Available
+        };
+        tx.execute(
+            "UPDATE games
+             SET achievements_sync_status = ?1,
+                 achievements_synced_at = ?2
+             WHERE id = ?3",
+            params![sync_status.as_str(), now, game_id_str],
+        )?;
+
         tx.commit()?;
         Ok(())
     }
@@ -177,6 +190,22 @@ impl AchievementRepository for Database {
             0.0
         };
 
+        let persisted_status: Option<String> = conn
+            .query_row(
+                "SELECT achievements_sync_status FROM games WHERE id = ?1",
+                params![game_id_str],
+                |row| row.get(0),
+            )
+            .optional()?;
+        let sync_status = if total_count > 0 {
+            AchievementsSyncStatus::Available
+        } else {
+            persisted_status
+                .as_deref()
+                .map(AchievementsSyncStatus::parse)
+                .unwrap_or(AchievementsSyncStatus::Unknown)
+        };
+
         Ok(GameAchievementsSummary {
             game_id,
             total_count,
@@ -184,6 +213,7 @@ impl AchievementRepository for Database {
             completion_percentage,
             total_points,
             earned_points,
+            sync_status,
             achievements,
         })
     }

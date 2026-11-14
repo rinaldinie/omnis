@@ -173,7 +173,9 @@ async fn sync_after_session(app: &AppHandle, game_id: Uuid) {
             return;
         }
     };
-    if !state.achievement_service.supports_store(&game.library_id) {
+    if !state.achievement_service.supports_store(&game.library_id)
+        || game.achievements_sync_status == omnis_sdk::AchievementsSyncStatus::None
+    {
         return;
     }
 

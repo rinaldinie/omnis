@@ -14,6 +14,7 @@ import {
   isRareAchievement,
   isUncommonAchievement,
   isCommonAchievement,
+  syncLibraryGameAchievementStatus,
 } from "./useGameAchievements";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
@@ -107,6 +108,7 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
       // Discard stale responses if user switched games while request was in-flight
       if (activeGameIdRef.current === targetGameId) {
         setSummary(result);
+        syncLibraryGameAchievementStatus(targetGameId, result.sync_status);
         if (isRefresh) {
           setSyncSuccess(true);
           soundEffects.playUnlock?.();
@@ -153,7 +155,10 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
       if (event.payload.game_id !== targetGameId) return;
       try {
         const result = await api.achievements.getGameAchievements(targetGameId);
-        if (activeGameIdRef.current === targetGameId) setSummary(result);
+        if (activeGameIdRef.current === targetGameId) {
+          setSummary(result);
+          syncLibraryGameAchievementStatus(targetGameId, result.sync_status);
+        }
       } catch (err) {
         console.debug("Achievement reload after background sync failed:", err);
       }
@@ -351,18 +356,23 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
     }
 
     const storeLabel = game.library.toUpperCase();
+    const confirmedNoAchievements = summary?.sync_status === "none";
 
     return (
       <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/[0.06] space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <Trophy className="w-5 h-5 text-slate-500" />
+            <Trophy className="w-5 h-5 text-slate-500 shrink-0" />
             <div>
               <span className="text-xs text-slate-300 font-medium block">
-                {t("achievements.no_achievements", { store: storeLabel })}
+                {confirmedNoAchievements
+                  ? t("achievements.confirmed_no_achievements", { store: storeLabel })
+                  : t("achievements.no_achievements", { store: storeLabel })}
               </span>
               <span className="text-[11px] text-slate-500">
-                {t("achievements.sync_hint")}
+                {confirmedNoAchievements
+                  ? t("achievements.confirmed_no_achievements_hint")
+                  : t("achievements.sync_hint")}
               </span>
             </div>
           </div>
@@ -376,12 +386,14 @@ export const GameAchievementsGallery: React.FC<GameAchievementsGalleryProps> = (
                 fetchAchievements(true);
               }}
               disabled={refreshing}
-              className="h-auto px-3.5 py-1.5 rounded-xl border border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.08] text-xs font-bold text-white"
+              className="h-auto px-3.5 py-1.5 rounded-xl border border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.08] text-xs font-bold text-white shrink-0"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin text-indigo-400" : ""}`} />
               <span>
                 {refreshing
                   ? t("achievements.syncing")
+                  : confirmedNoAchievements
+                  ? t("achievements.recheck")
                   : t("achievements.sync")}
               </span>
             </Button>

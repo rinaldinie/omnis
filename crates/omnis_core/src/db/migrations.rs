@@ -1,6 +1,6 @@
 use rusqlite::{Connection, Result};
 
-pub const CURRENT_SCHEMA_VERSION: i32 = 7;
+pub const CURRENT_SCHEMA_VERSION: i32 = 8;
 
 pub fn run_migrations(conn: &Connection) -> Result<()> {
     let current_version: i32 = conn.query_row("PRAGMA user_version;", [], |r| r.get(0))?;
@@ -44,6 +44,8 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
                 play_actions TEXT,
                 library_play_action TEXT,
                 use_library_integration INTEGER NOT NULL DEFAULT 1,
+                achievements_sync_status TEXT NOT NULL DEFAULT 'unknown',
+                achievements_synced_at TEXT,
                 extra_metadata TEXT,
                 added_timestamp TEXT NOT NULL,
                 modified_timestamp TEXT NOT NULL
@@ -316,6 +318,27 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
             [],
         );
         conn.execute_batch("PRAGMA user_version = 7;")?;
+    }
+
+    // Version 8: Track per-game achievement sync status to avoid rescanning games without trophies
+    if current_version < 8 {
+        let _ = conn.execute(
+            "ALTER TABLE games ADD COLUMN achievements_sync_status TEXT NOT NULL DEFAULT 'unknown';",
+            [],
+        );
+        let _ = conn.execute(
+            "ALTER TABLE games ADD COLUMN achievements_synced_at TEXT;",
+            [],
+        );
+        let _ = conn.execute(
+            "UPDATE games
+             SET achievements_sync_status = 'available'
+             WHERE EXISTS (
+                 SELECT 1 FROM game_achievements ga WHERE ga.game_id = games.id
+             );",
+            [],
+        );
+        conn.execute_batch("PRAGMA user_version = 8;")?;
     }
 
     conn.execute_batch(&format!(

@@ -395,6 +395,9 @@ export function useAppEvents({
           if (p.updated > 0) {
             latestRef.current.setAchievementSync(p);
             achievementSyncTimeoutRef.current = setTimeout(() => latestRef.current.setAchievementSync(null), 4000);
+            if (p.status === "completed") {
+              latestRef.current.refreshLibrary();
+            }
           } else {
             latestRef.current.setAchievementSync(null);
           }

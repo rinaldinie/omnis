@@ -1023,6 +1023,9 @@ export interface TranslationSchema {
     all: string;
     empty_filter: string;
     no_achievements: string;
+    confirmed_no_achievements: string;
+    confirmed_no_achievements_hint: string;
+    recheck: string;
     sync_hint: string;
     refresh_title: string;
     secret_title: string;
@@ -1240,6 +1243,7 @@ export interface TranslationSchema {
     hltb_present: string;
     hltb_missing: string;
     achievements_synced: string;
+    achievements_none: string;
     achievements_missing: string;
     running_in_background: string;
   };

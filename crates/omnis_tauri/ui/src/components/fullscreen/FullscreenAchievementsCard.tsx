@@ -87,7 +87,11 @@ export const FullscreenAchievementsCard = React.forwardRef<HTMLButtonElement, Fu
             </>
           ) : (
             <p className="mt-2 text-base text-white/55">
-              {loading ? t("achievements.loading") : t("achievements.no_achievements", { store: library.toUpperCase() })}
+              {loading
+                ? t("achievements.loading")
+                : summary?.sync_status === "none"
+                ? t("achievements.confirmed_no_achievements", { store: library.toUpperCase() })
+                : t("achievements.no_achievements", { store: library.toUpperCase() })}
             </p>
           )}
         </div>

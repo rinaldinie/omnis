@@ -1,5 +1,7 @@
 use chrono::{DateTime, Utc};
-use omnis_sdk::{CustomLink, Game, GameMetadataPatch, GameUpdateDto, LaunchConfiguration};
+use omnis_sdk::{
+    AchievementsSyncStatus, CustomLink, Game, GameMetadataPatch, GameUpdateDto, LaunchConfiguration,
+};
 use rusqlite::{params, Result};
 use std::path::PathBuf;
 use uuid::Uuid;
@@ -70,7 +72,7 @@ pub(crate) const GAME_COLUMNS: &str = "
     custom_links, play_actions, extra_metadata,
     added_timestamp, modified_timestamp,
     is_hidden, hidden_by_duplicate_hider, duplicate_group_id, is_favorite,
-    library_play_action, use_library_integration
+    library_play_action, use_library_integration, achievements_sync_status
 ";
 
 pub(crate) fn map_row_to_game(row: &rusqlite::Row) -> rusqlite::Result<Game> {
@@ -190,6 +192,11 @@ pub(crate) fn map_row_to_game(row: &rusqlite::Row) -> rusqlite::Result<Game> {
         .as_deref()
         .and_then(|s| serde_json::from_str(s).ok());
     let use_library_integration = row.get::<_, Option<i32>>(37)?.unwrap_or(1) != 0;
+    let achievements_sync_status = row
+        .get::<_, Option<String>>(38)?
+        .as_deref()
+        .map(AchievementsSyncStatus::parse)
+        .unwrap_or_default();
 
     Ok(Game {
         id,
@@ -229,6 +236,7 @@ pub(crate) fn map_row_to_game(row: &rusqlite::Row) -> rusqlite::Result<Game> {
         is_favorite,
         hidden_by_duplicate_hider,
         duplicate_group_id,
+        achievements_sync_status,
         added_timestamp,
         modified_timestamp,
     })

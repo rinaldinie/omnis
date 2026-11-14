@@ -320,6 +320,7 @@ mod tests {
             duplicate_group_id: None,
             hidden_by_duplicate_hider: false,
             is_favorite: false,
+            achievements_sync_status: Default::default(),
         };
 
         let json_payload = r#"{

@@ -63,6 +63,8 @@ pub struct GameDto {
     pub duplicate_group_id: Option<String>,
     #[serde(default)]
     pub other_copies: Vec<omnis_sdk::DuplicateCopyDto>,
+    #[serde(default)]
+    pub achievements_sync_status: omnis_sdk::AchievementsSyncStatus,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -170,6 +172,7 @@ pub fn game_to_dto(g: Game) -> GameDto {
         hidden_by_duplicate_hider: g.hidden_by_duplicate_hider,
         duplicate_group_id: g.duplicate_group_id,
         other_copies: Vec::new(),
+        achievements_sync_status: g.achievements_sync_status,
     }
 }
 

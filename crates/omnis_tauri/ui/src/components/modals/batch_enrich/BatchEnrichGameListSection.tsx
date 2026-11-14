@@ -103,7 +103,10 @@ export const BatchEnrichGameListSection: React.FC<BatchEnrichGameListSectionProp
                 const hasHltb =
                   !!game.extra_metadata && game.extra_metadata.includes("howlongtobeat");
                 const hasAchievements =
-                  !!game.extra_metadata && game.extra_metadata.includes("achievements");
+                  game.achievements_sync_status === "available" ||
+                  (!!game.extra_metadata && game.extra_metadata.includes("achievements"));
+                const hasNoStoreAchievements =
+                  game.achievements_sync_status === "none";
 
                 const resolvedCover = game.cover_image
                   ? formatImageUrl(game.cover_image)
@@ -199,6 +202,8 @@ export const BatchEnrichGameListSection: React.FC<BatchEnrichGameListSectionProp
                         label={
                           hasAchievements
                             ? t("batch_enrich.achievements_synced")
+                            : hasNoStoreAchievements
+                            ? t("batch_enrich.achievements_none")
                             : t("batch_enrich.achievements_missing")
                         }
                       >
@@ -206,6 +211,8 @@ export const BatchEnrichGameListSection: React.FC<BatchEnrichGameListSectionProp
                           className={`p-1 rounded-md border text-[10px] flex items-center gap-1 ${
                             hasAchievements
                               ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-400"
+                              : hasNoStoreAchievements
+                              ? "bg-slate-500/10 border-slate-500/30 text-slate-400 opacity-75"
                               : "bg-white/[0.02] border-white/10 text-slate-600"
                           }`}
                         >
