@@ -391,7 +391,7 @@ impl StoreAccountManager {
         let mut completed = 0usize;
         while tasks.join_next().await.is_some() {
             completed += 1;
-            if completed % 10 == 0 || completed == total {
+            if completed.is_multiple_of(10) || completed == total {
                 Self::emit_sync_progress(
                     app_handle,
                     store_id,
