@@ -109,7 +109,21 @@ export default function TopBar({
             boxShadow: `0 0 15px var(--accent-glow)`,
           }}
         >
-          <Zap className="w-3.5 h-3.5 text-white fill-white" />
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 512 512"
+            className="w-4 h-4 text-white"
+            aria-hidden="true"
+          >
+            <path
+              d="M 96 384 L 172 384 A 148 148 0 1 1 340 384 L 416 384"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="60"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
         </div>
         <div className="flex flex-col leading-none truncate">
           <span className="font-bold text-xs tracking-wider text-white">OMNIS</span>
