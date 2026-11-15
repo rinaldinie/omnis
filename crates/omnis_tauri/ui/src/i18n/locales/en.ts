@@ -185,6 +185,7 @@ export const en: TranslationSchema = {
     no_player_notes: 'No personal notes for this game. Click Edit to add notes, strategies, or walkthroughs.',
     collapse_sidebar: 'Collapse sidebar',
     expand_sidebar: 'Expand sidebar',
+    resize_sidebar: 'Drag to resize (double-click to reset)',
     filter_titles_placeholder: 'Filter titles...',
     breadcrumb_library: 'Library',
     manage: 'Manage',

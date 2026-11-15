@@ -185,6 +185,7 @@ export const es: TranslationSchema = {
     no_player_notes: 'Sin notas personales para este juego. Haz clic en Editar ficha.',
     collapse_sidebar: 'Contraer barra lateral',
     expand_sidebar: 'Expandir barra lateral',
+    resize_sidebar: 'Arrastra para cambiar el tamaño (doble clic para restablecer)',
     filter_titles_placeholder: 'Filtrar títulos...',
     breadcrumb_library: 'Biblioteca',
     manage: 'Administrar',

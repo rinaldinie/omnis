@@ -185,6 +185,7 @@ export const ja: TranslationSchema = {
     no_player_notes: 'このゲームのメモはありません。「編集」をクリックしてメモを追加できます。',
     collapse_sidebar: 'サイドバーを折りたたむ',
     expand_sidebar: 'サイドバーを展開',
+    resize_sidebar: 'ドラッグしてサイズ変更（ダブルクリックでリセット）',
     filter_titles_placeholder: 'タイトルを検索...',
     breadcrumb_library: 'ライブラリ',
     manage: '管理',

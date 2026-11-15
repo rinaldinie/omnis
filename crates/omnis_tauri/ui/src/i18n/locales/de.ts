@@ -185,6 +185,7 @@ export const de: TranslationSchema = {
     no_player_notes: 'Keine persönlichen Notizen vorhanden. Klicken Sie auf Bearbeiten.',
     collapse_sidebar: 'Seitenleiste einklappen',
     expand_sidebar: 'Seitenleiste ausklappen',
+    resize_sidebar: 'Zum Ändern der Breite ziehen (Doppelklick zum Zurücksetzen)',
     filter_titles_placeholder: 'Titel filtern...',
     breadcrumb_library: 'Bibliothek',
     manage: 'Verwalten',

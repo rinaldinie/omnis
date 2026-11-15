@@ -201,6 +201,7 @@ export interface TranslationSchema {
     no_player_notes: string;
     collapse_sidebar: string;
     expand_sidebar: string;
+    resize_sidebar: string;
     filter_titles_placeholder: string;
     breadcrumb_library: string;
     manage: string;

@@ -185,6 +185,7 @@ export const fr: TranslationSchema = {
     no_player_notes: 'Aucune note personnelle pour ce jeu. Cliquez sur Modifier.',
     collapse_sidebar: 'Réduire le panneau latéral',
     expand_sidebar: 'Développer le panneau latéral',
+    resize_sidebar: 'Faites glisser pour redimensionner (double-clic pour réinitialiser)',
     filter_titles_placeholder: 'Filtrer les titres...',
     breadcrumb_library: 'Bibliothèque',
     manage: 'Gérer',

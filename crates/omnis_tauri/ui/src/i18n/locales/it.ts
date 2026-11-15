@@ -185,6 +185,7 @@ export const it: TranslationSchema = {
     no_player_notes: 'Nessuna nota personale per questo gioco. Clicca su Modifica Scheda per aggiungere appunti, strategie o guide.',
     collapse_sidebar: 'Collassa elenco laterale',
     expand_sidebar: 'Espandi elenco laterale',
+    resize_sidebar: 'Trascina per ridimensionare (doppio clic per ripristinare)',
     filter_titles_placeholder: 'Filtra titoli...',
     breadcrumb_library: 'Libreria',
     manage: 'Gestisci',

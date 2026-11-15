@@ -6,7 +6,13 @@ import { DetailsHeroHeader } from "./details/DetailsHeroHeader";
 import GridView from "./GridView";
 import ListViewTable from "./ListViewTable";
 import StatisticsDashboardView from "./StatisticsDashboardView";
-import { DetailsSidebar } from "./details/DetailsSidebar";
+import {
+  DetailsSidebar,
+  DETAILS_SIDEBAR_WIDTH_STORAGE_KEY,
+  DEFAULT_DETAILS_SIDEBAR_WIDTH,
+  MIN_DETAILS_SIDEBAR_WIDTH,
+  MAX_DETAILS_SIDEBAR_WIDTH,
+} from "./details/DetailsSidebar";
 import { api } from "@/api";
 import type { GameDto, GlobalStatsDto } from "@/types";
 
@@ -200,6 +206,7 @@ describe("Library & Dashboard Views", () => {
     }) as typeof requestAnimationFrame;
 
     try {
+      localStorage.clear();
       render(
         <I18nProvider initialLocale="en">
           <DetailsSidebar
@@ -223,5 +230,87 @@ describe("Library & Dashboard Views", () => {
       Element.prototype.scrollIntoView = originalScrollIntoView;
       globalThis.requestAnimationFrame = originalRaf;
     }
+  });
+
+  it("wraps long titles up to two lines and resizes/persists DetailsSidebar width", () => {
+    localStorage.setItem(DETAILS_SIDEBAR_WIDTH_STORAGE_KEY, "380");
+    const longTitleGame = {
+      ...sampleGame,
+      id: "g-long",
+      title: "Ori and the Will of the Wisps Definitive Collector Edition",
+    };
+
+    const { rerender } = render(
+      <I18nProvider initialLocale="en">
+        <DetailsSidebar
+          detailsSidebarOpen={true}
+          setDetailsSidebarOpen={vi.fn()}
+          detailsSearchQuery=""
+          setDetailsSearchQuery={vi.fn()}
+          detailsFilteredGames={[longTitleGame]}
+          selectedGame={longTitleGame}
+          setSelectedGame={vi.fn()}
+          handleOpenContextMenu={vi.fn()}
+          t={(key) => key}
+        />
+      </I18nProvider>
+    );
+
+    const sidebar = screen.getByTestId("details-sidebar");
+    expect(sidebar.style.width).toBe("380px");
+
+    const titleEl = screen.getByText(longTitleGame.title);
+    expect(titleEl.className).toContain("line-clamp-2");
+    expect(titleEl.className).not.toContain("truncate");
+
+    const separator = screen.getByRole("separator", { name: "game_details.resize_sidebar" });
+    expect(separator.getAttribute("aria-valuenow")).toBe("380");
+
+    // Drag to increase width beyond max -> clamped to MAX_DETAILS_SIDEBAR_WIDTH
+    fireEvent.mouseDown(separator, { button: 0, clientX: 380 });
+    fireEvent.mouseMove(window, { clientX: 600 });
+    fireEvent.mouseUp(window);
+
+    expect(sidebar.style.width).toBe(`${MAX_DETAILS_SIDEBAR_WIDTH}px`);
+    expect(localStorage.getItem(DETAILS_SIDEBAR_WIDTH_STORAGE_KEY)).toBe(
+      String(MAX_DETAILS_SIDEBAR_WIDTH)
+    );
+
+    // ArrowLeft decreases width by 16px
+    fireEvent.keyDown(separator, { key: "ArrowLeft" });
+    expect(sidebar.style.width).toBe(`${MAX_DETAILS_SIDEBAR_WIDTH - 16}px`);
+
+    // Drag below min -> clamped to MIN_DETAILS_SIDEBAR_WIDTH
+    fireEvent.mouseDown(separator, { button: 0, clientX: 400 });
+    fireEvent.mouseMove(window, { clientX: 50 });
+    fireEvent.mouseUp(window);
+    expect(sidebar.style.width).toBe(`${MIN_DETAILS_SIDEBAR_WIDTH}px`);
+
+    // Double click resets to default width
+    fireEvent.doubleClick(separator);
+    expect(sidebar.style.width).toBe(`${DEFAULT_DETAILS_SIDEBAR_WIDTH}px`);
+    expect(localStorage.getItem(DETAILS_SIDEBAR_WIDTH_STORAGE_KEY)).toBe(
+      String(DEFAULT_DETAILS_SIDEBAR_WIDTH)
+    );
+
+    // Collapsing hides resize handle and shrinks to 44px
+    rerender(
+      <I18nProvider initialLocale="en">
+        <DetailsSidebar
+          detailsSidebarOpen={false}
+          setDetailsSidebarOpen={vi.fn()}
+          detailsSearchQuery=""
+          setDetailsSearchQuery={vi.fn()}
+          detailsFilteredGames={[longTitleGame]}
+          selectedGame={longTitleGame}
+          setSelectedGame={vi.fn()}
+          handleOpenContextMenu={vi.fn()}
+          t={(key) => key}
+        />
+      </I18nProvider>
+    );
+
+    expect(sidebar.style.width).toBe("44px");
+    expect(screen.queryByRole("separator")).toBeNull();
   });
 });

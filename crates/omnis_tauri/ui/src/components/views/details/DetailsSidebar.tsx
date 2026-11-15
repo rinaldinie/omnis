@@ -7,6 +7,42 @@ import { Input } from "../../ui/input";
 import { ScrollArea } from "../../ui/scroll-area";
 import { ActionTooltip } from "../../ui/tooltip";
 
+export const DETAILS_SIDEBAR_WIDTH_STORAGE_KEY = "omnis_details_sidebar_width";
+export const DEFAULT_DETAILS_SIDEBAR_WIDTH = 320;
+export const MIN_DETAILS_SIDEBAR_WIDTH = 260;
+export const MAX_DETAILS_SIDEBAR_WIDTH = 480;
+const COLLAPSED_DETAILS_SIDEBAR_WIDTH = 44;
+const RESIZE_KEYBOARD_STEP = 16;
+
+function clampSidebarWidth(width: number): number {
+  return Math.min(MAX_DETAILS_SIDEBAR_WIDTH, Math.max(MIN_DETAILS_SIDEBAR_WIDTH, Math.round(width)));
+}
+
+function readStoredSidebarWidth(): number {
+  if (typeof localStorage === "undefined") {
+    return DEFAULT_DETAILS_SIDEBAR_WIDTH;
+  }
+  try {
+    const raw = localStorage.getItem(DETAILS_SIDEBAR_WIDTH_STORAGE_KEY);
+    if (!raw) return DEFAULT_DETAILS_SIDEBAR_WIDTH;
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) && parsed > 0
+      ? clampSidebarWidth(parsed)
+      : DEFAULT_DETAILS_SIDEBAR_WIDTH;
+  } catch {
+    return DEFAULT_DETAILS_SIDEBAR_WIDTH;
+  }
+}
+
+function persistSidebarWidth(width: number): void {
+  if (typeof localStorage === "undefined") return;
+  try {
+    localStorage.setItem(DETAILS_SIDEBAR_WIDTH_STORAGE_KEY, String(clampSidebarWidth(width)));
+  } catch {
+    // Ignore storage quota or privacy-mode failures
+  }
+}
+
 function ListThumbCover({ thumb, title }: { thumb?: string | null; title: string }) {
   const [hasError, setHasError] = React.useState(false);
 
@@ -72,6 +108,80 @@ export const DetailsSidebar: React.FC<DetailsSidebarProps> = ({
 }) => {
   const selectedItemRef = React.useRef<HTMLDivElement | null>(null);
   const hasScrolledInitialRef = React.useRef(false);
+  const [sidebarWidth, setSidebarWidth] = React.useState<number>(readStoredSidebarWidth);
+  const [isResizing, setIsResizing] = React.useState(false);
+  const latestWidthRef = React.useRef(sidebarWidth);
+  const dragCleanupRef = React.useRef<(() => void) | null>(null);
+
+  React.useEffect(() => {
+    latestWidthRef.current = sidebarWidth;
+  }, [sidebarWidth]);
+
+  React.useEffect(() => {
+    return () => {
+      dragCleanupRef.current?.();
+    };
+  }, []);
+
+  const handleResizeMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.button !== 0 || !detailsSidebarOpen) return;
+    e.preventDefault();
+    dragCleanupRef.current?.();
+
+    const startX = e.clientX;
+    const startWidth = latestWidthRef.current;
+    const prevCursor = document.body.style.cursor;
+    const prevUserSelect = document.body.style.userSelect;
+
+    setIsResizing(true);
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const nextWidth = clampSidebarWidth(startWidth + (moveEvent.clientX - startX));
+      latestWidthRef.current = nextWidth;
+      setSidebarWidth(nextWidth);
+    };
+
+    const cleanup = () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = prevCursor;
+      document.body.style.userSelect = prevUserSelect;
+      setIsResizing(false);
+      dragCleanupRef.current = null;
+    };
+
+    const handleMouseUp = () => {
+      persistSidebarWidth(latestWidthRef.current);
+      cleanup();
+    };
+
+    dragCleanupRef.current = cleanup;
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+  };
+
+  const handleResetWidth = () => {
+    latestWidthRef.current = DEFAULT_DETAILS_SIDEBAR_WIDTH;
+    setSidebarWidth(DEFAULT_DETAILS_SIDEBAR_WIDTH);
+    persistSidebarWidth(DEFAULT_DETAILS_SIDEBAR_WIDTH);
+  };
+
+  const handleResizeKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!detailsSidebarOpen) return;
+    if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+      e.preventDefault();
+      const delta = e.key === "ArrowRight" ? RESIZE_KEYBOARD_STEP : -RESIZE_KEYBOARD_STEP;
+      const nextWidth = clampSidebarWidth(latestWidthRef.current + delta);
+      latestWidthRef.current = nextWidth;
+      setSidebarWidth(nextWidth);
+      persistSidebarWidth(nextWidth);
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      handleResetWidth();
+    }
+  };
 
   React.useEffect(() => {
     if (!detailsSidebarOpen) {
@@ -93,12 +203,18 @@ export const DetailsSidebar: React.FC<DetailsSidebarProps> = ({
     el.scrollIntoView({ block });
   }, [selectedGame.id, detailsSidebarOpen, detailsFilteredGames.length]);
 
+  const activeWidth = detailsSidebarOpen ? sidebarWidth : COLLAPSED_DETAILS_SIDEBAR_WIDTH;
+
   return (
     <div
-      className={`border-r border-white/[0.06] flex flex-col min-h-0 transition-all duration-300 select-none ${
-        detailsSidebarOpen ? "w-80 min-w-[300px] max-w-[320px]" : "w-11 min-w-[44px] max-w-[44px]"
+      data-testid="details-sidebar"
+      className={`relative border-r border-white/[0.06] flex flex-col min-h-0 shrink-0 select-none ${
+        isResizing ? "" : "transition-[width] duration-300"
       }`}
       style={{
+        width: `${activeWidth}px`,
+        minWidth: `${activeWidth}px`,
+        maxWidth: `${activeWidth}px`,
         backgroundColor: "var(--bg-surface)",
       }}
     >
@@ -183,7 +299,7 @@ export const DetailsSidebar: React.FC<DetailsSidebarProps> = ({
 
       {/* Master list of games */}
       {detailsSidebarOpen && (
-        <ScrollArea className="flex-1 min-h-0">
+        <ScrollArea className="flex-1 min-h-0" viewportClassName="[&>div]:!block">
           <div className="divide-y divide-white/[0.04]">
           {detailsFilteredGames.map((game) => {
             const isSelected = selectedGame.id === game.id;
@@ -217,38 +333,59 @@ export const DetailsSidebar: React.FC<DetailsSidebarProps> = ({
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-1.5">
-                    <span
-                      className={`text-xs font-bold truncate min-w-0 ${
-                        isSelected ? "text-white" : "text-slate-300"
-                      }`}
-                      title={game.title}
-                    >
-                      {game.title}
-                    </span>
-                    <StoreBadge library={game.library} variant="subtle" className="py-0 px-1 text-[9px] shrink-0" />
+                  <div
+                    className={`text-xs font-bold leading-snug line-clamp-2 break-words ${
+                      isSelected ? "text-white" : "text-slate-300"
+                    }`}
+                    title={game.title}
+                  >
+                    {game.title}
                   </div>
-                  {(activeGame?.game_id === game.id || game.is_installed) && (
-                    <div className="flex items-center gap-2 mt-0.5">
-                      {activeGame?.game_id === game.id ? (
-                        <span className="flex items-center gap-1 text-[9px] font-bold text-emerald-300 animate-pulse">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                          {t("status.running")}
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1 text-[9px] font-bold text-emerald-400">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                          {t("groups.installed")}
-                        </span>
-                      )}
-                    </div>
-                  )}
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    <StoreBadge library={game.library} variant="subtle" className="py-0 px-1 text-[9px] shrink-0" />
+                    {activeGame?.game_id === game.id ? (
+                      <span className="flex items-center gap-1 text-[9px] font-bold text-emerald-300 animate-pulse">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                        {t("status.running")}
+                      </span>
+                    ) : game.is_installed ? (
+                      <span className="flex items-center gap-1 text-[9px] font-bold text-emerald-400">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                        {t("groups.installed")}
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
               </div>
             );
           })}
           </div>
         </ScrollArea>
+      )}
+
+      {detailsSidebarOpen && (
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label={t("game_details.resize_sidebar")}
+          aria-valuemin={MIN_DETAILS_SIDEBAR_WIDTH}
+          aria-valuemax={MAX_DETAILS_SIDEBAR_WIDTH}
+          aria-valuenow={sidebarWidth}
+          tabIndex={0}
+          title={t("game_details.resize_sidebar")}
+          onMouseDown={handleResizeMouseDown}
+          onDoubleClick={handleResetWidth}
+          onKeyDown={handleResizeKeyDown}
+          className="group absolute top-0 -right-[3px] bottom-0 w-[7px] z-20 cursor-col-resize flex justify-center focus:outline-none"
+        >
+          <div
+            className={`w-[2px] h-full transition-colors ${
+              isResizing
+                ? "bg-[var(--accent-primary)]"
+                : "bg-transparent group-hover:bg-[var(--accent-primary)]/60 group-focus-visible:bg-[var(--accent-primary)]"
+            }`}
+          />
+        </div>
       )}
     </div>
   );
