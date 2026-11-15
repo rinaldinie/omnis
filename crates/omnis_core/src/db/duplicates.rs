@@ -8,6 +8,7 @@ use crate::db::games::{map_row_to_game, GAME_COLUMNS};
 use crate::db::Database;
 
 const EDITION_SUFFIXES: &[&str] = &[
+    "amazon prime",
     "game of the year edition",
     "the game of the year edition",
     "digital deluxe edition",
@@ -522,10 +523,7 @@ mod tests {
     #[test]
     fn test_normalize_title_for_dedup() {
         assert_eq!(
-            normalize_title_for_dedup(
-                "The Witcher® 3: Wild Hunt - Game of the Year Edition",
-                true
-            ),
+            normalize_title_for_dedup("The Witcher® 3: Wild Hunt - Game of the Year Edition", true),
             "the witcher 3 wild hunt"
         );
         assert_eq!(
