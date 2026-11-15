@@ -6,6 +6,7 @@ import { DetailsHeroHeader } from "./details/DetailsHeroHeader";
 import GridView from "./GridView";
 import ListViewTable from "./ListViewTable";
 import StatisticsDashboardView from "./StatisticsDashboardView";
+import { DetailsSidebar } from "./details/DetailsSidebar";
 import { api } from "@/api";
 import type { GameDto, GlobalStatsDto } from "@/types";
 
@@ -185,5 +186,42 @@ describe("Library & Dashboard Views", () => {
     const launchBtn = screen.getByRole("button", { name: /common\.play|Avvia|Play/i });
     fireEvent.click(launchBtn);
     expect(onLaunchGame).toHaveBeenCalledWith("g1");
+  });
+
+  it("scrolls selected game into view and marks it aria-selected in DetailsSidebar", async () => {
+    const secondGame = { ...sampleGame, id: "g2", title: "Celeste" };
+    const scrollIntoViewMock = vi.fn();
+    const originalScrollIntoView = Element.prototype.scrollIntoView;
+    const originalRaf = globalThis.requestAnimationFrame;
+    Element.prototype.scrollIntoView = scrollIntoViewMock;
+    globalThis.requestAnimationFrame = ((cb: FrameRequestCallback) => {
+      cb(0);
+      return 1;
+    }) as typeof requestAnimationFrame;
+
+    try {
+      render(
+        <I18nProvider initialLocale="en">
+          <DetailsSidebar
+            detailsSidebarOpen={true}
+            setDetailsSidebarOpen={vi.fn()}
+            detailsSearchQuery=""
+            setDetailsSearchQuery={vi.fn()}
+            detailsFilteredGames={[sampleGame, secondGame]}
+            selectedGame={secondGame}
+            setSelectedGame={vi.fn()}
+            handleOpenContextMenu={vi.fn()}
+            t={(key) => key}
+          />
+        </I18nProvider>
+      );
+
+      const selectedBtn = screen.getByRole("button", { name: /Celeste/i });
+      expect(selectedBtn.getAttribute("aria-selected")).toBe("true");
+      expect(scrollIntoViewMock).toHaveBeenCalledWith({ block: "center" });
+    } finally {
+      Element.prototype.scrollIntoView = originalScrollIntoView;
+      globalThis.requestAnimationFrame = originalRaf;
+    }
   });
 });

@@ -70,9 +70,32 @@ export const DetailsSidebar: React.FC<DetailsSidebarProps> = ({
   isFilterActive,
   t,
 }) => {
+  const selectedItemRef = React.useRef<HTMLDivElement | null>(null);
+  const hasScrolledInitialRef = React.useRef(false);
+
+  React.useEffect(() => {
+    if (!detailsSidebarOpen) {
+      hasScrolledInitialRef.current = false;
+      return;
+    }
+    const el = selectedItemRef.current;
+    if (!el || typeof el.scrollIntoView !== "function") return;
+    const block: ScrollLogicalPosition = hasScrolledInitialRef.current
+      ? "nearest"
+      : "center";
+    hasScrolledInitialRef.current = true;
+    if (typeof requestAnimationFrame === "function") {
+      const rafId = requestAnimationFrame(() => {
+        el.scrollIntoView({ block });
+      });
+      return () => cancelAnimationFrame(rafId);
+    }
+    el.scrollIntoView({ block });
+  }, [selectedGame.id, detailsSidebarOpen, detailsFilteredGames.length]);
+
   return (
     <div
-      className={`border-r border-white/[0.06] flex flex-col transition-all duration-300 select-none ${
+      className={`border-r border-white/[0.06] flex flex-col min-h-0 transition-all duration-300 select-none ${
         detailsSidebarOpen ? "w-80 min-w-[300px] max-w-[320px]" : "w-11 min-w-[44px] max-w-[44px]"
       }`}
       style={{
@@ -160,7 +183,7 @@ export const DetailsSidebar: React.FC<DetailsSidebarProps> = ({
 
       {/* Master list of games */}
       {detailsSidebarOpen && (
-        <ScrollArea className="flex-1">
+        <ScrollArea className="flex-1 min-h-0">
           <div className="divide-y divide-white/[0.04]">
           {detailsFilteredGames.map((game) => {
             const isSelected = selectedGame.id === game.id;
@@ -169,6 +192,7 @@ export const DetailsSidebar: React.FC<DetailsSidebarProps> = ({
             return (
               <div
                 key={game.id}
+                ref={isSelected ? selectedItemRef : undefined}
                 role="button"
                 tabIndex={0}
                 aria-selected={isSelected}
@@ -182,13 +206,9 @@ export const DetailsSidebar: React.FC<DetailsSidebarProps> = ({
                 onContextMenu={(e) => handleOpenContextMenu(e, game)}
                 className={`p-2.5 flex items-center gap-3 cursor-pointer transition-all ${
                   isSelected
-                    ? "bg-white/[0.04] text-white border-l-2 border-[var(--accent-primary)] shadow-xs"
-                    : "hover:bg-white/[0.02] text-slate-400 hover:text-slate-200 border-l-2 border-transparent"
+                    ? "bg-[var(--accent-primary)]/15 text-white border-l-[3px] border-[var(--accent-primary)] shadow-xs"
+                    : "hover:bg-white/[0.04] text-slate-400 hover:text-slate-200 border-l-[3px] border-transparent"
                 }`}
-                style={{
-                  contentVisibility: "auto",
-                  containIntrinsicSize: "0 54px",
-                }}
               >
                 <div
                   className="w-9 h-9 rounded-lg overflow-hidden flex items-center justify-center border border-white/[0.06] shrink-0 shadow-xs bg-black/40"

@@ -355,3 +355,116 @@ describe("useLibraryFilters - Genre canonicalization and deduplication", () => {
     ]);
   });
 });
+
+describe("useLibraryFilters - Genre/Feature AND vs OR and separate quick flags", () => {
+  const catalogGames: GameDto[] = [
+    createMockGame({
+      id: "action-only",
+      title: "Doom",
+      library: "steam",
+      is_installed: true,
+      is_favorite: false,
+      last_activity: new Date().toISOString(),
+      genres: ["Action"],
+      features: ["Single-player"],
+    }),
+    createMockGame({
+      id: "adventure-only",
+      title: "Firewatch",
+      library: "gog",
+      is_installed: false,
+      is_favorite: true,
+      last_activity: null,
+      genres: ["Adventure"],
+      features: ["Controller"],
+    }),
+    createMockGame({
+      id: "action-adventure",
+      title: "Tomb Raider",
+      library: "steam",
+      is_installed: true,
+      is_favorite: true,
+      last_activity: new Date().toISOString(),
+      genres: ["Action", "Adventure"],
+      features: ["Single-player", "Controller"],
+    }),
+  ];
+
+  it("supports switching genre filter between OR and AND", () => {
+    const { result } = renderHook(() => useLibraryFilters(catalogGames));
+
+    act(() => {
+      result.current.toggleGenre("Action");
+      result.current.toggleGenre("Adventure");
+    });
+
+    expect(result.current.genreMatchMode).toBe("or");
+    expect(result.current.filteredGames.map((g) => g.id)).toEqual([
+      "action-only",
+      "adventure-only",
+      "action-adventure",
+    ]);
+
+    act(() => {
+      result.current.setGenreMatchMode("and");
+    });
+
+    expect(result.current.filteredGames.map((g) => g.id)).toEqual(["action-adventure"]);
+  });
+
+  it("supports switching feature filter between AND and OR", () => {
+    const { result } = renderHook(() => useLibraryFilters(catalogGames));
+
+    act(() => {
+      result.current.toggleFeature("Single-player");
+      result.current.toggleFeature("Controller");
+    });
+
+    expect(result.current.featureMatchMode).toBe("and");
+    expect(result.current.filteredGames.map((g) => g.id)).toEqual(["action-adventure"]);
+
+    act(() => {
+      result.current.setFeatureMatchMode("or");
+    });
+
+    expect(result.current.filteredGames.map((g) => g.id)).toEqual([
+      "action-only",
+      "adventure-only",
+      "action-adventure",
+    ]);
+  });
+
+  it("keeps Installed, Recent, and Favorites mutually exclusive (always separate)", () => {
+    const { result } = renderHook(() => useLibraryFilters(catalogGames));
+
+    act(() => {
+      result.current.setActiveFilter("installed");
+    });
+    expect(result.current.selectedFlags).toEqual(["installed"]);
+    expect(result.current.filteredGames.map((g) => g.id)).toEqual([
+      "action-only",
+      "action-adventure",
+    ]);
+
+    act(() => {
+      result.current.setActiveFilter("recent");
+    });
+    expect(result.current.selectedFlags).toEqual(["recent"]);
+
+    act(() => {
+      result.current.setActiveFilter("favorites");
+    });
+    expect(result.current.selectedFlags).toEqual(["favorites"]);
+    expect(result.current.filteredGames.map((g) => g.id)).toEqual([
+      "adventure-only",
+      "action-adventure",
+    ]);
+
+    // Clicking the active flag again toggles it off
+    act(() => {
+      result.current.setActiveFilter("favorites");
+    });
+    expect(result.current.selectedFlags).toEqual([]);
+    expect(result.current.filteredGames).toHaveLength(3);
+  });
+});

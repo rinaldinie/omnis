@@ -150,6 +150,15 @@ export default function ListViewTable({
   const { t } = useTranslation();
   const [sortField, setSortField] = useState<SortField>("title");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const selectedRowRef = React.useRef<HTMLTableRowElement | null>(null);
+
+  React.useEffect(() => {
+    if (!selectedGameId) return;
+    const el = selectedRowRef.current;
+    if (el && typeof el.scrollIntoView === "function") {
+      el.scrollIntoView({ block: "nearest" });
+    }
+  }, [selectedGameId]);
 
   const handleHeaderClick = (field: SortField) => {
     if (sortField === field) {
@@ -415,6 +424,7 @@ export default function ListViewTable({
               return (
                 <TableRow
                   key={game.id}
+                  ref={isSelected ? selectedRowRef : undefined}
                   data-state={isSelected ? "selected" : undefined}
                   onClick={() => onSelectGame(game)}
                   onContextMenu={(e) => onContextMenu && onContextMenu(e, game)}

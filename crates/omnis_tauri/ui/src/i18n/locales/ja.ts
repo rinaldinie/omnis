@@ -133,6 +133,9 @@ export const ja: TranslationSchema = {
     platform: 'プラットフォーム',
     genre: 'ジャンル',
     features: '機能・特徴',
+    match_any: 'いずれか一致 (OR)',
+    match_all: 'すべて一致 (AND)',
+    match_mode_toggle: '{section}の一致モード: {mode}',
   },
   sort_options: {
     recent: '最近プレイした順',

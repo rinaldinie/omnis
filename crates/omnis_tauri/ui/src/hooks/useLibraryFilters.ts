@@ -9,15 +9,39 @@ import { getCanonicalGenre, getLocalizedGenre } from "../utils/genres";
 
 const FILTERS_STORAGE_KEY = "omnis_library_filters";
 
+export type FilterMatchMode = "or" | "and";
+
 interface SavedFilters {
   stores: string[];
   statuses: string[];
   flags: string[];
   genres: string[];
   features: string[];
+  genreMatchMode: FilterMatchMode;
+  featureMatchMode: FilterMatchMode;
 }
 
-const EMPTY_FILTERS: SavedFilters = { stores: [], statuses: [], flags: [], genres: [], features: [] };
+const EMPTY_FILTERS: SavedFilters = {
+  stores: [],
+  statuses: [],
+  flags: [],
+  genres: [],
+  features: [],
+  genreMatchMode: "or",
+  featureMatchMode: "and",
+};
+
+const QUICK_FLAGS = new Set(["installed", "recent", "favorites", "hidden"]);
+
+function normalizeSavedFlags(flags: string[]): string[] {
+  for (let i = flags.length - 1; i >= 0; i--) {
+    const normalized = flags[i].toLowerCase().trim();
+    if (QUICK_FLAGS.has(normalized)) {
+      return [normalized];
+    }
+  }
+  return [];
+}
 
 function normalizeSavedGenres(genres: string[]): string[] {
   const seen = new Set<string>();
@@ -41,9 +65,11 @@ function readSavedFilters(): SavedFilters {
     return {
       stores: list(parsed.stores),
       statuses: list(parsed.statuses),
-      flags: list(parsed.flags),
+      flags: normalizeSavedFlags(list(parsed.flags)),
       genres: normalizeSavedGenres(list(parsed.genres)),
       features: list(parsed.features),
+      genreMatchMode: parsed.genreMatchMode === "and" ? "and" : "or",
+      featureMatchMode: parsed.featureMatchMode === "or" ? "or" : "and",
     };
   } catch {
     return EMPTY_FILTERS;
@@ -83,14 +109,16 @@ export function useLibraryFilters(games: GameDto[]) {
   // Dimension 2: Selected Completion Statuses (e.g. ["Playing", "Completed"]) - OR within dimension
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>(initialFilters.statuses);
 
-  // Dimension 3: Quick Flags (e.g. ["installed", "favorites", "recent"]) - AND within dimension
+  // Dimension 3: Quick Flags (e.g. "installed", "favorites", "recent", "hidden") - mutually exclusive
   const [selectedFlags, setSelectedFlags] = useState<string[]>(initialFilters.flags);
 
-  // Dimension 4: Selected Genres (e.g. ["Action", "RPG"]) - OR within dimension
+  // Dimension 4: Selected Genres (e.g. ["Action", "RPG"]) - OR or AND within dimension
   const [selectedGenres, setSelectedGenres] = useState<string[]>(initialFilters.genres);
+  const [genreMatchMode, setGenreMatchMode] = useState<FilterMatchMode>(initialFilters.genreMatchMode);
 
-  // Dimension 5: Selected Features (e.g. ["Single-player", "Co-op"]) - AND within dimension
+  // Dimension 5: Selected Features (e.g. ["Single-player", "Co-op"]) - AND or OR within dimension
   const [selectedFeatures, setSelectedFeatures] = useState<string[]>(initialFilters.features);
+  const [featureMatchMode, setFeatureMatchMode] = useState<FilterMatchMode>(initialFilters.featureMatchMode);
 
   // Remember the current filters for the next start
   useEffect(() => {
@@ -100,8 +128,10 @@ export function useLibraryFilters(games: GameDto[]) {
       flags: selectedFlags,
       genres: selectedGenres,
       features: selectedFeatures,
+      genreMatchMode,
+      featureMatchMode,
     });
-  }, [selectedStores, selectedStatuses, selectedFlags, selectedGenres, selectedFeatures]);
+  }, [selectedStores, selectedStatuses, selectedFlags, selectedGenres, selectedFeatures, genreMatchMode, featureMatchMode]);
 
   // Dimension 6: Sort Mode
   const [sortMode, setSortModeState] = useState<GameSortMode>(readSavedSortMode);
@@ -148,9 +178,8 @@ export function useLibraryFilters(games: GameDto[]) {
 
   const toggleFlag = (flag: string) => {
     const fLower = flag.toLowerCase().trim();
-    setSelectedFlags((prev) =>
-      prev.includes(fLower) ? prev.filter((f) => f !== fLower) : [...prev, fLower]
-    );
+    if (!fLower) return;
+    setSelectedFlags((prev) => (prev.includes(fLower) ? [] : [fLower]));
   };
 
   const toggleGenre = (genre: string) => {
@@ -418,17 +447,26 @@ export function useLibraryFilters(games: GameDto[]) {
         if (!matchesStatus) return false;
       }
 
-      // 4. Genres Filter (OR within selected genres, AND with rest)
+      // 4. Genres Filter (OR or AND within selected genres, AND with rest)
       if (selectedGenres.length > 0) {
-        const matches = selectedGenres.some((target) => matchesGenre(g, target));
+        const matches =
+          genreMatchMode === "and"
+            ? selectedGenres.every((target) => matchesGenre(g, target))
+            : selectedGenres.some((target) => matchesGenre(g, target));
         if (!matches) return false;
       }
 
-      // 5. Features Filter (AND across selected features)
+      // 5. Features Filter (AND or OR across selected features, AND with rest)
       if (selectedFeatures.length > 0) {
-        const matchesFeatures = selectedFeatures.every((targetFeature) =>
-          g.features && g.features.some((f) => f.toLowerCase().includes(targetFeature.toLowerCase()))
-        );
+        const matchesFeature = (targetFeature: string) =>
+          Boolean(
+            g.features &&
+              g.features.some((f) => f.toLowerCase().includes(targetFeature.toLowerCase()))
+          );
+        const matchesFeatures =
+          featureMatchMode === "or"
+            ? selectedFeatures.some(matchesFeature)
+            : selectedFeatures.every(matchesFeature);
         if (!matchesFeatures) return false;
       }
 
@@ -463,7 +501,7 @@ export function useLibraryFilters(games: GameDto[]) {
     }
 
     return list;
-  }, [games, selectedFlags, selectedStores, selectedStatuses, selectedGenres, selectedFeatures, searchQuery, sortMode, recentSettings]);
+  }, [games, selectedFlags, selectedStores, selectedStatuses, selectedGenres, genreMatchMode, selectedFeatures, featureMatchMode, searchQuery, sortMode, recentSettings]);
 
   const groupedGames = useMemo<Record<string, GameDto[]>>(() => {
     if (groupBy === "none") {
@@ -619,7 +657,11 @@ export function useLibraryFilters(games: GameDto[]) {
     selectedStatuses,
     selectedFlags,
     selectedGenres,
+    genreMatchMode,
+    setGenreMatchMode,
     selectedFeatures,
+    featureMatchMode,
+    setFeatureMatchMode,
     sortMode,
     setSortMode,
     filterCounts,

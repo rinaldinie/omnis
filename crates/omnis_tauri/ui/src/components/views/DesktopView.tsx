@@ -1,4 +1,4 @@
-import React, { useState, lazy, Suspense } from "react";
+import React, { useState, useEffect, lazy, Suspense } from "react";
 import {
   GameDto,
   GroupBy,
@@ -8,7 +8,7 @@ import {
 } from "../../types";
 import type { GameSortMode } from "../../utils/sortGames";
 import type { FilterCounts } from "../navigation/FilterAndSortPopover";
-import type { FilterChip } from "../../hooks/useLibraryFilters";
+import type { FilterChip, FilterMatchMode } from "../../hooks/useLibraryFilters";
 import { useLibraryStore, useUiStore } from "../../stores";
 import TopBar from "../navigation/TopBar";
 import Sidebar from "../navigation/Sidebar";
@@ -57,8 +57,12 @@ export interface DesktopViewProps {
   toggleStore: (store: string) => void;
   selectedGenres: string[];
   toggleGenre: (genre: string) => void;
+  genreMatchMode?: FilterMatchMode;
+  setGenreMatchMode?: (mode: FilterMatchMode) => void;
   selectedFeatures: string[];
   toggleFeature: (feature: string) => void;
+  featureMatchMode?: FilterMatchMode;
+  setFeatureMatchMode?: (mode: FilterMatchMode) => void;
   clearAllFilters: () => void;
   totalActiveFilters: number;
   filterCounts: FilterCounts;
@@ -123,8 +127,12 @@ export const DesktopView: React.FC<DesktopViewProps> = ({
   toggleStore,
   selectedGenres,
   toggleGenre,
+  genreMatchMode,
+  setGenreMatchMode,
   selectedFeatures,
   toggleFeature,
+  featureMatchMode,
+  setFeatureMatchMode,
   clearAllFilters,
   totalActiveFilters,
   filterCounts,
@@ -189,6 +197,18 @@ export const DesktopView: React.FC<DesktopViewProps> = ({
   // Filter & Group By Popovers (Radix handles click-outside, Escape, and focus)
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [showGroupByMenu, setShowGroupByMenu] = useState(false);
+
+  // Clear local details-sidebar search when leaving Details view so entering from Grid/List never hides the selected game
+  useEffect(() => {
+    if (viewMode !== "details" && detailsSearchQuery !== "") {
+      setDetailsSearchQuery("");
+    }
+  }, [viewMode, detailsSearchQuery, setDetailsSearchQuery]);
+
+  const effectiveDetailsGame =
+    selectedGame && filteredGames.some((g) => g.id === selectedGame.id)
+      ? selectedGame
+      : filteredGames[0] || selectedGame;
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -272,8 +292,12 @@ export const DesktopView: React.FC<DesktopViewProps> = ({
             toggleStore={toggleStore}
             selectedGenres={selectedGenres}
             toggleGenre={toggleGenre}
+            genreMatchMode={genreMatchMode}
+            setGenreMatchMode={setGenreMatchMode}
             selectedFeatures={selectedFeatures}
             toggleFeature={toggleFeature}
+            featureMatchMode={featureMatchMode}
+            setFeatureMatchMode={setFeatureMatchMode}
             clearAllFilters={clearAllFilters}
             totalActiveFilters={totalActiveFilters}
             filterCounts={filterCounts}
@@ -342,11 +366,11 @@ export const DesktopView: React.FC<DesktopViewProps> = ({
                   onClearFilters={clearAllFilters}
                   hasActiveFilters={totalActiveFilters > 0 || searchQuery.trim() !== ""}
                 />
-              ) : selectedGame ? (
+              ) : effectiveDetailsGame ? (
                 <Suspense fallback={<div className="flex-1 min-h-0" />}>
                   <DetailsSplitView
                     currentTheme={currentTheme}
-                    selectedGame={selectedGame}
+                    selectedGame={effectiveDetailsGame}
                     setSelectedGame={setSelectedGame}
                     detailsSidebarOpen={detailsSidebarOpen}
                     setDetailsSidebarOpen={setDetailsSidebarOpen}
@@ -359,7 +383,7 @@ export const DesktopView: React.FC<DesktopViewProps> = ({
                     handleEnrichSingleGame={handleEnrichSingleGame}
                     handleRefreshHltb={handleRefreshHltb}
                     isEnrichingSingle={
-                      enrichingGameIds.includes(selectedGame.id) ||
+                      enrichingGameIds.includes(effectiveDetailsGame.id) ||
                       (enrichingGameIds.length === 0 && isEnrichingSingle)
                     }
                     setGameToEdit={setGameToEdit}

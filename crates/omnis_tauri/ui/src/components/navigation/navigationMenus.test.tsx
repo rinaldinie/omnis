@@ -134,6 +134,52 @@ describe("Phase 3 Popover, Dropdown & Tooltip", () => {
     expect(onToggleGenre).toHaveBeenCalledWith("Action");
   });
 
+  it("switches genre match mode between OR and AND in FilterAndSortPopover", () => {
+    const onGenreMatchModeChange = vi.fn();
+
+    render(
+      <I18nProvider initialLocale="en">
+        <FilterAndSortPopover
+          trigger={<button type="button">Filter</button>}
+          isOpen={true}
+          onOpenChange={vi.fn()}
+          sortMode="recent"
+          onSortChange={vi.fn()}
+          selectedFlags={[]}
+          onToggleFlag={vi.fn()}
+          selectedStatuses={[]}
+          onToggleStatus={vi.fn()}
+          selectedStores={[]}
+          onToggleStore={vi.fn()}
+          selectedGenres={["action", "adventure"]}
+          onToggleGenre={vi.fn()}
+          genreMatchMode="or"
+          onGenreMatchModeChange={onGenreMatchModeChange}
+          selectedFeatures={[]}
+          onToggleFeature={vi.fn()}
+          onClearAll={vi.fn()}
+          totalActiveFilters={2}
+          filterCounts={{
+            total: 10,
+            installed: 5,
+            favorites: 2,
+            recent: 3,
+            stores: { steam: 5 },
+            statuses: {},
+            genres: { Action: 4, Adventure: 3 },
+            features: {},
+          }}
+          availableGenres={["Action", "Adventure"]}
+          availableFeatures={[]}
+        />
+      </I18nProvider>
+    );
+
+    const andButton = screen.getByRole("button", { name: "AND" });
+    fireEvent.click(andButton);
+    expect(onGenreMatchModeChange).toHaveBeenCalledWith("and");
+  });
+
   it("renders GroupByPopover and selects a group mode", () => {
     const onSelectGroup = vi.fn();
     const onOpenChange = vi.fn();

@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { X, ChevronDown, ChevronUp, Check, SlidersHorizontal } from "lucide-react";
 import { GameSortMode } from "../../utils/sortGames";
+import type { FilterMatchMode } from "../../hooks/useLibraryFilters";
 import { SteamIcon, EpicIcon, GogIcon, XboxIcon, SwitchIcon } from "../common/StoreBadge";
 import { useTranslation } from "../../i18n";
 import { getCanonicalGenre, getLocalizedGenre } from "../../utils/genres";
@@ -39,8 +40,12 @@ export interface FilterAndSortPopoverProps {
   onToggleStore: (store: string) => void;
   selectedGenres: string[];
   onToggleGenre: (genre: string) => void;
+  genreMatchMode?: FilterMatchMode;
+  onGenreMatchModeChange?: (mode: FilterMatchMode) => void;
   selectedFeatures: string[];
   onToggleFeature: (feature: string) => void;
+  featureMatchMode?: FilterMatchMode;
+  onFeatureMatchModeChange?: (mode: FilterMatchMode) => void;
   onClearAll: () => void;
   totalActiveFilters: number;
   filterCounts: FilterCounts;
@@ -62,8 +67,12 @@ export default function FilterAndSortPopover({
   onToggleStore,
   selectedGenres,
   onToggleGenre,
+  genreMatchMode = "or",
+  onGenreMatchModeChange,
   selectedFeatures,
   onToggleFeature,
+  featureMatchMode = "and",
+  onFeatureMatchModeChange,
   onClearAll,
   totalActiveFilters,
   filterCounts,
@@ -110,6 +119,48 @@ export default function FilterAndSortPopover({
 
   const toggleSection = (section: string) => {
     setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
+  };
+
+  const renderMatchModeToggle = (
+    sectionLabel: string,
+    mode: FilterMatchMode,
+    onChange?: (next: FilterMatchMode) => void
+  ) => {
+    if (!onChange) return null;
+    const orLabel = t("filter_modal.match_any") || "Qualsiasi (OR)";
+    const andLabel = t("filter_modal.match_all") || "Tutti (AND)";
+    return (
+      <div
+        role="group"
+        aria-label={
+          t("filter_modal.match_mode_toggle", {
+            section: sectionLabel,
+            mode: mode === "and" ? "AND" : "OR",
+          }) || `${sectionLabel}: ${mode.toUpperCase()}`
+        }
+        className="inline-flex items-center rounded-md border border-white/10 bg-white/[0.03] p-0.5 shrink-0"
+      >
+        {(["or", "and"] as const).map((opt) => {
+          const active = mode === opt;
+          return (
+            <ActionTooltip key={opt} label={opt === "or" ? orLabel : andLabel}>
+              <button
+                type="button"
+                onClick={() => onChange(opt)}
+                aria-pressed={active}
+                className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide transition-colors ${
+                  active
+                    ? "bg-sky-500 text-slate-950"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                {opt.toUpperCase()}
+              </button>
+            </ActionTooltip>
+          );
+        })}
+      </div>
+    );
   };
 
   const sortOptions: Array<{ id: GameSortMode; label: string }> = [
@@ -471,19 +522,26 @@ export default function FilterAndSortPopover({
           {/* SECTION 4: GENRE */}
           {genreEntries.length > 0 && (
             <div>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => toggleSection("genre")}
-                className="w-full h-auto justify-between py-2.5 px-4 rounded-none font-bold text-xs uppercase tracking-wider text-slate-200 hover:text-white hover:bg-transparent select-none"
-              >
-                <span>{t("filter_modal.genre") || "Genere"}</span>
-                {openSections.genre ? (
-                  <ChevronUp className="w-4 h-4 text-slate-400" />
-                ) : (
-                  <ChevronDown className="w-4 h-4 text-slate-400" />
+              <div className="flex items-center justify-between px-4 py-1.5 gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => toggleSection("genre")}
+                  className="flex-1 h-auto justify-between py-1 px-0 rounded-none font-bold text-xs uppercase tracking-wider text-slate-200 hover:text-white hover:bg-transparent select-none"
+                >
+                  <span>{t("filter_modal.genre") || "Genere"}</span>
+                  {openSections.genre ? (
+                    <ChevronUp className="w-4 h-4 text-slate-400" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-slate-400" />
+                  )}
+                </Button>
+                {renderMatchModeToggle(
+                  t("filter_modal.genre") || "Genere",
+                  genreMatchMode,
+                  onGenreMatchModeChange
                 )}
-              </Button>
+              </div>
 
               {openSections.genre && (
                 <ScrollArea className="max-h-48 px-4 pb-3">
@@ -539,19 +597,26 @@ export default function FilterAndSortPopover({
           {/* SECTION 5: FEATURES */}
           {availableFeatures.length > 0 && (
             <div>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => toggleSection("features")}
-                className="w-full h-auto justify-between py-2.5 px-4 rounded-none font-bold text-xs uppercase tracking-wider text-slate-200 hover:text-white hover:bg-transparent select-none"
-              >
-                <span>{t("filter_modal.features") || "Caratteristiche"}</span>
-                {openSections.features ? (
-                  <ChevronUp className="w-4 h-4 text-slate-400" />
-                ) : (
-                  <ChevronDown className="w-4 h-4 text-slate-400" />
+              <div className="flex items-center justify-between px-4 py-1.5 gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => toggleSection("features")}
+                  className="flex-1 h-auto justify-between py-1 px-0 rounded-none font-bold text-xs uppercase tracking-wider text-slate-200 hover:text-white hover:bg-transparent select-none"
+                >
+                  <span>{t("filter_modal.features") || "Caratteristiche"}</span>
+                  {openSections.features ? (
+                    <ChevronUp className="w-4 h-4 text-slate-400" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-slate-400" />
+                  )}
+                </Button>
+                {renderMatchModeToggle(
+                  t("filter_modal.features") || "Caratteristiche",
+                  featureMatchMode,
+                  onFeatureMatchModeChange
                 )}
-              </Button>
+              </div>
 
               {openSections.features && (
                 <ScrollArea className="max-h-48 px-4 pb-3">

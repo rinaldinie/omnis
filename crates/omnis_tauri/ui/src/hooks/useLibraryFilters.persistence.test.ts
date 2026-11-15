@@ -54,4 +54,23 @@ describe("useLibraryFilters startup filters", () => {
     expect(result.current.selectedGenres).toEqual(["action", "rpg"]);
     expect(result.current.activeChips.map((c) => c.id)).toEqual(["genre:action", "genre:rpg"]);
   });
+
+  it("persists genreMatchMode and normalizes legacy multi-flags to a single flag", () => {
+    setConsolePref("clearFiltersOnStartup", false);
+    localStorage.setItem(
+      "omnis_library_filters",
+      JSON.stringify({
+        stores: [],
+        statuses: [],
+        flags: ["installed", "favorites"],
+        genres: ["action", "adventure"],
+        features: [],
+        genreMatchMode: "and",
+      })
+    );
+
+    const { result } = renderHook(() => useLibraryFilters([]));
+    expect(result.current.selectedFlags).toEqual(["favorites"]);
+    expect(result.current.genreMatchMode).toBe("and");
+  });
 });

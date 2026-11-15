@@ -293,7 +293,11 @@ export default function App() {
     selectedStatuses,
     selectedFlags,
     selectedGenres,
+    genreMatchMode,
+    setGenreMatchMode,
     selectedFeatures,
+    featureMatchMode,
+    setFeatureMatchMode,
     sortMode,
     setSortMode,
     filterCounts,
@@ -661,8 +665,12 @@ export default function App() {
             toggleStore={toggleStore}
             selectedGenres={selectedGenres}
             toggleGenre={toggleGenre}
+            genreMatchMode={genreMatchMode}
+            setGenreMatchMode={setGenreMatchMode}
             selectedFeatures={selectedFeatures}
             toggleFeature={toggleFeature}
+            featureMatchMode={featureMatchMode}
+            setFeatureMatchMode={setFeatureMatchMode}
             clearAllFilters={clearAllFilters}
             totalActiveFilters={totalActiveFilters}
             filterCounts={filterCounts}

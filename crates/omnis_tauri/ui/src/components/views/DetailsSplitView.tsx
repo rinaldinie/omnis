@@ -80,8 +80,19 @@ export default function DetailsSplitView({
   handleToggleHidden: _handleToggleHidden,
   handleToggleFavorite,
 }: DetailsSplitViewProps) {
+  const detailScrollRef = React.useRef<HTMLDivElement | null>(null);
+
+  React.useEffect(() => {
+    const viewport = detailScrollRef.current?.querySelector<HTMLElement>(
+      "[data-radix-scroll-area-viewport]"
+    );
+    if (viewport) {
+      viewport.scrollTop = 0;
+    }
+  }, [selectedGame.id]);
+
   return (
-    <div className="flex-1 flex overflow-hidden">
+    <div className="flex-1 min-h-0 flex overflow-hidden">
       {/* Left Column: Titles Quick List (collapsible master panel) */}
       <DetailsSidebar
         detailsSidebarOpen={detailsSidebarOpen}
@@ -100,7 +111,7 @@ export default function DetailsSplitView({
       />
 
       {/* Right Column: Expanded Hero Details Panel */}
-      <ScrollArea className="flex-1">
+      <ScrollArea ref={detailScrollRef} className="flex-1 min-h-0">
         <div className="flex flex-col">
         <DetailsHeroHeader
           currentTheme={currentTheme}

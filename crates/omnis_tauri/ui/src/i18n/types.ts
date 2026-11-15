@@ -149,6 +149,9 @@ export interface TranslationSchema {
     platform: string;
     genre: string;
     features: string;
+    match_any: string;
+    match_all: string;
+    match_mode_toggle: string;
   };
   sort_options: {
     recent: string;

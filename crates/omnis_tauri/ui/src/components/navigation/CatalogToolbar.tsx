@@ -2,6 +2,7 @@ import React from "react";
 import { Filter, ChevronDown, X, Layers, ZoomOut, ZoomIn } from "lucide-react";
 import { GroupBy, TranslateFn, ViewMode } from "../../types";
 import type { GameSortMode } from "../../utils/sortGames";
+import type { FilterMatchMode } from "../../hooks/useLibraryFilters";
 import FilterAndSortPopover, { FilterCounts } from "./FilterAndSortPopover";
 import GroupByPopover from "./GroupByPopover";
 import { Button } from "@/components/ui/button";
@@ -23,8 +24,12 @@ export interface CatalogToolbarProps {
   toggleStore: (store: string) => void;
   selectedGenres: string[];
   toggleGenre: (genre: string) => void;
+  genreMatchMode?: FilterMatchMode;
+  setGenreMatchMode?: (mode: FilterMatchMode) => void;
   selectedFeatures: string[];
   toggleFeature: (feature: string) => void;
+  featureMatchMode?: FilterMatchMode;
+  setFeatureMatchMode?: (mode: FilterMatchMode) => void;
   clearAllFilters: () => void;
   totalActiveFilters: number;
   filterCounts: FilterCounts;
@@ -59,8 +64,12 @@ export const CatalogToolbar: React.FC<CatalogToolbarProps> = ({
   toggleStore,
   selectedGenres,
   toggleGenre,
+  genreMatchMode = "or",
+  setGenreMatchMode,
   selectedFeatures,
   toggleFeature,
+  featureMatchMode = "and",
+  setFeatureMatchMode,
   clearAllFilters,
   totalActiveFilters,
   filterCounts,
@@ -159,8 +168,12 @@ export const CatalogToolbar: React.FC<CatalogToolbarProps> = ({
             onToggleStore={toggleStore}
             selectedGenres={selectedGenres}
             onToggleGenre={toggleGenre}
+            genreMatchMode={genreMatchMode}
+            onGenreMatchModeChange={setGenreMatchMode}
             selectedFeatures={selectedFeatures}
             onToggleFeature={toggleFeature}
+            featureMatchMode={featureMatchMode}
+            onFeatureMatchModeChange={setFeatureMatchMode}
             onClearAll={clearAllFilters}
             totalActiveFilters={totalActiveFilters}
             filterCounts={filterCounts}
@@ -192,6 +205,54 @@ export const CatalogToolbar: React.FC<CatalogToolbarProps> = ({
                 </ActionTooltip>
               </div>
             ))}
+
+            {selectedGenres.length > 1 && setGenreMatchMode && (
+              <ActionTooltip
+                label={
+                  genreMatchMode === "and"
+                    ? t("filter_modal.match_all") || "Tutti (AND)"
+                    : t("filter_modal.match_any") || "Qualsiasi (OR)"
+                }
+              >
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="xs"
+                  onClick={() =>
+                    setGenreMatchMode(genreMatchMode === "and" ? "or" : "and")
+                  }
+                  className="h-7 px-2 rounded-lg border-sky-500/40 bg-sky-500/10 hover:bg-sky-500/20 text-sky-200 text-[11px] font-bold shrink-0"
+                >
+                  {t("filter_modal.genre") || "Genere"}:{" "}
+                  {genreMatchMode.toUpperCase()}
+                </Button>
+              </ActionTooltip>
+            )}
+
+            {selectedFeatures.length > 1 && setFeatureMatchMode && (
+              <ActionTooltip
+                label={
+                  featureMatchMode === "and"
+                    ? t("filter_modal.match_all") || "Tutti (AND)"
+                    : t("filter_modal.match_any") || "Qualsiasi (OR)"
+                }
+              >
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="xs"
+                  onClick={() =>
+                    setFeatureMatchMode(
+                      featureMatchMode === "and" ? "or" : "and"
+                    )
+                  }
+                  className="h-7 px-2 rounded-lg border-sky-500/40 bg-sky-500/10 hover:bg-sky-500/20 text-sky-200 text-[11px] font-bold shrink-0"
+                >
+                  {t("filter_modal.features") || "Caratteristiche"}:{" "}
+                  {featureMatchMode.toUpperCase()}
+                </Button>
+              </ActionTooltip>
+            )}
 
             {totalActiveFilters > 1 && (
               <ActionTooltip label={t("app_misc.clear_filters")}>

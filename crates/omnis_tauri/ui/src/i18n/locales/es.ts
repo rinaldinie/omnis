@@ -133,6 +133,9 @@ export const es: TranslationSchema = {
     platform: 'Plataforma',
     genre: 'Género',
     features: 'Características',
+    match_any: 'Cualquiera (OR)',
+    match_all: 'Todos (AND)',
+    match_mode_toggle: 'Modo de filtro {section}: {mode}',
   },
   sort_options: {
     recent: 'Jugados recientemente',
