@@ -38,6 +38,6 @@ export const STORE_LIST: StoreItemMeta[] = [
     id: 'amazon',
     name: 'Amazon Games',
     icon: (c = 'w-4 h-4') => <AmazonIcon className={`${c} text-[#ff9900]`} />,
-    tag: 'Locale',
+    tag: 'OAuth',
   },
 ];

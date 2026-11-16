@@ -1,5 +1,6 @@
 use clap::{Parser, Subcommand};
 use omnis_core::{Database, EventBus, PluginHost};
+use omnis_plugin_amazon::AmazonGamesPlugin;
 use omnis_plugin_emulators::EmulatorsPlugin;
 use omnis_plugin_epic::EpicLibraryPlugin;
 use omnis_plugin_gog::GogCloudPlugin;
@@ -81,6 +82,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     host.register_plugin(Box::new(SteamPlugin::new()));
     host.register_plugin(Box::new(EpicLibraryPlugin::new()));
     host.register_plugin(Box::new(GogCloudPlugin::new()));
+    host.register_plugin(Box::new(AmazonGamesPlugin::new()));
     host.register_plugin(Box::new(
         EmulatorsPlugin::new().with_data_dir(
             app_dir
@@ -98,14 +100,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 return Err("No plugins registered".into());
             }
 
-            let supported_libraries = ["all", "steam", "epic", "gog", "switch"];
+            let supported_libraries = ["all", "steam", "epic", "gog", "amazon", "switch"];
             if !supported_libraries.contains(&library.as_str()) {
                 eprintln!(
                     "\n❌ Store '{}' is not supported for local CLI sync.",
                     library
                 );
                 eprintln!(
-                    "Currently supported local stores: steam, epic, gog, switch (emulators)."
+                    "Currently supported local stores: steam, epic, gog, amazon, switch (emulators)."
                 );
                 eprintln!("Cloud stores (Xbox) require OAuth authentication: please sync them via the Omnis desktop app.");
                 return Err(format!("Unsupported library '{}'", library).into());

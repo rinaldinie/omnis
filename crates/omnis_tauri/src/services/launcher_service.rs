@@ -391,6 +391,7 @@ pub fn build_install_uri(library_id: &str, external_id: &str) -> String {
         ),
         "gog" => format!("goggalaxy://openGameView/{}", external_id),
         "xbox" => format!("ms-windows-store://pdp/?ProductId={}", external_id),
+        "amazon" => format!("amazon-games://play/{}", external_id),
         _ => format!("steam://install/{}", external_id),
     }
 }
@@ -405,6 +406,7 @@ pub fn build_play_uri(library_id: &str, external_id: &str) -> String {
         ),
         "gog" => format!("goggalaxy://runGame/{}", external_id),
         "xbox" => format!("ms-windows-store://pdp/?ProductId={}", external_id),
+        "amazon" => format!("amazon-games://play/{}", external_id),
         _ => format!("steam://rungameid/{}", external_id),
     }
 }
@@ -550,6 +552,7 @@ pub fn validate_and_open_store_uri(uri: &str) -> Result<(), String> {
         "com.epicgames.launcher://",
         "goggalaxy://",
         "ms-windows-store://",
+        "amazon-games://",
     ];
     if !allowed_schemes.iter().any(|scheme| uri.starts_with(scheme)) {
         return Err("Protocollo URI non autorizzato".to_string());

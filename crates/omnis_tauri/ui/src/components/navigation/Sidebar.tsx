@@ -12,7 +12,7 @@ import {
   Settings2,
 } from "lucide-react";
 import { LibraryCounts, ViewMode } from "../../types";
-import { SteamIcon, EpicIcon, GogIcon, XboxIcon, SwitchIcon } from "../common/StoreBadge";
+import { SteamIcon, EpicIcon, GogIcon, XboxIcon, SwitchIcon, AmazonIcon } from "../common/StoreBadge";
 import { useTranslation } from "../../i18n";
 import { Button } from "../ui/button";
 import { Progress } from "../ui/progress";
@@ -66,6 +66,7 @@ export default function Sidebar({
     { id: "steam", label: "Steam", count: counts.steam, icon: SteamIcon },
     { id: "gog", label: "GOG Galaxy", count: counts.gog, icon: GogIcon },
     { id: "epic", label: "Epic Games", count: counts.epic, icon: EpicIcon },
+    { id: "amazon", label: "Amazon Games", count: counts.amazon || 0, icon: AmazonIcon },
     { id: "xbox", label: "Xbox / Pass", count: counts.xbox || 0, icon: XboxIcon },
   ];
 

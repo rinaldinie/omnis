@@ -3153,6 +3153,7 @@ dependencies = [
  "chrono",
  "clap",
  "omnis_core",
+ "omnis_plugin_amazon",
  "omnis_plugin_emulators",
  "omnis_plugin_epic",
  "omnis_plugin_gog",
@@ -3176,6 +3177,7 @@ dependencies = [
  "keyring",
  "libc",
  "nucleo-matcher",
+ "omnis_plugin_amazon",
  "omnis_plugin_epic",
  "omnis_plugin_gog",
  "omnis_plugin_steam",
@@ -3195,6 +3197,28 @@ dependencies = [
  "windows 0.58.0",
  "zeroize",
  "zip 2.6.1",
+]
+
+[[package]]
+name = "omnis_plugin_amazon"
+version = "0.23.2"
+dependencies = [
+ "async-trait",
+ "base64 0.22.1",
+ "chrono",
+ "fastrand 2.5.0",
+ "omnis_sdk",
+ "reqwest 0.12.28",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tokio",
+ "tracing",
+ "url",
+ "urlencoding",
+ "uuid",
+ "winreg",
 ]
 
 [[package]]
@@ -3300,6 +3324,7 @@ dependencies = [
  "chrono",
  "keyring",
  "omnis_core",
+ "omnis_plugin_amazon",
  "omnis_plugin_emulators",
  "omnis_plugin_epic",
  "omnis_plugin_gog",

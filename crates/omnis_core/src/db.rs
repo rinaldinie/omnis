@@ -297,6 +297,8 @@ pub struct LibraryCounts {
     pub gog: usize,
     pub epic: usize,
     pub xbox: usize,
+    #[serde(default)]
+    pub amazon: usize,
     pub recent: usize,
     pub favorites: usize,
     pub action: usize,

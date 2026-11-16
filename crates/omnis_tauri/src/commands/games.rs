@@ -122,7 +122,7 @@ pub async fn sync_library(
 }
 
 /// Library sources the first-run wizard can import from.
-const IMPORTABLE_LIBRARIES: &[&str] = &["steam", "epic", "gog", "xbox", "switch"];
+const IMPORTABLE_LIBRARIES: &[&str] = &["steam", "epic", "gog", "amazon", "xbox", "switch"];
 
 /// Keeps known library ids only, lower-cased and without duplicates, in input order.
 pub(crate) fn normalize_library_ids(ids: &[String]) -> Vec<String> {
@@ -273,6 +273,16 @@ pub async fn detect_stores(
         detected: gog_detected,
         requires_login: true,
         icon: "gog".to_string(),
+    });
+
+    // Amazon Games: detect via installation path, registry, or SQLite database
+    let amazon_detected = omnis_plugin_amazon::detect_amazon_games_installation().is_some();
+    results.push(StoreDetectionResult {
+        id: "amazon".to_string(),
+        name: "Amazon Games".to_string(),
+        detected: amazon_detected,
+        requires_login: false,
+        icon: "amazon".to_string(),
     });
 
     // Xbox Game Pass: detect via UWP app package directory
@@ -673,10 +683,14 @@ mod tests {
             " switch ".to_string(),
             "steam".to_string(),
             "amazon".to_string(),
+            "unknown_store".to_string(),
             "".to_string(),
             "EPIC".to_string(),
         ];
-        assert_eq!(normalize_library_ids(&ids), vec!["steam", "switch", "epic"]);
+        assert_eq!(
+            normalize_library_ids(&ids),
+            vec!["steam", "switch", "amazon", "epic"]
+        );
         assert!(normalize_library_ids(&["all".to_string()]).is_empty());
     }
 

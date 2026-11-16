@@ -26,6 +26,7 @@ const initialCounts: LibraryCounts = {
   gog: 0,
   epic: 0,
   xbox: 0,
+  amazon: 0,
   recent: 0,
   favorites: 0,
   action: 0,

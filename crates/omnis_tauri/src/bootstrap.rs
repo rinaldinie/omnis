@@ -9,6 +9,7 @@ use crate::types::AppState;
 use omnis_core::{
     Database, EventBus, MetadataDownloader, PluginHost, SecretVault,
 };
+use omnis_plugin_amazon::AmazonGamesPlugin;
 use omnis_plugin_emulators::EmulatorsPlugin;
 use omnis_plugin_epic::EpicLibraryPlugin;
 use omnis_plugin_gog::GogCloudPlugin;
@@ -38,6 +39,7 @@ pub struct BuiltinStorePlugins {
     pub epic: EpicLibraryPlugin,
     pub gog: GogCloudPlugin,
     pub xbox: XboxCloudPlugin,
+    pub amazon: AmazonGamesPlugin,
 }
 
 impl Default for BuiltinStorePlugins {
@@ -53,6 +55,7 @@ impl BuiltinStorePlugins {
             epic: EpicLibraryPlugin::new(),
             gog: GogCloudPlugin::new(),
             xbox: XboxCloudPlugin::new(),
+            amazon: AmazonGamesPlugin::new(),
         }
     }
 }
@@ -119,6 +122,7 @@ impl AppBootstrap {
         host.register_plugin(Box::new(store_plugins.epic.clone()));
         host.register_plugin(Box::new(store_plugins.gog.clone()));
         host.register_plugin(Box::new(store_plugins.xbox.clone()));
+        host.register_plugin(Box::new(store_plugins.amazon.clone()));
         host.register_plugin(Box::new(
             EmulatorsPlugin::new()
                 .with_data_dir(plugins_dir.join(omnis_plugin_emulators::PLUGIN_ID)),
@@ -159,6 +163,7 @@ impl AppBootstrap {
         store_account_manager.register_plugin(Arc::new(store_plugins.xbox.clone()));
         store_account_manager.register_plugin(Arc::new(store_plugins.steam.clone()));
         store_account_manager.register_plugin(Arc::new(store_plugins.epic.clone()));
+        store_account_manager.register_plugin(Arc::new(store_plugins.amazon.clone()));
 
         store_account_manager
     }

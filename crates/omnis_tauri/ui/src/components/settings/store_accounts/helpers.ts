@@ -54,4 +54,12 @@ export const DEFAULT_ACCOUNTS: StoreAccount[] = [
     avatar_url: null,
     last_sync: null,
   },
+  {
+    store_id: "amazon",
+    name: "Amazon Games",
+    is_connected: false,
+    username: null,
+    avatar_url: null,
+    last_sync: null,
+  },
 ];
