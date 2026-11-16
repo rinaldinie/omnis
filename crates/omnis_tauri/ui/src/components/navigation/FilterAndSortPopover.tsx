@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { X, ChevronDown, ChevronUp, Check, SlidersHorizontal } from "lucide-react";
 import { GameSortMode } from "../../utils/sortGames";
 import type { FilterMatchMode } from "../../hooks/useLibraryFilters";
-import { SteamIcon, EpicIcon, GogIcon, XboxIcon, SwitchIcon } from "../common/StoreBadge";
+import { SteamIcon, EpicIcon, GogIcon, XboxIcon, SwitchIcon, AmazonIcon } from "../common/StoreBadge";
 import { useTranslation } from "../../i18n";
 import { getCanonicalGenre, getLocalizedGenre } from "../../utils/genres";
 import {
@@ -260,6 +260,13 @@ export default function FilterAndSortPopover({
       icon: EpicIcon,
       checked: selectedStores.includes("epic"),
       count: filterCounts.stores["epic"] || 0,
+    },
+    {
+      id: "amazon",
+      label: "Amazon Games",
+      icon: AmazonIcon,
+      checked: selectedStores.includes("amazon"),
+      count: filterCounts.stores["amazon"] || 0,
     },
     {
       id: "gog",

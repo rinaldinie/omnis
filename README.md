@@ -56,7 +56,8 @@ omnis/
 │   ├── omnis_plugin_steam/  # Steam scanner (VDF), cloud sync, achievements
 │   ├── omnis_plugin_epic/   # Epic Games Store manifests, cloud sync, achievements
 │   ├── omnis_plugin_gog/    # GOG Galaxy integration
-│   └── omnis_plugin_xbox/   # Xbox Live & PC Game Pass integration
+│   ├── omnis_plugin_xbox/   # Xbox Live & PC Game Pass integration
+│   └── omnis_plugin_amazon/ # Amazon Games local SQLite scanner & fuel.json integration
 ├── scripts/             # Release tooling (version bump, tagging, local update server)
 └── .github/             # CI, release workflow, issue/PR templates
 ```
@@ -72,7 +73,7 @@ Omnis uses a fully native, in-process architecture designed for zero cold-start 
 │                       Omnis Desktop & CLI Shell                        │
 ├───────────────────────────────────┬────────────────────────────────────┤
 │         Store Integrations        │     Native Metadata Pipeline       │
-│  (Steam, Epic Games, GOG, Xbox)   │  (IGDB, SteamGridDB, OpenCritic,   │
+│  (Steam, Epic Games, GOG, Xbox, Amazon) │  (IGDB, SteamGridDB, OpenCritic,   │
 │                                   │   HowLongToBeat, Steam, GOG)       │
 ├───────────────────────────────────┼────────────────────────────────────┤
 │  • Local Manifest Scanners        │  • Reorderable Priority Ranking    │
@@ -89,6 +90,7 @@ All store integrations live as dedicated workspace crates under [`plugins/`](plu
 - [`omnis_plugin_epic`](plugins/omnis_plugin_epic): Local `.item` manifest parsing, Epic Games account sync, and achievements.
 - [`omnis_plugin_gog`](plugins/omnis_plugin_gog): GOG Galaxy local database scanning, OAuth token exchange, and cloud library sync.
 - [`omnis_plugin_xbox`](plugins/omnis_plugin_xbox): Xbox Live / PC Game Pass integration, title history, and achievement synchronization.
+- [`omnis_plugin_amazon`](plugins/omnis_plugin_amazon): Amazon Games local database scanning (`DataStorage.db`, `GameInstall.sqlite`), `fuel.json` manifest parsing, and launch URI protocol handling.
 
 **Design Benefits:**
 - **Zero Cold-Start Overhead**: Compiles directly into the final desktop and CLI binaries without dynamic library loading or ABI negotiation.

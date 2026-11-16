@@ -44,6 +44,7 @@ export function updateCargoLock(content, newVersion) {
   const workspacePackages = [
     "omnis_cli",
     "omnis_core",
+    "omnis_plugin_amazon",
     "omnis_plugin_epic",
     "omnis_plugin_gog",
     "omnis_plugin_steam",

@@ -189,7 +189,7 @@ impl StoreAccountManager {
 
     /// Idempotent migration from legacy keyring storage to envelope-encrypted SQLite vault (Requirement D4)
     pub fn migrate_legacy_keyring(&self) {
-        for store_id in &["steam", "epic", "gog", "xbox"] {
+        for store_id in &["steam", "epic", "gog", "xbox", "amazon"] {
             if let Ok(entry) = keyring::Entry::new("omnis_store_accounts", store_id) {
                 if let Ok(json) = entry.get_password() {
                     if let Ok(session) = serde_json::from_str::<StoreAccountSession>(&json) {
@@ -400,6 +400,20 @@ impl StoreAccountManager {
             last_sync: xbox_sync,
             has_api_key: None,
             is_syncing: self.is_store_syncing("xbox"),
+        });
+
+        // 5. Amazon Games
+        let amazon_session = self.load_session("amazon")?;
+        let amazon_sync = self.last_syncs.read().await.get("amazon").cloned();
+        accounts.push(StoreAccountDto {
+            store_id: "amazon".to_string(),
+            name: "Amazon Games".to_string(),
+            is_connected: amazon_session.is_some(),
+            username: amazon_session.as_ref().map(|s| s.username.clone()),
+            avatar_url: amazon_session.as_ref().and_then(|s| s.avatar_url.clone()),
+            last_sync: amazon_sync,
+            has_api_key: None,
+            is_syncing: self.is_store_syncing("amazon"),
         });
 
         Ok(accounts)

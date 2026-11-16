@@ -9,6 +9,7 @@ members = [
     "plugins/omnis_plugin_epic",
     "plugins/omnis_plugin_gog",
     "plugins/omnis_plugin_xbox",
+    "plugins/omnis_plugin_amazon",
     "plugins/omnis_plugin_emulators",
 ]
 
@@ -28,6 +29,7 @@ omnis_plugin_steam = { path = "plugins/omnis_plugin_steam" }
 omnis_plugin_epic = { path = "plugins/omnis_plugin_epic" }
 omnis_plugin_gog = { path = "plugins/omnis_plugin_gog" }
 omnis_plugin_xbox = { path = "plugins/omnis_plugin_xbox" }
+omnis_plugin_amazon = { path = "plugins/omnis_plugin_amazon" }
 omnis_plugin_emulators = { path = "plugins/omnis_plugin_emulators" }
 
 # --- Shared third-party dependencies ---
@@ -49,3 +51,5 @@ keyring = "2.1"
 sysinfo = "0.30"
 zeroize = { version = "1.8", features = ["derive"] }
 clap = { version = "4.5", features = ["derive"] }
+sha2 = "0.10"
+fastrand = "2.5"

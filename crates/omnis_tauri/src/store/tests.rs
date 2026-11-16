@@ -55,11 +55,12 @@ async fn test_get_store_accounts() {
     let _ = manager.delete_session("xbox");
     let _ = manager.delete_session("steam");
     let _ = manager.delete_session("epic");
+    let _ = manager.delete_session("amazon");
 
     let accounts = manager.get_store_accounts().await.unwrap();
-    assert_eq!(accounts.len(), 4);
+    assert_eq!(accounts.len(), 5);
     let ids: Vec<_> = accounts.iter().map(|a| a.store_id.as_str()).collect();
-    assert_eq!(ids, vec!["steam", "epic", "gog", "xbox"]);
+    assert_eq!(ids, vec!["steam", "epic", "gog", "xbox", "amazon"]);
 
     // When not logged in, all are disconnected
     for acc in &accounts {
@@ -99,6 +100,7 @@ fn test_plugin_registration() {
     manager.register_plugin(Arc::new(omnis_plugin_xbox::XboxCloudPlugin::new()));
     manager.register_plugin(Arc::new(omnis_plugin_steam::SteamPlugin::new()));
     manager.register_plugin(Arc::new(omnis_plugin_epic::EpicLibraryPlugin::new()));
+    manager.register_plugin(Arc::new(omnis_plugin_amazon::AmazonGamesPlugin::new()));
 
     let gog = manager.get_plugin_sync("gog");
     assert!(gog.is_some());
@@ -115,6 +117,10 @@ fn test_plugin_registration() {
     let epic = manager.get_plugin_sync("epic");
     assert!(epic.is_some());
     assert_eq!(epic.unwrap().id(), "epic");
+
+    let amazon = manager.get_plugin_sync("amazon");
+    assert!(amazon.is_some());
+    assert_eq!(amazon.unwrap().id(), "amazon");
 
     let unknown = manager.get_plugin_sync("unknown");
     assert!(unknown.is_none());

@@ -108,6 +108,7 @@ export interface LibraryCounts {
   gog: number;
   epic: number;
   xbox: number;
+  amazon?: number;
   recent: number;
   favorites: number;
   action: number;
@@ -308,6 +309,7 @@ export const FILTER_ORDER = [
   "steam",
   "gog",
   "epic",
+  "amazon",
   "xbox",
   "switch",
 ];

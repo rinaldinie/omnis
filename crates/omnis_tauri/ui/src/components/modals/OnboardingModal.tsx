@@ -15,7 +15,7 @@ import { useTranslation } from "../../i18n";
 import soundEffects from "../../utils/soundEffects";
 import { api } from "../../api";
 import { useUiStore } from "../../stores/useUiStore";
-import { SteamIcon, EpicIcon, GogIcon, XboxIcon, SwitchIcon } from "../common/StoreBadge";
+import { SteamIcon, EpicIcon, GogIcon, XboxIcon, SwitchIcon, AmazonIcon } from "../common/StoreBadge";
 import type { SettingsTab } from "../settings";
 import {
   AUTO_SCAN_KEY,
@@ -76,6 +76,8 @@ function StoreIconById({ id, className }: { id: string; className?: string }) {
       return <GogIcon className={cls} />;
     case "xbox":
       return <XboxIcon className={cls} />;
+    case "amazon":
+      return <AmazonIcon className={cls} />;
     case "switch":
       return <SwitchIcon className={cls} />;
     default:
@@ -348,7 +350,7 @@ export default function OnboardingModal({
             <div className="space-y-3 py-1">
               <p className="text-xs text-slate-300 leading-relaxed">{t("onboarding.welcome_desc")}</p>
               <div className="flex items-center gap-2 flex-wrap">
-                {["steam", "epic", "gog", "xbox", "switch"].map((id) => (
+                {["steam", "epic", "gog", "amazon", "xbox", "switch"].map((id) => (
                   <div
                     key={id}
                     className="w-8 h-8 rounded-lg flex items-center justify-center"
