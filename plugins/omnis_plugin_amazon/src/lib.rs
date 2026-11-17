@@ -39,6 +39,7 @@ pub struct AmazonGamesPlugin {
     config: AmazonGamesConfig,
     client: reqwest::Client,
     code_verifier: Arc<Mutex<Option<String>>>,
+    device_serial: Arc<Mutex<Option<String>>>,
 }
 
 impl Default for AmazonGamesPlugin {
@@ -48,56 +49,45 @@ impl Default for AmazonGamesPlugin {
 }
 
 impl AmazonGamesPlugin {
-    pub fn new() -> Self {
+    fn from_parts(client: reqwest::Client, config: AmazonGamesConfig) -> Self {
         Self {
-            config: AmazonGamesConfig::default(),
-            client: reqwest::Client::builder()
-                .build()
-                .unwrap_or_else(|_| reqwest::Client::new()),
+            config,
+            client,
             code_verifier: Arc::new(Mutex::new(None)),
+            device_serial: Arc::new(Mutex::new(None)),
         }
+    }
+
+    pub fn new() -> Self {
+        Self::with_config(AmazonGamesConfig::default())
     }
 
     pub fn with_client(client: reqwest::Client) -> Self {
-        Self {
-            config: AmazonGamesConfig::default(),
-            client,
-            code_verifier: Arc::new(Mutex::new(None)),
-        }
+        Self::from_parts(client, AmazonGamesConfig::default())
     }
 
     pub fn with_config(config: AmazonGamesConfig) -> Self {
-        Self {
-            config,
-            client: reqwest::Client::builder()
-                .build()
-                .unwrap_or_else(|_| reqwest::Client::new()),
-            code_verifier: Arc::new(Mutex::new(None)),
-        }
+        let client = reqwest::Client::builder()
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
+        Self::from_parts(client, config)
     }
 
     pub fn with_custom_paths(custom_paths: Vec<PathBuf>) -> Self {
-        Self {
-            config: AmazonGamesConfig {
-                custom_paths,
-                prefer_direct_launch: false,
-            },
-            client: reqwest::Client::builder()
-                .build()
-                .unwrap_or_else(|_| reqwest::Client::new()),
-            code_verifier: Arc::new(Mutex::new(None)),
-        }
+        Self::with_config(AmazonGamesConfig {
+            custom_paths,
+            prefer_direct_launch: false,
+        })
     }
 
     pub fn with_client_and_paths(client: reqwest::Client, custom_paths: Vec<PathBuf>) -> Self {
-        Self {
-            config: AmazonGamesConfig {
+        Self::from_parts(
+            client,
+            AmazonGamesConfig {
                 custom_paths,
                 prefer_direct_launch: false,
             },
-            client,
-            code_verifier: Arc::new(Mutex::new(None)),
-        }
+        )
     }
 
     pub fn with_custom_path(path: PathBuf) -> Self {
@@ -116,6 +106,10 @@ impl AmazonGamesPlugin {
 
     pub fn get_code_verifier(&self) -> Option<String> {
         self.code_verifier.lock().ok().and_then(|g| g.clone())
+    }
+
+    pub fn get_device_serial(&self) -> Option<String> {
+        self.device_serial.lock().ok().and_then(|g| g.clone())
     }
 
     pub fn config(&self) -> &AmazonGamesConfig {
@@ -242,14 +236,19 @@ impl CloudStorePlugin for AmazonGamesPlugin {
     fn login_url(&self) -> String {
         let verifier = client::generate_code_verifier();
         let challenge = client::compute_code_challenge(&verifier);
+        let device_serial = client::generate_device_serial();
+        let client_id = client::compute_client_id(&device_serial);
         if let Ok(mut lock) = self.code_verifier.lock() {
             *lock = Some(verifier);
         }
-        format!("{}{}", client::AMAZON_AUTH_BASE_URL, challenge)
+        if let Ok(mut lock) = self.device_serial.lock() {
+            *lock = Some(device_serial);
+        }
+        client::build_login_url(&client_id, &challenge)
     }
 
     fn is_redirect_url(&self, url: &str) -> bool {
-        url.contains("openid.oa2.authorization_code")
+        client::extract_authorization_code(url).is_some()
     }
 
     async fn exchange_code(&self, redirect_url: &str) -> Result<StoreAccountSession, PluginError> {
@@ -271,7 +270,14 @@ impl CloudStorePlugin for AmazonGamesPlugin {
                 )
             })?;
 
-        client::exchange_code(&self.client, &auth_code, &verifier).await
+        let device_serial = self
+            .device_serial
+            .lock()
+            .ok()
+            .and_then(|mut guard| guard.take())
+            .unwrap_or_else(client::get_device_serial);
+
+        client::exchange_code_with_serial(&self.client, &auth_code, &verifier, &device_serial).await
     }
 
     async fn refresh_session(
@@ -589,26 +595,52 @@ mod tests {
         // Missing authorization code
         let url_err = "https://www.amazon.com/?openid.error=access_denied";
         assert_eq!(client::extract_authorization_code(url_err), None);
+
+        // Empty authorization code
+        let url_empty = "https://www.amazon.com/?openid.oa2.authorization_code=&openid.mode=id_res";
+        assert_eq!(client::extract_authorization_code(url_empty), None);
+
+        // Passkey enrollment nudge redirect wrapping the OpenID callback in openid.return_to
+        let url_nudge = "https://www.amazon.com/ax/claim/webauthn/nudge?openid.assoc_handle=amzn_sonic_games_launcher&openid.return_to=https%3A%2F%2Fwww.amazon.com%3Fopenid.assoc_handle%3Damzn_sonic_games_launcher%26openid.mode%3Did_res%26openid.oa2.authorization_code%3DANGoeTsfXPKWteIzpSWtyNJp%26openid.ns.oa2%3Dhttp%253A%252F%252Fwww.amazon.com%252Fap%252Fext%252Foauth%252F2&pageId=amzn_sonic_games_launcher&ref_=PasskeyEnrollmentNudgeRedirect";
+        assert_eq!(
+            client::extract_authorization_code(url_nudge),
+            Some("ANGoeTsfXPKWteIzpSWtyNJp".to_string())
+        );
     }
 
     #[test]
     fn test_cloud_store_plugin_login_and_redirect() {
         let plugin = AmazonGamesPlugin::new();
 
+        // Verify compute_client_id matches Amazon's hex(serial#device_type) format
+        assert_eq!(
+            client::compute_client_id("73db8d286c2a924d2e77e1af67766645"),
+            client::AMAZON_CLIENT_ID
+        );
+
         let login_url = plugin.login_url();
-        assert!(login_url.starts_with(client::AMAZON_AUTH_BASE_URL));
+        assert!(login_url.starts_with("https://www.amazon.com/ap/signin?"));
         assert!(login_url.contains("openid.oa2.code_challenge="));
 
-        // Check internal verifier was saved
+        // Check internal verifier and device_serial were saved
         let verifier = plugin.get_code_verifier().expect("verifier was saved");
         assert_eq!(verifier.len(), 50);
+
+        let device_serial = plugin.get_device_serial().expect("device_serial was saved");
+        assert_eq!(device_serial.len(), 32);
+        assert!(device_serial.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_lowercase()));
+
+        let expected_client_id = client::compute_client_id(&device_serial);
+        assert!(login_url.contains(&format!("openid.oa2.client_id=device:{}", expected_client_id)));
 
         let challenge = client::compute_code_challenge(&verifier);
         assert!(login_url.ends_with(&challenge));
 
         // Check redirect detection
         assert!(plugin.is_redirect_url("https://www.amazon.com/?openid.oa2.authorization_code=abc1234"));
+        assert!(plugin.is_redirect_url("https://www.amazon.com/ax/claim/webauthn/nudge?openid.return_to=https%3A%2F%2Fwww.amazon.com%3Fopenid.oa2.authorization_code%3DANGoeTsfXPKWteIzpSWtyNJp&ref_=PasskeyEnrollmentNudgeRedirect"));
         assert!(!plugin.is_redirect_url("https://www.amazon.com/ap/signin?openid.mode=checkid_setup"));
+        assert!(!plugin.is_redirect_url("https://www.amazon.com/?openid.oa2.authorization_code="));
     }
 
     #[test]
@@ -786,6 +818,8 @@ mod tests {
                         assert!(req.contains("AGSLauncher/1.0.0"));
                         assert!(req.contains("MOCK_AUTH_CODE"));
                         assert!(req.contains("MOCK_PKCE_VERIFIER"));
+                        assert!(req.contains("MOCK-DEVICE-GUID-1234"));
+                        assert!(req.contains(&client::compute_client_id("MOCK-DEVICE-GUID-1234")));
 
                         let body = serde_json::json!({
                             "response": {
@@ -959,6 +993,8 @@ mod tests {
                 assert!(req.contains("com.amazon.animusdistributionservice.entitlement.AnimusEntitlementsService.GetEntitlements"));
                 assert!(req.contains("x-amzn-token: Atnr|test_tok"));
                 assert!(req.contains("amz-1.0"));
+                assert!(req.contains("\"Operation\":\"GetEntitlements\""));
+                assert!(req.contains("\"clientId\":\"Sonic\""));
 
                 let body = serde_json::json!({
                     "entitlements": [

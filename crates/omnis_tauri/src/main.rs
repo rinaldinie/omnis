@@ -4,6 +4,7 @@
 mod bootstrap;
 mod builtin_themes;
 mod commands;
+mod logging;
 mod media_scope;
 mod migration;
 mod services;
@@ -17,14 +18,12 @@ use commands::*;
 use tracing::info;
 
 fn main() {
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
-        )
-        .init();
+    let logs_dir = logging::init();
 
     info!("Initializing Omnis Game Library...");
+    if let Some(dir) = logs_dir {
+        info!("File logging active in: {}", dir.display());
+    }
 
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {

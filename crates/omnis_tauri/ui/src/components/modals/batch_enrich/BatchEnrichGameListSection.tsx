@@ -152,6 +152,7 @@ export const BatchEnrichGameListSection: React.FC<BatchEnrichGameListSectionProp
                       <div className="flex items-center gap-2 min-w-0">
                         <StoreBadge
                           library={game.library || "custom"}
+                          variant="plain"
                           className="shrink-0"
                         />
                         <h4 className="text-xs font-bold text-white truncate max-w-sm sm:max-w-md">
