@@ -256,31 +256,54 @@ impl GameLaunchCoordinator {
             checkpoint_task,
         };
 
-        let active_mgr_for_pid = active_mgr.clone();
-        let app_for_pid = app_handle.clone();
-        let sid_for_pid = session_id_str.clone();
-        let gid_for_pid = id.to_string();
+        let active_mgr_for_phase = active_mgr.clone();
+        let app_for_phase = app_handle.clone();
+        let sid_for_phase = session_id_str.clone();
+        let gid_for_phase = id.to_string();
 
-        let track_res = GameLauncher::launch_and_track(id, config, install_dir, move |pid| {
-            let mgr = active_mgr_for_pid.clone();
-            let app = app_for_pid.clone();
-            tokio::spawn(async move {
-                mgr.set_running(&sid_for_pid, pid).await;
-                let _ = app.emit(
-                    events::GAME_STATUS_CHANGED,
-                    serde_json::json!({
-                        "session_id": sid_for_pid,
-                        "game_id": gid_for_pid,
-                        "state": "running",
-                        "pid": pid,
-                    }),
-                );
+        let track_res = GameLauncher::launch_and_track_with_phases(
+            id,
+            config,
+            install_dir,
+            Arc::new(move |phase| {
+                let mgr = active_mgr_for_phase.clone();
+                let app = app_for_phase.clone();
+                let sid = sid_for_phase.clone();
+                let gid = gid_for_phase.clone();
+                tokio::spawn(async move {
+                    match phase {
+                        omnis_core::launcher::TrackingPhase::Running(pid) => {
+                            mgr.set_running(&sid, pid).await;
+                            let _ = app.emit(
+                                events::GAME_STATUS_CHANGED,
+                                serde_json::json!({
+                                    "session_id": sid,
+                                    "game_id": gid,
+                                    "state": "running",
+                                    "pid": pid,
+                                }),
+                            );
 
-                if pid > 0 {
-                    omnis_core::launcher::bring_process_to_foreground_async(pid, 8).await;
-                }
-            });
-        })
+                            if pid > 0 {
+                                omnis_core::launcher::bring_process_to_foreground_async(pid, 8)
+                                    .await;
+                            }
+                        }
+                        omnis_core::launcher::TrackingPhase::Exiting => {
+                            mgr.set_stopping(&sid).await;
+                            let _ = app.emit(
+                                events::GAME_STATUS_CHANGED,
+                                serde_json::json!({
+                                    "session_id": sid,
+                                    "game_id": gid,
+                                    "state": "stopping",
+                                }),
+                            );
+                        }
+                    }
+                });
+            }),
+        )
         .await;
 
         let was_running = is_running.swap(false, Ordering::SeqCst);

@@ -910,11 +910,21 @@ impl GameLauncher {
 
         on_phase(TrackingPhase::Running(tracked_pid));
 
+        let had_real_pid = tracked_pid > 0;
+
         while get_steam_running_appid() == Some(appid) {
             if tracked_pid > 0 {
                 ProcessTracker::track_until_exit(tracked_pid, target_name, target_dir, on_phase)
                     .await;
                 tracked_pid = 0;
+
+                // Once the actual game process has exited and no replacement process was detected
+                // by track_until_exit (its exit grace window elapsed), the gameplay session is over.
+                // Do not keep waiting on Steam's RunningAppID registry value (which can linger for
+                // a minute or more while Steam Cloud synchronizes saves in background).
+                if had_real_pid {
+                    break;
+                }
             }
             if get_steam_running_appid() != Some(appid) {
                 break;
