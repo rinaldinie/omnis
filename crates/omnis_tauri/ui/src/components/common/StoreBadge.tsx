@@ -135,7 +135,7 @@ export interface StoreBadgeProps {
   library: string;
   showName?: boolean;
   className?: string;
-  variant?: "subtle" | "brand";
+  variant?: "subtle" | "brand" | "plain";
 }
 
 export function StoreBadge({
@@ -209,16 +209,26 @@ export function StoreBadge({
       ? brandStyles
       : "bg-slate-900/80 border-white/20 backdrop-blur-md hover:bg-slate-800 text-white shadow-md";
 
-  const badgeNode = (
-    <span
-      className={`inline-flex items-center justify-center ${showName ? "gap-1 px-2 py-0.5" : "p-1"} rounded-full border transition-colors ${badgeStyle} ${className}`}
-    >
-      {icon}
-      {showName && (
-        <span className="text-[11px] font-medium leading-none">{storeName}</span>
-      )}
-    </span>
-  );
+  const badgeNode =
+    variant === "plain" ? (
+      <span
+        className={`inline-flex items-center justify-center ${showName ? "gap-1.5" : ""} ${className}`}
+      >
+        {icon}
+        {showName && (
+          <span className="text-[11px] font-medium leading-none">{storeName}</span>
+        )}
+      </span>
+    ) : (
+      <span
+        className={`inline-flex items-center justify-center ${showName ? "gap-1 px-2 py-0.5" : "p-1"} rounded-full border transition-colors ${badgeStyle} ${className}`}
+      >
+        {icon}
+        {showName && (
+          <span className="text-[11px] font-medium leading-none">{storeName}</span>
+        )}
+      </span>
+    );
 
   return title ? <ActionTooltip label={title}>{badgeNode}</ActionTooltip> : badgeNode;
 }

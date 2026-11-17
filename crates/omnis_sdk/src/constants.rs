@@ -54,4 +54,5 @@ pub mod storage {
     pub const THEMES_DIR: &str = "themes";
     pub const TRAILERS_DIR: &str = "trailers";
     pub const ACHIEVEMENTS_DIR: &str = "achievements";
+    pub const LOGS_DIR: &str = "logs";
 }

@@ -498,10 +498,10 @@ export default function ListViewTable({
                   {/* 3. Store / Platform */}
                   <TableCell className="py-1.5 px-3 whitespace-nowrap">
                     <div className="flex items-center gap-1.5">
-                      <StoreBadge library={game.library} />
+                      <StoreBadge library={game.library} variant="plain" />
                       {game.other_copies && game.other_copies.length > 0 && (
                         <ActionTooltip label={t("duplicate_hider.other_copies")}>
-                          <span className="flex items-center gap-1 pl-1 border-l border-white/10">
+                          <span className="flex items-center gap-1.5 pl-1.5 border-l border-white/10">
                             {game.other_copies.map((copy) => (
                               <ActionTooltip
                                 key={copy.id}
@@ -510,10 +510,10 @@ export default function ListViewTable({
                                 }`}
                               >
                                 <span
-                                  className={`inline-flex items-center justify-center p-1 rounded-full bg-slate-900/80 border border-white/20 ${
+                                  className={`inline-flex items-center justify-center ${
                                     copy.is_installed
-                                      ? "border-emerald-400/70 text-emerald-300 ring-1 ring-emerald-400/30"
-                                      : "text-white/80"
+                                      ? "text-emerald-400"
+                                      : "text-white/75"
                                   }`}
                                 >
                                   <StoreIcon library={copy.library} className="w-3.5 h-3.5" />

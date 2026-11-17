@@ -342,7 +342,7 @@ export const DetailsSidebar: React.FC<DetailsSidebarProps> = ({
                     {game.title}
                   </div>
                   <div className="flex items-center gap-2 mt-1 flex-wrap">
-                    <StoreBadge library={game.library} variant="subtle" className="py-0 px-1 text-[9px] shrink-0" />
+                    <StoreBadge library={game.library} variant="plain" className="shrink-0" />
                     {activeGame?.game_id === game.id ? (
                       <span className="flex items-center gap-1 text-[9px] font-bold text-emerald-300 animate-pulse">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
