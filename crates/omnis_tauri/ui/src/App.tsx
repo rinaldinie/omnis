@@ -29,6 +29,7 @@ import {
   TAURI_EVENTS,
 } from "./types";
 import { getVisibleCategories } from "./utils/consoleCategories";
+import { useConsolePrefs } from "./utils/consolePrefs";
 import { useWindowControls } from "./hooks/useWindowControls";
 import { useLibraryFilters } from "./hooks/useLibraryFilters";
 import { useGamepadNavigation, ControllerType } from "./hooks/useGamepadNavigation";
@@ -326,7 +327,11 @@ export default function App() {
     detailsFilteredGames,
   } = useLibraryFilters(games);
 
-  const visibleCategories = useMemo(() => getVisibleCategories(counts, activeFilter), [counts, activeFilter]);
+  const { hiddenQuickFilters } = useConsolePrefs();
+  const visibleCategories = useMemo(
+    () => getVisibleCategories(counts, activeFilter, hiddenQuickFilters),
+    [counts, activeFilter, hiddenQuickFilters]
+  );
   const cycleCategory = useCallback((direction: number, onCycle?: (nextFilter: string) => void) =>
     cycleFilter(direction, onCycle, visibleCategories), [cycleFilter, visibleCategories]);
 

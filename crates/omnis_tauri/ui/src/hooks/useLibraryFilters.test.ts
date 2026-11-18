@@ -467,4 +467,32 @@ describe("useLibraryFilters - Genre/Feature AND vs OR and separate quick flags",
     expect(result.current.selectedFlags).toEqual([]);
     expect(result.current.filteredGames).toHaveLength(3);
   });
+
+  it("cycles through filters adhering to custom visible category order (skipping hidden filters)", () => {
+    const { result } = renderHook(() => useLibraryFilters(catalogGames));
+
+    // Custom order excluding "gog"
+    const visibleCategories = ["all", "installed", "steam", "epic"];
+
+    act(() => {
+      result.current.cycleFilter(1, undefined, visibleCategories);
+    });
+    expect(result.current.activeFilter).toBe("installed");
+
+    act(() => {
+      result.current.cycleFilter(1, undefined, visibleCategories);
+    });
+    expect(result.current.activeFilter).toBe("steam");
+
+    act(() => {
+      result.current.cycleFilter(1, undefined, visibleCategories);
+    });
+    // GOG is not in visibleCategories, so it jumps straight to epic
+    expect(result.current.activeFilter).toBe("epic");
+
+    act(() => {
+      result.current.cycleFilter(-1, undefined, visibleCategories);
+    });
+    expect(result.current.activeFilter).toBe("steam");
+  });
 });
