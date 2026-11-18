@@ -544,19 +544,19 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
                       {t('general_settings.recent_window_always', { defaultValue: 'Always (all played titles)' })}
                     </SelectItem>
                     <SelectItem value="7">
-                      {t('general_settings.recent_window_7d', { defaultValue: 'Past 7 days' })}
+                      {t('general_settings.recent_window_days_7', { defaultValue: 'Past 7 days' })}
                     </SelectItem>
                     <SelectItem value="14">
-                      {t('general_settings.recent_window_14d', { defaultValue: 'Past 2 weeks' })}
+                      {t('general_settings.recent_window_days_14', { defaultValue: 'Past 2 weeks' })}
                     </SelectItem>
                     <SelectItem value="30">
-                      {t('general_settings.recent_window_30d', { defaultValue: 'Past 30 days' })}
+                      {t('general_settings.recent_window_days_30', { defaultValue: 'Past 30 days' })}
                     </SelectItem>
                     <SelectItem value="60">
-                      {t('general_settings.recent_window_60d', { defaultValue: 'Past 60 days' })}
+                      {t('general_settings.recent_window_days_60', { defaultValue: 'Past 60 days' })}
                     </SelectItem>
                     <SelectItem value="90">
-                      {t('general_settings.recent_window_90d', { defaultValue: 'Past 90 days' })}
+                      {t('general_settings.recent_window_days_90', { defaultValue: 'Past 90 days' })}
                     </SelectItem>
                   </SelectContent>
                 </Select>

@@ -62,4 +62,41 @@ describe("i18nContext lazy locale loading", () => {
     });
     expect(localStorage.getItem("omnis_language")).toBe("fr");
   });
+
+  it("defines previously missing keys across all 6 supported locales", async () => {
+    const localeCodes = ["it", "en", "de", "es", "fr", "ja"] as const;
+    for (const code of localeCodes) {
+      const dict = code === "it" ? (await import("./locales/it")).it :
+                   code === "en" ? (await import("./locales/en")).en :
+                   await loadLocale(code);
+
+      expect(dict, `Locale ${code} failed to load`).toBeDefined();
+      if (!dict) continue;
+
+      // general_settings: recent_window_days_7 ... 90 and recent_window_7d ... 90d aliases
+      expect(dict.general_settings?.recent_window_days_7, `recent_window_days_7 missing in ${code}`).toBeTruthy();
+      expect(dict.general_settings?.recent_window_days_14, `recent_window_days_14 missing in ${code}`).toBeTruthy();
+      expect(dict.general_settings?.recent_window_days_30, `recent_window_days_30 missing in ${code}`).toBeTruthy();
+      expect(dict.general_settings?.recent_window_days_60, `recent_window_days_60 missing in ${code}`).toBeTruthy();
+      expect(dict.general_settings?.recent_window_days_90, `recent_window_days_90 missing in ${code}`).toBeTruthy();
+      expect(dict.general_settings?.recent_window_7d, `recent_window_7d missing in ${code}`).toBeTruthy();
+      expect(dict.general_settings?.recent_window_90d, `recent_window_90d missing in ${code}`).toBeTruthy();
+
+      // general_settings: update_now
+      expect(dict.general_settings?.update_now, `update_now missing in ${code}`).toBeTruthy();
+
+      // app_misc: notifications
+      expect(dict.app_misc?.notifications, `notifications missing in ${code}`).toBeTruthy();
+
+      // metadata_settings: steamgriddb_desc
+      expect(dict.metadata_settings?.steamgriddb_desc, `steamgriddb_desc missing in ${code}`).toBeTruthy();
+
+      // console_ui: category navigation, wifi and battery status
+      expect(dict.console_ui?.category_prev, `category_prev missing in ${code}`).toBeTruthy();
+      expect(dict.console_ui?.category_next, `category_next missing in ${code}`).toBeTruthy();
+      expect(dict.console_ui?.wifi_disconnected, `wifi_disconnected missing in ${code}`).toBeTruthy();
+      expect(dict.console_ui?.charging_percent, `charging_percent missing in ${code}`).toBeTruthy();
+      expect(dict.console_ui?.battery_percent, `battery_percent missing in ${code}`).toBeTruthy();
+    }
+  });
 });
