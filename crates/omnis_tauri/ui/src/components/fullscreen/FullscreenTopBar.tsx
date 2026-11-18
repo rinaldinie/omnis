@@ -143,7 +143,7 @@ export const FullscreenTopBar: React.FC<FullscreenTopBarProps> = ({
               cycleFilter(-1, () => setFocusedIndex(0));
               soundEffects.playNav();
             }}
-            title="Previous Category"
+            title={t("console_ui.category_prev", { defaultValue: "Previous Category" })}
           >
             <Glyph kind="lb" />
           </button>
@@ -207,7 +207,7 @@ export const FullscreenTopBar: React.FC<FullscreenTopBarProps> = ({
               cycleFilter(1, () => setFocusedIndex(0));
               soundEffects.playNav();
             }}
-            title="Next Category"
+            title={t("console_ui.category_next", { defaultValue: "Next Category" })}
           >
             <Glyph kind="rb" />
           </button>
@@ -248,7 +248,7 @@ export const FullscreenTopBar: React.FC<FullscreenTopBarProps> = ({
               title={
                 systemStatus.wifiConnected
                   ? `Wi-Fi${systemStatus.wifiSignal !== null ? ` (${systemStatus.wifiSignal}%)` : ""}`
-                  : "Wi-Fi Disconnected"
+                  : t("console_ui.wifi_disconnected", { defaultValue: "Wi-Fi Disconnected" })
               }
             >
               {systemStatus.wifiConnected ? (
@@ -262,8 +262,14 @@ export const FullscreenTopBar: React.FC<FullscreenTopBarProps> = ({
                 className="flex items-center gap-2 text-base font-semibold tabular-nums"
                 title={
                   systemStatus.isCharging
-                    ? `Charging (${systemStatus.batteryPercent}%)`
-                    : `Battery (${systemStatus.batteryPercent}%)`
+                    ? t("console_ui.charging_percent", {
+                        percent: systemStatus.batteryPercent,
+                        defaultValue: `Charging (${systemStatus.batteryPercent}%)`,
+                      })
+                    : t("console_ui.battery_percent", {
+                        percent: systemStatus.batteryPercent,
+                        defaultValue: `Battery (${systemStatus.batteryPercent}%)`,
+                      })
                 }
               >
                 {renderBatteryIcon(systemStatus.batteryPercent, systemStatus.isCharging)}

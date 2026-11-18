@@ -95,20 +95,28 @@ impl GameLaunchCoordinator {
             .iter()
             .filter(|a| !a.executable.trim().is_empty())
             .collect();
+        let has_valid_library_action = game
+            .library_play_action
+            .as_ref()
+            .is_some_and(|a| !a.executable.trim().is_empty());
 
         // Emulated games have no store protocol to fall back on: without an emulator
         // launch action there is nothing to start.
         if game.use_library_integration
-            && game
-                .library_id
-                .eq_ignore_ascii_case(omnis_plugin_emulators::SWITCH_LIBRARY_ID)
-            && game.library_play_action.is_none()
+            && is_emulated_library(&game.library_id)
+            && !has_valid_library_action
             && valid_custom_actions.is_empty()
         {
-            return Err(
-                "Nessun emulatore Switch trovato: apri almeno una volta Eden, Citron o Ryujinx e aggiorna la libreria"
-                    .to_string(),
-            );
+            if game
+                .library_id
+                .eq_ignore_ascii_case(omnis_plugin_emulators::SWITCH_LIBRARY_ID)
+            {
+                return Err(
+                    "Nessun emulatore Switch trovato: apri almeno una volta Eden, Citron o Ryujinx e aggiorna la libreria"
+                        .to_string(),
+                );
+            }
+            return Err("Nessuna azione di avvio configurata per questo gioco".to_string());
         }
 
         if !game.use_library_integration && valid_custom_actions.is_empty() {
@@ -118,30 +126,30 @@ impl GameLaunchCoordinator {
             );
         }
 
+        if game.use_library_integration
+            && !has_store_integration(&game.library_id)
+            && !is_emulated_library(&game.library_id)
+            && !has_valid_library_action
+            && valid_custom_actions.is_empty()
+        {
+            return Err("Nessuna azione di avvio configurata per questo gioco".to_string());
+        }
+
         let is_installed = game.is_installed;
         let install_dir = game.install_dir.clone();
         let title = game.title.clone();
         let started_at = chrono::Utc::now();
 
-        if !is_installed && game.use_library_integration {
+        if !is_installed && game.use_library_integration && has_store_integration(&game.library_id)
+        {
             let install_uri = build_install_uri(&game.library_id, &game.external_id);
             validate_and_open_store_uri(&install_uri)?;
             return Ok(0);
         }
 
-        let config = resolve_launch_configuration(&game);
-
-        // Determine auxiliary custom actions to spawn alongside the primary launch:
-        // - If library integration is enabled on a non-custom game, all custom play_actions run alongside it.
-        // - If library integration is disabled (or it's a custom game), play_actions[0] is the primary tracked
-        //   launch and any remaining play_actions[1..] run alongside it.
-        let auxiliary_actions: Vec<LaunchConfiguration> =
-            if game.use_library_integration && !game.library_id.eq_ignore_ascii_case("custom") {
-                valid_custom_actions.into_iter().cloned().collect()
-            } else {
-                valid_custom_actions.into_iter().skip(1).cloned().collect()
-            };
-        for aux in &auxiliary_actions {
+        let plan = resolve_launch_plan(&game);
+        let config = plan.primary;
+        for aux in &plan.auxiliary {
             spawn_auxiliary_action(aux);
         }
         let session_id = Uuid::new_v4();
@@ -455,100 +463,39 @@ fn spawn_auxiliary_action(action: &LaunchConfiguration) {
     }
 }
 
-/// Resolves the launch configuration for a game, creating default store protocol launcher if none configured.
-pub fn resolve_launch_configuration(game: &Game) -> LaunchConfiguration {
-    // When library integration is disabled, bypass GOG Galaxy, library_play_action, and store URIs,
-    // and execute the user's custom play_actions directly.
-    if !game.use_library_integration {
-        if let Some(custom_action) = game
-            .play_actions
-            .iter()
-            .find(|a| !a.executable.trim().is_empty())
-            .cloned()
-        {
-            return custom_action;
-        }
+/// Resolved launch plan containing the primary tracked launch and detached auxiliary actions.
+#[derive(Debug, Clone, PartialEq)]
+pub struct LaunchPlan {
+    pub primary: LaunchConfiguration,
+    pub auxiliary: Vec<LaunchConfiguration>,
+}
+
+fn has_store_integration(library_id: &str) -> bool {
+    matches!(
+        library_id.trim().to_ascii_lowercase().as_str(),
+        "steam" | "epic" | "gog" | "xbox" | "amazon"
+    )
+}
+
+fn is_emulated_library(library_id: &str) -> bool {
+    let lower = library_id.trim().to_ascii_lowercase();
+    lower == omnis_plugin_emulators::SWITCH_LIBRARY_ID || lower.starts_with("emulator_")
+}
+
+fn actions_equivalent(a: &LaunchConfiguration, b: &LaunchConfiguration) -> bool {
+    let exe_a = a.executable.trim().replace('\\', "/").to_ascii_lowercase();
+    let exe_b = b.executable.trim().replace('\\', "/").to_ascii_lowercase();
+    if exe_a != exe_b || a.arguments.len() != b.arguments.len() {
+        return false;
     }
+    a.arguments
+        .iter()
+        .zip(b.arguments.iter())
+        .all(|(lhs, rhs)| lhs.trim() == rhs.trim())
+}
 
-    // For GOG games, if the official GOG Galaxy client (GalaxyClient.exe) is present on the system,
-    // launch via Galaxy CLI args (`/command=runGame /gameId={id} /path="{dir}"`) to ensure the Galaxy
-    // client launches the game directly with overlay, cloud saves, and achievements active.
-    // If GalaxyClient.exe is not installed or detected, fallback to direct game binary execution.
-    if game.library_id.eq_ignore_ascii_case("gog") {
-        let tracking_mode = if let Some(ref dir) = game.install_dir {
-            ProcessTrackingMode::WatchDirectory(dir.clone())
-        } else {
-            game.library_play_action
-                .as_ref()
-                .or_else(|| game.play_actions.first())
-                .map(|action| match &action.tracking_mode {
-                    ProcessTrackingMode::ProcessName(name) => {
-                        ProcessTrackingMode::ProcessName(name.clone())
-                    }
-                    _ => {
-                        let exe_name = std::path::Path::new(&action.executable)
-                            .file_name()
-                            .and_then(|f| f.to_str())
-                            .unwrap_or("game.exe");
-                        ProcessTrackingMode::ProcessName(exe_name.to_string())
-                    }
-                })
-                .unwrap_or(ProcessTrackingMode::KernelJobObject)
-        };
-
-        if let Some(galaxy_exe) = omnis_core::launcher::find_gog_galaxy_client() {
-            let mut args = vec![
-                "/command=runGame".to_string(),
-                format!("/gameId={}", game.external_id),
-            ];
-            if let Some(ref dir) = game.install_dir {
-                args.push(format!("/path=\"{}\"", dir.display()));
-            }
-
-            return LaunchConfiguration {
-                executable: galaxy_exe.to_string_lossy().to_string(),
-                arguments: args,
-                working_dir: game.install_dir.clone(),
-                tracking_mode,
-            };
-        }
-
-        // Fallback: If GalaxyClient is not installed, launch the game directly if library/custom action or binary exists
-        if let Some(play_action) = game
-            .library_play_action
-            .clone()
-            .or_else(|| game.play_actions.first().cloned())
-        {
-            return play_action;
-        }
-
-        if let Some(ref dir) = game.install_dir {
-            if let Some(exe_path) = omnis_core::launcher::find_gog_game_executable(dir)
-                .or_else(|| omnis_core::launcher::find_primary_game_executable(dir))
-            {
-                let exe_name = exe_path
-                    .file_name()
-                    .and_then(|f| f.to_str())
-                    .unwrap_or("game.exe");
-                return LaunchConfiguration {
-                    executable: exe_path.to_string_lossy().to_string(),
-                    arguments: vec![],
-                    working_dir: game.install_dir.clone(),
-                    tracking_mode: ProcessTrackingMode::ProcessName(exe_name.to_string()),
-                };
-            }
-        }
-    }
-
-    if let Some(library_action) = game.library_play_action.clone() {
-        return library_action;
-    }
-
-    if let Some(play_action) = game.play_actions.first().cloned() {
-        return play_action;
-    }
-
-    let play_uri = build_play_uri(&game.library_id, &game.external_id);
+fn build_store_uri_launch_config(library_id: &str, external_id: &str) -> LaunchConfiguration {
+    let play_uri = build_play_uri(library_id, external_id);
 
     LaunchConfiguration {
         executable: if cfg!(windows) {
@@ -566,6 +513,157 @@ pub fn resolve_launch_configuration(game: &Game) -> LaunchConfiguration {
         working_dir: None,
         tracking_mode: ProcessTrackingMode::KernelJobObject,
     }
+}
+
+/// Resolves both the primary tracked launch configuration and auxiliary custom actions,
+/// ensuring the primary command is never repeated in the auxiliary list.
+pub fn resolve_launch_plan(game: &Game) -> LaunchPlan {
+    let valid_custom_actions: Vec<LaunchConfiguration> = game
+        .play_actions
+        .iter()
+        .filter(|a| !a.executable.trim().is_empty())
+        .cloned()
+        .collect();
+    let valid_library_action = game
+        .library_play_action
+        .as_ref()
+        .filter(|a| !a.executable.trim().is_empty())
+        .cloned();
+    let is_custom = game.library_id.eq_ignore_ascii_case("custom");
+
+    // When library integration is disabled or this is a custom game, bypass GOG Galaxy,
+    // library_play_action, and store URIs; use play_actions[0] as primary and [1..] as auxiliary.
+    if !game.use_library_integration || is_custom {
+        if let Some(primary) = valid_custom_actions.first().cloned() {
+            let auxiliary = valid_custom_actions
+                .into_iter()
+                .skip(1)
+                .filter(|aux| !actions_equivalent(aux, &primary))
+                .collect();
+            return LaunchPlan { primary, auxiliary };
+        }
+        return LaunchPlan {
+            primary: LaunchConfiguration {
+                executable: String::new(),
+                arguments: Vec::new(),
+                working_dir: None,
+                tracking_mode: ProcessTrackingMode::KernelJobObject,
+            },
+            auxiliary: Vec::new(),
+        };
+    }
+
+    // For GOG games, if the official GOG Galaxy client (GalaxyClient.exe) is present on the system,
+    // launch via Galaxy CLI args (`/command=runGame /gameId={id} /path="{dir}"`) to ensure the Galaxy
+    // client launches the game directly with overlay, cloud saves, and achievements active.
+    // If GalaxyClient.exe is not installed or detected, fallback to library_play_action, discovered
+    // game executable, or GOG Galaxy URI — never to user custom play_actions.
+    if game.use_library_integration && game.library_id.eq_ignore_ascii_case("gog") {
+        let tracking_mode = if let Some(ref dir) = game.install_dir {
+            ProcessTrackingMode::WatchDirectory(dir.clone())
+        } else {
+            valid_library_action
+                .as_ref()
+                .map(|action| match &action.tracking_mode {
+                    ProcessTrackingMode::ProcessName(name) => {
+                        ProcessTrackingMode::ProcessName(name.clone())
+                    }
+                    _ => {
+                        let exe_name = std::path::Path::new(&action.executable)
+                            .file_name()
+                            .and_then(|f| f.to_str())
+                            .unwrap_or("game.exe");
+                        ProcessTrackingMode::ProcessName(exe_name.to_string())
+                    }
+                })
+                .unwrap_or(ProcessTrackingMode::KernelJobObject)
+        };
+
+        let primary = if let Some(galaxy_exe) = omnis_core::launcher::find_gog_galaxy_client() {
+            let mut args = vec![
+                "/command=runGame".to_string(),
+                format!("/gameId={}", game.external_id),
+            ];
+            if let Some(ref dir) = game.install_dir {
+                args.push(format!("/path=\"{}\"", dir.display()));
+            }
+
+            LaunchConfiguration {
+                executable: galaxy_exe.to_string_lossy().to_string(),
+                arguments: args,
+                working_dir: game.install_dir.clone(),
+                tracking_mode,
+            }
+        } else if let Some(lib_action) = valid_library_action {
+            lib_action
+        } else if let Some(exe_path) = game.install_dir.as_ref().and_then(|dir| {
+            omnis_core::launcher::find_gog_game_executable(dir)
+                .or_else(|| omnis_core::launcher::find_primary_game_executable(dir))
+        }) {
+            let exe_name = exe_path
+                .file_name()
+                .and_then(|f| f.to_str())
+                .unwrap_or("game.exe");
+            LaunchConfiguration {
+                executable: exe_path.to_string_lossy().to_string(),
+                arguments: vec![],
+                working_dir: game.install_dir.clone(),
+                tracking_mode: ProcessTrackingMode::ProcessName(exe_name.to_string()),
+            }
+        } else {
+            build_store_uri_launch_config(&game.library_id, &game.external_id)
+        };
+
+        let auxiliary = valid_custom_actions
+            .into_iter()
+            .filter(|aux| !actions_equivalent(aux, &primary))
+            .collect();
+        return LaunchPlan { primary, auxiliary };
+    }
+
+    if let Some(library_action) = valid_library_action {
+        let auxiliary = valid_custom_actions
+            .into_iter()
+            .filter(|aux| !actions_equivalent(aux, &library_action))
+            .collect();
+        return LaunchPlan {
+            primary: library_action,
+            auxiliary,
+        };
+    }
+
+    // Store-backed libraries without library_play_action must fall back to the store URI,
+    // keeping custom play_actions strictly auxiliary so play_actions[0] is never run twice.
+    if has_store_integration(&game.library_id) {
+        let primary = build_store_uri_launch_config(&game.library_id, &game.external_id);
+        let auxiliary = valid_custom_actions
+            .into_iter()
+            .filter(|aux| !actions_equivalent(aux, &primary))
+            .collect();
+        return LaunchPlan { primary, auxiliary };
+    }
+
+    // Non-store libraries (e.g. emulators or third-party imports without library_play_action)
+    // fall back to play_actions[0] and skip it from auxiliary actions.
+    if let Some(primary) = valid_custom_actions.first().cloned() {
+        let auxiliary = valid_custom_actions
+            .into_iter()
+            .skip(1)
+            .filter(|aux| !actions_equivalent(aux, &primary))
+            .collect();
+        return LaunchPlan { primary, auxiliary };
+    }
+
+    LaunchPlan {
+        primary: build_store_uri_launch_config(&game.library_id, &game.external_id),
+        auxiliary: Vec::new(),
+    }
+}
+
+/// Resolves the primary launch configuration for a game, creating default store protocol launcher if none configured.
+#[cfg(test)]
+pub fn resolve_launch_configuration(game: &Game) -> LaunchConfiguration {
+    resolve_launch_plan(game).primary
 }
 
 /// Validates that a store URI conforms to authorized scheme whitelist and contains no malicious command injection characters.
@@ -655,12 +753,12 @@ mod tests {
         let mut game = Game::new("gog".to_string(), "123456".to_string(), "Test GOG Game".to_string());
         game.install_dir = Some(PathBuf::from("/path/to/game"));
         game.is_installed = true;
-        game.play_actions = vec![LaunchConfiguration {
+        game.library_play_action = Some(LaunchConfiguration {
             executable: "/path/to/game/game.exe".to_string(),
             arguments: vec!["--param".to_string()],
             working_dir: Some(PathBuf::from("/path/to/game")),
             tracking_mode: ProcessTrackingMode::ProcessName("game.exe".to_string()),
-        }];
+        });
 
         let resolved = resolve_launch_configuration(&game);
         if omnis_core::launcher::find_gog_galaxy_client().is_some() {
@@ -671,7 +769,7 @@ mod tests {
                 ProcessTrackingMode::WatchDirectory(PathBuf::from("/path/to/game"))
             );
         } else {
-            // When GalaxyClient is not present (e.g. Linux / test environment), uses direct play action
+            // When GalaxyClient is not present (e.g. Linux / test environment), uses library_play_action
             assert_eq!(resolved.executable, "/path/to/game/game.exe");
             assert_eq!(resolved.arguments, vec!["--param".to_string()]);
         }
@@ -754,5 +852,111 @@ mod tests {
 
         let resolved = resolve_launch_configuration(&game);
         assert_eq!(resolved.executable, "steam://rungameid/730");
+    }
+
+    #[test]
+    fn test_resolve_launch_plan_steam_without_library_action_uses_store_uri_and_runs_custom_once() {
+        let mut game = Game::new("steam".to_string(), "620".to_string(), "Portal 2".to_string());
+        game.is_installed = true;
+        game.use_library_integration = true;
+        game.library_play_action = None;
+        let trainer = LaunchConfiguration {
+            executable: "C:\\Tools\\trainer.exe".to_string(),
+            arguments: vec![],
+            working_dir: None,
+            tracking_mode: ProcessTrackingMode::KernelJobObject,
+        };
+        game.play_actions = vec![trainer.clone()];
+
+        let plan = resolve_launch_plan(&game);
+        assert_ne!(plan.primary.executable, trainer.executable);
+        assert!(plan
+            .primary
+            .arguments
+            .iter()
+            .any(|a| a == "steam://rungameid/620"));
+        assert_eq!(plan.auxiliary, vec![trainer]);
+    }
+
+    #[test]
+    fn test_resolve_launch_plan_gog_without_library_action_does_not_duplicate_custom_action() {
+        let mut game = Game::new("gog".to_string(), "1207658924".to_string(), "Witcher".to_string());
+        game.is_installed = true;
+        game.use_library_integration = true;
+        game.library_play_action = None;
+        game.install_dir = None;
+        let trainer = LaunchConfiguration {
+            executable: "C:\\Tools\\trainer.exe".to_string(),
+            arguments: vec![],
+            working_dir: None,
+            tracking_mode: ProcessTrackingMode::KernelJobObject,
+        };
+        game.play_actions = vec![trainer.clone()];
+
+        let plan = resolve_launch_plan(&game);
+        assert_ne!(plan.primary.executable, trainer.executable);
+        assert_eq!(plan.auxiliary, vec![trainer]);
+        if omnis_core::launcher::find_gog_galaxy_client().is_none() {
+            assert!(plan
+                .primary
+                .arguments
+                .iter()
+                .any(|a| a == "goggalaxy://runGame/1207658924"));
+        }
+    }
+
+    #[test]
+    fn test_resolve_launch_plan_non_store_without_library_action_runs_first_custom_once() {
+        let mut game = Game::new("switch".to_string(), "0100".to_string(), "Zelda".to_string());
+        game.is_installed = true;
+        game.use_library_integration = true;
+        game.library_play_action = None;
+        let emu = LaunchConfiguration {
+            executable: "C:\\Emu\\eden.exe".to_string(),
+            arguments: vec!["game.nsp".to_string()],
+            working_dir: None,
+            tracking_mode: ProcessTrackingMode::KernelJobObject,
+        };
+        let overlay = LaunchConfiguration {
+            executable: "C:\\Tools\\overlay.exe".to_string(),
+            arguments: vec![],
+            working_dir: None,
+            tracking_mode: ProcessTrackingMode::KernelJobObject,
+        };
+        game.play_actions = vec![emu.clone(), overlay.clone()];
+
+        let plan = resolve_launch_plan(&game);
+        assert_eq!(plan.primary, emu);
+        assert_eq!(plan.auxiliary, vec![overlay]);
+    }
+
+    #[test]
+    fn test_resolve_launch_plan_deduplicates_auxiliary_matching_primary() {
+        let mut game = Game::new("steam".to_string(), "620".to_string(), "Portal 2".to_string());
+        game.is_installed = true;
+        game.use_library_integration = true;
+        let store_cmd = LaunchConfiguration {
+            executable: "cmd.exe".to_string(),
+            arguments: vec![
+                "/c".to_string(),
+                "start".to_string(),
+                "".to_string(),
+                "steam://rungameid/620".to_string(),
+            ],
+            working_dir: None,
+            tracking_mode: ProcessTrackingMode::KernelJobObject,
+        };
+        let trainer = LaunchConfiguration {
+            executable: "C:\\Tools\\trainer.exe".to_string(),
+            arguments: vec![],
+            working_dir: None,
+            tracking_mode: ProcessTrackingMode::KernelJobObject,
+        };
+        game.library_play_action = Some(store_cmd.clone());
+        game.play_actions = vec![store_cmd.clone(), trainer.clone()];
+
+        let plan = resolve_launch_plan(&game);
+        assert_eq!(plan.primary, store_cmd);
+        assert_eq!(plan.auxiliary, vec![trainer]);
     }
 }
