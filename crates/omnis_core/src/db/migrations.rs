@@ -1,8 +1,9 @@
+use omnis_sdk::{LaunchConfiguration, ProcessTrackingMode};
 use rusqlite::{params, Connection, Result};
 
 use crate::db::parse_and_normalize_genres;
 
-pub const CURRENT_SCHEMA_VERSION: i32 = 9;
+pub const CURRENT_SCHEMA_VERSION: i32 = 10;
 
 pub fn run_migrations(conn: &Connection) -> Result<()> {
     let current_version: i32 = conn.query_row("PRAGMA user_version;", [], |r| r.get(0))?;
@@ -294,7 +295,7 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
             "UPDATE games
              SET library_play_action = json_extract(play_actions, '$[0]'),
                  play_actions = '[]'
-             WHERE library_id != 'custom'
+             WHERE LOWER(library_id) != 'custom'
                AND play_actions IS NOT NULL
                AND TRIM(play_actions) != ''
                AND TRIM(play_actions) != '[]'
@@ -304,9 +305,16 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
                    json_extract(play_actions, '$[0].executable') LIKE 'steam://%'
                    OR json_extract(play_actions, '$[0].executable') LIKE 'com.epicgames.launcher://%'
                    OR json_extract(play_actions, '$[0].executable') LIKE 'goggalaxy://%'
+                   OR json_extract(play_actions, '$[0].executable') LIKE 'ms-windows-store://%'
+                   OR json_extract(play_actions, '$[0].executable') LIKE 'amazon-games://%'
                    OR json_extract(play_actions, '$[0].executable') LIKE 'shell:AppsFolder%'
-                   OR library_id = 'switch'
-                   OR library_id LIKE 'emulator_%'
+                   OR (
+                       LOWER(library_id) = 'steam'
+                       AND LOWER(COALESCE(json_extract(play_actions, '$[0].executable'), '')) IN ('cmd.exe', 'xdg-open', 'open', 'rundll32.exe')
+                       AND LOWER(COALESCE(json_extract(play_actions, '$[0].arguments'), '')) LIKE '%steam://%'
+                   )
+                   OR LOWER(library_id) IN ('gog', 'amazon', 'switch')
+                   OR LOWER(library_id) LIKE 'emulator_%'
                );",
             [],
         );
@@ -376,9 +384,188 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
         tx.commit()?;
     }
 
+    // Version 10: Reconcile store/plugin launch commands left in play_actions by earlier v6 migration
+    if current_version < 10 {
+        let tx = conn.unchecked_transaction()?;
+        let rows: Vec<(String, String, Option<String>, String, Option<String>)> = {
+            let mut stmt = tx.prepare(
+                "SELECT id, library_id, install_dir, play_actions, library_play_action
+                 FROM games
+                 WHERE LOWER(library_id) != 'custom'
+                   AND play_actions IS NOT NULL
+                   AND TRIM(play_actions) != ''
+                   AND TRIM(play_actions) != '[]';",
+            )?;
+            let mapped = stmt.query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, Option<String>>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, Option<String>>(4)?,
+                ))
+            })?;
+            mapped.collect::<Result<Vec<_>>>()?
+        };
+
+        {
+            let mut update_stmt = tx.prepare(
+                "UPDATE games SET library_play_action = ?2, play_actions = ?3 WHERE id = ?1;",
+            )?;
+            for (id, library_id, install_dir, raw_play_actions, raw_lib_action) in rows {
+                let Ok(play_actions) = serde_json::from_str::<Vec<LaunchConfiguration>>(&raw_play_actions) else {
+                    continue;
+                };
+                if play_actions.is_empty() {
+                    continue;
+                }
+
+                let existing_lib_action = raw_lib_action
+                    .as_deref()
+                    .and_then(|s| serde_json::from_str::<LaunchConfiguration>(s).ok())
+                    .filter(|a| !a.executable.trim().is_empty());
+
+                let (next_lib_action, next_play_actions) = reconcile_v10_actions(
+                    &library_id,
+                    install_dir.as_deref(),
+                    existing_lib_action.as_ref(),
+                    &play_actions,
+                );
+
+                if next_lib_action != existing_lib_action || next_play_actions != play_actions {
+                    let lib_json = next_lib_action
+                        .as_ref()
+                        .and_then(|a| serde_json::to_string(a).ok());
+                    let actions_json =
+                        serde_json::to_string(&next_play_actions).unwrap_or_else(|_| "[]".to_string());
+                    update_stmt.execute(params![id, lib_json, actions_json])?;
+                }
+            }
+        }
+
+        tx.execute_batch("PRAGMA user_version = 10;")?;
+        tx.commit()?;
+    }
+
     conn.execute_batch(&format!(
         "PRAGMA user_version = {};",
         CURRENT_SCHEMA_VERSION
     ))?;
     Ok(())
+}
+
+fn normalize_path_for_compare(raw: &str) -> String {
+    raw.trim().replace('\\', "/").to_ascii_lowercase()
+}
+
+fn is_store_or_wrapper_action(library_id: &str, action: &LaunchConfiguration) -> bool {
+    let exe = action.executable.trim().to_ascii_lowercase();
+    if exe.starts_with("steam://")
+        || exe.starts_with("com.epicgames.launcher://")
+        || exe.starts_with("goggalaxy://")
+        || exe.starts_with("ms-windows-store://")
+        || exe.starts_with("amazon-games://")
+        || exe.starts_with("shell:appsfolder")
+    {
+        return true;
+    }
+
+    library_id.eq_ignore_ascii_case("steam")
+        && matches!(
+            exe.as_str(),
+            "cmd.exe" | "xdg-open" | "open" | "rundll32.exe"
+        )
+        && action
+            .arguments
+            .iter()
+            .any(|arg| arg.to_ascii_lowercase().contains("steam://"))
+}
+
+fn is_discovered_local_game_action(
+    library_id: &str,
+    install_dir: Option<&str>,
+    action: &LaunchConfiguration,
+) -> bool {
+    if !library_id.eq_ignore_ascii_case("gog") && !library_id.eq_ignore_ascii_case("amazon") {
+        return false;
+    }
+    let Some(dir) = install_dir.map(str::trim).filter(|d| !d.is_empty()) else {
+        return false;
+    };
+    let dir_norm = normalize_path_for_compare(dir);
+    let dir_prefix = format!("{}/", dir_norm.trim_end_matches('/'));
+    let exe_norm = normalize_path_for_compare(&action.executable);
+    if !exe_norm.starts_with(&dir_prefix) {
+        return false;
+    }
+
+    let exe_file = exe_norm.rsplit('/').next().unwrap_or("");
+    matches!(
+        &action.tracking_mode,
+        ProcessTrackingMode::ProcessName(name) if name.trim().eq_ignore_ascii_case(exe_file)
+    )
+}
+
+fn is_emulated_library_id(library_id: &str) -> bool {
+    let lower = library_id.trim().to_ascii_lowercase();
+    lower == "switch" || lower.starts_with("emulator_")
+}
+
+fn actions_equivalent(a: &LaunchConfiguration, b: &LaunchConfiguration) -> bool {
+    if normalize_path_for_compare(&a.executable) != normalize_path_for_compare(&b.executable) {
+        return false;
+    }
+    if a.arguments.len() != b.arguments.len() {
+        return false;
+    }
+    a.arguments
+        .iter()
+        .zip(b.arguments.iter())
+        .all(|(lhs, rhs)| lhs.trim() == rhs.trim())
+}
+
+fn reconcile_v10_actions(
+    library_id: &str,
+    install_dir: Option<&str>,
+    existing_lib_action: Option<&LaunchConfiguration>,
+    play_actions: &[LaunchConfiguration],
+) -> (Option<LaunchConfiguration>, Vec<LaunchConfiguration>) {
+    let mut next_lib_action = existing_lib_action.cloned();
+    let mut remaining: Vec<LaunchConfiguration> = Vec::with_capacity(play_actions.len());
+
+    if let Some(ref lib_act) = existing_lib_action {
+        let lib_is_uri = is_store_or_wrapper_action(library_id, lib_act);
+        for act in play_actions {
+            if actions_equivalent(act, lib_act) || is_store_or_wrapper_action(library_id, act) {
+                continue;
+            }
+            if lib_is_uri && is_discovered_local_game_action(library_id, install_dir, act) {
+                next_lib_action = Some(act.clone());
+                continue;
+            }
+            remaining.push(act.clone());
+        }
+    } else {
+        let emulated_single = is_emulated_library_id(library_id) && play_actions.len() == 1;
+        for act in play_actions {
+            let is_plugin_action = is_store_or_wrapper_action(library_id, act)
+                || is_discovered_local_game_action(library_id, install_dir, act)
+                || emulated_single;
+            if next_lib_action.is_none() && is_plugin_action {
+                next_lib_action = Some(act.clone());
+                continue;
+            }
+            if is_store_or_wrapper_action(library_id, act) {
+                continue;
+            }
+            if let Some(ref promoted) = next_lib_action {
+                if actions_equivalent(act, promoted) {
+                    continue;
+                }
+            }
+            remaining.push(act.clone());
+        }
+    }
+
+    (next_lib_action, remaining)
 }

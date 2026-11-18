@@ -164,8 +164,15 @@ impl ActiveGameManager {
                 continue;
             }
 
-            let target_name: Option<String> = if !game.use_library_integration {
+            let target_name: Option<String> = if !game.use_library_integration
+                || game.library_id.eq_ignore_ascii_case("custom")
+            {
                 game.play_actions.first()
+            } else if matches!(
+                game.library_id.trim().to_ascii_lowercase().as_str(),
+                "steam" | "epic" | "gog" | "xbox" | "amazon"
+            ) {
+                game.library_play_action.as_ref()
             } else {
                 game.library_play_action
                     .as_ref()

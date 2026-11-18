@@ -881,3 +881,296 @@ fn test_genre_normalization_on_write_and_v9_migration() {
     let cleared = db.update_game(&update_dto).unwrap();
     assert!(cleared.genres.is_empty());
 }
+
+#[test]
+fn test_v6_and_v10_migrations_separate_installed_store_actions_from_custom_actions() {
+    use omnis_sdk::ProcessTrackingMode;
+    use rusqlite::Connection;
+
+    let path = std::env::temp_dir().join(format!("omnis_v6_migration_test_{}.db", Uuid::new_v4()));
+
+    // Part 1: Simulate a pre-v6 (v5) database with installed Steam, GOG, Amazon, Xbox, and Custom games
+    {
+        let conn = Connection::open(&path).unwrap();
+        conn.execute_batch(
+            "
+            CREATE TABLE games (
+                id TEXT PRIMARY KEY NOT NULL,
+                library_id TEXT NOT NULL,
+                external_id TEXT NOT NULL,
+                title TEXT NOT NULL COLLATE NOCASE,
+                sorting_title TEXT NOT NULL COLLATE NOCASE,
+                install_dir TEXT,
+                is_installed INTEGER NOT NULL DEFAULT 0,
+                playtime_seconds INTEGER NOT NULL DEFAULT 0,
+                play_count INTEGER NOT NULL DEFAULT 0,
+                last_activity TEXT,
+                release_date TEXT,
+                user_score INTEGER,
+                critic_score INTEGER,
+                community_score INTEGER,
+                description TEXT,
+                cover_image_path TEXT,
+                background_image_path TEXT,
+                icon_image_path TEXT,
+                genres TEXT,
+                developers TEXT,
+                publishers TEXT,
+                tags TEXT,
+                features TEXT,
+                series TEXT,
+                age_rating TEXT,
+                completion_status TEXT DEFAULT 'NotPlayed',
+                user_notes TEXT,
+                custom_links TEXT,
+                play_actions TEXT,
+                extra_metadata TEXT,
+                added_timestamp TEXT NOT NULL,
+                modified_timestamp TEXT NOT NULL,
+                is_hidden INTEGER NOT NULL DEFAULT 0,
+                hidden_by_duplicate_hider INTEGER NOT NULL DEFAULT 0,
+                duplicate_group_id TEXT,
+                is_favorite INTEGER NOT NULL DEFAULT 0,
+                name TEXT GENERATED ALWAYS AS (title) VIRTUAL
+            );
+            CREATE UNIQUE INDEX idx_games_library_external ON games(library_id, external_id);
+            CREATE TABLE game_achievements (
+                id TEXT PRIMARY KEY NOT NULL,
+                game_id TEXT NOT NULL,
+                api_name TEXT NOT NULL,
+                display_name TEXT NOT NULL
+            );
+            PRAGMA user_version = 5;
+            ",
+        )
+        .unwrap();
+
+        let steam_cmd = serde_json::to_string(&vec![LaunchConfiguration {
+            executable: "cmd.exe".to_string(),
+            arguments: vec![
+                "/c".to_string(),
+                "start".to_string(),
+                "".to_string(),
+                "steam://rungameid/620".to_string(),
+            ],
+            working_dir: None,
+            tracking_mode: ProcessTrackingMode::KernelJobObject,
+        }])
+        .unwrap();
+        let gog_exe = serde_json::to_string(&vec![LaunchConfiguration {
+            executable: r"C:\GOG Games\Witcher 3\bin\x64\witcher3.exe".to_string(),
+            arguments: vec![],
+            working_dir: Some(PathBuf::from(r"C:\GOG Games\Witcher 3\bin\x64")),
+            tracking_mode: ProcessTrackingMode::ProcessName("witcher3.exe".to_string()),
+        }])
+        .unwrap();
+        let xbox_uri = serde_json::to_string(&vec![LaunchConfiguration {
+            executable: "ms-windows-store://pdp/?ProductId=9NXQXX31PRSF".to_string(),
+            arguments: vec![],
+            working_dir: None,
+            tracking_mode: ProcessTrackingMode::KernelJobObject,
+        }])
+        .unwrap();
+        let amazon_uri = serde_json::to_string(&vec![LaunchConfiguration {
+            executable: "amazon-games://play/amzn1.adg.product.123".to_string(),
+            arguments: vec![],
+            working_dir: None,
+            tracking_mode: ProcessTrackingMode::KernelJobObject,
+        }])
+        .unwrap();
+        let custom_exe = serde_json::to_string(&vec![LaunchConfiguration {
+            executable: r"C:\Games\MyCustom\game.exe".to_string(),
+            arguments: vec![],
+            working_dir: None,
+            tracking_mode: ProcessTrackingMode::KernelJobObject,
+        }])
+        .unwrap();
+
+        let now = chrono::Utc::now().to_rfc3339();
+        for (id, lib, ext, dir, pa) in [
+            (Uuid::new_v4().to_string(), "steam", "620", Some(r"C:\Steam\Portal 2"), steam_cmd),
+            (Uuid::new_v4().to_string(), "gog", "1207658924", Some(r"C:\GOG Games\Witcher 3"), gog_exe),
+            (Uuid::new_v4().to_string(), "xbox", "192837", None, xbox_uri),
+            (Uuid::new_v4().to_string(), "amazon", "amzn1.adg.product.123", None, amazon_uri),
+            (Uuid::new_v4().to_string(), "custom", "custom-1", None, custom_exe),
+        ] {
+            conn.execute(
+                "INSERT INTO games (id, library_id, external_id, title, sorting_title, install_dir, is_installed, play_actions, added_timestamp, modified_timestamp)
+                 VALUES (?1, ?2, ?3, ?3, ?3, ?4, 1, ?5, ?6, ?6)",
+                rusqlite::params![id, lib, ext, dir, pa, now],
+            )
+            .unwrap();
+        }
+    }
+
+    let db = Database::open(&path).expect("Migration from v5 should succeed");
+    let games = db.get_all_games().unwrap();
+
+    let steam = games.iter().find(|g| g.library_id == "steam").unwrap();
+    assert!(steam.play_actions.is_empty(), "Steam store cmd must be removed from play_actions");
+    assert_eq!(steam.library_play_action.as_ref().unwrap().executable, "cmd.exe");
+
+    let gog = games.iter().find(|g| g.library_id == "gog").unwrap();
+    assert!(gog.play_actions.is_empty(), "GOG exe must be removed from play_actions");
+    assert_eq!(
+        gog.library_play_action.as_ref().unwrap().executable,
+        r"C:\GOG Games\Witcher 3\bin\x64\witcher3.exe"
+    );
+
+    let xbox = games.iter().find(|g| g.library_id == "xbox").unwrap();
+    assert!(xbox.play_actions.is_empty());
+    assert!(xbox
+        .library_play_action
+        .as_ref()
+        .unwrap()
+        .executable
+        .starts_with("ms-windows-store://"));
+
+    let amazon = games.iter().find(|g| g.library_id == "amazon").unwrap();
+    assert!(amazon.play_actions.is_empty());
+    assert!(amazon
+        .library_play_action
+        .as_ref()
+        .unwrap()
+        .executable
+        .starts_with("amazon-games://"));
+
+    let custom = games.iter().find(|g| g.library_id == "custom").unwrap();
+    assert_eq!(custom.play_actions.len(), 1);
+    assert!(custom.library_play_action.is_none());
+
+    drop(db);
+    let _ = std::fs::remove_file(&path);
+    let _ = std::fs::remove_file(format!("{}-wal", path.display()));
+    let _ = std::fs::remove_file(format!("{}-shm", path.display()));
+}
+
+#[test]
+fn test_v10_migration_repairs_v9_dbs_with_leftover_store_actions_without_touching_custom_trainers() {
+    use omnis_sdk::ProcessTrackingMode;
+
+    let db = Database::new_in_memory().expect("open in-memory db");
+    let now = chrono::Utc::now().to_rfc3339();
+
+    let steam_synced_dup_id = Uuid::new_v4();
+    let steam_synced_with_trainer_id = Uuid::new_v4();
+    let gog_synced_dup_id = Uuid::new_v4();
+    let gog_unsynced_id = Uuid::new_v4();
+    let steam_trainer_only_id = Uuid::new_v4();
+
+    let steam_cmd = LaunchConfiguration {
+        executable: "cmd.exe".to_string(),
+        arguments: vec![
+            "/c".to_string(),
+            "start".to_string(),
+            "".to_string(),
+            "steam://rungameid/620".to_string(),
+        ],
+        working_dir: None,
+        tracking_mode: ProcessTrackingMode::KernelJobObject,
+    };
+    let trainer = LaunchConfiguration {
+        executable: r"C:\Tools\trainer.exe".to_string(),
+        arguments: vec![],
+        working_dir: None,
+        tracking_mode: ProcessTrackingMode::KernelJobObject,
+    };
+    let gog_exe = LaunchConfiguration {
+        executable: r"C:\GOG Games\Cyberpunk\bin\x64\Cyberpunk2077.exe".to_string(),
+        arguments: vec![],
+        working_dir: Some(PathBuf::from(r"C:\GOG Games\Cyberpunk\bin\x64")),
+        tracking_mode: ProcessTrackingMode::ProcessName("Cyberpunk2077.exe".to_string()),
+    };
+
+    {
+        let conn = db.writer();
+        // 1. Steam synced on v0.24.1: library_play_action = steam_cmd AND play_actions = [steam_cmd]
+        conn.execute(
+            "INSERT INTO games (id, library_id, external_id, title, sorting_title, is_installed, play_actions, library_play_action, added_timestamp, modified_timestamp)
+             VALUES (?1, 'steam', '620', 'Portal 2', 'portal 2', 1, ?2, ?3, ?4, ?4)",
+            rusqlite::params![
+                steam_synced_dup_id.to_string(),
+                serde_json::to_string(&vec![steam_cmd.clone()]).unwrap(),
+                serde_json::to_string(&steam_cmd).unwrap(),
+                now
+            ],
+        )
+        .unwrap();
+
+        // 2. Steam synced on v0.24.1 with user trainer: library_play_action = steam_cmd, play_actions = [steam_cmd, trainer]
+        conn.execute(
+            "INSERT INTO games (id, library_id, external_id, title, sorting_title, is_installed, play_actions, library_play_action, added_timestamp, modified_timestamp)
+             VALUES (?1, 'steam', '400', 'Portal', 'portal', 1, ?2, ?3, ?4, ?4)",
+            rusqlite::params![
+                steam_synced_with_trainer_id.to_string(),
+                serde_json::to_string(&vec![steam_cmd.clone(), trainer.clone()]).unwrap(),
+                serde_json::to_string(&steam_cmd).unwrap(),
+                now
+            ],
+        )
+        .unwrap();
+
+        // 3. GOG synced on v0.24.1: library_play_action = gog_exe AND play_actions = [gog_exe]
+        conn.execute(
+            "INSERT INTO games (id, library_id, external_id, title, sorting_title, install_dir, is_installed, play_actions, library_play_action, added_timestamp, modified_timestamp)
+             VALUES (?1, 'gog', '100', 'Cyberpunk', 'cyberpunk', ?2, 1, ?3, ?4, ?5, ?5)",
+            rusqlite::params![
+                gog_synced_dup_id.to_string(),
+                r"C:\GOG Games\Cyberpunk",
+                serde_json::to_string(&vec![gog_exe.clone()]).unwrap(),
+                serde_json::to_string(&gog_exe).unwrap(),
+                now
+            ],
+        )
+        .unwrap();
+
+        // 4. GOG upgraded to v9, not re-synced yet: library_play_action = NULL, play_actions = [gog_exe]
+        conn.execute(
+            "INSERT INTO games (id, library_id, external_id, title, sorting_title, install_dir, is_installed, play_actions, library_play_action, added_timestamp, modified_timestamp)
+             VALUES (?1, 'gog', '101', 'Cyberpunk 2', 'cyberpunk 2', ?2, 1, ?3, NULL, ?4, ?4)",
+            rusqlite::params![
+                gog_unsynced_id.to_string(),
+                r"C:\GOG Games\Cyberpunk",
+                serde_json::to_string(&vec![gog_exe.clone()]).unwrap(),
+                now
+            ],
+        )
+        .unwrap();
+
+        // 5. Steam game without library_play_action where user added only a custom trainer (Bug b setup)
+        conn.execute(
+            "INSERT INTO games (id, library_id, external_id, title, sorting_title, is_installed, play_actions, library_play_action, added_timestamp, modified_timestamp)
+             VALUES (?1, 'steam', '730', 'CS2', 'cs2', 1, ?2, NULL, ?3, ?3)",
+            rusqlite::params![
+                steam_trainer_only_id.to_string(),
+                serde_json::to_string(&vec![trainer.clone()]).unwrap(),
+                now
+            ],
+        )
+        .unwrap();
+
+        conn.execute_batch("PRAGMA user_version = 9;").unwrap();
+    }
+
+    db.migrate().expect("Migration v10 failed");
+
+    let g1 = db.get_game_by_id(steam_synced_dup_id).unwrap().unwrap();
+    assert!(g1.play_actions.is_empty());
+    assert_eq!(g1.library_play_action, Some(steam_cmd.clone()));
+
+    let g2 = db.get_game_by_id(steam_synced_with_trainer_id).unwrap().unwrap();
+    assert_eq!(g2.play_actions, vec![trainer.clone()]);
+    assert_eq!(g2.library_play_action, Some(steam_cmd));
+
+    let g3 = db.get_game_by_id(gog_synced_dup_id).unwrap().unwrap();
+    assert!(g3.play_actions.is_empty());
+    assert_eq!(g3.library_play_action, Some(gog_exe.clone()));
+
+    let g4 = db.get_game_by_id(gog_unsynced_id).unwrap().unwrap();
+    assert!(g4.play_actions.is_empty());
+    assert_eq!(g4.library_play_action, Some(gog_exe));
+
+    let g5 = db.get_game_by_id(steam_trainer_only_id).unwrap().unwrap();
+    assert!(g5.library_play_action.is_none());
+    assert_eq!(g5.play_actions, vec![trainer]);
+}
