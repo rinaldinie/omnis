@@ -14,7 +14,7 @@ const mockCounts: LibraryCounts = {
   steam: 5,
   gog: 3,
   epic: 2,
-  xbox: 7,
+  xbox: 0,
   amazon: 9,
   action: 0,
   rpg: 0,
