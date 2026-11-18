@@ -404,6 +404,11 @@ export interface TranslationSchema {
     settings_quick_filters: string;
     reset_quick_filters: string;
     clear_filters: string;
+    category_prev?: string;
+    category_next?: string;
+    wifi_disconnected?: string;
+    charging_percent?: string;
+    battery_percent?: string;
   };
   app_status: {
     theme_activated: string;
@@ -883,6 +888,7 @@ export interface TranslationSchema {
     kill_desc: string;
     kill_confirm: string;
     close_notification: string;
+    notifications?: string;
     session_ended: string;
     played_time: string;
     clear_all_filters_count: string;
@@ -1189,6 +1195,7 @@ export interface TranslationSchema {
     updater_up_to_date: string;
     updater_available: string;
     updater_download_button: string;
+    update_now?: string;
     updater_downloading: string;
     updater_ready_to_install: string;
     updater_relaunch_button: string;
@@ -1204,6 +1211,11 @@ export interface TranslationSchema {
     recent_window_days_30?: string;
     recent_window_days_60?: string;
     recent_window_days_90?: string;
+    recent_window_7d?: string;
+    recent_window_14d?: string;
+    recent_window_30d?: string;
+    recent_window_60d?: string;
+    recent_window_90d?: string;
     playnite_import_what?: string;
     playnite_import_item_catalog?: string;
     playnite_import_item_playtime?: string;
@@ -1645,6 +1657,7 @@ export interface TranslationSchema {
     steamgriddb_auth_title?: string;
     steamgriddb_auth_desc?: string;
     steamgriddb_key_desc?: string;
+    steamgriddb_desc?: string;
     api_key_label?: string;
     opencritic_info_title?: string;
     opencritic_info_desc?: string;

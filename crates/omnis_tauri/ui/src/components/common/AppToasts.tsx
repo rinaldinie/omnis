@@ -144,7 +144,7 @@ export const AppToasts: React.FC<AppToastsProps> = ({
           className="fixed bottom-9 right-6 z-50 flex flex-col-reverse gap-2 max-w-sm w-full pointer-events-none select-none"
           role="region"
           aria-live="polite"
-          aria-label={t("app_misc.notifications", { defaultValue: "Notifiche" })}
+          aria-label={t("app_misc.notifications", { defaultValue: "Notifications" })}
         >
           {/* 1. UPDATE NOTIFICATION */}
           {isUpdateAvailable && (
@@ -188,7 +188,7 @@ export const AppToasts: React.FC<AppToastsProps> = ({
                   color: "var(--bg-base)",
                 }}
               >
-                {t("general_settings.update_now", { defaultValue: "Aggiorna" })}
+                {t("general_settings.update_now", { defaultValue: "Update now" })}
               </Button>
             </div>
           )}
