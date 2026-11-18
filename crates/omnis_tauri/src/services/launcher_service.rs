@@ -661,6 +661,7 @@ pub fn resolve_launch_plan(game: &Game) -> LaunchPlan {
 }
 
 /// Resolves the primary launch configuration for a game, creating default store protocol launcher if none configured.
+#[cfg(test)]
 pub fn resolve_launch_configuration(game: &Game) -> LaunchConfiguration {
     resolve_launch_plan(game).primary
 }

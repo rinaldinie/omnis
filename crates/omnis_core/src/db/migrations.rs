@@ -387,7 +387,15 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
     // Version 10: Reconcile store/plugin launch commands left in play_actions by earlier v6 migration
     if current_version < 10 {
         let tx = conn.unchecked_transaction()?;
-        let rows: Vec<(String, String, Option<String>, String, Option<String>)> = {
+        struct V10ReconcileRow {
+            id: String,
+            library_id: String,
+            install_dir: Option<String>,
+            raw_play_actions: String,
+            raw_lib_action: Option<String>,
+        }
+
+        let rows: Vec<V10ReconcileRow> = {
             let mut stmt = tx.prepare(
                 "SELECT id, library_id, install_dir, play_actions, library_play_action
                  FROM games
@@ -397,13 +405,13 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
                    AND TRIM(play_actions) != '[]';",
             )?;
             let mapped = stmt.query_map([], |row| {
-                Ok((
-                    row.get::<_, String>(0)?,
-                    row.get::<_, String>(1)?,
-                    row.get::<_, Option<String>>(2)?,
-                    row.get::<_, String>(3)?,
-                    row.get::<_, Option<String>>(4)?,
-                ))
+                Ok(V10ReconcileRow {
+                    id: row.get(0)?,
+                    library_id: row.get(1)?,
+                    install_dir: row.get(2)?,
+                    raw_play_actions: row.get(3)?,
+                    raw_lib_action: row.get(4)?,
+                })
             })?;
             mapped.collect::<Result<Vec<_>>>()?
         };
@@ -412,22 +420,23 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
             let mut update_stmt = tx.prepare(
                 "UPDATE games SET library_play_action = ?2, play_actions = ?3 WHERE id = ?1;",
             )?;
-            for (id, library_id, install_dir, raw_play_actions, raw_lib_action) in rows {
-                let Ok(play_actions) = serde_json::from_str::<Vec<LaunchConfiguration>>(&raw_play_actions) else {
+            for row in rows {
+                let Ok(play_actions) = serde_json::from_str::<Vec<LaunchConfiguration>>(&row.raw_play_actions) else {
                     continue;
                 };
                 if play_actions.is_empty() {
                     continue;
                 }
 
-                let existing_lib_action = raw_lib_action
+                let existing_lib_action = row
+                    .raw_lib_action
                     .as_deref()
                     .and_then(|s| serde_json::from_str::<LaunchConfiguration>(s).ok())
                     .filter(|a| !a.executable.trim().is_empty());
 
                 let (next_lib_action, next_play_actions) = reconcile_v10_actions(
-                    &library_id,
-                    install_dir.as_deref(),
+                    &row.library_id,
+                    row.install_dir.as_deref(),
                     existing_lib_action.as_ref(),
                     &play_actions,
                 );
@@ -438,7 +447,7 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
                         .and_then(|a| serde_json::to_string(a).ok());
                     let actions_json =
                         serde_json::to_string(&next_play_actions).unwrap_or_else(|_| "[]".to_string());
-                    update_stmt.execute(params![id, lib_json, actions_json])?;
+                    update_stmt.execute(params![row.id, lib_json, actions_json])?;
                 }
             }
         }
@@ -533,7 +542,7 @@ fn reconcile_v10_actions(
     let mut next_lib_action = existing_lib_action.cloned();
     let mut remaining: Vec<LaunchConfiguration> = Vec::with_capacity(play_actions.len());
 
-    if let Some(ref lib_act) = existing_lib_action {
+    if let Some(lib_act) = existing_lib_action {
         let lib_is_uri = is_store_or_wrapper_action(library_id, lib_act);
         for act in play_actions {
             if actions_equivalent(act, lib_act) || is_store_or_wrapper_action(library_id, act) {
@@ -558,7 +567,7 @@ fn reconcile_v10_actions(
             if is_store_or_wrapper_action(library_id, act) {
                 continue;
             }
-            if let Some(ref promoted) = next_lib_action {
+            if let Some(promoted) = &next_lib_action {
                 if actions_equivalent(act, promoted) {
                     continue;
                 }
