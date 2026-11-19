@@ -1,4 +1,6 @@
+pub mod plan;
 pub mod process_control;
+pub use plan::*;
 pub use process_control::*;
 
 #[cfg(test)]

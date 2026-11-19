@@ -7,7 +7,7 @@ use crate::types::AppState;
 use omnis_core::db::Database;
 use omnis_core::GameLauncher;
 use omnis_sdk::constants::events;
-use omnis_sdk::{Game, LaunchConfiguration, ProcessTrackingMode};
+use omnis_sdk::LaunchConfiguration;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -346,34 +346,13 @@ impl GameLaunchCoordinator {
     }
 }
 
-/// Constructs the installation URI for a given store platform.
-pub fn build_install_uri(library_id: &str, external_id: &str) -> String {
-    match library_id.to_lowercase().as_str() {
-        "steam" => format!("steam://install/{}", external_id),
-        "epic" => format!(
-            "com.epicgames.launcher://apps/{}?action=install",
-            external_id
-        ),
-        "gog" => format!("goggalaxy://openGameView/{}", external_id),
-        "xbox" => format!("ms-windows-store://pdp/?ProductId={}", external_id),
-        "amazon" => format!("amazon-games://play/{}", external_id),
-        _ => format!("steam://install/{}", external_id),
-    }
-}
+pub use omnis_core::launcher::{
+    build_install_uri, has_store_integration, resolve_launch_plan, validate_and_open_store_uri,
+};
 
-/// Constructs the launch URI for a given store platform.
-pub fn build_play_uri(library_id: &str, external_id: &str) -> String {
-    match library_id.to_lowercase().as_str() {
-        "steam" => format!("steam://rungameid/{}", external_id),
-        "epic" => format!(
-            "com.epicgames.launcher://apps/{}?action=launch&silent=true",
-            external_id
-        ),
-        "gog" => format!("goggalaxy://runGame/{}", external_id),
-        "xbox" => format!("ms-windows-store://pdp/?ProductId={}", external_id),
-        "amazon" => format!("amazon-games://play/{}", external_id),
-        _ => format!("steam://rungameid/{}", external_id),
-    }
+fn is_emulated_library(library_id: &str) -> bool {
+    let lower = library_id.trim().to_ascii_lowercase();
+    lower == omnis_plugin_emulators::SWITCH_LIBRARY_ID || lower.starts_with("emulator_")
 }
 
 /// Spawns an auxiliary custom play action (detached) alongside the primary tracked launch.
@@ -397,256 +376,11 @@ fn spawn_auxiliary_action(action: &LaunchConfiguration) {
     }
 }
 
-/// Resolved launch plan containing the primary tracked launch and detached auxiliary actions.
-#[derive(Debug, Clone, PartialEq)]
-pub struct LaunchPlan {
-    pub primary: LaunchConfiguration,
-    pub auxiliary: Vec<LaunchConfiguration>,
-}
-
-fn has_store_integration(library_id: &str) -> bool {
-    matches!(
-        library_id.trim().to_ascii_lowercase().as_str(),
-        "steam" | "epic" | "gog" | "xbox" | "amazon"
-    )
-}
-
-fn is_emulated_library(library_id: &str) -> bool {
-    let lower = library_id.trim().to_ascii_lowercase();
-    lower == omnis_plugin_emulators::SWITCH_LIBRARY_ID || lower.starts_with("emulator_")
-}
-
-fn actions_equivalent(a: &LaunchConfiguration, b: &LaunchConfiguration) -> bool {
-    let exe_a = a.executable.trim().replace('\\', "/").to_ascii_lowercase();
-    let exe_b = b.executable.trim().replace('\\', "/").to_ascii_lowercase();
-    if exe_a != exe_b || a.arguments.len() != b.arguments.len() {
-        return false;
-    }
-    a.arguments
-        .iter()
-        .zip(b.arguments.iter())
-        .all(|(lhs, rhs)| lhs.trim() == rhs.trim())
-}
-
-fn build_store_uri_launch_config(library_id: &str, external_id: &str) -> LaunchConfiguration {
-    let play_uri = build_play_uri(library_id, external_id);
-
-    LaunchConfiguration {
-        executable: if cfg!(windows) {
-            "rundll32.exe".to_string()
-        } else if cfg!(target_os = "macos") {
-            "open".to_string()
-        } else {
-            "xdg-open".to_string()
-        },
-        arguments: if cfg!(windows) {
-            vec!["url.dll,FileProtocolHandler".to_string(), play_uri]
-        } else {
-            vec![play_uri]
-        },
-        working_dir: None,
-        tracking_mode: ProcessTrackingMode::KernelJobObject,
-    }
-}
-
-/// Resolves both the primary tracked launch configuration and auxiliary custom actions,
-/// ensuring the primary command is never repeated in the auxiliary list.
-pub fn resolve_launch_plan(game: &Game) -> LaunchPlan {
-    let valid_custom_actions: Vec<LaunchConfiguration> = game
-        .play_actions
-        .iter()
-        .filter(|a| !a.executable.trim().is_empty())
-        .cloned()
-        .collect();
-    let valid_library_action = game
-        .library_play_action
-        .as_ref()
-        .filter(|a| !a.executable.trim().is_empty())
-        .cloned();
-    let is_custom = game.library_id.eq_ignore_ascii_case("custom");
-
-    // When library integration is disabled or this is a custom game, bypass GOG Galaxy,
-    // library_play_action, and store URIs; use play_actions[0] as primary and [1..] as auxiliary.
-    if !game.use_library_integration || is_custom {
-        if let Some(primary) = valid_custom_actions.first().cloned() {
-            let auxiliary = valid_custom_actions
-                .into_iter()
-                .skip(1)
-                .filter(|aux| !actions_equivalent(aux, &primary))
-                .collect();
-            return LaunchPlan { primary, auxiliary };
-        }
-        return LaunchPlan {
-            primary: LaunchConfiguration {
-                executable: String::new(),
-                arguments: Vec::new(),
-                working_dir: None,
-                tracking_mode: ProcessTrackingMode::KernelJobObject,
-            },
-            auxiliary: Vec::new(),
-        };
-    }
-
-    // For GOG games, if the official GOG Galaxy client (GalaxyClient.exe) is present on the system,
-    // launch via Galaxy CLI args (`/command=runGame /gameId={id} /path="{dir}"`) to ensure the Galaxy
-    // client launches the game directly with overlay, cloud saves, and achievements active.
-    // If GalaxyClient.exe is not installed or detected, fallback to library_play_action, discovered
-    // game executable, or GOG Galaxy URI — never to user custom play_actions.
-    if game.use_library_integration && game.library_id.eq_ignore_ascii_case("gog") {
-        let tracking_mode = if let Some(ref dir) = game.install_dir {
-            ProcessTrackingMode::WatchDirectory(dir.clone())
-        } else {
-            valid_library_action
-                .as_ref()
-                .map(|action| match &action.tracking_mode {
-                    ProcessTrackingMode::ProcessName(name) => {
-                        ProcessTrackingMode::ProcessName(name.clone())
-                    }
-                    _ => {
-                        let exe_name = std::path::Path::new(&action.executable)
-                            .file_name()
-                            .and_then(|f| f.to_str())
-                            .unwrap_or("game.exe");
-                        ProcessTrackingMode::ProcessName(exe_name.to_string())
-                    }
-                })
-                .unwrap_or(ProcessTrackingMode::KernelJobObject)
-        };
-
-        let primary = if let Some(galaxy_exe) = omnis_core::launcher::find_gog_galaxy_client() {
-            let mut args = vec![
-                "/command=runGame".to_string(),
-                format!("/gameId={}", game.external_id),
-            ];
-            if let Some(ref dir) = game.install_dir {
-                args.push(format!("/path=\"{}\"", dir.display()));
-            }
-
-            LaunchConfiguration {
-                executable: galaxy_exe.to_string_lossy().to_string(),
-                arguments: args,
-                working_dir: game.install_dir.clone(),
-                tracking_mode,
-            }
-        } else if let Some(lib_action) = valid_library_action {
-            lib_action
-        } else if let Some(exe_path) = game.install_dir.as_ref().and_then(|dir| {
-            omnis_core::launcher::find_gog_game_executable(dir)
-                .or_else(|| omnis_core::launcher::find_primary_game_executable(dir))
-        }) {
-            let exe_name = exe_path
-                .file_name()
-                .and_then(|f| f.to_str())
-                .unwrap_or("game.exe");
-            LaunchConfiguration {
-                executable: exe_path.to_string_lossy().to_string(),
-                arguments: vec![],
-                working_dir: game.install_dir.clone(),
-                tracking_mode: ProcessTrackingMode::ProcessName(exe_name.to_string()),
-            }
-        } else {
-            build_store_uri_launch_config(&game.library_id, &game.external_id)
-        };
-
-        let auxiliary = valid_custom_actions
-            .into_iter()
-            .filter(|aux| !actions_equivalent(aux, &primary))
-            .collect();
-        return LaunchPlan { primary, auxiliary };
-    }
-
-    if let Some(library_action) = valid_library_action {
-        let auxiliary = valid_custom_actions
-            .into_iter()
-            .filter(|aux| !actions_equivalent(aux, &library_action))
-            .collect();
-        return LaunchPlan {
-            primary: library_action,
-            auxiliary,
-        };
-    }
-
-    // Store-backed libraries without library_play_action must fall back to the store URI,
-    // keeping custom play_actions strictly auxiliary so play_actions[0] is never run twice.
-    if has_store_integration(&game.library_id) {
-        let primary = build_store_uri_launch_config(&game.library_id, &game.external_id);
-        let auxiliary = valid_custom_actions
-            .into_iter()
-            .filter(|aux| !actions_equivalent(aux, &primary))
-            .collect();
-        return LaunchPlan { primary, auxiliary };
-    }
-
-    // Non-store libraries (e.g. emulators or third-party imports without library_play_action)
-    // fall back to play_actions[0] and skip it from auxiliary actions.
-    if let Some(primary) = valid_custom_actions.first().cloned() {
-        let auxiliary = valid_custom_actions
-            .into_iter()
-            .skip(1)
-            .filter(|aux| !actions_equivalent(aux, &primary))
-            .collect();
-        return LaunchPlan { primary, auxiliary };
-    }
-
-    LaunchPlan {
-        primary: build_store_uri_launch_config(&game.library_id, &game.external_id),
-        auxiliary: Vec::new(),
-    }
-}
-
-/// Resolves the primary launch configuration for a game, creating default store protocol launcher if none configured.
-#[cfg(test)]
-pub fn resolve_launch_configuration(game: &Game) -> LaunchConfiguration {
-    resolve_launch_plan(game).primary
-}
-
-/// Validates that a store URI conforms to authorized scheme whitelist and contains no malicious command injection characters.
-pub fn validate_and_open_store_uri(uri: &str) -> Result<(), String> {
-    let allowed_schemes = [
-        "steam://",
-        "com.epicgames.launcher://",
-        "goggalaxy://",
-        "ms-windows-store://",
-        "amazon-games://",
-    ];
-    if !allowed_schemes.iter().any(|scheme| uri.starts_with(scheme)) {
-        return Err("Protocollo URI non autorizzato".to_string());
-    }
-    if uri
-        .chars()
-        .any(|c| c.is_control() || "&|;<>^%\"' \r\n\t".contains(c))
-    {
-        return Err("URI contiene caratteri non consentiti".to_string());
-    }
-
-    #[cfg(windows)]
-    {
-        std::process::Command::new("rundll32.exe")
-            .args(["url.dll,FileProtocolHandler", uri])
-            .spawn()
-            .map_err(|e| format!("Impossibile aprire il protocollo: {}", e))?;
-    }
-    #[cfg(target_os = "macos")]
-    {
-        std::process::Command::new("open")
-            .arg(uri)
-            .spawn()
-            .map_err(|e| format!("Impossibile aprire il protocollo: {}", e))?;
-    }
-    #[cfg(not(any(windows, target_os = "macos")))]
-    {
-        std::process::Command::new("xdg-open")
-            .arg(uri)
-            .spawn()
-            .map_err(|e| format!("Impossibile aprire il protocollo: {}", e))?;
-    }
-
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use omnis_core::launcher::{build_play_uri, resolve_launch_configuration};
+    use omnis_sdk::{Game, ProcessTrackingMode};
 
     #[test]
     fn test_build_install_uri() {
