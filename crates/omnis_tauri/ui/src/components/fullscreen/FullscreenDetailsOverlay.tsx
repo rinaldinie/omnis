@@ -1,6 +1,6 @@
 import React from "react";
 import { Play } from "lucide-react";
-import { GameDto, ActiveGameSession, GameAchievementsSummary, TranslateFn } from "../../types";
+import { GameDto, ActiveGameSession, GameAchievementsSummary, TranslateFn, isGamePlayable } from "../../types";
 import type { GameAction } from "../views/FullscreenView";
 import { ArtImage } from "./FullscreenCards";
 import { FullscreenAchievementsCard } from "./FullscreenAchievementsCard";
@@ -167,7 +167,7 @@ export const FullscreenDetailsOverlay: React.FC<FullscreenDetailsOverlayProps> =
                   ) : (
                     <>
                       <Play className="w-5 h-5 fill-white" />
-                      {activeDetailGame.is_installed ? t("console_ui.play") : t("console_ui.install")}
+                      {isGamePlayable(activeDetailGame) ? t("console_ui.play") : t("console_ui.install")}
                     </>
                   )}
                 </button>

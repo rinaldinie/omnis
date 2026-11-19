@@ -4,7 +4,59 @@
 //! DirectX / Vulkan game termination transitions, DPI scaling edge cases, and Windows Shell
 //! taskbar occlusion bugs.
 
-use tauri::Window;
+use serde::{Deserialize, Serialize};
+use tauri::{Manager, Window};
+
+/// Saved window state prior to game launch to restore geometry and fullscreen upon exit.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WindowStateSnapshot {
+    pub was_fullscreen: bool,
+}
+
+impl WindowStateSnapshot {
+    /// Captures the current window state without minimizing.
+    pub fn capture(app_handle: &tauri::AppHandle) -> Self {
+        let mut snapshot = Self::default();
+        if let Some(window) = app_handle.get_webview_window("main") {
+            snapshot.was_fullscreen = window.is_fullscreen().unwrap_or(false);
+
+            // Grant foreground permission in advance to bypass OS restrictions
+            omnis_core::launcher::allow_set_foreground_window();
+        }
+        snapshot
+    }
+
+    /// Restores window geometry, focus, and fullscreen status after a game terminates.
+    pub async fn restore(&self, app_handle: &tauri::AppHandle) {
+        if let Some(window) = app_handle.get_webview_window("main") {
+            // Allow 300ms for DirectX/Vulkan game teardown and Windows desktop resolution restoration
+            tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+
+            if self.was_fullscreen {
+                // In fullscreen / console mode: re-assert fullscreen geometry and force foreground
+                // over any restored taskbar
+                ensure_fullscreen_geometry(&window.as_ref().window());
+
+                // Secondary settling check in case Windows display resolution change took longer
+                let w_clone = window.clone();
+                tauri::async_runtime::spawn(async move {
+                    tokio::time::sleep(std::time::Duration::from_millis(350)).await;
+                    if w_clone.is_fullscreen().unwrap_or(false) {
+                        ensure_fullscreen_geometry(&w_clone.as_ref().window());
+                    }
+                });
+            } else {
+                // In desktop mode: the window is never automatically minimized, so geometry & position remain intact.
+                // In case the user manually minimized it during the game session, unminimize and bring to front.
+                if window.is_minimized().unwrap_or(false) {
+                    let _ = window.unminimize();
+                }
+                let _ = window.show();
+                force_foreground(&window.as_ref().window());
+            }
+        }
+    }
+}
 
 /// Ensures that a window is in genuine, unconstrained fullscreen mode covering the exact
 /// monitor rectangle, clearing any maximized state and forcing top-level foreground focus.

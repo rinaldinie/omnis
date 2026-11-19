@@ -3,19 +3,12 @@ import { useLibraryStore, useUiStore, type MetadataDownloadState } from "../stor
 import type { GameDto } from "../types";
 import { getErrorMessage } from "../utils/errors";
 
-const ACHIEVEMENT_STORES = ["steam", "gog", "epic", "xbox"];
-
 const COMPLETED_CLEAR_MS = 5000;
 const ERROR_CLEAR_MS = 8000;
 
 let isBatchCancelled = false;
 let activeBatchPromise: Promise<number> | null = null;
 let autoClearTimer: ReturnType<typeof setTimeout> | null = null;
-
-function supportsStoreAchievements(library?: string | null): boolean {
-  const store = (library || "").toLowerCase();
-  return ACHIEVEMENT_STORES.some((s) => store.includes(s));
-}
 
 function clearAutoDismissTimer(): void {
   if (autoClearTimer !== null) {
@@ -62,7 +55,7 @@ export function startBatchEnrichment({
   fetchHltb,
   fetchAchievements,
   preparingLabel,
-  achievementsLabel,
+  achievementsLabel: _achievementsLabel,
   onComplete,
 }: StartBatchEnrichmentOptions): Promise<number> | null {
   if (games.length === 0) return null;
@@ -84,55 +77,12 @@ export function startBatchEnrichment({
 
   const run = async (): Promise<number> => {
     try {
-      // Step 1: Metadata & Artwork Batch Download
-      if (fetchMetadata && !isBatchCancelled) {
-        await api.metadata.downloadBatchMetadata(games.map((g) => g.id));
-      }
-
-      // Step 2: HowLongToBeat when metadata was skipped (metadata pipeline already includes HLTB)
-      if (fetchHltb && !fetchMetadata && !isBatchCancelled) {
-        for (let i = 0; i < games.length; i++) {
-          if (isBatchCancelled) break;
-          const game = games[i];
-          setMetadataDownload({
-            status: "running",
-            mode: "batch",
-            current: i + 1,
-            total: totalSteps,
-            title: `HowLongToBeat: ${game.title}`,
-          });
-          try {
-            await api.games.refreshGameHowlongtobeat(game.id);
-          } catch (e) {
-            console.debug(`HLTB fetch skipped for ${game.title}:`, e);
-          }
-        }
-      }
-
-      // Step 3: Store Achievements (skip games already confirmed to have no trophies)
-      if (fetchAchievements && !isBatchCancelled) {
-        const achievementEligible = games.filter(
-          (g) =>
-            supportsStoreAchievements(g.library) &&
-            g.achievements_sync_status !== "none"
-        );
-        for (let i = 0; i < achievementEligible.length; i++) {
-          if (isBatchCancelled) break;
-          const game = achievementEligible[i];
-          setMetadataDownload({
-            status: "running",
-            mode: "batch",
-            current: i + 1,
-            total: achievementEligible.length,
-            title: `${achievementsLabel}: ${game.title}`,
-          });
-          try {
-            await api.achievements.refreshGameAchievements(game.id);
-          } catch (e) {
-            console.debug(`Achievements fetch skipped for ${game.title}:`, e);
-          }
-        }
-      }
+      const updatedCount = await api.metadata.startBatchEnrichment({
+        gameIds: games.map((g) => g.id),
+        fetchMetadata,
+        fetchHltb,
+        fetchAchievements,
+      });
 
       const prev = useUiStore.getState().metadataDownload;
       if (isBatchCancelled) {
@@ -155,7 +105,7 @@ export function startBatchEnrichment({
       scheduleMetadataDownloadClear(COMPLETED_CLEAR_MS);
 
       await (onComplete ? onComplete() : useLibraryStore.getState().refreshLibrary());
-      return totalSteps;
+      return updatedCount;
     } catch (err: unknown) {
       const errorMsg = getErrorMessage(err);
       setMetadataDownload((prev) => ({

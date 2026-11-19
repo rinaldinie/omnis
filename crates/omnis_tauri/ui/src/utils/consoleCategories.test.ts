@@ -54,6 +54,7 @@ describe("consoleCategories", () => {
       expect(visible).toContain("steam");
       expect(visible).toContain("gog");
       expect(visible).toContain("epic");
+      expect(visible).toContain("amazon");
       expect(visible).not.toContain("xbox"); // 0 games and not pinned
     });
 

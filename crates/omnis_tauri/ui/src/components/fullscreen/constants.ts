@@ -28,6 +28,7 @@ export const STORE_LABELS: Record<string, string> = {
   steam: "Steam",
   epic: "Epic Games",
   gog: "GOG",
+  amazon: "Amazon Games",
   xbox: "Xbox",
   switch: "Switch",
 };

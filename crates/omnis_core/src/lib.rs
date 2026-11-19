@@ -6,6 +6,7 @@ pub mod fuzzy_index;
 pub mod host;
 pub mod launcher;
 pub mod metadata;
+pub mod os;
 pub mod playnite;
 pub mod search;
 pub mod security;
@@ -28,8 +29,10 @@ pub use event_bus::EventBus;
 pub use fuzzy_index::{FuzzyGameSearchIndex, SearchItem};
 pub use host::PluginHost;
 pub use launcher::{
-    get_current_app_memory_bytes, get_process_tree_memory_bytes,
-    get_process_tree_memory_from_system, GameLauncher,
+    build_install_uri, build_play_uri, get_current_app_memory_bytes,
+    get_process_tree_memory_bytes, get_process_tree_memory_from_system,
+    has_store_integration, resolve_launch_configuration, resolve_launch_plan,
+    validate_and_open_store_uri, GameLauncher, LaunchPlan,
 };
 pub use metadata::{
     FallbackMetadataGenerator, GogMetadataProvider, HowLongToBeatProvider, HttpMediaDownloader,
@@ -37,6 +40,7 @@ pub use metadata::{
     MetadataPipelineConfig, MetadataRegistry, OpenCriticProvider, ProviderInfo, ProviderRegistry,
     SteamGridDbProvider, SteamMetadataProvider,
 };
+pub use os::{parse_windows_arguments, resolve_executable_path_sync, ResolvedExecutable};
 pub use playnite::{
     execute_playnite_backup_import, export_csharp_script, inspect_playnite_backup,
     map_playnite_plugin_id, scan_litedb_games, BsonDocument, BsonValue, LiteDbError,

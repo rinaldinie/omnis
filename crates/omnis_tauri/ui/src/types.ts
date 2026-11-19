@@ -27,6 +27,7 @@ export interface DuplicateCopyDto {
   title: string;
   library: string;
   is_installed: boolean;
+  is_playable?: boolean;
   playtime_seconds: number;
   playtime_formatted: string;
   is_hidden: boolean;
@@ -67,6 +68,7 @@ export interface GameDto {
   title: string;
   library: string;
   is_installed: boolean;
+  is_playable?: boolean;
   playtime_seconds: number;
   playtime_formatted: string;
   critic_score: number | null;
@@ -910,6 +912,13 @@ export interface MetadataCandidateDto {
   };
 }
 
+export interface BatchEnrichmentPayload {
+  gameIds: string[];
+  fetchMetadata: boolean;
+  fetchHltb: boolean;
+  fetchAchievements: boolean;
+}
+
 export interface WidgetLink {
   title: string;
   url: string;
@@ -921,4 +930,35 @@ export type SlotWidget =
   | { type: "progress"; label: string; value: number; max: number }
   | { type: "link-list"; links: WidgetLink[] }
   | { type: "text"; content: string };
+
+/**
+ * Determines whether a game is immediately playable (ready to launch),
+ * either because it's marked installed, or because library integration is off
+ * with configured custom play actions, or it is a custom game with play actions.
+ */
+export function isGamePlayable(game: {
+  is_installed: boolean;
+  is_playable?: boolean;
+  library?: string;
+  use_library_integration?: boolean;
+  play_actions?: Array<{ executable?: string }>;
+}): boolean {
+  if (game.is_playable !== undefined) {
+    return game.is_playable;
+  }
+  if (game.is_installed) {
+    return true;
+  }
+  const hasValidAction =
+    Array.isArray(game.play_actions) &&
+    game.play_actions.some((a) => a.executable && a.executable.trim().length > 0);
+
+  if (game.library?.toLowerCase() === "custom" && hasValidAction) {
+    return true;
+  }
+  if (game.use_library_integration === false && hasValidAction) {
+    return true;
+  }
+  return false;
+}
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, lazy, Suspense } from "react";
+import React, { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import {
   GameDto,
   GroupBy,
@@ -8,8 +8,9 @@ import {
 } from "../../types";
 import type { GameSortMode } from "../../utils/sortGames";
 import type { FilterCounts } from "../navigation/FilterAndSortPopover";
-import type { FilterChip, FilterMatchMode } from "../../hooks/useLibraryFilters";
+import type { FilterChip, FilterMatchMode, useLibraryFilters } from "../../hooks/useLibraryFilters";
 import { useLibraryStore, useUiStore } from "../../stores";
+import { useOptionalGameOperationsContext } from "../../context/GameOperationsContext";
 import TopBar from "../navigation/TopBar";
 import Sidebar from "../navigation/Sidebar";
 import VideoBackdrop from "../common/VideoBackdrop";
@@ -27,143 +28,168 @@ const StatisticsDashboardView = lazy(() => import("./StatisticsDashboardView"));
 
 export interface DesktopViewProps {
   currentTheme: ThemeConfig;
-  searchQuery: string;
-  setSearchQuery: (q: string) => void;
+  filters?: ReturnType<typeof useLibraryFilters>;
+  searchQuery?: string;
+  setSearchQuery?: (q: string) => void;
   toggleFullscreen: () => void;
   handleToggleSound: () => void;
   loadProvidersAndConfig: () => void;
   providers: ProviderInfo[];
-  handleSync: () => void;
+  handleSync?: () => void;
   handleMinimize: () => void;
   handleToggleMaximize: () => void;
   handleClose: () => void;
   handleStartDragging: (e: React.MouseEvent) => void;
   t: TranslateFn;
   formatDuration: (s: number) => string;
-  handleKillRunningGame: () => void;
-  activeFilter: string;
-  setActiveFilter: (filter: string) => void;
-  isFilterActive: (filter: string) => boolean;
+  handleKillRunningGame?: () => void;
+  activeFilter?: string;
+  setActiveFilter?: (filter: string) => void;
+  isFilterActive?: (filter: string) => boolean;
   gamepadConnected: boolean;
   gamepadName: string;
-  handleOpenFolder: (folder: string) => void;
-  sortMode: GameSortMode;
-  setSortMode: (mode: GameSortMode) => void;
-  selectedFlags: string[];
-  toggleFlag: (flag: string) => void;
-  selectedStatuses: string[];
-  toggleStatus: (status: string) => void;
-  selectedStores: string[];
-  toggleStore: (store: string) => void;
-  selectedGenres: string[];
-  toggleGenre: (genre: string) => void;
+  handleOpenFolder?: (folder: string) => void;
+  sortMode?: GameSortMode;
+  setSortMode?: (mode: GameSortMode) => void;
+  selectedFlags?: string[];
+  toggleFlag?: (flag: string) => void;
+  selectedStatuses?: string[];
+  toggleStatus?: (status: string) => void;
+  selectedStores?: string[];
+  toggleStore?: (store: string) => void;
+  selectedGenres?: string[];
+  toggleGenre?: (genre: string) => void;
   genreMatchMode?: FilterMatchMode;
   setGenreMatchMode?: (mode: FilterMatchMode) => void;
-  selectedFeatures: string[];
-  toggleFeature: (feature: string) => void;
+  selectedFeatures?: string[];
+  toggleFeature?: (feature: string) => void;
   featureMatchMode?: FilterMatchMode;
   setFeatureMatchMode?: (mode: FilterMatchMode) => void;
-  clearAllFilters: () => void;
-  totalActiveFilters: number;
-  filterCounts: FilterCounts;
+  clearAllFilters?: () => void;
+  totalActiveFilters?: number;
+  filterCounts?: FilterCounts;
   availableGenres: string[];
   availableFeatures: string[];
-  activeChips: FilterChip[];
-  removeFilterChip: (id: string) => void;
-  filteredGames: GameDto[];
-  groupedGames: Record<string, GameDto[]>;
-  groupBy: GroupBy;
-  setGroupBy: (mode: GroupBy) => void;
-  collapsedGroups: Record<string, boolean>;
-  toggleGroup: (group: string) => void;
+  activeChips?: FilterChip[];
+  removeFilterChip?: (id: string) => void;
+  filteredGames?: GameDto[];
+  groupedGames?: Record<string, GameDto[]>;
+  groupBy?: GroupBy;
+  setGroupBy?: (mode: GroupBy) => void;
+  collapsedGroups?: Record<string, boolean>;
+  toggleGroup?: (group: string) => void;
   currentGroupLabel: string;
-  detailsSearchQuery: string;
-  setDetailsSearchQuery: (q: string) => void;
-  detailsFilteredGames: GameDto[];
+  detailsSearchQuery?: string;
+  setDetailsSearchQuery?: (q: string) => void;
+  detailsFilteredGames?: GameDto[];
   handleOpenContextMenu: (e: React.MouseEvent, game: GameDto) => void;
-  handleLaunch: (gameId: string) => void;
-  handleEnrichSingleGame: (gameId: string) => void;
-  handleRefreshHltb: (gameId: string) => void;
-  isEnrichingSingle: boolean;
-  handleOpenInstallDir: (gameId: string) => void;
-  handleCreateShortcut: (gameId: string) => void;
-  handleVerifyFiles: (gameId: string) => void;
-  handleOpenUninstallModal: (game: GameDto) => void;
-  handleRemoveFromLibrary: (gameId: string) => void;
+  handleLaunch?: (gameId: string) => void;
+  handleEnrichSingleGame?: (gameId: string) => void;
+  handleRefreshHltb?: (gameId: string) => void;
+  isEnrichingSingle?: boolean;
+  handleOpenInstallDir?: (gameId: string) => void;
+  handleCreateShortcut?: (gameId: string) => void;
+  handleVerifyFiles?: (gameId: string) => void;
+  handleOpenUninstallModal?: (game: GameDto) => void;
+  handleRemoveFromLibrary?: (gameId: string) => void;
   handleToggleHidden?: (game: GameDto) => void;
   handleToggleFavorite?: (game: GameDto) => void;
   handlePromoteCopy?: (copyId: string) => void;
 }
 
-export const DesktopView: React.FC<DesktopViewProps> = ({
-  currentTheme,
-  searchQuery,
-  setSearchQuery,
-  toggleFullscreen,
-  handleToggleSound,
-  loadProvidersAndConfig,
-  providers,
-  handleSync,
-  handleMinimize,
-  handleToggleMaximize,
-  handleClose,
-  handleStartDragging,
-  t,
-  formatDuration,
-  handleKillRunningGame,
-  activeFilter,
-  setActiveFilter,
-  isFilterActive,
-  gamepadConnected,
-  gamepadName,
-  handleOpenFolder,
-  sortMode,
-  setSortMode,
-  selectedFlags,
-  toggleFlag,
-  selectedStatuses,
-  toggleStatus,
-  selectedStores,
-  toggleStore,
-  selectedGenres,
-  toggleGenre,
-  genreMatchMode,
-  setGenreMatchMode,
-  selectedFeatures,
-  toggleFeature,
-  featureMatchMode,
-  setFeatureMatchMode,
-  clearAllFilters,
-  totalActiveFilters,
-  filterCounts,
-  availableGenres,
-  availableFeatures,
-  activeChips,
-  removeFilterChip,
-  filteredGames,
-  groupedGames,
-  groupBy,
-  setGroupBy,
-  collapsedGroups,
-  toggleGroup,
-  currentGroupLabel,
-  detailsSearchQuery,
-  setDetailsSearchQuery,
-  detailsFilteredGames,
-  handleOpenContextMenu,
-  handleLaunch,
-  handleEnrichSingleGame,
-  handleRefreshHltb,
-  isEnrichingSingle,
-  handleOpenInstallDir,
-  handleCreateShortcut,
-  handleVerifyFiles,
-  handleOpenUninstallModal,
-  handleRemoveFromLibrary,
-  handleToggleHidden,
-  handleToggleFavorite,
-  handlePromoteCopy,
-}) => {
+export const DesktopView: React.FC<DesktopViewProps> = (props) => {
+  const gameOps = useOptionalGameOperationsContext();
+  const f = props.filters;
+
+  const {
+    currentTheme,
+    toggleFullscreen,
+    handleToggleSound,
+    loadProvidersAndConfig,
+    providers,
+    handleMinimize,
+    handleToggleMaximize,
+    handleClose,
+    handleStartDragging,
+    t,
+    formatDuration,
+    gamepadConnected,
+    gamepadName,
+    availableGenres,
+    availableFeatures,
+    currentGroupLabel,
+    handleOpenContextMenu,
+  } = props;
+
+  // Filters (resolved from props.filters or individual props for backward compatibility)
+  const searchQuery = props.searchQuery ?? f?.searchQuery ?? "";
+  const setSearchQuery = props.setSearchQuery ?? f?.setSearchQuery ?? (() => {});
+  const activeFilter = props.activeFilter ?? f?.activeFilter ?? "all";
+  const setActiveFilter = props.setActiveFilter ?? f?.setActiveFilter ?? (() => {});
+  const isFilterActive = props.isFilterActive ?? f?.isFilterActive ?? (() => false);
+  const sortMode = props.sortMode ?? f?.sortMode ?? "title";
+  const setSortMode = props.setSortMode ?? f?.setSortMode ?? (() => {});
+  const selectedFlags = props.selectedFlags ?? f?.selectedFlags ?? [];
+  const toggleFlag = props.toggleFlag ?? f?.toggleFlag ?? (() => {});
+  const selectedStatuses = props.selectedStatuses ?? f?.selectedStatuses ?? [];
+  const toggleStatus = props.toggleStatus ?? f?.toggleStatus ?? (() => {});
+  const selectedStores = props.selectedStores ?? f?.selectedStores ?? [];
+  const toggleStore = props.toggleStore ?? f?.toggleStore ?? (() => {});
+  const selectedGenres = props.selectedGenres ?? f?.selectedGenres ?? [];
+  const toggleGenre = props.toggleGenre ?? f?.toggleGenre ?? (() => {});
+  const genreMatchMode = props.genreMatchMode ?? f?.genreMatchMode;
+  const setGenreMatchMode = props.setGenreMatchMode ?? f?.setGenreMatchMode;
+  const selectedFeatures = props.selectedFeatures ?? f?.selectedFeatures ?? [];
+  const toggleFeature = props.toggleFeature ?? f?.toggleFeature ?? (() => {});
+  const featureMatchMode = props.featureMatchMode ?? f?.featureMatchMode;
+  const setFeatureMatchMode = props.setFeatureMatchMode ?? f?.setFeatureMatchMode;
+  const clearAllFilters = props.clearAllFilters ?? f?.clearAllFilters ?? (() => {});
+  const totalActiveFilters = props.totalActiveFilters ?? f?.totalActiveFilters ?? 0;
+  const defaultFilterCounts: FilterCounts = {
+    total: 0,
+    installed: 0,
+    favorites: 0,
+    recent: 0,
+    stores: {},
+    statuses: {},
+    genres: {},
+    features: {},
+  };
+  const filterCounts = props.filterCounts ?? f?.filterCounts ?? defaultFilterCounts;
+  const activeChips = props.activeChips ?? f?.activeChips ?? [];
+  const removeFilterChip = props.removeFilterChip ?? f?.removeFilterChip ?? (() => {});
+  const filteredGames = props.filteredGames ?? f?.filteredGames ?? [];
+  const groupedGames = props.groupedGames ?? f?.groupedGames ?? {};
+  const groupBy = props.groupBy ?? f?.groupBy ?? "none";
+  const setGroupBy = props.setGroupBy ?? f?.setGroupBy ?? (() => {});
+  const collapsedGroups = props.collapsedGroups ?? f?.collapsedGroups ?? {};
+  const toggleGroup = props.toggleGroup ?? f?.toggleGroup ?? (() => {});
+  const detailsSearchQuery = props.detailsSearchQuery ?? f?.detailsSearchQuery ?? "";
+  const propSetDetailsSearchQuery = props.setDetailsSearchQuery ?? f?.setDetailsSearchQuery;
+  const setDetailsSearchQuery = useCallback(
+    (q: string) => {
+      propSetDetailsSearchQuery?.(q);
+    },
+    [propSetDetailsSearchQuery]
+  );
+  const detailsFilteredGames = props.detailsFilteredGames ?? f?.detailsFilteredGames ?? [];
+
+  // Game Operations (resolved from GameOperationsContext or individual props)
+  const handleSync = props.handleSync ?? gameOps?.handleSync ?? (() => {});
+  const handleKillRunningGame = props.handleKillRunningGame ?? gameOps?.handleKillRunningGame ?? (() => {});
+  const handleOpenFolder = props.handleOpenFolder ?? gameOps?.handleOpenFolder ?? (() => {});
+  const handleLaunch = props.handleLaunch ?? gameOps?.handleLaunch ?? (() => {});
+  const handleEnrichSingleGame = props.handleEnrichSingleGame ?? gameOps?.handleEnrichSingleGame ?? (() => {});
+  const handleRefreshHltb = props.handleRefreshHltb ?? gameOps?.handleRefreshHltb ?? (() => {});
+  const isEnrichingSingle = props.isEnrichingSingle ?? gameOps?.isEnrichingSingle ?? false;
+  const handleOpenInstallDir = props.handleOpenInstallDir ?? gameOps?.handleOpenInstallDir ?? (() => {});
+  const handleCreateShortcut = props.handleCreateShortcut ?? gameOps?.handleCreateShortcut ?? (() => {});
+  const handleVerifyFiles = props.handleVerifyFiles ?? gameOps?.handleVerifyFiles ?? (() => {});
+  const handleOpenUninstallModal = props.handleOpenUninstallModal ?? gameOps?.handleOpenUninstallModal ?? (() => {});
+  const handleRemoveFromLibrary = props.handleRemoveFromLibrary ?? gameOps?.handleRemoveFromLibrary ?? (() => {});
+  const handleToggleHidden = props.handleToggleHidden ?? gameOps?.handleToggleHidden;
+  const handleToggleFavorite = props.handleToggleFavorite ?? gameOps?.handleToggleFavorite;
+  const handlePromoteCopy = props.handlePromoteCopy ?? gameOps?.handlePromoteCopy;
   const { games, counts, selectedGame, setSelectedGame } = useLibraryStore();
   const {
     viewMode,

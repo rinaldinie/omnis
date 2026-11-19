@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Play, Download, Pencil, Search, Info, FolderOpen, Monitor, ShieldCheck, Trash2, XCircle, CheckCircle2, ChevronRight, Check, Eye, EyeOff, Layers, Star } from "lucide-react";
-import { GameDto } from "../../types";
+import { GameDto, isGamePlayable } from "../../types";
 import { StoreIcon } from "./StoreBadge";
 import { useTranslation } from "../../i18n";
 import { Button } from "../ui/button";
@@ -153,11 +153,11 @@ export default function GlobalContextMenu({
           </span>
           <span className="text-[10px] font-medium" style={{ color: "var(--text-muted)" }}>
             {(contextMenu.game.library || "").toUpperCase()} •{" "}
-            {contextMenu.game.is_installed ? t("groups.installed") : t("groups.available")}
+            {isGamePlayable(contextMenu.game) ? t("groups.installed") : t("groups.available")}
           </span>
         </div>
 
-        {contextMenu.game.is_installed
+        {isGamePlayable(contextMenu.game)
           ? renderMenuButton({
               onClick: () => {
                 onLaunch(contextMenu.game.id);
@@ -361,10 +361,10 @@ export default function GlobalContextMenu({
                         <span className="flex items-center gap-1 text-[10px] text-slate-400 shrink-0">
                           <span
                             className={`w-1.5 h-1.5 rounded-full ${
-                              copy.is_installed ? "bg-emerald-400" : "bg-slate-500"
+                              isGamePlayable(copy) ? "bg-emerald-400" : "bg-slate-500"
                             }`}
                           />
-                          <span>{copy.is_installed ? t("groups.installed") : t("groups.available")}</span>
+                          <span>{isGamePlayable(copy) ? t("groups.installed") : t("groups.available")}</span>
                         </span>
                       </div>
                       {copy.playtime_formatted && (
@@ -386,7 +386,7 @@ export default function GlobalContextMenu({
                             aria-label={t("duplicate_hider.launch_copy", { store: copy.library.toUpperCase() })}
                           >
                             <Play className="w-2.5 h-2.5 fill-current" />
-                            <span>{copy.is_installed ? t("common.play") : t("common.install")}</span>
+                            <span>{isGamePlayable(copy) ? t("common.play") : t("common.install")}</span>
                           </Button>
                         </ActionTooltip>
                         {onPromoteCopy && (
