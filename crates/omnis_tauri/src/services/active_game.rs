@@ -135,14 +135,18 @@ impl ActiveGameManager {
             }
         }
 
-        let mut lock = self.current.write().await;
-        let session = match lock.take() {
-            Some(s) => s,
-            None => return Ok(None),
+        let session = {
+            let mut lock = self.current.write().await;
+            match lock.take() {
+                Some(s) => s,
+                None => return Ok(None),
+            }
         };
 
-        let mut snap_lock = self.window_snapshot.write().await;
-        let snapshot = snap_lock.take();
+        let snapshot = {
+            let mut snap_lock = self.window_snapshot.write().await;
+            snap_lock.take()
+        };
 
         if let Some(pid) = session.pid {
             let _ =

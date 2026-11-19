@@ -260,7 +260,7 @@ impl GameLaunchCoordinator {
         )
         .await;
 
-        let was_running = is_running.swap(false, Ordering::SeqCst);
+        let _ = is_running.swap(false, Ordering::SeqCst);
         active_mgr.set_stopping(&session_id_str).await;
 
         if let Some((_session, snapshot)) = active_mgr.end_session().await {
@@ -289,18 +289,16 @@ impl GameLaunchCoordinator {
             let snapshot = snapshot.unwrap_or(window_snapshot);
             snapshot.restore(&app_handle).await;
 
-            // Only emit GAME_STOPPED if not already aborted and emitted by kill_running_game
-            if was_running {
-                let _ = app_handle.emit(
-                    events::GAME_STOPPED,
-                    serde_json::json!({
-                        "session_id": session_id_str,
-                        "game_id": game_id_str,
-                        "duration_seconds": duration,
-                    }),
-                );
-                let _ = app_handle.emit(events::LIBRARY_UPDATED, ());
-            }
+            // Emit GAME_STOPPED to ensure UI resets state even if process tracking failed before running
+            let _ = app_handle.emit(
+                events::GAME_STOPPED,
+                serde_json::json!({
+                    "session_id": session_id_str,
+                    "game_id": game_id_str,
+                    "duration_seconds": duration,
+                }),
+            );
+            let _ = app_handle.emit(events::LIBRARY_UPDATED, ());
         }
     }
 
@@ -311,20 +309,28 @@ impl GameLaunchCoordinator {
     ) -> Result<bool, String> {
         if let Some((session, snapshot)) = state.active_game_manager.kill_running_graceful(3).await? {
             let ended_at = chrono::Utc::now();
-            let duration = (ended_at - session.started_at).num_seconds().max(0) as u64;
+            let raw_duration = (ended_at - session.started_at).num_seconds().max(0) as u64;
+            let is_unstarted = session.pid.is_none();
+            let duration = if is_unstarted { 0 } else { raw_duration };
 
-            // Finalize session in SQLite database with exact duration so it does not remain unclosed
+            // Finalize or cancel session in SQLite database:
+            // If the process was never detected (pid is None), cancel the session so the
+            // premature play_count increment is reverted and no empty session is committed.
             if let (Ok(sid), Ok(gid)) = (
                 Uuid::parse_str(&session.session_id),
                 Uuid::parse_str(&session.game_id),
             ) {
-                let _ = state.db.finish_play_session(
-                    sid,
-                    gid,
-                    duration,
-                    session.started_at,
-                    ended_at,
-                );
+                if is_unstarted {
+                    let _ = state.db.cancel_play_session(sid, gid);
+                } else {
+                    let _ = state.db.finish_play_session(
+                        sid,
+                        gid,
+                        duration,
+                        session.started_at,
+                        ended_at,
+                    );
+                }
             }
 
             // Restore window geometry & focus with captured snapshot
