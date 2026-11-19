@@ -22,12 +22,16 @@ import {
   TableRow,
 } from "../ui/table";
 import { ActionTooltip } from "../ui/tooltip";
+import { isGamePlayable, LaunchConfiguration } from "../../types";
 
 export interface GameItem {
   id: string;
   title: string;
   library: string;
   is_installed: boolean;
+  is_playable?: boolean;
+  use_library_integration?: boolean;
+  play_actions?: LaunchConfiguration[];
   playtime_seconds: number;
   playtime_formatted: string;
   critic_score: number | null;
@@ -189,7 +193,7 @@ export default function ListViewTable({
           cmp = (a.library || "").localeCompare(b.library || "");
           break;
         case "is_installed":
-          cmp = (a.is_installed ? 1 : 0) - (b.is_installed ? 1 : 0);
+          cmp = (isGamePlayable(a) ? 1 : 0) - (isGamePlayable(b) ? 1 : 0);
           break;
         case "playtime_seconds":
           cmp = (a.playtime_seconds || 0) - (b.playtime_seconds || 0);
@@ -430,7 +434,7 @@ export default function ListViewTable({
                   onContextMenu={(e) => onContextMenu && onContextMenu(e, game)}
                   onDoubleClick={(e) => {
                     e.preventDefault();
-                    if (game.is_installed) {
+                    if (isGamePlayable(game)) {
                       onLaunchGame(game.id);
                     } else {
                       onOpenDetails(game);
@@ -528,7 +532,7 @@ export default function ListViewTable({
 
                   {/* 4. Status (Installed / Available) */}
                   <TableCell className="py-1.5 px-3 whitespace-nowrap">
-                    {game.is_installed ? (
+                    {isGamePlayable(game) ? (
                       <Badge variant="success" className="gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                         <span>{t("groups.installed")}</span>
@@ -567,8 +571,8 @@ export default function ListViewTable({
                   {/* 9. Quick Actions */}
                   <TableCell className="py-1.5 px-3 text-right pr-3 whitespace-nowrap">
                     <div className="flex items-center justify-end gap-1">
-                      {/* Play Button (if installed) */}
-                      {game.is_installed ? (
+                      {/* Play Button (if playable) */}
+                      {isGamePlayable(game) ? (
                         <ActionTooltip label={t('common.play')}>
                           <Button
                             type="button"

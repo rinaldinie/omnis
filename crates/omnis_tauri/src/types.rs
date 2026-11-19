@@ -16,6 +16,8 @@ pub struct GameDto {
     pub title: String,
     pub library: String,
     pub is_installed: bool,
+    #[serde(default)]
+    pub is_playable: bool,
     pub playtime_seconds: u64,
     pub playtime_formatted: String,
     pub critic_score: Option<u32>,
@@ -122,6 +124,7 @@ pub struct AppState {
 }
 
 pub fn game_to_dto(g: Game) -> GameDto {
+    let is_playable = g.is_playable();
     let hours = g.playtime_seconds / 3600;
     let mins = (g.playtime_seconds % 3600) / 60;
     let playtime_formatted = if hours > 0 {
@@ -141,6 +144,7 @@ pub fn game_to_dto(g: Game) -> GameDto {
         title: g.title,
         library: g.library_id,
         is_installed: g.is_installed,
+        is_playable,
         playtime_seconds: g.playtime_seconds,
         playtime_formatted,
         critic_score: g.critic_score.map(|s| s as u32),

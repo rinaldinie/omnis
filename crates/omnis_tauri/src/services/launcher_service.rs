@@ -197,7 +197,6 @@ impl GameLaunchCoordinator {
                 config,
                 install_dir,
                 started_at,
-                is_installed,
                 window_snapshot,
             )
             .await;
@@ -224,7 +223,6 @@ impl GameLaunchCoordinator {
         config: LaunchConfiguration,
         install_dir: Option<PathBuf>,
         started_at: chrono::DateTime<chrono::Utc>,
-        is_installed: bool,
         window_snapshot: WindowStateSnapshot,
     ) {
         let is_running = Arc::new(AtomicBool::new(true));
@@ -241,9 +239,7 @@ impl GameLaunchCoordinator {
                     break;
                 }
                 let now = chrono::Utc::now();
-                if is_installed {
-                    let _ = db_cp.checkpoint_play_session(session_id, id, 60, now);
-                }
+                let _ = db_cp.checkpoint_play_session(session_id, id, 60, now);
                 active_mgr_cp.add_elapsed(&sid_cp, 60).await;
             }
         });
@@ -331,13 +327,11 @@ impl GameLaunchCoordinator {
             }
         };
 
-        if is_installed {
-            if track_res.is_err() {
-                // Tracking failed or process not found: cancel session and revert premature metrics
-                let _ = db.cancel_play_session(session_id, id);
-            } else {
-                let _ = db.finish_play_session(session_id, id, duration, started_at, ended_at);
-            }
+        if track_res.is_err() {
+            // Tracking failed or process not found: cancel session and revert premature metrics
+            let _ = db.cancel_play_session(session_id, id);
+        } else {
+            let _ = db.finish_play_session(session_id, id, duration, started_at, ended_at);
         }
 
         active_mgr.clear_running().await;
@@ -958,5 +952,168 @@ mod tests {
         let plan = resolve_launch_plan(&game);
         assert_eq!(plan.primary, store_cmd);
         assert_eq!(plan.auxiliary, vec![trainer]);
+    }
+
+    #[test]
+    fn test_game_is_playable_scenarios() {
+        // 1. Installed game is always playable
+        let mut game1 = Game::new("steam".to_string(), "10".to_string(), "CS".to_string());
+        game1.is_installed = true;
+        assert!(game1.is_playable());
+
+        // 2. Uninstalled store game without custom actions is not playable
+        let mut game2 = Game::new("steam".to_string(), "20".to_string(), "TF2".to_string());
+        game2.is_installed = false;
+        game2.use_library_integration = true;
+        assert!(!game2.is_playable());
+
+        // 3. Uninstalled store game with library integration OFF and valid custom action IS playable
+        let mut game3 = Game::new("steam".to_string(), "30".to_string(), "DOD".to_string());
+        game3.is_installed = false;
+        game3.use_library_integration = false;
+        game3.play_actions = vec![LaunchConfiguration {
+            executable: "C:\\Games\\dod.exe".to_string(),
+            arguments: vec![],
+            working_dir: None,
+            tracking_mode: ProcessTrackingMode::KernelJobObject,
+        }];
+        assert!(game3.is_playable());
+
+        // 4. Uninstalled store game with library integration OFF but empty custom action is NOT playable
+        let mut game4 = Game::new("steam".to_string(), "40".to_string(), "HL".to_string());
+        game4.is_installed = false;
+        game4.use_library_integration = false;
+        game4.play_actions = vec![LaunchConfiguration {
+            executable: "   ".to_string(),
+            arguments: vec![],
+            working_dir: None,
+            tracking_mode: ProcessTrackingMode::KernelJobObject,
+        }];
+        assert!(!game4.is_playable());
+
+        // 5. Custom library game with valid custom action IS playable even if is_installed is false
+        let mut game5 = Game::new("custom".to_string(), "custom-1".to_string(), "MyGame".to_string());
+        game5.is_installed = false;
+        game5.play_actions = vec![LaunchConfiguration {
+            executable: "C:\\MyGame\\run.bat".to_string(),
+            arguments: vec![],
+            working_dir: None,
+            tracking_mode: ProcessTrackingMode::KernelJobObject,
+        }];
+        assert!(game5.is_playable());
+    }
+
+    #[test]
+    fn test_uninstalled_game_session_recording_lifecycle() {
+        let db = Database::open_in_memory().expect("open DB failed");
+        db.migrate().expect("migrate failed");
+
+        let game_id = Uuid::new_v4();
+        let game = Game {
+            id: game_id,
+            library_id: "steam".to_string(),
+            external_id: "12345".to_string(),
+            title: "Uninstalled Custom Copy".to_string(),
+            sorting_title: "uninstalled custom copy".to_string(),
+            install_dir: None,
+            is_installed: false, // NOT installed according to store
+            playtime_seconds: 0,
+            play_count: 0,
+            last_activity: None,
+            release_date: None,
+            user_score: None,
+            critic_score: None,
+            community_score: None,
+            description: None,
+            cover_image_path: None,
+            background_image_path: None,
+            icon_image_path: None,
+            genres: vec![],
+            developers: vec![],
+            publishers: vec![],
+            tags: vec![],
+            categories: vec![],
+            features: vec![],
+            series: None,
+            age_rating: None,
+            completion_status: None,
+            user_notes: None,
+            extra_metadata: None,
+            play_actions: vec![LaunchConfiguration {
+                executable: "C:\\Games\\game.exe".to_string(),
+                arguments: vec![],
+                working_dir: None,
+                tracking_mode: ProcessTrackingMode::KernelJobObject,
+            }],
+            library_play_action: None,
+            use_library_integration: false, // Library integration OFF
+            custom_links: vec![],
+            is_hidden: false,
+            is_favorite: false,
+            hidden_by_duplicate_hider: false,
+            duplicate_group_id: None,
+            achievements_sync_status: omnis_sdk::AchievementsSyncStatus::Unknown,
+            added_timestamp: chrono::Utc::now(),
+            modified_timestamp: chrono::Utc::now(),
+        };
+
+        // Seed game into database
+        let _ = db.insert_custom_game(
+            game.id,
+            &game.title,
+            &game.sorting_title,
+            game.install_dir.clone(),
+            game.play_actions.clone(),
+            None,
+        ).expect("insert custom game failed");
+
+        // Verify initial state
+        let loaded = db.get_game_by_id(game_id).unwrap().unwrap();
+        assert_eq!(loaded.play_count, 0);
+        assert_eq!(loaded.playtime_seconds, 0);
+
+        // 1. Simulate start_play_session
+        let session_id = Uuid::new_v4();
+        let start_time = chrono::Utc::now();
+        db.start_play_session(session_id, game_id, start_time).expect("start session failed");
+
+        let after_start = db.get_game_by_id(game_id).unwrap().unwrap();
+        assert_eq!(after_start.play_count, 1);
+        assert_eq!(after_start.completion_status.as_deref(), Some("Playing"));
+
+        // 2. Simulate checkpoint
+        let checkpoint_time = start_time + chrono::Duration::seconds(60);
+        db.checkpoint_play_session(session_id, game_id, 60, checkpoint_time).expect("checkpoint failed");
+
+        let after_checkpoint = db.get_game_by_id(game_id).unwrap().unwrap();
+        assert_eq!(after_checkpoint.playtime_seconds, 60);
+
+        // 3. Simulate finish_play_session
+        let end_time = start_time + chrono::Duration::seconds(180);
+        let finished = db.finish_play_session(session_id, game_id, 180, start_time, end_time).expect("finish failed");
+        assert_eq!(finished.duration_seconds, 180);
+
+        let after_finish = db.get_game_by_id(game_id).unwrap().unwrap();
+        assert_eq!(after_finish.play_count, 1);
+        assert_eq!(after_finish.playtime_seconds, 180);
+
+        // 4. Simulate launch failure on next launch: start then cancel
+        let session2_id = Uuid::new_v4();
+        let start_time2 = chrono::Utc::now();
+        db.start_play_session(session2_id, game_id, start_time2).expect("start session 2 failed");
+
+        let during_session2 = db.get_game_by_id(game_id).unwrap().unwrap();
+        assert_eq!(during_session2.play_count, 2);
+
+        // Cancel session 2 (e.g. process not found or launch error)
+        db.cancel_play_session(session2_id, game_id).expect("cancel session failed");
+
+        let after_cancel = db.get_game_by_id(game_id).unwrap().unwrap();
+        assert_eq!(after_cancel.play_count, 1); // Reverted back to 1!
+        assert_eq!(after_cancel.playtime_seconds, 180); // Preserves previous valid playtime
+
+        let sessions = db.get_game_sessions(game_id).expect("get sessions failed");
+        assert_eq!(sessions.len(), 1);
+        assert_eq!(sessions[0].duration_seconds, 180);
     }
 }

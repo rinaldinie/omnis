@@ -25,7 +25,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ActiveGameSession, GameDto, ThemeConfig, TranslateFn, ViewMode, formatImageUrl } from "../../../types";
+import { ActiveGameSession, GameDto, ThemeConfig, TranslateFn, ViewMode, formatImageUrl, isGamePlayable } from "../../../types";
 import { useActiveGameTimer } from "../../../context/ActiveGameTimerContext";
 import { StoreBadge } from "../../common/StoreBadge";
 import { VideoBackdrop } from "../../common/VideoBackdrop";
@@ -341,13 +341,13 @@ export const DetailsHeroHeader: React.FC<DetailsHeroHeaderProps> = ({
                   onClick={() => handleLaunch(selectedGame.id)}
                   className="h-auto gap-2.5 px-6 py-3 rounded-xl font-bold text-xs text-white shadow-lg hover:brightness-110 active:scale-95 bg-[var(--accent-primary)]"
                 >
-                  {selectedGame.is_installed ? (
+                  {isGamePlayable(selectedGame) ? (
                     <Play className="w-4 h-4 fill-white" />
                   ) : (
                     <Download className="w-4 h-4 text-white" />
                   )}
                   <span>
-                    {selectedGame.is_installed
+                    {isGamePlayable(selectedGame)
                       ? t("game_details.play_now")
                       : t("game_details.install_now")}
                   </span>

@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useTranslation } from "../i18n";
-import { GameDto, GroupBy, FILTER_ORDER } from "../types";
+import { GameDto, GroupBy, FILTER_ORDER, isGamePlayable } from "../types";
 import { sortGames, GameSortMode, readSavedSortMode, saveSortMode } from "../utils/sortGames";
 import { toCategoryId } from "../utils/consoleCategories";
 import { getRecentSettings, RecentSettings } from "../utils/recentSettings";
@@ -339,7 +339,9 @@ export function useLibraryFilters(games: GameDto[]) {
       steam: "Steam",
       gog: "GOG",
       epic: "Epic Games",
+      amazon: "Amazon Games",
       xbox: "Xbox",
+      switch: "Switch",
     };
     selectedStores.forEach((s) => {
       chips.push({
@@ -421,7 +423,7 @@ export function useLibraryFilters(games: GameDto[]) {
       }
 
       // 1. Quick Flags (AND)
-      if (selectedFlags.includes("installed") && !g.is_installed) return false;
+      if (selectedFlags.includes("installed") && !isGamePlayable(g)) return false;
       if (selectedFlags.includes("recent")) {
         if (!g.last_activity) return false;
         if (recentSettings.timeWindowDays > 0) {
@@ -519,7 +521,7 @@ export function useLibraryFilters(games: GameDto[]) {
           break;
         case "is_installed":
         case "installed":
-          key = game.is_installed ? t("sidebar.installed") : t("library_groups.downloadable");
+          key = isGamePlayable(game) ? t("sidebar.installed") : t("library_groups.downloadable");
           break;
         case "genre": {
           const firstGenre = game.genres?.find((g) => g.trim().length > 0);
@@ -598,7 +600,7 @@ export function useLibraryFilters(games: GameDto[]) {
         hiddenCount++;
         return;
       }
-      if (g.is_installed) installedCount++;
+      if (isGamePlayable(g)) installedCount++;
       if (g.is_favorite) favoritesCount++;
       if (g.last_activity) {
         if (recentSettings.timeWindowDays > 0) {

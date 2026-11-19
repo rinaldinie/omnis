@@ -231,6 +231,22 @@ impl Game {
             .as_deref()
             .and_then(|s| s.parse().ok())
     }
+
+    /// Returns true if the game is ready to be launched directly (either marked installed by store,
+    /// or has configured custom actions when library integration is disabled, or is a custom game with actions).
+    pub fn is_playable(&self) -> bool {
+        self.is_installed
+            || (!self.use_library_integration
+                && self
+                    .play_actions
+                    .iter()
+                    .any(|a| !a.executable.trim().is_empty()))
+            || (self.library_id.eq_ignore_ascii_case("custom")
+                && self
+                    .play_actions
+                    .iter()
+                    .any(|a| !a.executable.trim().is_empty()))
+    }
 }
 
 /// DTO payload for updating game metadata, custom actions, and categorization

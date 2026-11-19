@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { GameDto, ActiveGameSession, TranslateFn, normalizeGame } from "../types";
+import { GameDto, ActiveGameSession, TranslateFn, normalizeGame, isGamePlayable } from "../types";
 import { api } from "../api";
 import soundEffects from "../utils/soundEffects";
 import { getErrorMessage } from "../utils/errors";
@@ -113,14 +113,14 @@ export function useGameOperations({
   const handleLaunch = useCallback(async (gameId: string) => {
     soundEffects.playLaunch();
     const g = games.find((x) => x.id === gameId);
-    if (g && !g.is_installed) {
+    if (g && !isGamePlayable(g)) {
       setStatusMessage(statusText("install_opening", { title: g.title, store: g.library.toUpperCase() }));
     } else {
       setStatusMessage(statusText("game_starting"));
     }
     try {
       await api.games.launchGame(gameId);
-      if (g && !g.is_installed) {
+      if (g && !isGamePlayable(g)) {
         setStatusMessage(statusText("install_started"));
       } else {
         setStatusMessage(statusText("game_running"));

@@ -160,7 +160,7 @@ impl ActiveGameManager {
         sys.refresh_processes();
 
         for game in games {
-            if !game.is_installed {
+            if !game.is_playable() {
                 continue;
             }
 
@@ -179,11 +179,16 @@ impl ActiveGameManager {
                     .or_else(|| game.play_actions.first())
             }
             .and_then(|action| match &action.tracking_mode {
-                        omnis_sdk::ProcessTrackingMode::ProcessName(name) => {
-                            Some(omnis_core::launcher::process_file_name(name).to_string())
-                        }
-                        _ => None,
-                    });
+                omnis_sdk::ProcessTrackingMode::ProcessName(name) => {
+                    Some(omnis_core::launcher::process_file_name(name).to_string())
+                }
+                _ => {
+                    let exe_name = std::path::Path::new(&action.executable)
+                        .file_name()
+                        .and_then(|f| f.to_str());
+                    exe_name.map(|n| omnis_core::launcher::process_file_name(n).to_string())
+                }
+            });
 
             let install_dir = game.install_dir.as_deref();
 

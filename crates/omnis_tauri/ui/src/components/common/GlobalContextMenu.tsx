@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Play, Download, Pencil, Search, Info, FolderOpen, Monitor, ShieldCheck, Trash2, XCircle, CheckCircle2, ChevronRight, Check, Eye, EyeOff, Layers, Star } from "lucide-react";
-import { GameDto } from "../../types";
+import { GameDto, isGamePlayable } from "../../types";
 import { StoreIcon } from "./StoreBadge";
 import { useTranslation } from "../../i18n";
 import { Button } from "../ui/button";
@@ -153,11 +153,11 @@ export default function GlobalContextMenu({
           </span>
           <span className="text-[10px] font-medium" style={{ color: "var(--text-muted)" }}>
             {(contextMenu.game.library || "").toUpperCase()} •{" "}
-            {contextMenu.game.is_installed ? t("groups.installed") : t("groups.available")}
+            {isGamePlayable(contextMenu.game) ? t("groups.installed") : t("groups.available")}
           </span>
         </div>
 
-        {contextMenu.game.is_installed
+        {isGamePlayable(contextMenu.game)
           ? renderMenuButton({
               onClick: () => {
                 onLaunch(contextMenu.game.id);
