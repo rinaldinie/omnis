@@ -110,12 +110,6 @@ impl ActiveGameManager {
         }
     }
 
-    /// Clear the active game session when the game exits
-    #[allow(dead_code)]
-    pub async fn clear_running(&self) {
-        let _ = self.end_session().await;
-    }
-
     /// Retrieve the currently running game session if any
     pub async fn get_running(&self) -> Option<ActiveGameSession> {
         let lock = self.current.read().await;
@@ -125,12 +119,6 @@ impl ActiveGameManager {
     /// Non-blocking synchronous retrieval (safe to call inside Tokio worker threads or sync contexts)
     pub fn get_running_sync(&self) -> Option<ActiveGameSession> {
         self.current.try_read().ok().and_then(|guard| guard.clone())
-    }
-
-    /// Forcibly or gracefully terminate the currently running game process (Requirement B4)
-    #[allow(dead_code)]
-    pub async fn kill_running(&self) -> Result<bool, String> {
-        Ok(self.kill_running_graceful(3).await?.is_some())
     }
 
     /// Graceful termination: sends WM_CLOSE, waits up to timeout_secs, then falls back to hard kill.
@@ -292,15 +280,15 @@ mod tests {
             .expect("Session should be active");
         assert_eq!(running_after_checkpoint.elapsed_seconds, 60);
 
-        manager.clear_running().await;
+        manager.end_session().await;
         assert!(manager.get_running().await.is_none());
     }
 
     #[tokio::test]
     async fn test_kill_running_when_none() {
         let manager = ActiveGameManager::new();
-        let res = manager.kill_running().await;
-        assert_eq!(res, Ok(false));
+        let res = manager.kill_running_graceful(3).await;
+        assert_eq!(res, Ok(None));
     }
 
     #[tokio::test]
