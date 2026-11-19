@@ -23,7 +23,12 @@ pub async fn add_custom_game(
 ) -> Result<GameDto, String> {
     let raw_path = payload.executable_path.trim().to_string();
     if raw_path.to_lowercase().ends_with(".lnk") {
-        if let Ok(resolved) = omnis_core::os::resolve_executable_path_sync(&raw_path) {
+        let path_clone = raw_path.clone();
+        if let Ok(Ok(resolved)) = tokio::task::spawn_blocking(move || {
+            omnis_core::os::resolve_executable_path_sync(&path_clone)
+        })
+        .await
+        {
             payload.executable_path = resolved.executable_path;
             if payload.arguments.is_empty() && !resolved.arguments.is_empty() {
                 payload.arguments = resolved.arguments;

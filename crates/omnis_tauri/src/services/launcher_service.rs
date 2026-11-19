@@ -348,7 +348,6 @@ impl GameLaunchCoordinator {
 
 pub use omnis_core::launcher::{
     build_install_uri, has_store_integration, resolve_launch_plan, validate_and_open_store_uri,
-    validate_store_uri,
 };
 
 fn is_emulated_library(library_id: &str) -> bool {
