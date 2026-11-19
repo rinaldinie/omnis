@@ -84,6 +84,7 @@ pub async fn download_batch_metadata(
             );
         })
         .await
+        .map(|ids| ids.len())
         .map_err(|e| e.to_string())
 }
 
@@ -110,8 +111,27 @@ pub async fn start_batch_enrichment(
         .cancel_requested
         .store(false, Ordering::SeqCst);
 
-    let mut enriched_count = 0;
-    let total_games = uuids.len();
+    let mut eligible_achievement_games = Vec::new();
+    if payload.fetch_achievements {
+        for &id in &uuids {
+            if let Ok(Some(game)) = state.db.get_game_by_id(id) {
+                if state.achievement_service.supports_store(&game.library_id)
+                    && game.achievements_sync_status != omnis_sdk::AchievementsSyncStatus::None
+                {
+                    eligible_achievement_games.push(game);
+                }
+            }
+        }
+    }
+
+    let meta_ops = if payload.fetch_metadata || payload.fetch_hltb {
+        uuids.len()
+    } else {
+        0
+    };
+    let total_operations = meta_ops + eligible_achievement_games.len();
+    let mut completed_operations = 0;
+    let mut enriched_games = std::collections::HashSet::<Uuid>::new();
 
     // Step 1: Metadata & Artwork pipeline
     if payload.fetch_metadata {
@@ -121,19 +141,19 @@ pub async fn start_batch_enrichment(
             .unwrap_or(&state.covers_dir)
             .to_path_buf();
         let handle = app_handle.clone();
-        let count = state
+        let enriched_ids = state
             .downloader
             .clone()
             .download_for_games(
                 state.db.clone(),
                 uuids.clone(),
                 &cache_dir,
-                move |cur, tot, title| {
+                move |cur, _tot, title| {
                     let _ = handle.emit(
                         events::METADATA_PROGRESS,
                         MetadataProgressPayload {
                             current: cur,
-                            total: tot,
+                            total: total_operations,
                             title: title.to_string(),
                         },
                     );
@@ -142,13 +162,14 @@ pub async fn start_batch_enrichment(
             .await
             .map_err(|e| e.to_string())?;
 
-        enriched_count += count;
+        completed_operations += uuids.len();
+        enriched_games.extend(enriched_ids);
 
         if state.downloader.is_cancel_requested() {
-            if enriched_count > 0 {
+            if !enriched_games.is_empty() {
                 let _ = app_handle.emit(events::LIBRARY_UPDATED, ());
             }
-            return Ok(enriched_count);
+            return Ok(enriched_games.len());
         }
     }
 
@@ -163,8 +184,8 @@ pub async fn start_batch_enrichment(
                 let _ = app_handle.emit(
                     events::METADATA_PROGRESS,
                     MetadataProgressPayload {
-                        current: i + 1,
-                        total: total_games,
+                        current: completed_operations + i + 1,
+                        total: total_operations,
                         title: format!("HowLongToBeat: {}", game.title),
                     },
                 );
@@ -185,7 +206,7 @@ pub async fn start_batch_enrichment(
                 };
 
                 if state.db.apply_metadata_patch(id, &patch).is_ok() {
-                    enriched_count += 1;
+                    enriched_games.insert(id);
                     let _ = app_handle.emit(events::GAME_UPDATED, &id.to_string());
                 }
 
@@ -193,29 +214,19 @@ pub async fn start_batch_enrichment(
             }
         }
 
+        completed_operations += uuids.len();
+
         if state.downloader.is_cancel_requested() {
-            if enriched_count > 0 {
+            if !enriched_games.is_empty() {
                 let _ = app_handle.emit(events::LIBRARY_UPDATED, ());
             }
-            return Ok(enriched_count);
+            return Ok(enriched_games.len());
         }
     }
 
     // Step 3: Store Achievements (skips unsupported games and games marked 'none')
     if payload.fetch_achievements {
-        let mut eligible_games = Vec::new();
-        for &id in &uuids {
-            if let Ok(Some(game)) = state.db.get_game_by_id(id) {
-                if state.achievement_service.supports_store(&game.library_id)
-                    && game.achievements_sync_status != omnis_sdk::AchievementsSyncStatus::None
-                {
-                    eligible_games.push(game);
-                }
-            }
-        }
-
-        let total_achievements = eligible_games.len();
-        for (i, game) in eligible_games.into_iter().enumerate() {
+        for (i, game) in eligible_achievement_games.into_iter().enumerate() {
             if state.downloader.is_cancel_requested() {
                 break;
             }
@@ -223,8 +234,8 @@ pub async fn start_batch_enrichment(
             let _ = app_handle.emit(
                 events::METADATA_PROGRESS,
                 MetadataProgressPayload {
-                    current: i + 1,
-                    total: total_achievements,
+                    current: completed_operations + i + 1,
+                    total: total_operations,
                     title: format!("Achievements: {}", game.title),
                 },
             );
@@ -240,7 +251,7 @@ pub async fn start_batch_enrichment(
                 .await
             {
                 Ok(_) => {
-                    enriched_count += 1;
+                    enriched_games.insert(game.id);
                     let _ = app_handle.emit(
                         events::ACHIEVEMENTS_UPDATED,
                         serde_json::json!({ "game_id": game.id.to_string() }),
@@ -256,11 +267,11 @@ pub async fn start_batch_enrichment(
         }
     }
 
-    if enriched_count > 0 {
+    if !enriched_games.is_empty() {
         let _ = app_handle.emit(events::LIBRARY_UPDATED, ());
     }
 
-    Ok(enriched_count)
+    Ok(enriched_games.len())
 }
 
 #[tauri::command]

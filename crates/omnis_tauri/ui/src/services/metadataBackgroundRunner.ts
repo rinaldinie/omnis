@@ -41,7 +41,7 @@ export interface StartBatchEnrichmentOptions {
   fetchHltb: boolean;
   fetchAchievements: boolean;
   preparingLabel: string;
-  achievementsLabel: string;
+  achievementsLabel?: string;
   onComplete?: () => Promise<void> | void;
 }
 

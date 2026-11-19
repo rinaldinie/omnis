@@ -201,6 +201,7 @@ impl MetadataDownloader {
         let game_ids = all_games.into_iter().map(|g| g.id).collect();
         self.download_for_games(db, game_ids, cache_dir, progress_cb)
             .await
+            .map(|ids| ids.len())
     }
 
     /// Batch enrich a specific list of games by UUID, invoking progress callback on each completion
@@ -210,22 +211,23 @@ impl MetadataDownloader {
         game_ids: Vec<Uuid>,
         cache_dir: &Path,
         progress_cb: F,
-    ) -> Result<usize, String>
+    ) -> Result<Vec<Uuid>, String>
     where
         F: Fn(usize, usize, &str) + Send + Sync + 'static,
     {
         self.cancel_requested.store(false, Ordering::SeqCst);
         let total = game_ids.len();
         if total == 0 {
-            return Ok(0);
+            return Ok(Vec::new());
         }
 
-        let mut enriched_count = 0;
+        let mut enriched_ids = Vec::new();
         for (i, id) in game_ids.into_iter().enumerate() {
             if self.cancel_requested.load(Ordering::SeqCst) {
                 info!(
                     "Arricchimento per selezione interrotto dall'utente dopo {} giochi (totale: {})",
-                    enriched_count, total
+                    enriched_ids.len(),
+                    total
                 );
                 break;
             }
@@ -233,7 +235,7 @@ impl MetadataDownloader {
                 progress_cb(i + 1, total, &game.title);
                 match self.download_for_game(&db, game.id, cache_dir).await {
                     Ok(_) => {
-                        enriched_count += 1;
+                        enriched_ids.push(game.id);
                     }
                     Err(err) => {
                         warn!("Failed metadata for '{}': {}", game.title, err);
@@ -243,7 +245,7 @@ impl MetadataDownloader {
             }
         }
 
-        Ok(enriched_count)
+        Ok(enriched_ids)
     }
 
     /// Request cancellation of any ongoing batch metadata download

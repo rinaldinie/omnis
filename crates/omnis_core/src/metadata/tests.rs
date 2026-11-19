@@ -332,8 +332,8 @@ async fn test_download_for_games_batch() {
         .await;
 
     assert!(total_enriched.is_ok());
-    let count = total_enriched.unwrap();
-    assert_eq!(count, 2);
+    let enriched = total_enriched.unwrap();
+    assert_eq!(enriched.len(), 2);
 
     let _ = std::fs::remove_dir_all(&temp_cache);
 }
