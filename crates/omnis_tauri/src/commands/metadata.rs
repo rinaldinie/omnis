@@ -184,7 +184,7 @@ pub async fn start_batch_enrichment(
                     ..Default::default()
                 };
 
-                if let Ok(_) = state.db.apply_metadata_patch(id, &patch) {
+                if state.db.apply_metadata_patch(id, &patch).is_ok() {
                     enriched_count += 1;
                     let _ = app_handle.emit(events::GAME_UPDATED, &id.to_string());
                 }

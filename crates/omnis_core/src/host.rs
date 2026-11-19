@@ -85,7 +85,7 @@ impl PluginHost {
 
     /// Dispatch an event and await full completion across all plugin targets without race conditions
     pub async fn dispatch_event_and_wait(&self, target_id: Option<&str>, event: PluginEvent) {
-        self.dispatch_event_filtered_and_wait(|id| target_id.map_or(true, |t| t == id), event)
+        self.dispatch_event_filtered_and_wait(|id| target_id.is_none_or(|t| t == id), event)
             .await;
     }
 
@@ -224,11 +224,11 @@ mod tests {
             dispatched_count: count_gog.clone(),
         }));
 
-        let connected = vec!["steam".to_string(), "gog".to_string()];
+        let connected = ["steam", "gog"];
 
         // Filter out connected stores: only epic should receive the event
         host.dispatch_event_filtered_and_wait(
-            |plugin_id| !connected.iter().any(|c| c == plugin_id),
+            |plugin_id| !connected.contains(&plugin_id),
             PluginEvent::SyncRequested {
                 library_id: "all".to_string(),
                 force_full: false,
