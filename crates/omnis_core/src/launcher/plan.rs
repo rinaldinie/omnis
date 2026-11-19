@@ -236,7 +236,7 @@ pub fn resolve_launch_configuration(game: &Game) -> LaunchConfiguration {
 }
 
 /// Validates that a store URI conforms to authorized scheme whitelist and contains no malicious command injection characters.
-pub fn validate_and_open_store_uri(uri: &str) -> Result<(), String> {
+pub fn validate_store_uri(uri: &str) -> Result<(), String> {
     let allowed_schemes = [
         "steam://",
         "com.epicgames.launcher://",
@@ -247,12 +247,29 @@ pub fn validate_and_open_store_uri(uri: &str) -> Result<(), String> {
     if !allowed_schemes.iter().any(|scheme| uri.starts_with(scheme)) {
         return Err("Protocollo URI non autorizzato".to_string());
     }
+    // Reject control characters, whitespace, quotes, and dangerous shell metacharacters
     if uri
         .chars()
-        .any(|c| c.is_control() || "&|;<>^%\"' \r\n\t".contains(c))
+        .any(|c| c.is_control() || "|;<>^\"' \r\n\t".contains(c))
     {
         return Err("URI contiene caratteri non consentiti".to_string());
     }
+
+    // Allow '&' only within query parameters (after '?')
+    if let Some((path_part, _query_part)) = uri.split_once('?') {
+        if path_part.contains('&') {
+            return Err("URI contiene caratteri non consentiti nel percorso".to_string());
+        }
+    } else if uri.contains('&') {
+        return Err("URI contiene caratteri non consentiti".to_string());
+    }
+
+    Ok(())
+}
+
+/// Validates that a store URI conforms to authorized scheme whitelist and contains no malicious command injection characters, then opens it via the OS protocol handler.
+pub fn validate_and_open_store_uri(uri: &str) -> Result<(), String> {
+    validate_store_uri(uri)?;
 
     #[cfg(windows)]
     {
@@ -322,17 +339,14 @@ mod tests {
     fn test_validate_store_uri_valid() {
         let allowed = [
             "steam://rungameid/400",
-            "com.epicgames.launcher://apps/Sugar?action=launch",
+            "com.epicgames.launcher://apps/Sugar?action=launch&silent=true",
             "goggalaxy://openGameView/1207658924",
             "ms-windows-store://pdp/?ProductId=9NBLGGGZ5155",
+            "amazon-games://play/12345",
+            "steam://rungameid/730?param=value%20test",
         ];
         for u in allowed {
-            assert!(
-                u.starts_with("steam://")
-                    || u.starts_with("com.epicgames")
-                    || u.starts_with("goggalaxy")
-                    || u.starts_with("ms-windows-store")
-            );
+            assert!(validate_store_uri(u).is_ok(), "Expected valid URI: {}", u);
         }
     }
 

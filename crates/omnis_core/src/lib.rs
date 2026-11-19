@@ -32,7 +32,7 @@ pub use launcher::{
     build_install_uri, build_play_uri, get_current_app_memory_bytes,
     get_process_tree_memory_bytes, get_process_tree_memory_from_system,
     has_store_integration, resolve_launch_configuration, resolve_launch_plan,
-    validate_and_open_store_uri, GameLauncher, LaunchPlan,
+    validate_and_open_store_uri, validate_store_uri, GameLauncher, LaunchPlan,
 };
 pub use metadata::{
     FallbackMetadataGenerator, GogMetadataProvider, HowLongToBeatProvider, HttpMediaDownloader,
