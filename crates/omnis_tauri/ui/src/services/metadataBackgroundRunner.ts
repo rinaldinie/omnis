@@ -55,7 +55,7 @@ export function startBatchEnrichment({
   fetchHltb,
   fetchAchievements,
   preparingLabel,
-  achievementsLabel,
+  achievementsLabel: _achievementsLabel,
   onComplete,
 }: StartBatchEnrichmentOptions): Promise<number> | null {
   if (games.length === 0) return null;

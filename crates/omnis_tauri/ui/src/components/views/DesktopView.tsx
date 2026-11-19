@@ -1,4 +1,4 @@
-import React, { useState, useEffect, lazy, Suspense } from "react";
+import React, { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import {
   GameDto,
   GroupBy,
@@ -165,7 +165,13 @@ export const DesktopView: React.FC<DesktopViewProps> = (props) => {
   const collapsedGroups = props.collapsedGroups ?? f?.collapsedGroups ?? {};
   const toggleGroup = props.toggleGroup ?? f?.toggleGroup ?? (() => {});
   const detailsSearchQuery = props.detailsSearchQuery ?? f?.detailsSearchQuery ?? "";
-  const setDetailsSearchQuery = props.setDetailsSearchQuery ?? f?.setDetailsSearchQuery ?? (() => {});
+  const propSetDetailsSearchQuery = props.setDetailsSearchQuery ?? f?.setDetailsSearchQuery;
+  const setDetailsSearchQuery = useCallback(
+    (q: string) => {
+      propSetDetailsSearchQuery?.(q);
+    },
+    [propSetDetailsSearchQuery]
+  );
   const detailsFilteredGames = props.detailsFilteredGames ?? f?.detailsFilteredGames ?? [];
 
   // Game Operations (resolved from GameOperationsContext or individual props)
