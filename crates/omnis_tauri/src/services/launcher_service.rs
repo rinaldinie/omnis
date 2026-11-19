@@ -11,63 +11,9 @@ use omnis_sdk::{Game, LaunchConfiguration, ProcessTrackingMode};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use tauri::{Emitter, Manager};
+use tauri::Emitter;
+pub use crate::services::window_service::WindowStateSnapshot;
 use uuid::Uuid;
-
-/// Saved window state prior to game launch to restore geometry and fullscreen upon exit.
-#[derive(Debug, Clone, Default)]
-pub struct WindowStateSnapshot {
-    pub was_fullscreen: bool,
-}
-
-impl WindowStateSnapshot {
-    /// Captures the current window state without minimizing.
-    pub fn capture(app_handle: &tauri::AppHandle) -> Self {
-        let mut snapshot = Self::default();
-        if let Some(window) = app_handle.get_webview_window("main") {
-            snapshot.was_fullscreen = window.is_fullscreen().unwrap_or(false);
-
-            // Grant foreground permission in advance to bypass OS restrictions
-            omnis_core::launcher::allow_set_foreground_window();
-        }
-        snapshot
-    }
-
-    /// Restores window geometry, focus, and fullscreen status after a game terminates.
-    pub async fn restore(&self, app_handle: &tauri::AppHandle, duration_seconds: u64) {
-        if duration_seconds == 0 {
-            return;
-        }
-
-        if let Some(window) = app_handle.get_webview_window("main") {
-            // Allow 300ms for DirectX/Vulkan game teardown and Windows desktop resolution restoration
-            tokio::time::sleep(std::time::Duration::from_millis(300)).await;
-
-            if self.was_fullscreen {
-                // In fullscreen / console mode: re-assert fullscreen geometry and force foreground
-                // over any restored taskbar
-                crate::services::window_service::ensure_fullscreen_geometry(&window.as_ref().window());
-
-                // Secondary settling check in case Windows display resolution change took longer
-                let w_clone = window.clone();
-                tauri::async_runtime::spawn(async move {
-                    tokio::time::sleep(std::time::Duration::from_millis(350)).await;
-                    if w_clone.is_fullscreen().unwrap_or(false) {
-                        crate::services::window_service::ensure_fullscreen_geometry(&w_clone.as_ref().window());
-                    }
-                });
-            } else {
-                // In desktop mode: the window is never automatically minimized, so geometry & position remain intact.
-                // In case the user manually minimized it during the game session, unminimize and bring to front.
-                if window.is_minimized().unwrap_or(false) {
-                    let _ = window.unminimize();
-                }
-                let _ = window.show();
-                crate::services::window_service::force_foreground(&window.as_ref().window());
-            }
-        }
-    }
-}
 
 /// Service coordinator for launching, tracking, and terminating game processes.
 pub struct GameLaunchCoordinator;
@@ -166,6 +112,10 @@ impl GameLaunchCoordinator {
 
         // Capture window state without immediate minimization (main window shows launch transition overlay until process starts)
         let window_snapshot = WindowStateSnapshot::capture(app_handle);
+        state
+            .active_game_manager
+            .set_window_snapshot(window_snapshot.clone())
+            .await;
 
         // Emit game-started event
         let _ = app_handle.emit(
@@ -311,51 +261,46 @@ impl GameLaunchCoordinator {
         .await;
 
         let was_running = is_running.swap(false, Ordering::SeqCst);
-        let ended_at = chrono::Utc::now();
         active_mgr.set_stopping(&session_id_str).await;
 
-        let duration = match track_res {
-            Ok(d) if d > 0 => d,
-            Ok(_) => (ended_at - started_at).num_seconds().max(0) as u64,
-            Err(ref err) => {
-                tracing::warn!(
-                    "Errore durante il tracking del processo {}: {}",
-                    game_id_str,
-                    err
-                );
-                0
+        if let Some((_session, snapshot)) = active_mgr.end_session().await {
+            let ended_at = chrono::Utc::now();
+            let duration = match track_res {
+                Ok(d) if d > 0 => d,
+                Ok(_) => (ended_at - started_at).num_seconds().max(0) as u64,
+                Err(ref err) => {
+                    tracing::warn!(
+                        "Errore durante il tracking del processo {}: {}",
+                        game_id_str,
+                        err
+                    );
+                    0
+                }
+            };
+
+            if track_res.is_err() {
+                // Tracking failed or process not found: cancel session and revert premature metrics
+                let _ = db.cancel_play_session(session_id, id);
+            } else {
+                let _ = db.finish_play_session(session_id, id, duration, started_at, ended_at);
             }
-        };
 
-        if track_res.is_err() {
-            // Tracking failed or process not found: cancel session and revert premature metrics
-            let _ = db.cancel_play_session(session_id, id);
-        } else {
-            let _ = db.finish_play_session(session_id, id, duration, started_at, ended_at);
-        }
+            // Restore window geometry & focus
+            let snapshot = snapshot.unwrap_or(window_snapshot);
+            snapshot.restore(&app_handle).await;
 
-        active_mgr.clear_running().await;
-
-        // Restore window geometry & focus
-        if track_res.is_ok() {
-            window_snapshot.restore(&app_handle, duration).await;
-        } else if let Some(window) = app_handle.get_webview_window("main") {
-            let _ = window.unminimize();
-            let _ = window.show();
-            crate::services::window_service::force_foreground(&window.as_ref().window());
-        }
-
-        // Only emit GAME_STOPPED if not already aborted and emitted by kill_running_game
-        if was_running {
-            let _ = app_handle.emit(
-                events::GAME_STOPPED,
-                serde_json::json!({
-                    "session_id": session_id_str,
-                    "game_id": game_id_str,
-                    "duration_seconds": duration,
-                }),
-            );
-            let _ = app_handle.emit(events::LIBRARY_UPDATED, ());
+            // Only emit GAME_STOPPED if not already aborted and emitted by kill_running_game
+            if was_running {
+                let _ = app_handle.emit(
+                    events::GAME_STOPPED,
+                    serde_json::json!({
+                        "session_id": session_id_str,
+                        "game_id": game_id_str,
+                        "duration_seconds": duration,
+                    }),
+                );
+                let _ = app_handle.emit(events::LIBRARY_UPDATED, ());
+            }
         }
     }
 
@@ -364,41 +309,36 @@ impl GameLaunchCoordinator {
         app_handle: &tauri::AppHandle,
         state: &AppState,
     ) -> Result<bool, String> {
-        let current_session = state.active_game_manager.get_running().await;
-        let killed = state.active_game_manager.kill_running().await?;
-        if killed || current_session.is_some() {
-            if let Some(session) = current_session {
-                let ended_at = chrono::Utc::now();
-                let duration = (ended_at - session.started_at).num_seconds().max(0) as u64;
+        if let Some((session, snapshot)) = state.active_game_manager.kill_running_graceful(3).await? {
+            let ended_at = chrono::Utc::now();
+            let duration = (ended_at - session.started_at).num_seconds().max(0) as u64;
 
-                // Finalize session in SQLite database with exact duration so it does not remain unclosed
-                if let (Ok(sid), Ok(gid)) = (
-                    Uuid::parse_str(&session.session_id),
-                    Uuid::parse_str(&session.game_id),
-                ) {
-                    let _ = state.db.finish_play_session(
-                        sid,
-                        gid,
-                        duration,
-                        session.started_at,
-                        ended_at,
-                    );
-                }
-
-                let _ = app_handle.emit(
-                    events::GAME_STOPPED,
-                    serde_json::json!({
-                        "session_id": session.session_id,
-                        "game_id": session.game_id,
-                        "duration_seconds": duration,
-                    }),
+            // Finalize session in SQLite database with exact duration so it does not remain unclosed
+            if let (Ok(sid), Ok(gid)) = (
+                Uuid::parse_str(&session.session_id),
+                Uuid::parse_str(&session.game_id),
+            ) {
+                let _ = state.db.finish_play_session(
+                    sid,
+                    gid,
+                    duration,
+                    session.started_at,
+                    ended_at,
                 );
             }
-            if let Some(window) = app_handle.get_webview_window("main") {
-                let _ = window.unminimize();
-                let _ = window.show();
-                let _ = window.set_focus();
-            }
+
+            // Restore window geometry & focus with captured snapshot
+            let snapshot = snapshot.unwrap_or_else(|| WindowStateSnapshot::capture(app_handle));
+            snapshot.restore(app_handle).await;
+
+            let _ = app_handle.emit(
+                events::GAME_STOPPED,
+                serde_json::json!({
+                    "session_id": session.session_id,
+                    "game_id": session.game_id,
+                    "duration_seconds": duration,
+                }),
+            );
             let _ = app_handle.emit(events::LIBRARY_UPDATED, ());
             return Ok(true);
         }

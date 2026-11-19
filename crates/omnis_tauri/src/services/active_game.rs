@@ -1,3 +1,4 @@
+use crate::services::window_service::WindowStateSnapshot;
 use omnis_sdk::SessionState;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -22,6 +23,7 @@ pub struct ActiveGameSession {
 pub struct ActiveGameManager {
     current: Arc<RwLock<Option<ActiveGameSession>>>,
     abort_handle: Arc<RwLock<Option<tokio::task::AbortHandle>>>,
+    window_snapshot: Arc<RwLock<Option<WindowStateSnapshot>>>,
 }
 
 impl ActiveGameManager {
@@ -30,7 +32,29 @@ impl ActiveGameManager {
         Self {
             current: Arc::new(RwLock::new(None)),
             abort_handle: Arc::new(RwLock::new(None)),
+            window_snapshot: Arc::new(RwLock::new(None)),
         }
+    }
+
+    /// Stores the pre-launch window state snapshot to ensure window geometry restoration upon exit
+    pub async fn set_window_snapshot(&self, snapshot: WindowStateSnapshot) {
+        let mut lock = self.window_snapshot.write().await;
+        *lock = Some(snapshot);
+    }
+
+    /// Atomically end the current active session, returning both the session state
+    /// and the captured window snapshot. If already ended or aborted, returns None.
+    pub async fn end_session(&self) -> Option<(ActiveGameSession, Option<WindowStateSnapshot>)> {
+        let mut lock = self.current.write().await;
+        let session = lock.take()?;
+
+        let mut abort_lock = self.abort_handle.write().await;
+        let _ = abort_lock.take();
+
+        let mut snap_lock = self.window_snapshot.write().await;
+        let snapshot = snap_lock.take();
+
+        Some((session, snapshot))
     }
 
     /// Set a game session in the Launching state (Requirement A6, B3)
@@ -88,12 +112,7 @@ impl ActiveGameManager {
 
     /// Clear the active game session when the game exits
     pub async fn clear_running(&self) {
-        {
-            let mut abort_lock = self.abort_handle.write().await;
-            let _ = abort_lock.take();
-        }
-        let mut lock = self.current.write().await;
-        *lock = None;
+        let _ = self.end_session().await;
     }
 
     /// Retrieve the currently running game session if any
@@ -109,11 +128,15 @@ impl ActiveGameManager {
 
     /// Forcibly or gracefully terminate the currently running game process (Requirement B4)
     pub async fn kill_running(&self) -> Result<bool, String> {
-        self.kill_running_graceful(3).await
+        Ok(self.kill_running_graceful(3).await?.is_some())
     }
 
-    /// Graceful termination: sends WM_CLOSE, waits up to timeout_secs, then falls back to hard kill
-    pub async fn kill_running_graceful(&self, timeout_secs: u64) -> Result<bool, String> {
+    /// Graceful termination: sends WM_CLOSE, waits up to timeout_secs, then falls back to hard kill.
+    /// Atomically extracts session state and window snapshot for race-free cleanup.
+    pub async fn kill_running_graceful(
+        &self,
+        timeout_secs: u64,
+    ) -> Result<Option<(ActiveGameSession, Option<WindowStateSnapshot>)>, String> {
         // Abort background tracker immediately if active
         {
             let mut abort_lock = self.abort_handle.write().await;
@@ -122,23 +145,21 @@ impl ActiveGameManager {
             }
         }
 
-        let pid_to_kill = {
-            let lock = self.current.read().await;
-            if let Some(ref session) = *lock {
-                session.pid
-            } else {
-                return Ok(false);
-            }
+        let mut lock = self.current.write().await;
+        let session = match lock.take() {
+            Some(s) => s,
+            None => return Ok(None),
         };
 
-        if let Some(pid) = pid_to_kill {
+        let mut snap_lock = self.window_snapshot.write().await;
+        let snapshot = snap_lock.take();
+
+        if let Some(pid) = session.pid {
             let _ =
                 omnis_core::launcher::GameLauncher::kill_process_graceful(pid, timeout_secs).await;
         }
 
-        let mut lock = self.current.write().await;
-        *lock = None;
-        Ok(true)
+        Ok(Some((session, snapshot)))
     }
 
     /// Startup re-attachment: checks if any installed game is currently running on the system (Requirement B2)
@@ -278,5 +299,73 @@ mod tests {
         let manager = ActiveGameManager::new();
         let res = manager.kill_running().await;
         assert_eq!(res, Ok(false));
+    }
+
+    #[tokio::test]
+    async fn test_end_session_atomic_idempotency_with_window_snapshot() {
+        let manager = ActiveGameManager::new();
+        let session_id = Uuid::new_v4();
+        manager
+            .set_launching(
+                session_id,
+                "atomic-game-id".to_string(),
+                "Atomic Game".to_string(),
+            )
+            .await;
+
+        let snapshot = WindowStateSnapshot {
+            was_fullscreen: true,
+        };
+        manager.set_window_snapshot(snapshot.clone()).await;
+
+        // First end_session call returns Some((session, snapshot))
+        let first = manager.end_session().await;
+        assert!(first.is_some());
+        let (sess, snap) = first.unwrap();
+        assert_eq!(sess.game_id, "atomic-game-id");
+        assert_eq!(snap, Some(snapshot));
+
+        // Subsequent call returns None (cannot double-finalize)
+        let second = manager.end_session().await;
+        assert!(second.is_none());
+
+        // kill_running_graceful also returns Ok(None) because session already ended
+        let third = manager.kill_running_graceful(1).await;
+        assert_eq!(third, Ok(None));
+    }
+
+    #[tokio::test]
+    async fn test_kill_running_graceful_atomic_with_window_snapshot() {
+        let manager = ActiveGameManager::new();
+        let session_id = Uuid::new_v4();
+        manager
+            .set_launching(
+                session_id,
+                "kill-game-id".to_string(),
+                "Kill Game".to_string(),
+            )
+            .await;
+
+        let snapshot = WindowStateSnapshot {
+            was_fullscreen: false,
+        };
+        manager.set_window_snapshot(snapshot.clone()).await;
+
+        // First kill_running_graceful call returns Some((session, snapshot))
+        let first = manager.kill_running_graceful(1).await;
+        assert!(first.is_ok());
+        let opt = first.unwrap();
+        assert!(opt.is_some());
+        let (sess, snap) = opt.unwrap();
+        assert_eq!(sess.game_id, "kill-game-id");
+        assert_eq!(snap, Some(snapshot));
+
+        // Subsequent call returns Ok(None)
+        let second = manager.kill_running_graceful(1).await;
+        assert_eq!(second, Ok(None));
+
+        // end_session also returns None
+        let third = manager.end_session().await;
+        assert!(third.is_none());
     }
 }

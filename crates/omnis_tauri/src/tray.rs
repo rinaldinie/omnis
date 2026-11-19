@@ -95,12 +95,7 @@ pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
                     let app_clone = app_handle.clone();
                     tauri::async_runtime::spawn(async move {
                         let state = app_clone.state::<AppState>();
-                        let _ = state.active_game_manager.kill_running().await;
-                        if let Some(w) = app_clone.get_webview_window("main") {
-                            let _ = w.show();
-                            let _ = w.unminimize();
-                            let _ = w.set_focus();
-                        }
+                        let _ = crate::services::GameLaunchCoordinator::kill_running_game(&app_clone, &state).await;
                         update_tray_menu(&app_clone);
                     });
                 }
