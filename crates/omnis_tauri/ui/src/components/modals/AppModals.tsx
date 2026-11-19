@@ -11,6 +11,7 @@ import VirtualKeyboard from "../common/VirtualKeyboard";
 import { UninstallModal } from "./UninstallModal";
 import { KillGameConfirmModal } from "./KillGameConfirmModal";
 import type { usePluginManager } from "../../hooks/usePluginManager";
+import { useOptionalGameOperationsContext } from "../../context/GameOperationsContext";
 
 const ThemeModal = lazy(() => import("./ThemeModal"));
 const PluginManagerModal = lazy(() => import("./PluginManagerModal"));
@@ -29,19 +30,19 @@ export interface AppModalsProps {
   currentTheme: ThemeConfig;
   selectTheme: (theme: ThemeConfig) => void;
   handleSaveCustomTheme: (theme: ThemeConfig) => Promise<void>;
-  handleOpenFolder: (folder: string) => void;
+  handleOpenFolder?: (folder: string) => void;
 
   // Plugin Manager Modal
   pluginManager: ReturnType<typeof usePluginManager>;
 
-  // Context Menu & Game Actions
-  handleLaunch: (gameId: string) => void;
-  handleUpdateCompletionStatus: (game: GameDto, status: string) => void;
-  handleOpenInstallDir: (gameId: string) => void;
-  handleCreateShortcut: (gameId: string) => void;
-  handleVerifyFiles: (gameId: string) => void;
-  handleOpenUninstallModal: (game: GameDto) => void;
-  handleRemoveFromLibrary: (gameId: string) => void;
+  // Context Menu & Game Actions (can be provided via GameOperationsContext)
+  handleLaunch?: (gameId: string) => void;
+  handleUpdateCompletionStatus?: (game: GameDto, status: string) => void;
+  handleOpenInstallDir?: (gameId: string) => void;
+  handleCreateShortcut?: (gameId: string) => void;
+  handleVerifyFiles?: (gameId: string) => void;
+  handleOpenUninstallModal?: (game: GameDto) => void;
+  handleRemoveFromLibrary?: (gameId: string) => void;
   onToggleHidden?: (game: GameDto) => void;
   onToggleFavorite?: (game: GameDto) => void;
   onPromoteCopy?: (copyId: string) => void;
@@ -59,55 +60,59 @@ export interface AppModalsProps {
   fullscreenGamesCount: number;
 
   // Uninstall Modal
-  handleConfirmUninstall: (gameId: string) => Promise<void>;
+  handleConfirmUninstall?: (gameId: string) => Promise<void>;
 
   // Settings Modal
   handleToggleSound: () => void;
 
   // Kill Confirm Modal
-  confirmKillRunningGame: () => void;
+  confirmKillRunningGame?: () => void;
 
   // Translation
   t: TranslateFn;
 }
 
-export const AppModals: React.FC<AppModalsProps> = ({
-  themes,
-  currentTheme,
-  selectTheme,
-  handleSaveCustomTheme,
-  handleOpenFolder,
+export const AppModals: React.FC<AppModalsProps> = (props) => {
+  const gameOps = useOptionalGameOperationsContext();
 
-  pluginManager,
+  const {
+    themes,
+    currentTheme,
+    selectTheme,
+    handleSaveCustomTheme,
+    pluginManager,
+    statusText,
+    filteredGames,
+    searchQuery,
+    setSearchQuery,
+    setFocusedIndex,
+    fullscreenGamesCount,
+    handleToggleSound,
+    t,
+  } = props;
 
-  handleLaunch,
-  handleUpdateCompletionStatus,
-  handleOpenInstallDir,
-  handleCreateShortcut,
-  handleVerifyFiles,
-  handleOpenUninstallModal,
-  handleRemoveFromLibrary,
-  onToggleHidden,
-  onToggleFavorite,
-  onPromoteCopy,
-
-  statusText,
-
-  filteredGames,
-
-  searchQuery,
-  setSearchQuery,
-  setFocusedIndex,
-  fullscreenGamesCount,
-
-  handleConfirmUninstall,
-
-  handleToggleSound,
-
-  confirmKillRunningGame,
-
-  t,
-}) => {
+  const handleLaunch = props.handleLaunch ?? gameOps?.handleLaunch ?? (() => {});
+  const handleUpdateCompletionStatus =
+    props.handleUpdateCompletionStatus ?? gameOps?.handleUpdateCompletionStatus ?? (() => {});
+  const handleOpenInstallDir =
+    props.handleOpenInstallDir ?? gameOps?.handleOpenInstallDir ?? (() => {});
+  const handleCreateShortcut =
+    props.handleCreateShortcut ?? gameOps?.handleCreateShortcut ?? (() => {});
+  const handleVerifyFiles =
+    props.handleVerifyFiles ?? gameOps?.handleVerifyFiles ?? (() => {});
+  const handleOpenUninstallModal =
+    props.handleOpenUninstallModal ?? gameOps?.handleOpenUninstallModal ?? (() => {});
+  const handleRemoveFromLibrary =
+    props.handleRemoveFromLibrary ?? gameOps?.handleRemoveFromLibrary ?? (() => {});
+  const onToggleHidden = props.onToggleHidden ?? gameOps?.handleToggleHidden;
+  const onToggleFavorite = props.onToggleFavorite ?? gameOps?.handleToggleFavorite;
+  const onPromoteCopy = props.onPromoteCopy ?? gameOps?.handlePromoteCopy;
+  const handleConfirmUninstall =
+    props.handleConfirmUninstall ?? gameOps?.handleConfirmUninstall ?? (async () => {});
+  const confirmKillRunningGame =
+    props.confirmKillRunningGame ?? gameOps?.confirmKillRunningGame ?? (() => {});
+  const handleOpenFolder =
+    props.handleOpenFolder ?? gameOps?.handleOpenFolder ?? (() => {});
   const {
     games,
     setGames,

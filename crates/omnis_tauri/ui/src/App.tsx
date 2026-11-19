@@ -34,6 +34,7 @@ import { useWindowControls } from "./hooks/useWindowControls";
 import { useLibraryFilters } from "./hooks/useLibraryFilters";
 import { useGamepadNavigation, ControllerType } from "./hooks/useGamepadNavigation";
 import { ActiveGameTimerProvider } from "./context/ActiveGameTimerContext";
+import { GameOperationsProvider } from "./context/GameOperationsContext";
 import { useAppUpdater, UpdaterContext } from "./hooks/useAppUpdater";
 import { DesktopView } from "./components/views/DesktopView";
 import {
@@ -163,24 +164,13 @@ export default function App() {
   });
 
   const {
-    isEnrichingSingle,
     handleSync,
     handleLaunch,
     handleKillRunningGame,
-    confirmKillRunningGame,
-    handleOpenFolder,
     handleOpenInstallDir,
     handleCreateShortcut,
     handleVerifyFiles,
-    handleOpenUninstallModal,
     handleConfirmUninstall,
-    handleRemoveFromLibrary,
-    handleEnrichSingleGame,
-    handleRefreshHltb,
-    handleUpdateCompletionStatus,
-    handleToggleHidden,
-    handleToggleFavorite,
-    handlePromoteCopy,
   } = gameOps;
 
   // TAURI EVENTS & BACKGROUND NOTIFICATIONS HOOK
@@ -287,45 +277,19 @@ export default function App() {
   }, [setContextMenu]);
 
   // FILTERS & GROUPING HOOK
+  const libraryFilters = useLibraryFilters(games);
   const {
     activeFilter,
-    setActiveFilter,
-    selectedStores,
-    selectedStatuses,
-    selectedFlags,
-    selectedGenres,
-    genreMatchMode,
-    setGenreMatchMode,
-    selectedFeatures,
-    featureMatchMode,
-    setFeatureMatchMode,
     sortMode,
     setSortMode,
     filterCounts,
-    activeChips,
-    totalActiveFilters,
-    toggleStore,
-    toggleStatus,
-    toggleFlag,
-    toggleGenre,
-    toggleFeature,
-    clearAllFilters,
-    removeFilterChip,
-    isFilterActive,
-    groupBy,
-    setGroupBy,
     searchQuery,
     setSearchQuery,
-    detailsSearchQuery,
-    setDetailsSearchQuery,
-    collapsedGroups,
-    toggleGroup,
     selectFilter,
     cycleFilter,
     filteredGames,
-    groupedGames,
-    detailsFilteredGames,
-  } = useLibraryFilters(games);
+    groupBy,
+  } = libraryFilters;
 
   const { hiddenQuickFilters } = useConsolePrefs();
   const visibleCategories = useMemo(
@@ -521,6 +485,7 @@ export default function App() {
 
   return (
     <ActiveGameTimerProvider activeGame={activeGame}>
+    <GameOperationsProvider value={gameOps}>
     <UpdaterContext.Provider value={updater}>
     <InputPromptContext.Provider
       value={{
@@ -640,72 +605,23 @@ export default function App() {
           >
             <DesktopView
             currentTheme={currentTheme}
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
+            filters={libraryFilters}
+            availableGenres={availableGenres}
+            availableFeatures={availableFeatures}
+            currentGroupLabel={currentGroupLabel}
             toggleFullscreen={toggleFullscreen}
             handleToggleSound={handleToggleSound}
             loadProvidersAndConfig={loadProvidersAndConfig}
             providers={providers}
-            handleSync={handleSync}
             handleMinimize={handleMinimize}
             handleToggleMaximize={handleToggleMaximize}
             handleClose={handleClose}
             handleStartDragging={handleStartDragging}
             t={t}
             formatDuration={formatDuration}
-            handleKillRunningGame={handleKillRunningGame}
-            activeFilter={activeFilter}
-            setActiveFilter={setActiveFilter}
-            isFilterActive={isFilterActive}
             gamepadConnected={gamepadConnected}
             gamepadName={gamepadName}
-            handleOpenFolder={handleOpenFolder}
-            sortMode={sortMode}
-            setSortMode={setSortMode}
-            selectedFlags={selectedFlags}
-            toggleFlag={toggleFlag}
-            selectedStatuses={selectedStatuses}
-            toggleStatus={toggleStatus}
-            selectedStores={selectedStores}
-            toggleStore={toggleStore}
-            selectedGenres={selectedGenres}
-            toggleGenre={toggleGenre}
-            genreMatchMode={genreMatchMode}
-            setGenreMatchMode={setGenreMatchMode}
-            selectedFeatures={selectedFeatures}
-            toggleFeature={toggleFeature}
-            featureMatchMode={featureMatchMode}
-            setFeatureMatchMode={setFeatureMatchMode}
-            clearAllFilters={clearAllFilters}
-            totalActiveFilters={totalActiveFilters}
-            filterCounts={filterCounts}
-            availableGenres={availableGenres}
-            availableFeatures={availableFeatures}
-            activeChips={activeChips}
-            removeFilterChip={removeFilterChip}
-            filteredGames={filteredGames}
-            groupedGames={groupedGames}
-            groupBy={groupBy}
-            setGroupBy={setGroupBy}
-            collapsedGroups={collapsedGroups}
-            toggleGroup={toggleGroup}
-            currentGroupLabel={currentGroupLabel}
-            detailsSearchQuery={detailsSearchQuery}
-            setDetailsSearchQuery={setDetailsSearchQuery}
-            detailsFilteredGames={detailsFilteredGames}
             handleOpenContextMenu={handleOpenContextMenu}
-            handleLaunch={handleLaunch}
-            handleEnrichSingleGame={handleEnrichSingleGame}
-            handleRefreshHltb={handleRefreshHltb}
-            isEnrichingSingle={isEnrichingSingle}
-            handleOpenInstallDir={handleOpenInstallDir}
-            handleCreateShortcut={handleCreateShortcut}
-            handleVerifyFiles={handleVerifyFiles}
-            handleOpenUninstallModal={handleOpenUninstallModal}
-            handleRemoveFromLibrary={handleRemoveFromLibrary}
-            handleToggleHidden={handleToggleHidden}
-            handleToggleFavorite={handleToggleFavorite}
-            handlePromoteCopy={handlePromoteCopy}
           />
           </ErrorBoundary>
         )}
@@ -721,27 +637,14 @@ export default function App() {
             currentTheme={currentTheme}
             selectTheme={selectTheme}
             handleSaveCustomTheme={handleSaveCustomTheme}
-            handleOpenFolder={handleOpenFolder}
             pluginManager={pluginManager}
-            handleLaunch={handleLaunch}
-            handleUpdateCompletionStatus={handleUpdateCompletionStatus}
-            handleOpenInstallDir={handleOpenInstallDir}
-            handleCreateShortcut={handleCreateShortcut}
-            handleVerifyFiles={handleVerifyFiles}
-            handleOpenUninstallModal={handleOpenUninstallModal}
-            handleRemoveFromLibrary={handleRemoveFromLibrary}
-            onToggleHidden={handleToggleHidden}
-            onToggleFavorite={handleToggleFavorite}
-            onPromoteCopy={handlePromoteCopy}
             statusText={statusText}
             filteredGames={filteredGames}
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
             setFocusedIndex={setFocusedIndex}
             fullscreenGamesCount={fullscreenGames.length}
-            handleConfirmUninstall={handleConfirmUninstall}
             handleToggleSound={handleToggleSound}
-            confirmKillRunningGame={confirmKillRunningGame}
             t={t}
           />
         </ErrorBoundary>
@@ -769,6 +672,7 @@ export default function App() {
     </ControllerTypeContext.Provider>
     </InputPromptContext.Provider>
     </UpdaterContext.Provider>
+    </GameOperationsProvider>
     </ActiveGameTimerProvider>
   );
 }
