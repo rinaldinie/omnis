@@ -7,7 +7,7 @@ import {
   ExternalLink,
   Play,
 } from "lucide-react";
-import { GameDto, TranslateFn } from "../../../types";
+import { GameDto, TranslateFn, isGamePlayable } from "../../../types";
 import { Slot } from "../../common/Slot";
 import { GameAchievementsGallery } from "../../achievements";
 import GameStatisticsCard from "../../stats/GameStatisticsCard";
@@ -133,10 +133,10 @@ export const DetailsMetadataPanel: React.FC<DetailsMetadataPanelProps> = ({
               >
                 <StoreIcon library={copy.library} className="w-4 h-4 text-slate-300" />
                 <span className="font-medium text-slate-200">{copy.library.toUpperCase()}</span>
-                <ActionTooltip label={copy.is_installed ? t("status.installed") : t("status.available")}>
+                <ActionTooltip label={isGamePlayable(copy) ? t("status.installed") : t("status.available")}>
                   <span
                     className={`w-2 h-2 rounded-full ${
-                      copy.is_installed ? "bg-emerald-400" : "bg-slate-500"
+                      isGamePlayable(copy) ? "bg-emerald-400" : "bg-slate-500"
                     }`}
                   />
                 </ActionTooltip>

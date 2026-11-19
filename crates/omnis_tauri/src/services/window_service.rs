@@ -4,10 +4,11 @@
 //! DirectX / Vulkan game termination transitions, DPI scaling edge cases, and Windows Shell
 //! taskbar occlusion bugs.
 
+use serde::{Deserialize, Serialize};
 use tauri::{Manager, Window};
 
 /// Saved window state prior to game launch to restore geometry and fullscreen upon exit.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WindowStateSnapshot {
     pub was_fullscreen: bool,
 }

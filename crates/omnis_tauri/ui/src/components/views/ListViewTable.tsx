@@ -22,7 +22,7 @@ import {
   TableRow,
 } from "../ui/table";
 import { ActionTooltip } from "../ui/tooltip";
-import { isGamePlayable, LaunchConfiguration } from "../../types";
+import { isGamePlayable, LaunchConfiguration, DuplicateCopyDto } from "../../types";
 
 export interface GameItem {
   id: string;
@@ -50,15 +50,7 @@ export interface GameItem {
   developers: string[];
   publishers?: string[];
   is_hidden?: boolean;
-  other_copies?: Array<{
-    id: string;
-    title: string;
-    library: string;
-    is_installed: boolean;
-    playtime_seconds: number;
-    playtime_formatted: string;
-    is_hidden: boolean;
-  }>;
+  other_copies?: DuplicateCopyDto[];
 }
 
 export type SortField =
@@ -510,12 +502,12 @@ export default function ListViewTable({
                               <ActionTooltip
                                 key={copy.id}
                                 label={`${copy.library.toUpperCase()} ${
-                                  copy.is_installed ? `(${t("groups.installed")})` : ""
+                                  isGamePlayable(copy) ? `(${t("groups.installed")})` : ""
                                 }`}
                               >
                                 <span
                                   className={`inline-flex items-center justify-center ${
-                                    copy.is_installed
+                                    isGamePlayable(copy)
                                       ? "text-emerald-400"
                                       : "text-white/75"
                                   }`}

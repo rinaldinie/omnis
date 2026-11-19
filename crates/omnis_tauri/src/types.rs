@@ -193,6 +193,7 @@ pub fn populate_other_copies(dtos: &mut [GameDto]) {
                     title: dto.title.clone(),
                     library: dto.library.clone(),
                     is_installed: dto.is_installed,
+                    is_playable: dto.is_playable,
                     playtime_seconds: dto.playtime_seconds,
                     playtime_formatted: dto.playtime_formatted.clone(),
                     is_hidden: dto.is_hidden,
@@ -202,8 +203,9 @@ pub fn populate_other_copies(dtos: &mut [GameDto]) {
 
     for copies in groups.values_mut() {
         copies.sort_by(|a, b| {
-            b.is_installed
-                .cmp(&a.is_installed)
+            b.is_playable
+                .cmp(&a.is_playable)
+                .then_with(|| b.is_installed.cmp(&a.is_installed))
                 .then_with(|| a.library.cmp(&b.library))
         });
     }

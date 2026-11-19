@@ -430,6 +430,8 @@ pub struct DuplicateCopyDto {
     pub title: String,
     pub library: String,
     pub is_installed: bool,
+    #[serde(default)]
+    pub is_playable: bool,
     pub playtime_seconds: u64,
     pub playtime_formatted: String,
     pub is_hidden: bool,

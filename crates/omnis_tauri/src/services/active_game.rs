@@ -111,6 +111,7 @@ impl ActiveGameManager {
     }
 
     /// Clear the active game session when the game exits
+    #[allow(dead_code)]
     pub async fn clear_running(&self) {
         let _ = self.end_session().await;
     }
@@ -127,6 +128,7 @@ impl ActiveGameManager {
     }
 
     /// Forcibly or gracefully terminate the currently running game process (Requirement B4)
+    #[allow(dead_code)]
     pub async fn kill_running(&self) -> Result<bool, String> {
         Ok(self.kill_running_graceful(3).await?.is_some())
     }
