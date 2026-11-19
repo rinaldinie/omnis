@@ -18,6 +18,7 @@ vi.mock("@/api", async (importOriginal) => {
       ...actual.api,
       metadata: {
         ...actual.api.metadata,
+        startBatchEnrichment: vi.fn(),
         downloadBatchMetadata: vi.fn(),
         cancelMetadataDownload: vi.fn().mockResolvedValue(undefined),
       },
@@ -89,7 +90,7 @@ describe("BatchEnrichModal background IPC flow", () => {
     const onComplete = vi.fn().mockResolvedValue(undefined);
     const onClose = vi.fn();
     let resolveDownload!: (updated: number) => void;
-    vi.mocked(api.metadata.downloadBatchMetadata).mockImplementationOnce(
+    vi.mocked(api.metadata.startBatchEnrichment).mockImplementationOnce(
       () =>
         new Promise<number>((resolve) => {
           resolveDownload = resolve;
@@ -122,7 +123,12 @@ describe("BatchEnrichModal background IPC flow", () => {
     });
 
     await waitFor(() => {
-      expect(api.metadata.downloadBatchMetadata).toHaveBeenCalledWith(["g1", "g2"]);
+      expect(api.metadata.startBatchEnrichment).toHaveBeenCalledWith({
+        gameIds: ["g1", "g2"],
+        fetchMetadata: true,
+        fetchHltb: true,
+        fetchAchievements: true,
+      });
     });
 
     // Reopening the modal while background download is active shows non-blocking status + Cancel
@@ -157,7 +163,7 @@ describe("BatchEnrichModal background IPC flow", () => {
   it("reports IPC errors in background state and runs HLTB + store-eligible achievements when metadata is disabled", async () => {
     const onComplete = vi.fn().mockResolvedValue(undefined);
     const onClose = vi.fn();
-    vi.mocked(api.metadata.downloadBatchMetadata).mockRejectedValueOnce(new Error("Pipeline crashed"));
+    vi.mocked(api.metadata.startBatchEnrichment).mockRejectedValueOnce(new Error("Pipeline crashed"));
 
     render(
       <I18nProvider initialLocale="en">
@@ -183,14 +189,19 @@ describe("BatchEnrichModal background IPC flow", () => {
       });
     });
 
+    vi.mocked(api.metadata.startBatchEnrichment).mockResolvedValueOnce(2);
+
     // Disable metadata, leaving HLTB and Achievements active
     fireEvent.click(screen.getByRole("button", { name: /Game Info & Artwork/i }));
     fireEvent.click(screen.getByRole("button", { name: /Download Selected Data \(2\)/i }));
 
     await waitFor(() => {
-      expect(api.games.refreshGameHowlongtobeat).toHaveBeenCalledTimes(2);
-      expect(api.achievements.refreshGameAchievements).toHaveBeenCalledTimes(1);
-      expect(api.achievements.refreshGameAchievements).toHaveBeenCalledWith("g1");
+      expect(api.metadata.startBatchEnrichment).toHaveBeenCalledWith({
+        gameIds: ["g1", "g2"],
+        fetchMetadata: false,
+        fetchHltb: true,
+        fetchAchievements: true,
+      });
       expect(onComplete).toHaveBeenCalledTimes(1);
       expect(useUiStore.getState().metadataDownload?.status).toBe("completed");
     });
@@ -245,6 +256,7 @@ describe("BatchEnrichModal background IPC flow", () => {
         achievements_sync_status: "none",
       },
     ];
+    vi.mocked(api.metadata.startBatchEnrichment).mockResolvedValueOnce(1);
 
     render(
       <I18nProvider initialLocale="en">
@@ -268,9 +280,12 @@ describe("BatchEnrichModal background IPC flow", () => {
     fireEvent.click(screen.getByRole("button", { name: /Download Selected Data \(2\)/i }));
 
     await waitFor(() => {
-      expect(api.achievements.refreshGameAchievements).toHaveBeenCalledTimes(1);
-      expect(api.achievements.refreshGameAchievements).toHaveBeenCalledWith("g1");
-      expect(api.achievements.refreshGameAchievements).not.toHaveBeenCalledWith("g3");
+      expect(api.metadata.startBatchEnrichment).toHaveBeenCalledWith({
+        gameIds: ["g1", "g3"],
+        fetchMetadata: false,
+        fetchHltb: false,
+        fetchAchievements: true,
+      });
     });
   });
 });

@@ -912,6 +912,13 @@ export interface MetadataCandidateDto {
   };
 }
 
+export interface BatchEnrichmentPayload {
+  gameIds: string[];
+  fetchMetadata: boolean;
+  fetchHltb: boolean;
+  fetchAchievements: boolean;
+}
+
 export interface WidgetLink {
   title: string;
   url: string;

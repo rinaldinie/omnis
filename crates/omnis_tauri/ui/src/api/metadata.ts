@@ -1,5 +1,6 @@
 import { invokeIpc } from "./client";
 import type {
+  BatchEnrichmentPayload,
   GameDto,
   MetadataCandidateDto,
   MetadataPipelineConfig,
@@ -49,6 +50,10 @@ export const metadataApi = {
   /** Download metadata for a specific batch of games */
   downloadBatchMetadata: (gameIds: string[]): Promise<number> =>
     invokeIpc<number>("download_batch_metadata", { gameIds }),
+
+  /** Orchestrated batch enrichment (metadata, HLTB, achievements) on Rust backend */
+  startBatchEnrichment: (payload: BatchEnrichmentPayload): Promise<number> =>
+    invokeIpc<number>("start_batch_enrichment", { payload }),
 
   /** Search metadata candidates for manual resolution */
   searchMetadataCandidates: (

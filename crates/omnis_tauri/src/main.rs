@@ -57,6 +57,7 @@ fn main() {
             download_metadata,
             download_all_metadata,
             download_batch_metadata,
+            start_batch_enrichment,
             cancel_metadata_download,
             enrich_single_game,
             refresh_game_howlongtobeat,
