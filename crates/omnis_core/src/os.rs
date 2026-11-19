@@ -81,10 +81,12 @@ fn resolve_windows_shortcut(shortcut_path: &Path) -> Result<ResolvedExecutable, 
     };
     use windows::Win32::UI::Shell::{IShellLinkW, ShellLink, SLGP_RAWPATH, SLR_NO_UI};
 
-    struct ComGuard;
+    struct ComGuard(bool);
     impl Drop for ComGuard {
         fn drop(&mut self) {
-            unsafe { CoUninitialize() };
+            if self.0 {
+                unsafe { CoUninitialize() };
+            }
         }
     }
 
@@ -92,18 +94,27 @@ fn resolve_windows_shortcut(shortcut_path: &Path) -> Result<ResolvedExecutable, 
         .canonicalize()
         .unwrap_or_else(|_| shortcut_path.to_path_buf());
 
+    let path_str = shortcut_abs.to_string_lossy();
+    let normalized_path = if let Some(stripped) = path_str.strip_prefix(r"\\?\") {
+        stripped.to_string()
+    } else {
+        path_str.to_string()
+    };
+
     let shortcut_stem = shortcut_path
         .file_stem()
         .and_then(|s| s.to_str())
         .map(|s| s.to_string());
 
-    unsafe {
-        let _ = CoInitializeEx(
+    let init_res = unsafe {
+        CoInitializeEx(
             None,
             COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE,
-        );
-    }
-    let _com_guard = ComGuard;
+        )
+    };
+    let need_uninit = init_res == windows::Win32::Foundation::S_OK
+        || init_res == windows::Win32::Foundation::S_FALSE;
+    let _com_guard = ComGuard(need_uninit);
 
     unsafe {
         let link: IShellLinkW = CoCreateInstance(&ShellLink, None, CLSCTX_INPROC_SERVER)
@@ -113,7 +124,9 @@ fn resolve_windows_shortcut(shortcut_path: &Path) -> Result<ResolvedExecutable, 
             .cast()
             .map_err(|e| format!("Impossibile ottenere interfaccia IPersistFile: {}", e))?;
 
-        let mut path_wide: Vec<u16> = shortcut_abs.as_os_str().encode_wide().collect();
+        let mut path_wide: Vec<u16> = std::ffi::OsStr::new(&normalized_path)
+            .encode_wide()
+            .collect();
         path_wide.push(0);
 
         persist_file
@@ -186,7 +199,18 @@ fn expand_env_strings(input: &str) -> String {
     unsafe {
         let len = ExpandEnvironmentStringsW(PCWSTR(wide_input.as_ptr()), Some(&mut buf));
         if len > 0 {
-            null_terminated_u16_to_string(&buf[..len as usize])
+            if (len as usize) <= buf.len() {
+                null_terminated_u16_to_string(&buf[..len as usize])
+            } else {
+                let mut dyn_buf = vec![0u16; len as usize];
+                let dyn_len =
+                    ExpandEnvironmentStringsW(PCWSTR(wide_input.as_ptr()), Some(&mut dyn_buf));
+                if dyn_len > 0 && (dyn_len as usize) <= dyn_buf.len() {
+                    null_terminated_u16_to_string(&dyn_buf[..dyn_len as usize])
+                } else {
+                    input.to_string()
+                }
+            }
         } else {
             input.to_string()
         }
@@ -302,12 +326,14 @@ mod tests {
                 let resolved = resolve_executable_path_sync(&lnk_str);
                 let _ = std::fs::remove_file(&lnk_path);
 
-                if let Ok(res) = resolved {
-                    assert_eq!(res.executable_path.to_lowercase(), r#"c:\windows\system32\notepad.exe"#);
-                    assert_eq!(res.arguments, vec!["--test-flag"]);
-                    assert_eq!(res.working_dir, Some(r#"C:\Windows"#.to_string()));
-                    assert_eq!(res.shortcut_name, Some("omnis_test_unit".to_string()));
-                }
+                let res = resolved.expect("Shortcut resolution failed");
+                assert_eq!(
+                    res.executable_path.to_lowercase(),
+                    r#"c:\windows\system32\notepad.exe"#
+                );
+                assert_eq!(res.arguments, vec!["--test-flag"]);
+                assert_eq!(res.working_dir, Some(r#"C:\Windows"#.to_string()));
+                assert_eq!(res.shortcut_name, Some("omnis_test_unit".to_string()));
             }
         }
     }
