@@ -198,10 +198,20 @@ impl ActiveGameManager {
                     Some(omnis_core::launcher::process_file_name(name).to_string())
                 }
                 _ => {
-                    let exe_name = std::path::Path::new(&action.executable)
-                        .file_name()
-                        .and_then(|f| f.to_str());
-                    exe_name.map(|n| omnis_core::launcher::process_file_name(n).to_string())
+                    let exe_str = action.executable.trim();
+                    if omnis_core::launcher::is_launch_uri(exe_str)
+                        || matches!(
+                            exe_str.to_ascii_lowercase().as_str(),
+                            "rundll32.exe" | "open" | "xdg-open" | "cmd.exe"
+                        )
+                    {
+                        None
+                    } else {
+                        let exe_name = std::path::Path::new(exe_str)
+                            .file_name()
+                            .and_then(|f| f.to_str());
+                        exe_name.map(|n| omnis_core::launcher::process_file_name(n).to_string())
+                    }
                 }
             });
 
