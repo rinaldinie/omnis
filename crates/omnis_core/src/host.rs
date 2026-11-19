@@ -85,12 +85,23 @@ impl PluginHost {
 
     /// Dispatch an event and await full completion across all plugin targets without race conditions
     pub async fn dispatch_event_and_wait(&self, target_id: Option<&str>, event: PluginEvent) {
+        self.dispatch_event_filtered_and_wait(|id| target_id.map_or(true, |t| t == id), event)
+            .await;
+    }
+
+    /// Dispatch an event to plugins matching a predicate and await full completion in parallel
+    pub async fn dispatch_event_filtered_and_wait<F>(&self, predicate: F, event: PluginEvent)
+    where
+        F: Fn(&str) -> bool,
+    {
         let _ = self.event_bus.publish(event.clone());
 
-        let targets: Vec<Arc<Mutex<Box<dyn ReactivePlugin>>>> = match target_id {
-            Some(id) => self.plugins.get(id).cloned().into_iter().collect(),
-            None => self.plugins.values().cloned().collect(),
-        };
+        let targets: Vec<Arc<Mutex<Box<dyn ReactivePlugin>>>> = self
+            .plugins
+            .iter()
+            .filter(|(id, _)| predicate(id.as_str()))
+            .map(|(_, p)| p.clone())
+            .collect();
 
         let mut handles = Vec::new();
         for plugin_arc in targets {
@@ -153,3 +164,81 @@ impl PluginHost {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use async_trait::async_trait;
+    use omnis_sdk::PluginSettingsSchema;
+
+    struct MockTestPlugin {
+        id: &'static str,
+        name: &'static str,
+        dispatched_count: Arc<std::sync::atomic::AtomicUsize>,
+    }
+
+    #[async_trait]
+    impl ReactivePlugin for MockTestPlugin {
+        fn id(&self) -> &'static str {
+            self.id
+        }
+        fn name(&self) -> &'static str {
+            self.name
+        }
+        fn settings_schema(&self) -> Option<PluginSettingsSchema> {
+            None
+        }
+        async fn initialize(&mut self, _config_json: &str) -> Result<(), String> {
+            Ok(())
+        }
+        async fn handle_event(&mut self, _event: PluginEvent) -> Result<Vec<PluginEvent>, String> {
+            self.dispatched_count
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            Ok(Vec::new())
+        }
+    }
+
+    #[tokio::test]
+    async fn test_dispatch_event_filtered_and_wait() {
+        let db = Arc::new(Database::new_in_memory().unwrap());
+        let event_bus = EventBus::new(16);
+        let mut host = PluginHost::new(event_bus, db);
+
+        let count_steam = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let count_epic = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let count_gog = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+
+        host.register_plugin(Box::new(MockTestPlugin {
+            id: "steam",
+            name: "Steam",
+            dispatched_count: count_steam.clone(),
+        }));
+        host.register_plugin(Box::new(MockTestPlugin {
+            id: "epic",
+            name: "Epic",
+            dispatched_count: count_epic.clone(),
+        }));
+        host.register_plugin(Box::new(MockTestPlugin {
+            id: "gog",
+            name: "GOG",
+            dispatched_count: count_gog.clone(),
+        }));
+
+        let connected = vec!["steam".to_string(), "gog".to_string()];
+
+        // Filter out connected stores: only epic should receive the event
+        host.dispatch_event_filtered_and_wait(
+            |plugin_id| !connected.iter().any(|c| c == plugin_id),
+            PluginEvent::SyncRequested {
+                library_id: "all".to_string(),
+                force_full: false,
+            },
+        )
+        .await;
+
+        assert_eq!(count_steam.load(std::sync::atomic::Ordering::SeqCst), 0);
+        assert_eq!(count_gog.load(std::sync::atomic::Ordering::SeqCst), 0);
+        assert_eq!(count_epic.load(std::sync::atomic::Ordering::SeqCst), 1);
+    }
+}
+

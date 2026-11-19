@@ -5,6 +5,7 @@ use omnis_plugin_epic::EpicLibraryPlugin;
 use omnis_sdk::constants::events;
 use omnis_sdk::{Game, LaunchConfiguration, PluginEvent, ProcessTrackingMode};
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::path::PathBuf;
 use tauri::State;
 use uuid::Uuid;
@@ -99,10 +100,21 @@ pub async fn sync_library(
     app_handle: tauri::AppHandle,
     state: State<'_, AppState>,
 ) -> Result<usize, String> {
+    let connected: HashSet<String> = state
+        .store_account_manager
+        .get_store_accounts()
+        .await
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|a| a.is_connected)
+        .map(|a| a.store_id)
+        .collect();
+
+    // 1. Dispatch local manifest scan only for libraries/plugins NOT connected to cloud accounts
     state
         .host
-        .dispatch_event_and_wait(
-            None,
+        .dispatch_event_filtered_and_wait(
+            |plugin_id| !connected.contains(plugin_id),
             PluginEvent::SyncRequested {
                 library_id: "all".to_string(),
                 force_full: false,
@@ -110,7 +122,8 @@ pub async fn sync_library(
         )
         .await;
 
-    // Sync connected cloud store accounts (GOG, Xbox, etc.)
+    // 2. Sync connected cloud store accounts (GOG, Xbox, Steam, Epic, etc.)
+    // Each connected store performs its remote fetch, local manifest scan, and a single merged DB ingestion
     let _ = state
         .store_account_manager
         .sync_all_connected(&app_handle)
@@ -145,7 +158,7 @@ pub async fn sync_selected_libraries(
     state: State<'_, AppState>,
 ) -> Result<usize, String> {
     let ids = normalize_library_ids(&library_ids);
-    let connected: Vec<String> = state
+    let connected: HashSet<String> = state
         .store_account_manager
         .get_store_accounts()
         .await
@@ -156,17 +169,8 @@ pub async fn sync_selected_libraries(
         .collect();
 
     for id in &ids {
-        state
-            .host
-            .dispatch_event_and_wait(
-                None,
-                PluginEvent::SyncRequested {
-                    library_id: id.clone(),
-                    force_full: false,
-                },
-            )
-            .await;
-        if connected.iter().any(|c| c == id) {
+        if connected.contains(id) {
+            // Connected store: sync_store handles both remote catalog and local installations with a single merge & ingestion
             if let Err(e) = state
                 .store_account_manager
                 .sync_store(&app_handle, id)
@@ -174,6 +178,18 @@ pub async fn sync_selected_libraries(
             {
                 tracing::warn!("Cloud sync failed for {}: {}", id, e);
             }
+        } else {
+            // Unconnected library: dispatch local scan to ReactivePlugin
+            state
+                .host
+                .dispatch_event_and_wait(
+                    None,
+                    PluginEvent::SyncRequested {
+                        library_id: id.clone(),
+                        force_full: false,
+                    },
+                )
+                .await;
         }
     }
 
