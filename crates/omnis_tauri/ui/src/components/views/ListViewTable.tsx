@@ -22,36 +22,9 @@ import {
   TableRow,
 } from "../ui/table";
 import { ActionTooltip } from "../ui/tooltip";
-import { isGamePlayable, LaunchConfiguration, DuplicateCopyDto } from "../../types";
+import { isGamePlayable, GameDto } from "../../types";
 
-export interface GameItem {
-  id: string;
-  title: string;
-  library: string;
-  is_installed: boolean;
-  is_playable?: boolean;
-  use_library_integration?: boolean;
-  play_actions?: LaunchConfiguration[];
-  playtime_seconds: number;
-  playtime_formatted: string;
-  critic_score: number | null;
-  release_date: string | null;
-  description: string | null;
-  cover_image: string | null;
-  background_image: string | null;
-  icon_image?: string | null;
-  series?: string | null;
-  completion_status?: string | null;
-  user_notes?: string | null;
-  features?: string[];
-  custom_links?: Array<{ title: string; url: string }>;
-  extra_metadata?: string | null;
-  genres: string[];
-  developers: string[];
-  publishers?: string[];
-  is_hidden?: boolean;
-  other_copies?: DuplicateCopyDto[];
-}
+export type GameItem = GameDto;
 
 export type SortField =
   | "title"

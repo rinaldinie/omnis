@@ -7,6 +7,8 @@ import { GameCardCover } from "../common/GameCardCover";
 import EmptyGamesView from "../common/EmptyGamesView";
 import { useTranslation } from "../../i18n";
 import { useActiveGameTimer } from "../../context/ActiveGameTimerContext";
+import { useOptionalGameOperationsContext } from "../../context/GameOperationsContext";
+import { useLibraryStore, useUiStore, useModalStore } from "../../stores";
 import { getRecentSettings } from "../../utils/recentSettings";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
@@ -29,13 +31,13 @@ interface GridViewProps {
   collapsedGroups: Record<string, boolean>;
   toggleGroup: (groupName: string) => void;
   gridCardWidth: number;
-  selectedGame: GameDto | null;
-  setSelectedGame: (game: GameDto) => void;
-  setViewMode: (mode: ViewMode) => void;
-  handleOpenContextMenu: (e: React.MouseEvent, game: GameDto) => void;
-  handleLaunch: (gameId: string) => void;
-  setGameToEdit: (game: GameDto) => void;
-  setShowEditorModal: (show: boolean) => void;
+  selectedGame?: GameDto | null;
+  setSelectedGame?: (game: GameDto) => void;
+  setViewMode?: (mode: ViewMode) => void;
+  handleOpenContextMenu?: (e: React.MouseEvent, game: GameDto) => void;
+  handleLaunch?: (gameId: string) => void;
+  setGameToEdit?: (game: GameDto) => void;
+  setShowEditorModal?: (show: boolean) => void;
   activeGame?: ActiveGameSession | null;
   elapsedSeconds?: number;
   formatDuration?: (seconds: number) => string;
@@ -389,30 +391,54 @@ const DesktopRecentCard = React.memo(function DesktopRecentCard({
   );
 });
 
-export default function GridView({
-  filteredGames,
-  groupedGames,
-  groupBy,
-  collapsedGroups,
-  toggleGroup,
-  gridCardWidth,
-  selectedGame: _selectedGame,
-  setSelectedGame,
-  setViewMode,
-  handleOpenContextMenu,
-  handleLaunch,
-  setGameToEdit,
-  setShowEditorModal,
-  activeGame,
-  elapsedSeconds,
-  formatDuration,
-  handleKillRunningGame,
-  activeFilter = "all",
-  searchQuery = "",
-  onClearFilters,
-  hasActiveFilters,
-}: GridViewProps) {
+function defaultFormatDuration(s: number): string {
+  const hrs = Math.floor(s / 3600);
+  const mins = Math.floor((s % 3600) / 60);
+  const secs = s % 60;
+  if (hrs > 0) {
+    return `${hrs}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  }
+  return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+}
+
+export default function GridView(props: GridViewProps) {
+  const {
+    filteredGames,
+    groupedGames,
+    groupBy,
+    collapsedGroups,
+    toggleGroup,
+    gridCardWidth,
+    activeFilter = "all",
+    searchQuery = "",
+    onClearFilters,
+    hasActiveFilters,
+  } = props;
+
   const { t } = useTranslation();
+  const gameOps = useOptionalGameOperationsContext();
+  const elapsedTimerSeconds = useActiveGameTimer();
+  const { setViewMode: storeSetViewMode, setContextMenu, activeGame: storeActiveGame } = useUiStore();
+  const { setSelectedGame: storeSetSelectedGame } = useLibraryStore();
+  const { openGameEditor } = useModalStore();
+
+  const handleLaunch = props.handleLaunch ?? gameOps?.handleLaunch ?? (() => {});
+  const handleKillRunningGame = props.handleKillRunningGame ?? gameOps?.handleKillRunningGame;
+  const activeGame = props.activeGame !== undefined ? props.activeGame : storeActiveGame;
+  const elapsedSeconds = props.elapsedSeconds !== undefined ? props.elapsedSeconds : elapsedTimerSeconds;
+  const formatDuration = props.formatDuration ?? defaultFormatDuration;
+  const setSelectedGame = props.setSelectedGame ?? storeSetSelectedGame;
+  const setViewMode = props.setViewMode ?? storeSetViewMode;
+  const handleOpenContextMenu =
+    props.handleOpenContextMenu ??
+    ((e, game) => setContextMenu({ x: e.clientX, y: e.clientY, game }));
+  const handleEditGame =
+    props.setGameToEdit && props.setShowEditorModal
+      ? (game: GameDto) => {
+          props.setGameToEdit!(game);
+          props.setShowEditorModal!(true);
+        }
+      : (game: GameDto) => openGameEditor(game);
 
   const recentGames = React.useMemo(() => {
     if (activeFilter !== "all" || searchQuery.trim() !== "") return [];
@@ -546,10 +572,7 @@ export default function GridView({
                         onContextMenu={(e) => handleOpenContextMenu(e, game)}
                         onLaunch={() => handleLaunch(game.id)}
                         onKill={handleKillRunningGame}
-                        onEdit={() => {
-                          setGameToEdit(game);
-                          setShowEditorModal(true);
-                        }}
+                        onEdit={() => handleEditGame(game)}
                       />
                     );
                   })}

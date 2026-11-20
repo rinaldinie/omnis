@@ -16,6 +16,7 @@ import { ActiveGameSession, ProviderInfo, ThemeConfig, TranslateFn, ViewMode } f
 import soundEffects from "../../utils/soundEffects";
 import { useUpdater } from "../../hooks/useAppUpdater";
 import { useActiveGameTimer } from "../../context/ActiveGameTimerContext";
+import { useModalStore } from "../../stores";
 import AppMenuDropdown from "./AppMenuDropdown";
 import type { SettingsTab } from "../settings";
 import { Button } from "@/components/ui/button";
@@ -32,13 +33,13 @@ export interface TopBarProps {
   toggleBigPicture?: () => void;
   handleToggleSound: () => void;
   soundEnabled: boolean;
-  setShowSettingsModal: (open: boolean) => void;
+  setShowSettingsModal?: (open: boolean) => void;
   onOpenSettings?: (tab?: SettingsTab) => void;
-  setShowThemeModal: (open: boolean) => void;
+  setShowThemeModal?: (open: boolean) => void;
   loadProvidersAndConfig?: () => void;
-  setShowPluginModal: (open: boolean) => void;
+  setShowPluginModal?: (open: boolean) => void;
   providers?: ProviderInfo[];
-  setShowAddCustomModal: (open: boolean) => void;
+  setShowAddCustomModal?: (open: boolean) => void;
   setShowBatchEnrichModal?: (open: boolean) => void;
   onOpenPlayniteImport?: () => void;
   handleSync: () => void;
@@ -54,37 +55,41 @@ export interface TopBarProps {
   handleKillRunningGame?: () => void;
 }
 
-export default function TopBar({
-  currentTheme,
-  viewMode,
-  setViewMode,
-  searchQuery,
-  setSearchQuery,
-  toggleFullscreen,
-  toggleBigPicture,
-  handleToggleSound,
-  soundEnabled,
-  setShowSettingsModal,
-  onOpenSettings,
-  setShowThemeModal,
-  loadProvidersAndConfig,
-  setShowPluginModal,
-  providers = [],
-  setShowAddCustomModal,
-  setShowBatchEnrichModal,
-  onOpenPlayniteImport,
-  handleSync,
-  isSyncing,
-  handleMinimize,
-  handleToggleMaximize,
-  handleClose,
-  handleStartDragging,
-  t,
-  activeGame,
-  elapsedSeconds,
-  formatDuration,
-  handleKillRunningGame,
-}: TopBarProps) {
+export default function TopBar(props: TopBarProps) {
+  const {
+    currentTheme,
+    viewMode,
+    setViewMode,
+    searchQuery,
+    setSearchQuery,
+    toggleFullscreen,
+    toggleBigPicture,
+    handleToggleSound,
+    soundEnabled,
+    loadProvidersAndConfig,
+    providers = [],
+    handleSync,
+    isSyncing,
+    handleMinimize,
+    handleToggleMaximize,
+    handleClose,
+    handleStartDragging,
+    t,
+    activeGame,
+    elapsedSeconds,
+    formatDuration,
+    handleKillRunningGame,
+  } = props;
+
+  const modalStore = useModalStore();
+  const setShowSettingsModal = props.setShowSettingsModal ?? modalStore.setShowSettingsModal;
+  const onOpenSettings = props.onOpenSettings ?? modalStore.openSettings;
+  const setShowThemeModal = props.setShowThemeModal ?? modalStore.setShowThemeModal;
+  const setShowPluginModal = props.setShowPluginModal ?? modalStore.setShowPluginModal;
+  const setShowAddCustomModal = props.setShowAddCustomModal ?? modalStore.setShowAddCustomModal;
+  const setShowBatchEnrichModal = props.setShowBatchEnrichModal ?? modalStore.setShowBatchEnrichModal;
+  const onOpenPlayniteImport =
+    props.onOpenPlayniteImport ?? (() => modalStore.setIsPlayniteImportOpen(true));
   const updater = useUpdater();
   const isUpdateAvailable = updater?.status === "available";
   const [isAppMenuOpen, setIsAppMenuOpen] = useState(false);
