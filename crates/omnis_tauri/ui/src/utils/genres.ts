@@ -42,6 +42,14 @@ const GENRE_TRANSLATIONS: Record<string, GenreTranslation> = {
     fr: "Action-RPG",
     ja: "アクションRPG",
   },
+  strategy_rpg: {
+    en: "Strategy RPG",
+    it: "GDR strategico",
+    de: "Strategie-RPG",
+    es: "RPG de estrategia",
+    fr: "RPG tactique",
+    ja: "シミュレーションRPG",
+  },
   strategy: {
     en: "Strategy",
     it: "Strategia",
@@ -81,6 +89,14 @@ const GENRE_TRANSLATIONS: Record<string, GenreTranslation> = {
     es: "Carreras",
     fr: "Course",
     ja: "レース",
+  },
+  racing_simulation: {
+    en: "Racing Simulation",
+    it: "Simulazione di guida",
+    de: "Rennspiel-Simulation",
+    es: "Simulación de carreras",
+    fr: "Simulation de course",
+    ja: "レーシングシミュレーター",
   },
   sports: {
     en: "Sports",
@@ -129,6 +145,14 @@ const GENRE_TRANSLATIONS: Record<string, GenreTranslation> = {
     es: "Terror",
     fr: "Horreur",
     ja: "ホラー",
+  },
+  survival_horror: {
+    en: "Survival Horror",
+    it: "Survival Horror",
+    de: "Survival Horror",
+    es: "Survival Horror",
+    fr: "Survival Horror",
+    ja: "サバイバルホラー",
   },
   casual: {
     en: "Casual",
@@ -379,6 +403,29 @@ const ALIAS_MAP: Record<string, string> = {
   "giochi di ruolo d'azione": "action_rpg",
   "action-rollenspiel": "action_rpg",
 
+  // Strategy RPG
+  "strategy rpg": "strategy_rpg",
+  "strategy-rpg": "strategy_rpg",
+  "strategy/rpg": "strategy_rpg",
+  "tactical rpg": "strategy_rpg",
+  "tactical-rpg": "strategy_rpg",
+  "tactical/rpg": "strategy_rpg",
+  "tactical role-playing": "strategy_rpg",
+  "tactical role playing": "strategy_rpg",
+  "tactical role-playing (trpg)": "strategy_rpg",
+  "tactical role playing (trpg)": "strategy_rpg",
+  srpg: "strategy_rpg",
+  trpg: "strategy_rpg",
+  "gdr strategico": "strategy_rpg",
+  "gdr tattico": "strategy_rpg",
+  "gioco di ruolo strategico": "strategy_rpg",
+  "giochi di ruolo strategici": "strategy_rpg",
+  "gioco di ruolo tattico": "strategy_rpg",
+  "giochi di ruolo tattici": "strategy_rpg",
+  "strategie-rpg": "strategy_rpg",
+  "rpg de estrategia": "strategy_rpg",
+  "rpg tactique": "strategy_rpg",
+
   // Strategy
   strategy: "strategy",
   strategia: "strategy",
@@ -417,6 +464,9 @@ const ALIAS_MAP: Record<string, string> = {
   tps: "shooter",
   disparos: "shooter",
   tir: "shooter",
+  "action shooter": "shooter",
+  "action-shooter": "shooter",
+  "action/shooter": "shooter",
 
   // Racing
   racing: "racing",
@@ -427,6 +477,17 @@ const ALIAS_MAP: Record<string, string> = {
   courses: "racing",
   rennspiel: "racing",
   rennspiele: "racing",
+
+  // Racing Simulation
+  "racing simulation": "racing_simulation",
+  "racing-simulation": "racing_simulation",
+  "racing simulator": "racing_simulation",
+  "sim racing": "racing_simulation",
+  "sim-racing": "racing_simulation",
+  "simulatore di guida": "racing_simulation",
+  "simulazione di guida": "racing_simulation",
+  "simulador de carreras": "racing_simulation",
+  "rennspiel-simulation": "racing_simulation",
 
   // Sports
   sports: "sports",
@@ -475,6 +536,11 @@ const ALIAS_MAP: Record<string, string> = {
   terror: "horror",
   horreur: "horror",
   orrore: "horror",
+
+  // Survival Horror
+  "survival horror": "survival_horror",
+  "survival-horror": "survival_horror",
+  survival_horror: "survival_horror",
 
   // Casual
   casual: "casual",
@@ -534,6 +600,11 @@ const ALIAS_MAP: Record<string, string> = {
   "point & click": "point_and_click",
   "point-and-click": "point_and_click",
   "punta e clicca": "point_and_click",
+  "point & click adventure": "point_and_click",
+  "point and click adventure": "point_and_click",
+  "point-and-click adventure": "point_and_click",
+  "avventura punta e clicca": "point_and_click",
+  "avventura grafica": "point_and_click",
 
   // Roguelike
   roguelike: "roguelike",
@@ -656,12 +727,6 @@ export function normalizeGenreKey(genre: string): string | null {
   }
   if (Object.prototype.hasOwnProperty.call(ALIAS_MAP, clean)) {
     return ALIAS_MAP[clean];
-  }
-  // Try partial word matches
-  for (const [alias, key] of Object.entries(ALIAS_MAP)) {
-    if (clean === alias || clean.startsWith(`${alias} `) || clean.endsWith(` ${alias}`)) {
-      return key;
-    }
   }
   return null;
 }

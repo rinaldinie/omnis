@@ -44,6 +44,30 @@ const GENRE_ALIASES: &[(&str, &str)] = &[
     ("gioco di ruolo d'azione", "Action RPG"),
     ("giochi di ruolo d'azione", "Action RPG"),
     ("action-rollenspiel", "Action RPG"),
+    // Strategy RPG
+    ("strategy_rpg", "Strategy RPG"),
+    ("strategy rpg", "Strategy RPG"),
+    ("strategy-rpg", "Strategy RPG"),
+    ("strategy/rpg", "Strategy RPG"),
+    ("tactical_rpg", "Strategy RPG"),
+    ("tactical rpg", "Strategy RPG"),
+    ("tactical-rpg", "Strategy RPG"),
+    ("tactical/rpg", "Strategy RPG"),
+    ("tactical role-playing", "Strategy RPG"),
+    ("tactical role playing", "Strategy RPG"),
+    ("tactical role-playing (trpg)", "Strategy RPG"),
+    ("tactical role playing (trpg)", "Strategy RPG"),
+    ("srpg", "Strategy RPG"),
+    ("trpg", "Strategy RPG"),
+    ("gdr strategico", "Strategy RPG"),
+    ("gdr tattico", "Strategy RPG"),
+    ("gioco di ruolo strategico", "Strategy RPG"),
+    ("giochi di ruolo strategici", "Strategy RPG"),
+    ("gioco di ruolo tattico", "Strategy RPG"),
+    ("giochi di ruolo tattici", "Strategy RPG"),
+    ("strategie-rpg", "Strategy RPG"),
+    ("rpg de estrategia", "Strategy RPG"),
+    ("rpg tactique", "Strategy RPG"),
     // Strategy
     ("strategy", "Strategy"),
     ("strategia", "Strategy"),
@@ -79,6 +103,9 @@ const GENRE_ALIASES: &[(&str, &str)] = &[
     ("tps", "Shooter"),
     ("disparos", "Shooter"),
     ("tir", "Shooter"),
+    ("action shooter", "Shooter"),
+    ("action-shooter", "Shooter"),
+    ("action/shooter", "Shooter"),
     // Racing
     ("racing", "Racing"),
     ("corse", "Racing"),
@@ -88,6 +115,18 @@ const GENRE_ALIASES: &[(&str, &str)] = &[
     ("courses", "Racing"),
     ("rennspiel", "Racing"),
     ("rennspiele", "Racing"),
+    // Racing Simulation
+    ("racing_simulation", "Racing Simulation"),
+    ("racing simulation", "Racing Simulation"),
+    ("racing-simulation", "Racing Simulation"),
+    ("racing simulator", "Racing Simulation"),
+    ("sim racing", "Racing Simulation"),
+    ("sim_racing", "Racing Simulation"),
+    ("sim-racing", "Racing Simulation"),
+    ("simulatore di guida", "Racing Simulation"),
+    ("simulazione di guida", "Racing Simulation"),
+    ("simulador de carreras", "Racing Simulation"),
+    ("rennspiel-simulation", "Racing Simulation"),
     // Sports
     ("sports", "Sports"),
     ("sport", "Sports"),
@@ -130,6 +169,10 @@ const GENRE_ALIASES: &[(&str, &str)] = &[
     ("terror", "Horror"),
     ("horreur", "Horror"),
     ("orrore", "Horror"),
+    // Survival Horror
+    ("survival_horror", "Survival Horror"),
+    ("survival horror", "Survival Horror"),
+    ("survival-horror", "Survival Horror"),
     // Casual
     ("casual", "Casual"),
     ("occasionnel", "Casual"),
@@ -185,6 +228,11 @@ const GENRE_ALIASES: &[(&str, &str)] = &[
     ("point & click", "Point & Click"),
     ("point-and-click", "Point & Click"),
     ("punta e clicca", "Point & Click"),
+    ("point & click adventure", "Point & Click"),
+    ("point and click adventure", "Point & Click"),
+    ("point-and-click adventure", "Point & Click"),
+    ("avventura punta e clicca", "Point & Click"),
+    ("avventura grafica", "Point & Click"),
     // Roguelike
     ("roguelike", "Roguelike"),
     ("rogue-like", "Roguelike"),
@@ -314,12 +362,6 @@ pub fn normalize_genre(raw: &str) -> Option<String> {
         }
     }
 
-    for (alias, canonical) in GENRE_ALIASES {
-        if clean.starts_with(&format!("{} ", alias)) || clean.ends_with(&format!(" {}", alias)) {
-            return Some((*canonical).to_string());
-        }
-    }
-
     // Preserve explicit casing for custom/mixed-case genres (e.g. "Cybernetic", "VR"),
     // while capitalizing all-lowercase inputs (e.g. "metroidvania" -> "Metroidvania").
     if collapsed.chars().next().is_some_and(|c| c.is_lowercase()) {
@@ -425,8 +467,52 @@ mod tests {
             normalize_genre("Card & Board Game").as_deref(),
             Some("Card Game")
         );
+        assert_eq!(
+            normalize_genre("Survival Horror").as_deref(),
+            Some("Survival Horror")
+        );
+        assert_eq!(
+            normalize_genre("survival horror").as_deref(),
+            Some("Survival Horror")
+        );
+        assert_eq!(
+            normalize_genre("Strategy RPG").as_deref(),
+            Some("Strategy RPG")
+        );
+        assert_eq!(
+            normalize_genre("Tactical RPG").as_deref(),
+            Some("Strategy RPG")
+        );
+        assert_eq!(
+            normalize_genre("Racing Simulation").as_deref(),
+            Some("Racing Simulation")
+        );
+        assert_eq!(
+            normalize_genre("Point & Click Adventure").as_deref(),
+            Some("Point & Click")
+        );
+        assert_eq!(
+            normalize_genre("Action Shooter").as_deref(),
+            Some("Shooter")
+        );
         assert_eq!(normalize_genre("metroidvania").as_deref(), Some("Metroidvania"));
         assert_eq!(normalize_genre("   "), None);
+    }
+
+    #[test]
+    fn test_unknown_compound_genres_not_truncated() {
+        assert_eq!(
+            normalize_genre("Immersive Sim").as_deref(),
+            Some("Immersive Sim")
+        );
+        assert_eq!(
+            normalize_genre("Roguelike Deckbuilder").as_deref(),
+            Some("Roguelike Deckbuilder")
+        );
+        assert_eq!(
+            normalize_genre("Boomer Shooter").as_deref(),
+            Some("Boomer Shooter")
+        );
     }
 
     #[test]
