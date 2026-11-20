@@ -5,7 +5,7 @@ import {
   TranslateFn,
   normalizeGame,
 } from "../../types";
-import { useLibraryStore, useUiStore, ContextMenuState } from "../../stores";
+import { useLibraryStore, useUiStore, useModalStore, ContextMenuState } from "../../stores";
 import GlobalContextMenu from "../common/GlobalContextMenu";
 import VirtualKeyboard from "../common/VirtualKeyboard";
 import { UninstallModal } from "./UninstallModal";
@@ -122,14 +122,10 @@ export const AppModals: React.FC<AppModalsProps> = (props) => {
   } = useLibraryStore();
 
   const {
-    setViewMode,
-    soundEnabled,
     showThemeModal,
     setShowThemeModal,
     showPluginModal,
     setShowPluginModal,
-    contextMenu,
-    setContextMenu,
     showEditorModal,
     setShowEditorModal,
     gameToEdit,
@@ -155,6 +151,13 @@ export const AppModals: React.FC<AppModalsProps> = (props) => {
     setIsPlayniteImportOpen,
     showKillConfirmModal,
     setShowKillConfirmModal,
+  } = useModalStore();
+
+  const {
+    setViewMode,
+    soundEnabled,
+    contextMenu,
+    setContextMenu,
     activeGame,
     setStatusMessage,
   } = useUiStore();

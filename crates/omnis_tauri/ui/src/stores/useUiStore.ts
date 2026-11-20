@@ -8,6 +8,7 @@ import {
 import type { SettingsTab } from "../components/settings";
 import type { SessionToastInfo, SyncBannerInfo } from "../components/common/AppToasts";
 import soundEffects from "../utils/soundEffects";
+import { useModalStore } from "./useModalStore";
 
 export interface ContextMenuState {
   x: number;
@@ -166,44 +167,79 @@ export const useUiStore = create<UiState>((set) => ({
     set({ soundEnabled });
   },
 
-  openSettings: (tab = "general") =>
-    set({ showSettingsModal: true, settingsInitialTab: tab }),
-  closeSettings: () => set({ showSettingsModal: false }),
-  setShowSettingsModal: (showSettingsModal) =>
-    set((state) => ({
-      showSettingsModal,
-      settingsInitialTab: showSettingsModal ? state.settingsInitialTab : "general",
-    })),
+  openSettings: (tab = "general") => {
+    useModalStore.getState().openSettings(tab);
+  },
+  closeSettings: () => {
+    useModalStore.getState().closeSettings();
+  },
+  setShowSettingsModal: (showSettingsModal) => {
+    useModalStore.getState().setShowSettingsModal(showSettingsModal);
+  },
 
-  setShowOnboarding: (showOnboarding) => set({ showOnboarding }),
+  setShowOnboarding: (showOnboarding) => {
+    useModalStore.getState().setShowOnboarding(showOnboarding);
+  },
 
-  setShowEditorModal: (showEditorModal) => set({ showEditorModal }),
-  setGameToEdit: (gameToEdit) => set({ gameToEdit }),
-  openGameEditor: (game) =>
-    set({ showEditorModal: true, gameToEdit: game }),
-  closeGameEditor: () =>
-    set({ showEditorModal: false, gameToEdit: null }),
+  setShowEditorModal: (showEditorModal) => {
+    useModalStore.getState().setShowEditorModal(showEditorModal);
+  },
+  setGameToEdit: (gameToEdit) => {
+    useModalStore.getState().setGameToEdit(gameToEdit);
+  },
+  openGameEditor: (game) => {
+    useModalStore.getState().openGameEditor(game);
+  },
+  closeGameEditor: () => {
+    useModalStore.getState().closeGameEditor();
+  },
 
-  setShowResolutionModal: (showResolutionModal) => set({ showResolutionModal }),
-  setGameToResolve: (gameToResolve) => set({ gameToResolve }),
-  openResolutionModal: (game) =>
-    set({ showResolutionModal: true, gameToResolve: game }),
-  closeResolutionModal: () =>
-    set({ showResolutionModal: false, gameToResolve: null }),
+  setShowResolutionModal: (showResolutionModal) => {
+    useModalStore.getState().setShowResolutionModal(showResolutionModal);
+  },
+  setGameToResolve: (gameToResolve) => {
+    useModalStore.getState().setGameToResolve(gameToResolve);
+  },
+  openResolutionModal: (game) => {
+    useModalStore.getState().openResolutionModal(game);
+  },
+  closeResolutionModal: () => {
+    useModalStore.getState().closeResolutionModal();
+  },
 
-  setShowAddCustomModal: (showAddCustomModal) => set({ showAddCustomModal }),
-  setShowVirtualKeyboard: (showVirtualKeyboard) => set({ showVirtualKeyboard }),
-  setShowThemeModal: (showThemeModal) => set({ showThemeModal }),
-  setShowPluginModal: (showPluginModal) => set({ showPluginModal }),
-  setShowBatchEnrichModal: (showBatchEnrichModal) => set({ showBatchEnrichModal }),
-  setIsPlayniteImportOpen: (isPlayniteImportOpen) => set({ isPlayniteImportOpen }),
-  setShowKillConfirmModal: (showKillConfirmModal) => set({ showKillConfirmModal }),
-  setShowUninstallModal: (showUninstallModal) => set({ showUninstallModal }),
-  setGameToUninstall: (gameToUninstall) => set({ gameToUninstall }),
-  openUninstallModal: (game) =>
-    set({ showUninstallModal: true, gameToUninstall: game }),
-  closeUninstallModal: () =>
-    set({ showUninstallModal: false, gameToUninstall: null }),
+  setShowAddCustomModal: (showAddCustomModal) => {
+    useModalStore.getState().setShowAddCustomModal(showAddCustomModal);
+  },
+  setShowVirtualKeyboard: (showVirtualKeyboard) => {
+    useModalStore.getState().setShowVirtualKeyboard(showVirtualKeyboard);
+  },
+  setShowThemeModal: (showThemeModal) => {
+    useModalStore.getState().setShowThemeModal(showThemeModal);
+  },
+  setShowPluginModal: (showPluginModal) => {
+    useModalStore.getState().setShowPluginModal(showPluginModal);
+  },
+  setShowBatchEnrichModal: (showBatchEnrichModal) => {
+    useModalStore.getState().setShowBatchEnrichModal(showBatchEnrichModal);
+  },
+  setIsPlayniteImportOpen: (isPlayniteImportOpen) => {
+    useModalStore.getState().setIsPlayniteImportOpen(isPlayniteImportOpen);
+  },
+  setShowKillConfirmModal: (showKillConfirmModal) => {
+    useModalStore.getState().setShowKillConfirmModal(showKillConfirmModal);
+  },
+  setShowUninstallModal: (showUninstallModal) => {
+    useModalStore.getState().setShowUninstallModal(showUninstallModal);
+  },
+  setGameToUninstall: (gameToUninstall) => {
+    useModalStore.getState().setGameToUninstall(gameToUninstall);
+  },
+  openUninstallModal: (game) => {
+    useModalStore.getState().openUninstallModal(game);
+  },
+  closeUninstallModal: () => {
+    useModalStore.getState().closeUninstallModal();
+  },
 
   setContextMenu: (contextMenu) => set({ contextMenu }),
   closeContextMenu: () => set({ contextMenu: null }),
@@ -238,3 +274,25 @@ export const useUiStore = create<UiState>((set) => ({
       enrichingGameIds: state.enrichingGameIds.filter((id) => id !== gameId),
     })),
 }));
+
+// Synchronize modal state changes from useModalStore to useUiStore for seamless backward compatibility
+useModalStore.subscribe((modalState) => {
+  useUiStore.setState({
+    showSettingsModal: modalState.showSettingsModal,
+    settingsInitialTab: modalState.settingsInitialTab,
+    showOnboarding: modalState.showOnboarding,
+    showEditorModal: modalState.showEditorModal,
+    showResolutionModal: modalState.showResolutionModal,
+    showAddCustomModal: modalState.showAddCustomModal,
+    showVirtualKeyboard: modalState.showVirtualKeyboard,
+    showThemeModal: modalState.showThemeModal,
+    showPluginModal: modalState.showPluginModal,
+    showBatchEnrichModal: modalState.showBatchEnrichModal,
+    isPlayniteImportOpen: modalState.isPlayniteImportOpen,
+    showKillConfirmModal: modalState.showKillConfirmModal,
+    showUninstallModal: modalState.showUninstallModal,
+    gameToEdit: modalState.gameToEdit,
+    gameToResolve: modalState.gameToResolve,
+    gameToUninstall: modalState.gameToUninstall,
+  });
+});

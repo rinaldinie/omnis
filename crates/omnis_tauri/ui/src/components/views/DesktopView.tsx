@@ -9,7 +9,7 @@ import {
 import type { GameSortMode } from "../../utils/sortGames";
 import type { FilterCounts } from "../navigation/FilterAndSortPopover";
 import type { FilterChip, FilterMatchMode, useLibraryFilters } from "../../hooks/useLibraryFilters";
-import { useLibraryStore, useUiStore } from "../../stores";
+import { useLibraryStore, useUiStore, useModalStore } from "../../stores";
 import { useOptionalGameOperationsContext } from "../../context/GameOperationsContext";
 import TopBar from "../navigation/TopBar";
 import Sidebar from "../navigation/Sidebar";
@@ -192,31 +192,26 @@ export const DesktopView: React.FC<DesktopViewProps> = (props) => {
   const handlePromoteCopy = props.handlePromoteCopy ?? gameOps?.handlePromoteCopy;
   const { games, counts, selectedGame, setSelectedGame } = useLibraryStore();
   const {
-    viewMode,
-    setViewMode,
-    soundEnabled,
-    setShowSettingsModal,
     openSettings: handleOpenSettings,
-    setShowThemeModal,
-    setShowPluginModal,
-    setShowAddCustomModal,
-    setShowBatchEnrichModal,
-    setIsPlayniteImportOpen,
-    isSyncing,
-    activeGame,
-    isGameRunning,
     setGameToEdit,
     setShowEditorModal,
     setGameToResolve,
     setShowResolutionModal,
+    openGameEditor,
+  } = useModalStore();
+  const {
+    viewMode,
+    setViewMode,
+    soundEnabled,
+    isSyncing,
+    activeGame,
+    isGameRunning,
     statusMessage,
     achievementSync,
     metadataDownload,
     enrichingGameIds,
   } = useUiStore();
   const totalGamesCount = games.length;
-  const onOpenSettings = handleOpenSettings;
-  const onOpenPlayniteImport = () => setIsPlayniteImportOpen(true);
   const [gridCardWidth, setGridCardWidth] = useState<number>(180);
   const [detailsSidebarOpen, setDetailsSidebarOpen] = useState<boolean>(true);
 
@@ -249,15 +244,8 @@ export const DesktopView: React.FC<DesktopViewProps> = (props) => {
         toggleFullscreen={toggleFullscreen}
         handleToggleSound={handleToggleSound}
         soundEnabled={soundEnabled}
-        setShowSettingsModal={setShowSettingsModal}
-        onOpenSettings={onOpenSettings}
-        setShowThemeModal={setShowThemeModal}
         loadProvidersAndConfig={loadProvidersAndConfig}
-        setShowPluginModal={setShowPluginModal}
         providers={providers}
-        setShowAddCustomModal={setShowAddCustomModal}
-        setShowBatchEnrichModal={setShowBatchEnrichModal}
-        onOpenPlayniteImport={onOpenPlayniteImport}
         handleSync={handleSync}
         isSyncing={isSyncing}
         handleMinimize={handleMinimize}
@@ -368,16 +356,6 @@ export const DesktopView: React.FC<DesktopViewProps> = (props) => {
               collapsedGroups={collapsedGroups}
               toggleGroup={toggleGroup}
               gridCardWidth={gridCardWidth}
-              selectedGame={selectedGame}
-              setSelectedGame={setSelectedGame}
-              setViewMode={setViewMode}
-              handleOpenContextMenu={handleOpenContextMenu}
-              handleLaunch={handleLaunch}
-              setGameToEdit={setGameToEdit}
-              setShowEditorModal={setShowEditorModal}
-              activeGame={activeGame}
-              formatDuration={formatDuration}
-              handleKillRunningGame={handleKillRunningGame}
               activeFilter={activeFilter}
               searchQuery={searchQuery}
               onClearFilters={clearAllFilters}
@@ -454,10 +432,7 @@ export const DesktopView: React.FC<DesktopViewProps> = (props) => {
                     setViewMode("details");
                   }}
                   onLaunchGame={handleLaunch}
-                  onEditGame={(g) => {
-                    setGameToEdit(g);
-                    setShowEditorModal(true);
-                  }}
+                  onEditGame={(g) => openGameEditor(g)}
                   onContextMenu={handleOpenContextMenu}
                 />
               </Suspense>
