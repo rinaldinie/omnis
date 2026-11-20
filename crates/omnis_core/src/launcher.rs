@@ -1,7 +1,14 @@
+pub mod discovery;
+pub mod memory;
 pub mod plan;
 pub mod process_control;
+pub mod tracker;
+
+pub use discovery::*;
+pub use memory::*;
 pub use plan::*;
 pub use process_control::*;
+pub use tracker::ProcessTracker;
 
 #[cfg(test)]
 mod tests;
@@ -10,6 +17,7 @@ use omnis_sdk::{LaunchConfiguration, ProcessTrackingMode};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
+#[cfg(not(windows))]
 use sysinfo::{Pid, System};
 use thiserror::Error;
 use tokio::process::Command;
@@ -207,227 +215,6 @@ pub fn get_steam_running_appid() -> Option<u64> {
     None
 }
 
-/// Locates GOG Galaxy client executable (`GalaxyClient.exe`) on the system.
-///
-/// On Windows, checks registry installations and standard Program Files paths.
-#[cfg(windows)]
-pub fn find_gog_galaxy_client() -> Option<PathBuf> {
-    use windows::core::PCWSTR;
-    use windows::Win32::System::Registry::{
-        RegCloseKey, RegOpenKeyExW, RegQueryValueExW, HKEY, HKEY_LOCAL_MACHINE, KEY_READ,
-        KEY_WOW64_32KEY, REG_SZ, REG_VALUE_TYPE,
-    };
-
-    // 1. Try Registry paths: HKLM\SOFTWARE\GOG.com\GalaxyClient\paths (with standard and 32-bit views)
-    for sam_desired in [KEY_READ, KEY_READ | KEY_WOW64_32KEY] {
-        for subkey_str in [
-            "SOFTWARE\\GOG.com\\GalaxyClient\\paths\0",
-            "SOFTWARE\\WOW6432Node\\GOG.com\\GalaxyClient\\paths\0",
-        ] {
-            let subkey: Vec<u16> = subkey_str.encode_utf16().collect();
-            unsafe {
-                let mut hkey = HKEY::default();
-                if RegOpenKeyExW(
-                    HKEY_LOCAL_MACHINE,
-                    PCWSTR(subkey.as_ptr()),
-                    0,
-                    sam_desired,
-                    &mut hkey,
-                )
-                .is_ok()
-                {
-                    let val_name: Vec<u16> = "client\0".encode_utf16().collect();
-                    let mut val_type = REG_VALUE_TYPE::default();
-                    let mut data_buf = [0u16; 512];
-                    let mut data_len = (data_buf.len() * std::mem::size_of::<u16>()) as u32;
-
-                    let res = RegQueryValueExW(
-                        hkey,
-                        PCWSTR(val_name.as_ptr()),
-                        None,
-                        Some(&mut val_type),
-                        Some(data_buf.as_mut_ptr() as *mut u8),
-                        Some(&mut data_len),
-                    );
-                    let _ = RegCloseKey(hkey);
-
-                    if res.is_ok() && val_type == REG_SZ && data_len > 0 {
-                        let len_chars = (data_len as usize / std::mem::size_of::<u16>())
-                            .saturating_sub(1);
-                        let client_dir = String::from_utf16_lossy(&data_buf[..len_chars]);
-                        let trimmed = client_dir.trim_matches('\0').trim();
-                        if !trimmed.is_empty() {
-                            let candidate = PathBuf::from(trimmed).join("GalaxyClient.exe");
-                            if candidate.is_file() {
-                                return Some(candidate);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // 2. Check standard installation directories on Windows
-    let mut candidate_paths = Vec::new();
-    if let Ok(prog_files_x86) = std::env::var("ProgramFiles(x86)") {
-        candidate_paths.push(PathBuf::from(prog_files_x86).join("GOG Galaxy").join("GalaxyClient.exe"));
-    }
-    if let Ok(prog_files) = std::env::var("ProgramFiles") {
-        candidate_paths.push(PathBuf::from(prog_files).join("GOG Galaxy").join("GalaxyClient.exe"));
-    }
-    candidate_paths.push(PathBuf::from(r"C:\Program Files (x86)\GOG Galaxy\GalaxyClient.exe"));
-    candidate_paths.push(PathBuf::from(r"C:\Program Files\GOG Galaxy\GalaxyClient.exe"));
-
-    candidate_paths.into_iter().find(|candidate| candidate.is_file())
-}
-
-/// Non-Windows stub for locating GOG Galaxy client
-#[cfg(not(windows))]
-pub fn find_gog_galaxy_client() -> Option<PathBuf> {
-    None
-}
-
-/// Store-specific heuristic: Locate primary game executable from GOG goggame-*.info (Requirement A7)
-pub fn find_gog_game_executable(install_dir: &Path) -> Option<PathBuf> {
-    if let Ok(entries) = std::fs::read_dir(install_dir) {
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
-                if file_name.starts_with("goggame-") && file_name.ends_with(".info") {
-                    if let Ok(content) = std::fs::read_to_string(&path) {
-                        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
-                            if let Some(play_tasks) =
-                                json.get("playTasks").and_then(|p| p.as_array())
-                            {
-                                // Pass 1: Look for tasks with category == "game" (actual game executables, not launcher trampolines)
-                                let mut game_candidates = Vec::new();
-                                for task in play_tasks {
-                                    let is_file = task.get("type").and_then(|t| t.as_str())
-                                        == Some("FileTask");
-                                    let is_game = task.get("category").and_then(|c| c.as_str())
-                                        == Some("game");
-                                    if is_file && is_game {
-                                        if let Some(rel_path) =
-                                            task.get("path").and_then(|p| p.as_str())
-                                        {
-                                            let exe = install_dir.join(rel_path);
-                                            if exe.exists() {
-                                                game_candidates.push(exe);
-                                            }
-                                        }
-                                    }
-                                }
-                                if !game_candidates.is_empty() {
-                                    // Prefer DX12 / x64 if present, otherwise first game candidate
-                                    if let Some(dx12) = game_candidates.iter().find(|p| {
-                                        let name = p.to_string_lossy().to_lowercase();
-                                        name.contains("dx12") || name.contains("x64")
-                                    }) {
-                                        return Some(dx12.clone());
-                                    }
-                                    return Some(game_candidates.remove(0));
-                                }
-
-                                // Pass 2: Primary FileTask
-                                for task in play_tasks {
-                                    let is_primary = task
-                                        .get("isPrimary")
-                                        .and_then(|p| p.as_bool())
-                                        .unwrap_or(false);
-                                    let is_file = task.get("type").and_then(|t| t.as_str())
-                                        == Some("FileTask");
-                                    if is_primary && is_file {
-                                        if let Some(rel_path) =
-                                            task.get("path").and_then(|p| p.as_str())
-                                        {
-                                            let exe = install_dir.join(rel_path);
-                                            if exe.exists() {
-                                                return Some(exe);
-                                            }
-                                        }
-                                    }
-                                }
-
-                                // Pass 3: Any FileTask
-                                for task in play_tasks {
-                                    let is_file = task.get("type").and_then(|t| t.as_str())
-                                        == Some("FileTask");
-                                    if is_file {
-                                        if let Some(rel_path) =
-                                            task.get("path").and_then(|p| p.as_str())
-                                        {
-                                            let exe = install_dir.join(rel_path);
-                                            if exe.exists() {
-                                                return Some(exe);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    None
-}
-
-/// Scans an install directory and its common binary subdirectories for valid, non-blacklisted game executables
-pub fn scan_game_executables(install_dir: &Path) -> Vec<PathBuf> {
-    if !install_dir.is_dir() {
-        return Vec::new();
-    }
-
-    let mut candidates = Vec::new();
-    let mut search_dirs = vec![install_dir.to_path_buf()];
-
-    if let Ok(entries) = std::fs::read_dir(install_dir) {
-        for entry in entries.flatten() {
-            let p = entry.path();
-            if p.is_dir() {
-                let name = p
-                    .file_name()
-                    .unwrap_or_default()
-                    .to_string_lossy()
-                    .to_lowercase();
-                if ["bin", "binaries", "x64", "win64", "win32", "game"].contains(&name.as_str()) {
-                    search_dirs.push(p);
-                }
-            }
-        }
-    }
-
-    for dir in search_dirs {
-        if let Ok(entries) = std::fs::read_dir(&dir) {
-            for entry in entries.flatten() {
-                let p = entry.path();
-                if p.is_file() {
-                    if let Some(ext) = p.extension() {
-                        if ext.eq_ignore_ascii_case("exe") {
-                            if let Some(fname) = p.file_name().and_then(|n| n.to_str()) {
-                                if !is_blacklisted_process(fname) {
-                                    candidates.push(p);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // Sort by shallower directory depth first (root of install folder)
-    candidates.sort_by_key(|p| p.components().count());
-    candidates
-}
-
-/// Heuristic: Locate primary game executable from an install directory by scanning for valid, non-blacklisted binaries
-pub fn find_primary_game_executable(install_dir: &Path) -> Option<PathBuf> {
-    scan_game_executables(install_dir).into_iter().next()
-}
-
 /// Helper function to detect if a launch configuration is a shell/URI invocation
 pub fn is_uri_command(config: &LaunchConfiguration) -> bool {
     if is_launch_uri(&config.executable) {
@@ -580,18 +367,20 @@ pub fn matches_target(
             p_name.eq_ignore_ascii_case(name) || p_name_clean.eq_ignore_ascii_case(name_clean);
 
         let variant_match = if name_clean.len() >= 3 {
-            p_name_clean
-                .to_lowercase()
-                .starts_with(&format!("{}_", name_clean.to_lowercase()))
-                || p_name_clean
-                    .to_lowercase()
-                    .starts_with(&format!("{}-", name_clean.to_lowercase()))
-                || name_clean
-                    .to_lowercase()
-                    .starts_with(&format!("{}_", p_name_clean.to_lowercase()))
-                || name_clean
-                    .to_lowercase()
-                    .starts_with(&format!("{}-", p_name_clean.to_lowercase()))
+            let n_lower = name_clean.to_ascii_lowercase();
+            let p_lower = p_name_clean.to_ascii_lowercase();
+            let n_len = n_lower.len();
+            let p_len = p_lower.len();
+
+            let p_starts_with_n_delim = p_lower.starts_with(&n_lower)
+                && p_len > n_len
+                && matches!(p_lower.as_bytes()[n_len], b'_' | b'-');
+
+            let n_starts_with_p_delim = n_lower.starts_with(&p_lower)
+                && n_len > p_len
+                && matches!(n_lower.as_bytes()[p_len], b'_' | b'-');
+
+            p_starts_with_n_delim || n_starts_with_p_delim
         } else {
             false
         };
@@ -662,61 +451,8 @@ pub async fn wait_for_process_exit_kernel(pid: u32) -> Result<(), String> {
     Ok(())
 }
 
-/// Calculates the total resident memory in bytes of a process and ALL its descendants.
-/// Correctly accounts for multi-process architectures such as Chromium/WebView2,
-/// game launchers, anti-cheat wrappers, and worker subprocesses.
-pub fn get_process_tree_memory_bytes(root_pid: u32) -> u64 {
-    let mut sys = System::new();
-    sys.refresh_processes();
-    get_process_tree_memory_from_system(&sys, root_pid)
-}
-
-/// Calculates the total resident memory given an existing sysinfo::System snapshot in O(N) single-pass traversal.
-pub fn get_process_tree_memory_from_system(sys: &System, root_pid: u32) -> u64 {
-    let target_pid = Pid::from(root_pid as usize);
-    let mut children_map: std::collections::HashMap<Pid, Vec<Pid>> =
-        std::collections::HashMap::new();
-
-    for (pid, proc) in sys.processes() {
-        if let Some(parent) = proc.parent() {
-            children_map.entry(parent).or_default().push(*pid);
-        }
-    }
-
-    let mut total_bytes = 0u64;
-    let mut queue = std::collections::VecDeque::new();
-    let mut visited = std::collections::HashSet::new();
-
-    queue.push_back(target_pid);
-    visited.insert(target_pid);
-
-    while let Some(current) = queue.pop_front() {
-        if let Some(proc) = sys.process(current) {
-            total_bytes = total_bytes.saturating_add(proc.memory());
-        }
-        if let Some(children) = children_map.get(&current) {
-            for child in children {
-                if visited.insert(*child) {
-                    queue.push_back(*child);
-                }
-            }
-        }
-    }
-
-    total_bytes
-}
-
-/// Returns the total memory in bytes consumed by the Omnis host process and all its
-/// WebView2 / helper child processes.
-pub fn get_current_app_memory_bytes() -> u64 {
-    get_process_tree_memory_bytes(std::process::id())
-}
-
 /// High-performance process runner & monitoring engine for Omnis
 pub struct GameLauncher;
-
-pub mod tracker;
-pub use tracker::ProcessTracker;
 
 impl GameLauncher {
     fn resolve_target_name(
@@ -814,8 +550,14 @@ impl GameLauncher {
             .find_map(|arg| {
                 let pos = arg.find("steam://rungameid/")?;
                 let id_part = &arg[pos + "steam://rungameid/".len()..];
-                let clean_id: String = id_part.chars().take_while(|c| c.is_ascii_digit()).collect();
-                clean_id.parse::<u64>().ok()
+                let end = id_part
+                    .find(|c: char| !c.is_ascii_digit())
+                    .unwrap_or(id_part.len());
+                if end > 0 {
+                    id_part[..end].parse::<u64>().ok()
+                } else {
+                    None
+                }
             });
 
         #[cfg(windows)]
