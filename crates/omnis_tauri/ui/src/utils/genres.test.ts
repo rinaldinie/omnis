@@ -69,11 +69,24 @@ describe("genre localization utility", () => {
     expect(getCanonicalGenre("Action-Adventure")).toBe("action_adventure");
     expect(getCanonicalGenre("Action Adventure")).toBe("action_adventure");
     expect(getCanonicalGenre("Card & Board Game")).toBe("card_game");
+    expect(getCanonicalGenre("Survival Horror")).toBe("survival_horror");
+    expect(getCanonicalGenre("Strategy RPG")).toBe("strategy_rpg");
+    expect(getCanonicalGenre("Tactical RPG")).toBe("strategy_rpg");
+    expect(getCanonicalGenre("Racing Simulation")).toBe("racing_simulation");
+    expect(getCanonicalGenre("Point & Click Adventure")).toBe("point_and_click");
+    expect(getCanonicalGenre("Action Shooter")).toBe("shooter");
     expect(getCanonicalGenre("Metroidvania")).toBe("metroidvania");
     expect(getCanonicalGenre("metroidvania")).toBe("metroidvania");
 
+    // Unknown compound genres are preserved and not truncated
+    expect(getCanonicalGenre("Immersive Sim")).toBe("immersive sim");
+    expect(getCanonicalGenre("Boomer Shooter")).toBe("boomer shooter");
+
     // Canonical keys with underscores remain idempotent and localize properly
     expect(getLocalizedGenre("action_rpg", "it")).toBe("GDR d'azione");
+    expect(getLocalizedGenre("strategy_rpg", "it")).toBe("GDR strategico");
+    expect(getLocalizedGenre("survival_horror", "it")).toBe("Survival Horror");
+    expect(getLocalizedGenre("racing_simulation", "it")).toBe("Simulazione di guida");
     expect(getLocalizedGenre("point_and_click", "it")).toBe("Punta e clicca");
     expect(getLocalizedGenre("early_access", "it")).toBe("Accesso anticipato");
     expect(getLocalizedGenre("action_adventure", "it")).toBe("Azione e avventura");
