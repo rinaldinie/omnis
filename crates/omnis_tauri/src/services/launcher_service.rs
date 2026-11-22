@@ -15,6 +15,12 @@ use tauri::Emitter;
 pub use crate::services::window_service::WindowStateSnapshot;
 use uuid::Uuid;
 
+/// Outcome of a tracked launch session after process exit or launch failure.
+struct SessionTrackingOutcome {
+    duration_seconds: u64,
+    snapshot: Option<WindowStateSnapshot>,
+}
+
 /// Service coordinator for launching, tracking, and terminating game processes.
 pub struct GameLaunchCoordinator;
 
@@ -175,22 +181,113 @@ impl GameLaunchCoordinator {
         started_at: chrono::DateTime<chrono::Utc>,
         window_snapshot: WindowStateSnapshot,
     ) {
+        let app_for_phase = app_handle.clone();
+        let sid_for_phase = session_id_str.clone();
+        let gid_for_phase = id.to_string();
+
+        if let Some(outcome) = Self::track_and_reconcile_session(
+            active_mgr,
+            db,
+            id,
+            session_id,
+            config,
+            install_dir,
+            started_at,
+            std::time::Duration::from_secs(60),
+            60,
+            Arc::new(move |phase| {
+                let app = app_for_phase.clone();
+                let sid = sid_for_phase.clone();
+                let gid = gid_for_phase.clone();
+                match phase {
+                    omnis_core::launcher::TrackingPhase::Running(pid) => {
+                        let _ = app.emit(
+                            events::GAME_STATUS_CHANGED,
+                            serde_json::json!({
+                                "session_id": sid,
+                                "game_id": gid,
+                                "state": "running",
+                                "pid": pid,
+                            }),
+                        );
+
+                        if pid > 0 {
+                            tokio::spawn(async move {
+                                omnis_core::launcher::bring_process_to_foreground_async(pid, 8)
+                                    .await;
+                            });
+                        }
+                    }
+                    omnis_core::launcher::TrackingPhase::Exiting => {
+                        let _ = app.emit(
+                            events::GAME_STATUS_CHANGED,
+                            serde_json::json!({
+                                "session_id": sid,
+                                "game_id": gid,
+                                "state": "stopping",
+                            }),
+                        );
+                    }
+                }
+            }),
+        )
+        .await
+        {
+            // Restore window geometry & focus
+            let snapshot = outcome.snapshot.unwrap_or(window_snapshot);
+            snapshot.restore(&app_handle).await;
+
+            // Emit GAME_STOPPED to ensure UI resets state even if process tracking failed before running
+            let _ = app_handle.emit(
+                events::GAME_STOPPED,
+                serde_json::json!({
+                    "session_id": session_id_str,
+                    "game_id": game_id_str,
+                    "duration_seconds": outcome.duration_seconds,
+                }),
+            );
+            let _ = app_handle.emit(events::LIBRARY_UPDATED, ());
+        }
+    }
+
+    /// Tracks the launched process, runs periodic session checkpoints once running, and finalizes
+    /// or cancels the play session in the database if the session was not already ended externally.
+    #[allow(clippy::too_many_arguments)]
+    async fn track_and_reconcile_session(
+        active_mgr: Arc<crate::services::ActiveGameManager>,
+        db: Arc<Database>,
+        id: Uuid,
+        session_id: Uuid,
+        config: LaunchConfiguration,
+        install_dir: Option<PathBuf>,
+        started_at: chrono::DateTime<chrono::Utc>,
+        checkpoint_interval: std::time::Duration,
+        checkpoint_delta_secs: u64,
+        on_phase_event: omnis_core::launcher::PhaseCallback,
+    ) -> Option<SessionTrackingOutcome> {
+        let game_id_str = id.to_string();
+        let session_id_str = session_id.to_string();
         let is_running = Arc::new(AtomicBool::new(true));
+        let process_started = Arc::new(AtomicBool::new(false));
         let is_running_cp = is_running.clone();
+        let process_started_cp = process_started.clone();
         let db_cp = db.clone();
         let active_mgr_cp = active_mgr.clone();
         let sid_cp = session_id_str.clone();
 
-        // 60-second periodic checkpoint loop
+        // Periodic checkpoint loop
         let checkpoint_task = tokio::spawn(async move {
             while is_running_cp.load(Ordering::SeqCst) {
-                tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+                tokio::time::sleep(checkpoint_interval).await;
                 if !is_running_cp.load(Ordering::SeqCst) {
                     break;
                 }
+                if !process_started_cp.load(Ordering::SeqCst) {
+                    continue;
+                }
                 let now = chrono::Utc::now();
-                let _ = db_cp.checkpoint_play_session(session_id, id, 60, now);
-                active_mgr_cp.add_elapsed(&sid_cp, 60).await;
+                let _ = db_cp.checkpoint_play_session(session_id, id, checkpoint_delta_secs, now);
+                active_mgr_cp.add_elapsed(&sid_cp, checkpoint_delta_secs).await;
             }
         });
 
@@ -211,50 +308,30 @@ impl GameLaunchCoordinator {
         };
 
         let active_mgr_for_phase = active_mgr.clone();
-        let app_for_phase = app_handle.clone();
         let sid_for_phase = session_id_str.clone();
-        let gid_for_phase = id.to_string();
+        let process_started_for_phase = process_started.clone();
 
         let track_res = GameLauncher::launch_and_track_with_phases(
             id,
             config,
             install_dir,
             Arc::new(move |phase| {
+                if matches!(phase, omnis_core::launcher::TrackingPhase::Running(_)) {
+                    process_started_for_phase.store(true, Ordering::SeqCst);
+                }
                 let mgr = active_mgr_for_phase.clone();
-                let app = app_for_phase.clone();
                 let sid = sid_for_phase.clone();
-                let gid = gid_for_phase.clone();
+                let cb = on_phase_event.clone();
                 tokio::spawn(async move {
                     match phase {
                         omnis_core::launcher::TrackingPhase::Running(pid) => {
                             mgr.set_running(&sid, pid).await;
-                            let _ = app.emit(
-                                events::GAME_STATUS_CHANGED,
-                                serde_json::json!({
-                                    "session_id": sid,
-                                    "game_id": gid,
-                                    "state": "running",
-                                    "pid": pid,
-                                }),
-                            );
-
-                            if pid > 0 {
-                                omnis_core::launcher::bring_process_to_foreground_async(pid, 8)
-                                    .await;
-                            }
                         }
                         omnis_core::launcher::TrackingPhase::Exiting => {
                             mgr.set_stopping(&sid).await;
-                            let _ = app.emit(
-                                events::GAME_STATUS_CHANGED,
-                                serde_json::json!({
-                                    "session_id": sid,
-                                    "game_id": gid,
-                                    "state": "stopping",
-                                }),
-                            );
                         }
                     }
+                    cb(phase);
                 });
             }),
         )
@@ -263,43 +340,32 @@ impl GameLaunchCoordinator {
         let _ = is_running.swap(false, Ordering::SeqCst);
         active_mgr.set_stopping(&session_id_str).await;
 
-        if let Some((_session, snapshot)) = active_mgr.end_session().await {
-            let ended_at = chrono::Utc::now();
-            let duration = match track_res {
-                Ok(d) if d > 0 => d,
-                Ok(_) => (ended_at - started_at).num_seconds().max(0) as u64,
-                Err(ref err) => {
-                    tracing::warn!(
-                        "Errore durante il tracking del processo {}: {}",
-                        game_id_str,
-                        err
-                    );
-                    0
-                }
-            };
-
-            if track_res.is_err() {
-                // Tracking failed or process not found: cancel session and revert premature metrics
-                let _ = db.cancel_play_session(session_id, id);
-            } else {
-                let _ = db.finish_play_session(session_id, id, duration, started_at, ended_at);
+        let (_session, snapshot) = active_mgr.end_session().await?;
+        let ended_at = chrono::Utc::now();
+        let duration_seconds = match track_res {
+            Ok(d) if d > 0 => d,
+            Ok(_) => (ended_at - started_at).num_seconds().max(0) as u64,
+            Err(ref err) => {
+                tracing::warn!(
+                    "Errore durante il tracking del processo {}: {}",
+                    game_id_str,
+                    err
+                );
+                0
             }
+        };
 
-            // Restore window geometry & focus
-            let snapshot = snapshot.unwrap_or(window_snapshot);
-            snapshot.restore(&app_handle).await;
-
-            // Emit GAME_STOPPED to ensure UI resets state even if process tracking failed before running
-            let _ = app_handle.emit(
-                events::GAME_STOPPED,
-                serde_json::json!({
-                    "session_id": session_id_str,
-                    "game_id": game_id_str,
-                    "duration_seconds": duration,
-                }),
-            );
-            let _ = app_handle.emit(events::LIBRARY_UPDATED, ());
+        if track_res.is_err() {
+            // Tracking failed or process not found: cancel session and revert premature metrics
+            let _ = db.cancel_play_session(session_id, id);
+        } else {
+            let _ = db.finish_play_session(session_id, id, duration_seconds, started_at, ended_at);
         }
+
+        Some(SessionTrackingOutcome {
+            duration_seconds,
+            snapshot,
+        })
     }
 
     /// Kill the currently active game session and restore main window.
@@ -795,5 +861,241 @@ mod tests {
         let sessions = db.get_game_sessions(game_id).expect("get sessions failed");
         assert_eq!(sessions.len(), 1);
         assert_eq!(sessions[0].duration_seconds, 180);
+    }
+
+    fn insert_uninstalled_store_game_with_custom_action(
+        db: &Database,
+        action: LaunchConfiguration,
+    ) -> Game {
+        use omnis_sdk::{DiscoveredGame, GameUpdateDto};
+
+        let discovered = DiscoveredGame {
+            library_id: "steam".to_string(),
+            external_id: "292030".to_string(),
+            title: "The Witcher 3".to_string(),
+            install_dir: None,
+            is_installed: false,
+            play_action: None,
+            playtime_seconds: 0,
+            play_count: 0,
+            last_activity: None,
+            cover_image_path: None,
+            background_image_path: None,
+        };
+        db.ingest_discovered_batch(&[discovered])
+            .expect("Failed to insert discovered store game");
+
+        let game = db
+            .get_all_games()
+            .expect("Failed to list games")
+            .into_iter()
+            .next()
+            .expect("Inserted game missing");
+
+        let update = GameUpdateDto {
+            id: game.id,
+            title: game.title.clone(),
+            sorting_title: Some(game.sorting_title.clone()),
+            description: None,
+            release_date: None,
+            user_score: None,
+            critic_score: None,
+            community_score: None,
+            series: None,
+            age_rating: None,
+            completion_status: game.completion_status.clone(),
+            user_notes: None,
+            genres: vec![],
+            developers: vec![],
+            publishers: vec![],
+            tags: vec![],
+            features: vec![],
+            cover_image_path: None,
+            background_image_path: None,
+            icon_image_path: None,
+            play_actions: vec![action],
+            use_library_integration: false,
+            custom_links: vec![],
+            extra_metadata: None,
+        };
+        db.update_game(&update)
+            .expect("Failed to disable library integration and attach custom action")
+    }
+
+    fn sleeper_custom_action() -> LaunchConfiguration {
+        if cfg!(windows) {
+            LaunchConfiguration {
+                executable: "cmd.exe".to_string(),
+                arguments: vec![
+                    "/c".to_string(),
+                    "ping".to_string(),
+                    "-n".to_string(),
+                    "3".to_string(),
+                    "127.0.0.1".to_string(),
+                ],
+                working_dir: None,
+                tracking_mode: ProcessTrackingMode::KernelJobObject,
+            }
+        } else {
+            LaunchConfiguration {
+                executable: "sh".to_string(),
+                arguments: vec!["-c".to_string(), "sleep 2".to_string()],
+                working_dir: None,
+                tracking_mode: ProcessTrackingMode::KernelJobObject,
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_uninstalled_playable_game_track_and_reconcile_finalizes_session() {
+        let db = Arc::new(Database::open_in_memory().expect("Failed to open in-memory DB"));
+        db.migrate().expect("Failed to migrate DB");
+
+        let game = insert_uninstalled_store_game_with_custom_action(&db, sleeper_custom_action());
+        assert!(!game.is_installed);
+        assert!(!game.use_library_integration);
+        assert!(game.is_playable());
+
+        let plan = resolve_launch_plan(&game);
+        let session_id = Uuid::new_v4();
+        let started_at = chrono::Utc::now();
+        let active_mgr = Arc::new(crate::services::ActiveGameManager::new());
+
+        active_mgr
+            .set_launching(session_id, game.id.to_string(), game.title.clone())
+            .await;
+        db.start_play_session(session_id, game.id, started_at)
+            .expect("Failed to start play session");
+
+        let outcome = GameLaunchCoordinator::track_and_reconcile_session(
+            active_mgr.clone(),
+            db.clone(),
+            game.id,
+            session_id,
+            plan.primary,
+            game.install_dir.clone(),
+            started_at,
+            std::time::Duration::from_secs(60),
+            60,
+            omnis_core::launcher::noop_phase_callback(),
+        )
+        .await
+        .expect("Session outcome should be present");
+
+        assert!(outcome.duration_seconds >= 1);
+        assert!(active_mgr.get_running().await.is_none());
+
+        let updated = db
+            .get_game_by_id(game.id)
+            .expect("Query game failed")
+            .expect("Game missing");
+        assert_eq!(updated.play_count, 1);
+        assert_eq!(updated.playtime_seconds, outcome.duration_seconds);
+
+        let sessions = db.get_game_sessions(game.id).expect("Query sessions failed");
+        assert_eq!(sessions.len(), 1);
+        assert_eq!(sessions[0].id, session_id);
+        assert_eq!(sessions[0].duration_seconds, outcome.duration_seconds);
+    }
+
+    #[tokio::test]
+    async fn test_uninstalled_playable_game_track_and_reconcile_checkpoints() {
+        let db = Arc::new(Database::open_in_memory().expect("Failed to open in-memory DB"));
+        db.migrate().expect("Failed to migrate DB");
+
+        let game = insert_uninstalled_store_game_with_custom_action(&db, sleeper_custom_action());
+        let plan = resolve_launch_plan(&game);
+        let session_id = Uuid::new_v4();
+        let started_at = chrono::Utc::now();
+        let active_mgr = Arc::new(crate::services::ActiveGameManager::new());
+
+        active_mgr
+            .set_launching(session_id, game.id.to_string(), game.title.clone())
+            .await;
+        db.start_play_session(session_id, game.id, started_at)
+            .expect("Failed to start play session");
+
+        let outcome = GameLaunchCoordinator::track_and_reconcile_session(
+            active_mgr.clone(),
+            db.clone(),
+            game.id,
+            session_id,
+            plan.primary,
+            game.install_dir.clone(),
+            started_at,
+            std::time::Duration::from_millis(200),
+            60,
+            omnis_core::launcher::noop_phase_callback(),
+        )
+        .await
+        .expect("Session outcome should be present");
+
+        let updated = db
+            .get_game_by_id(game.id)
+            .expect("Query game failed")
+            .expect("Game missing");
+        assert_eq!(updated.play_count, 1);
+        assert!(
+            updated.playtime_seconds >= 60,
+            "Expected checkpointed playtime >= 60s, got {}",
+            updated.playtime_seconds
+        );
+
+        let sessions = db.get_game_sessions(game.id).expect("Query sessions failed");
+        assert_eq!(sessions.len(), 1);
+        assert_eq!(sessions[0].duration_seconds, outcome.duration_seconds);
+    }
+
+    #[tokio::test]
+    async fn test_uninstalled_playable_game_failed_launch_cancels_session() {
+        let db = Arc::new(Database::open_in_memory().expect("Failed to open in-memory DB"));
+        db.migrate().expect("Failed to migrate DB");
+
+        let missing_action = LaunchConfiguration {
+            executable: format!("nonexistent_binary_{}.exe", Uuid::new_v4()),
+            arguments: vec![],
+            working_dir: None,
+            tracking_mode: ProcessTrackingMode::KernelJobObject,
+        };
+        let game = insert_uninstalled_store_game_with_custom_action(&db, missing_action);
+        let plan = resolve_launch_plan(&game);
+        let session_id = Uuid::new_v4();
+        let started_at = chrono::Utc::now();
+        let active_mgr = Arc::new(crate::services::ActiveGameManager::new());
+
+        active_mgr
+            .set_launching(session_id, game.id.to_string(), game.title.clone())
+            .await;
+        db.start_play_session(session_id, game.id, started_at)
+            .expect("Failed to start play session");
+
+        let outcome = GameLaunchCoordinator::track_and_reconcile_session(
+            active_mgr.clone(),
+            db.clone(),
+            game.id,
+            session_id,
+            plan.primary,
+            game.install_dir.clone(),
+            started_at,
+            std::time::Duration::from_secs(60),
+            60,
+            omnis_core::launcher::noop_phase_callback(),
+        )
+        .await
+        .expect("Session outcome should be present");
+
+        assert_eq!(outcome.duration_seconds, 0);
+        assert!(active_mgr.get_running().await.is_none());
+
+        let updated = db
+            .get_game_by_id(game.id)
+            .expect("Query game failed")
+            .expect("Game missing");
+        assert_eq!(updated.play_count, 0);
+        assert_eq!(updated.playtime_seconds, 0);
+        assert_eq!(updated.completion_status.as_deref(), Some("NotPlayed"));
+
+        let sessions = db.get_game_sessions(game.id).expect("Query sessions failed");
+        assert!(sessions.is_empty());
     }
 }
