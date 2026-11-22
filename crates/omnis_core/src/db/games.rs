@@ -258,9 +258,9 @@ impl GameRepository for Database {
         conn.execute(
             "INSERT INTO games (
                 id, library_id, external_id, title, sorting_title,
-                install_dir, is_installed, play_actions, cover_image_path,
+                install_dir, is_installed, play_actions, use_library_integration, cover_image_path,
                 added_timestamp, modified_timestamp
-            ) VALUES (?1, 'custom', ?1, ?2, ?3, ?4, 1, ?5, ?6, ?7, ?7)",
+            ) VALUES (?1, 'custom', ?1, ?2, ?3, ?4, 1, ?5, 0, ?6, ?7, ?7)",
             params![
                 id.to_string(),
                 title,
@@ -454,7 +454,10 @@ impl GameRepository for Database {
                     custom_links = ?22,
                     extra_metadata = COALESCE(?23, extra_metadata),
                     modified_timestamp = ?24,
-                    use_library_integration = ?25
+                    use_library_integration = CASE
+                        WHEN LOWER(library_id) IN ('custom', 'manual') THEN 0
+                        ELSE ?25
+                    END
                 WHERE id = ?1
                 ",
                 params![

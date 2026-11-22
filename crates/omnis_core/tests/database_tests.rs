@@ -513,6 +513,48 @@ fn test_start_and_cancel_play_session_lifecycle() {
 }
 
 #[test]
+fn test_cancel_play_session_reverts_checkpointed_playtime() {
+    let db = Database::open_in_memory().expect("Failed to open DB");
+    db.migrate().expect("Failed to run migrations");
+
+    let game_id = Uuid::new_v4();
+    db.insert_custom_game(
+        game_id,
+        "Checkpoint Cancel Game",
+        "checkpoint cancel game",
+        None,
+        vec![],
+        None,
+    )
+    .expect("Failed to insert game");
+
+    let session_id = Uuid::new_v4();
+    let start_time = Utc::now();
+    db.start_play_session(session_id, game_id, start_time)
+        .expect("Failed to start session");
+    db.checkpoint_play_session(session_id, game_id, 60, start_time + chrono::Duration::seconds(60))
+        .expect("Failed to checkpoint session");
+
+    db.cancel_play_session(session_id, game_id)
+        .expect("Failed to cancel session");
+
+    let after_cancel_game = db
+        .get_game_by_id(game_id)
+        .expect("Query failed")
+        .expect("Not found");
+    assert_eq!(after_cancel_game.play_count, 0);
+    assert_eq!(after_cancel_game.playtime_seconds, 0);
+    assert_eq!(
+        after_cancel_game.completion_status.as_deref(),
+        Some("NotPlayed")
+    );
+    assert!(db
+        .get_game_sessions(game_id)
+        .expect("Query sessions failed")
+        .is_empty());
+}
+
+#[test]
 fn test_achievements_upsert_and_summary() {
     let db = Database::open_in_memory().expect("Failed to open DB");
 
@@ -1173,4 +1215,38 @@ fn test_v10_migration_repairs_v9_dbs_with_leftover_store_actions_without_touchin
     let g5 = db.get_game_by_id(steam_trainer_only_id).unwrap().unwrap();
     assert!(g5.library_play_action.is_none());
     assert_eq!(g5.play_actions, vec![trainer]);
+}
+
+#[test]
+fn test_v11_migration_disables_library_integration_for_custom_games_only() {
+    let db = Database::open_in_memory().expect("Failed to open DB");
+    let custom_id = Uuid::new_v4();
+    let steam_id = Uuid::new_v4();
+
+    {
+        let conn = db.writer();
+        let now = Utc::now().to_rfc3339();
+        conn.execute(
+            "INSERT INTO games (id, library_id, external_id, title, sorting_title, is_installed, use_library_integration, added_timestamp, modified_timestamp)
+             VALUES (?1, 'custom', ?1, 'Custom Game', 'custom game', 0, 1, ?2, ?2)",
+            rusqlite::params![custom_id.to_string(), now],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO games (id, library_id, external_id, title, sorting_title, is_installed, use_library_integration, added_timestamp, modified_timestamp)
+             VALUES (?1, 'steam', '730', 'CS2', 'cs2', 0, 1, ?2, ?2)",
+            rusqlite::params![steam_id.to_string(), now],
+        )
+        .unwrap();
+        conn.execute_batch("PRAGMA user_version = 10;").unwrap();
+    }
+
+    db.migrate().expect("Migration v11 failed");
+
+    let custom_game = db.get_game_by_id(custom_id).unwrap().unwrap();
+    assert!(!custom_game.use_library_integration);
+    assert!(!custom_game.is_installed);
+
+    let steam_game = db.get_game_by_id(steam_id).unwrap().unwrap();
+    assert!(steam_game.use_library_integration);
 }

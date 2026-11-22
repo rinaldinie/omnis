@@ -545,22 +545,34 @@ impl SessionRepository for Database {
         let mut conn = self.writer();
         let tx = conn.transaction()?;
 
+        // Capture any checkpointed duration before deleting so premature playtime is also reverted
+        let checkpointed_seconds: i64 = tx
+            .query_row(
+                "SELECT duration_seconds FROM game_sessions WHERE id = ?1",
+                params![session_id.to_string()],
+                |row| row.get(0),
+            )
+            .optional()?
+            .unwrap_or(0)
+            .max(0);
+
         // Delete uncompleted / failed session
         tx.execute(
             "DELETE FROM game_sessions WHERE id = ?1",
             params![session_id.to_string()],
         )?;
 
-        // Revert play_count that was incremented at start_play_session
+        // Revert play_count (and any checkpointed playtime) incremented during the aborted session
         let now_str = chrono::Utc::now().to_rfc3339();
         tx.execute(
             "
             UPDATE games SET
                 play_count = MAX(0, play_count - 1),
-                modified_timestamp = ?1
-            WHERE id = ?2
+                playtime_seconds = MAX(0, playtime_seconds - ?1),
+                modified_timestamp = ?2
+            WHERE id = ?3
             ",
-            params![now_str, game_id.to_string()],
+            params![checkpointed_seconds, now_str, game_id.to_string()],
         )?;
 
         // If game has 0 play_count and 0 playtime_seconds, revert completion_status if it was marked 'Playing'

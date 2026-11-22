@@ -3,7 +3,7 @@ use rusqlite::{params, Connection, Result};
 
 use crate::db::parse_and_normalize_genres;
 
-pub const CURRENT_SCHEMA_VERSION: i32 = 10;
+pub const CURRENT_SCHEMA_VERSION: i32 = 11;
 
 pub fn run_migrations(conn: &Connection) -> Result<()> {
     let current_version: i32 = conn.query_row("PRAGMA user_version;", [], |r| r.get(0))?;
@@ -454,6 +454,15 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
 
         tx.execute_batch("PRAGMA user_version = 10;")?;
         tx.commit()?;
+    }
+
+    // Version 11: Custom/manual games have no store integration, so disable use_library_integration
+    if current_version < 11 {
+        let _ = conn.execute(
+            "UPDATE games SET use_library_integration = 0 WHERE LOWER(library_id) IN ('custom', 'manual');",
+            [],
+        );
+        conn.execute_batch("PRAGMA user_version = 11;")?;
     }
 
     conn.execute_batch(&format!(

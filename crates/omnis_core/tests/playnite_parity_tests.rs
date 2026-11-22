@@ -289,6 +289,7 @@ fn test_3_custom_game_insertion_and_kernel_tracking() {
     assert_eq!(inserted.title, "God of War III (RPCS3)");
     assert_eq!(inserted.sorting_title, "god of war iii rpcs3");
     assert!(inserted.is_installed);
+    assert!(!inserted.use_library_integration);
     assert_eq!(inserted.play_actions.len(), 1);
     assert_eq!(
         inserted.play_actions[0].tracking_mode,
