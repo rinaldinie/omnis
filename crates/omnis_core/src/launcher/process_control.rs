@@ -11,16 +11,131 @@ pub fn allow_set_foreground_window() {
     }
 }
 
+/// Forces the specified window handle to the foreground on Windows, overcoming OS foreground locks.
+#[cfg(windows)]
+pub fn force_window_to_foreground_hwnd(hwnd: windows::Win32::Foundation::HWND) -> bool {
+    use windows::Win32::Foundation::BOOL;
+    use windows::Win32::System::Threading::{AttachThreadInput, GetCurrentThreadId};
+    use windows::Win32::UI::Input::KeyboardAndMouse::{
+        keybd_event, KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP, VK_MENU,
+    };
+    use windows::Win32::UI::WindowsAndMessaging::{
+        AllowSetForegroundWindow, BringWindowToTop, GetForegroundWindow,
+        GetWindowThreadProcessId, IsIconic, SetForegroundWindow, SetWindowPos, ShowWindow,
+        ASFW_ANY, HWND_NOTOPMOST, HWND_TOPMOST, SWP_NOMOVE, SWP_NOSIZE, SWP_SHOWWINDOW,
+        SW_RESTORE, SW_SHOW,
+    };
+
+    if hwnd.0.is_null() {
+        return false;
+    }
+
+    unsafe {
+        let fg_hwnd = GetForegroundWindow();
+        if fg_hwnd == hwnd {
+            return true;
+        }
+
+        // Grant permission to set foreground
+        let _ = AllowSetForegroundWindow(ASFW_ANY);
+
+        // Restore if minimized
+        if IsIconic(hwnd).as_bool() {
+            let _ = ShowWindow(hwnd, SW_RESTORE);
+        } else {
+            let _ = ShowWindow(hwnd, SW_SHOW);
+        }
+
+        let mut fg_proc_id = 0u32;
+        let fg_thread_id = GetWindowThreadProcessId(fg_hwnd, Some(&mut fg_proc_id));
+        let mut target_proc_id = 0u32;
+        let target_thread_id = GetWindowThreadProcessId(hwnd, Some(&mut target_proc_id));
+        let current_thread_id = GetCurrentThreadId();
+
+        // Attach input queue between target thread and the current foreground thread
+        let attached_fg_target = if fg_thread_id != 0
+            && target_thread_id != 0
+            && fg_thread_id != target_thread_id
+        {
+            AttachThreadInput(target_thread_id, fg_thread_id, BOOL(1)).as_bool()
+        } else {
+            false
+        };
+
+        let attached_cur_target = if current_thread_id != 0
+            && target_thread_id != 0
+            && current_thread_id != target_thread_id
+        {
+            AttachThreadInput(current_thread_id, target_thread_id, BOOL(1)).as_bool()
+        } else {
+            false
+        };
+
+        // Simulate Alt keystroke to reset Windows foreground lock timer
+        keybd_event(VK_MENU.0 as u8, 0, KEYEVENTF_EXTENDEDKEY, 0);
+        keybd_event(VK_MENU.0 as u8, 0, KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, 0);
+
+        // Elevate above fullscreen launcher overlay via TOPMOST toggle
+        let _ = SetWindowPos(
+            hwnd,
+            HWND_TOPMOST,
+            0,
+            0,
+            0,
+            0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW,
+        );
+        let _ = SetWindowPos(
+            hwnd,
+            HWND_NOTOPMOST,
+            0,
+            0,
+            0,
+            0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW,
+        );
+
+        let _ = BringWindowToTop(hwnd);
+        let set_fg = SetForegroundWindow(hwnd).as_bool();
+
+        if attached_fg_target {
+            let _ = AttachThreadInput(target_thread_id, fg_thread_id, BOOL(0));
+        }
+        if attached_cur_target {
+            let _ = AttachThreadInput(current_thread_id, target_thread_id, BOOL(0));
+        }
+
+        set_fg || GetForegroundWindow() == hwnd
+    }
+}
+
+/// Raw pointer variant of `force_window_to_foreground_hwnd` to interoperate cleanly across different `windows` crate versions.
+#[cfg(windows)]
+pub fn force_window_to_foreground_raw(hwnd_ptr: *mut std::ffi::c_void) -> bool {
+    force_window_to_foreground_hwnd(windows::Win32::Foundation::HWND(hwnd_ptr))
+}
+
+#[cfg(not(windows))]
+pub fn force_window_to_foreground_raw(_hwnd_ptr: *mut std::ffi::c_void) -> bool {
+    false
+}
+
+#[cfg(not(windows))]
+pub fn force_window_to_foreground_hwnd(_hwnd: isize) -> bool {
+    false
+}
+
 /// Brings the main visible window of a process (or its child process tree) to the foreground on Windows.
-/// Uses AttachThreadInput, AllowSetForegroundWindow, and SetForegroundWindow to reliably bypass Windows foreground lock.
+/// Uses candidate filtering, AttachThreadInput, Alt-key unlock, and SetWindowPos to reliably
+/// elevate game windows over fullscreen launchers.
 #[cfg(windows)]
 pub fn bring_process_to_foreground(pid: u32) -> bool {
-    use windows::Win32::Foundation::{BOOL, HWND, LPARAM};
-    use windows::Win32::System::Threading::{AttachThreadInput, GetCurrentThreadId};
+    use windows::Win32::Foundation::{BOOL, HWND, LPARAM, RECT};
+    use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_CLOAKED};
     use windows::Win32::UI::WindowsAndMessaging::{
-        AllowSetForegroundWindow, BringWindowToTop, EnumWindows, GetForegroundWindow,
-        GetWindowThreadProcessId, IsWindowVisible, SetForegroundWindow, ShowWindow, ASFW_ANY,
-        SW_RESTORE,
+        EnumWindows, GetWindow, GetWindowLongW, GetWindowRect, GetWindowTextLengthW,
+        GetWindowThreadProcessId, IsWindowVisible, GWL_EXSTYLE, GW_OWNER, WS_EX_APPWINDOW,
+        WS_EX_TOOLWINDOW,
     };
 
     if pid == 0 {
@@ -49,25 +164,68 @@ pub fn bring_process_to_foreground(pid: u32) -> bool {
         }
     }
 
+    #[derive(Debug)]
+    struct WindowCandidate {
+        hwnd: HWND,
+        area: i64,
+        has_title: bool,
+        is_app_window: bool,
+    }
+
     struct WindowSearch {
         candidate_pids: std::collections::HashSet<u32>,
-        found_hwnd: Option<HWND>,
+        candidates: Vec<WindowCandidate>,
     }
 
     unsafe extern "system" fn enum_proc(hwnd: HWND, lparam: LPARAM) -> BOOL {
         let data = &mut *(lparam.0 as *mut WindowSearch);
         let mut proc_id = 0u32;
         GetWindowThreadProcessId(hwnd, Some(&mut proc_id));
+
         if data.candidate_pids.contains(&proc_id) && IsWindowVisible(hwnd).as_bool() {
-            data.found_hwnd = Some(hwnd);
-            return BOOL(0); // Stop enumeration
+            // Filter cloaked windows (suspended/virtual desktop/hidden DWM windows)
+            let mut cloaked: u32 = 0;
+            if DwmGetWindowAttribute(
+                hwnd,
+                DWMWA_CLOAKED,
+                &mut cloaked as *mut _ as *mut _,
+                std::mem::size_of::<u32>() as u32,
+            )
+            .is_ok()
+                && cloaked != 0
+            {
+                return BOOL(1);
+            }
+
+            // Filter out 0x0 or microscopic dummy/message windows
+            let mut rect = RECT::default();
+            if GetWindowRect(hwnd, &mut rect).is_ok() {
+                let width = (rect.right - rect.left) as i64;
+                let height = (rect.bottom - rect.top) as i64;
+                if width >= 32 && height >= 32 {
+                    let owner = GetWindow(hwnd, GW_OWNER).unwrap_or_default();
+                    let ex_style = GetWindowLongW(hwnd, GWL_EXSTYLE);
+                    let is_tool = (ex_style & (WS_EX_TOOLWINDOW.0 as i32)) != 0;
+                    let is_app = (ex_style & (WS_EX_APPWINDOW.0 as i32)) != 0;
+
+                    if !is_tool || is_app {
+                        let title_len = GetWindowTextLengthW(hwnd);
+                        data.candidates.push(WindowCandidate {
+                            hwnd,
+                            area: width * height,
+                            has_title: title_len > 0,
+                            is_app_window: is_app || owner.0.is_null(),
+                        });
+                    }
+                }
+            }
         }
         BOOL(1)
     }
 
     let mut data = WindowSearch {
         candidate_pids,
-        found_hwnd: None,
+        candidates: Vec::new(),
     };
 
     unsafe {
@@ -75,43 +233,22 @@ pub fn bring_process_to_foreground(pid: u32) -> bool {
             Some(enum_proc),
             LPARAM(&mut data as *mut WindowSearch as isize),
         );
-        if let Some(hwnd) = data.found_hwnd {
-            let _ = AllowSetForegroundWindow(ASFW_ANY);
+    }
 
-            let fg_hwnd = GetForegroundWindow();
-            let mut fg_proc_id = 0u32;
-            let fg_thread_id = GetWindowThreadProcessId(fg_hwnd, Some(&mut fg_proc_id));
-            let current_thread_id = GetCurrentThreadId();
-            let mut target_proc_id = 0u32;
-            let target_thread_id = GetWindowThreadProcessId(hwnd, Some(&mut target_proc_id));
+    // Rank candidates: prefer windows with a title, unowned / app windows, and largest visual area
+    data.candidates.sort_by(|a, b| {
+        b.has_title
+            .cmp(&a.has_title)
+            .then_with(|| b.is_app_window.cmp(&a.is_app_window))
+            .then_with(|| b.area.cmp(&a.area))
+    });
 
-            let attached_fg = if fg_thread_id != current_thread_id && fg_thread_id != 0 {
-                AttachThreadInput(current_thread_id, fg_thread_id, BOOL(1)) == BOOL(1)
-            } else {
-                false
-            };
-
-            let attached_target = if target_thread_id != current_thread_id && target_thread_id != 0
-            {
-                AttachThreadInput(current_thread_id, target_thread_id, BOOL(1)) == BOOL(1)
-            } else {
-                false
-            };
-
-            let _ = ShowWindow(hwnd, SW_RESTORE);
-            let _ = BringWindowToTop(hwnd);
-            let _ = SetForegroundWindow(hwnd);
-
-            if attached_fg {
-                let _ = AttachThreadInput(current_thread_id, fg_thread_id, BOOL(0));
-            }
-            if attached_target {
-                let _ = AttachThreadInput(current_thread_id, target_thread_id, BOOL(0));
-            }
-
+    for candidate in data.candidates {
+        if force_window_to_foreground_hwnd(candidate.hwnd) {
             return true;
         }
     }
+
     false
 }
 
