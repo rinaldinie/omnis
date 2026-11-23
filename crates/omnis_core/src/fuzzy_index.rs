@@ -104,7 +104,7 @@ impl FuzzyGameSearchIndex {
         }
 
         // Sort descending by score
-        matches.sort_by_key(|m| std::cmp::Reverse(m.1));
+        matches.sort_unstable_by_key(|m| std::cmp::Reverse(m.1));
         matches
     }
 }

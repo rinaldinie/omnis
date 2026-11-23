@@ -45,31 +45,54 @@ const EDITION_SUFFIXES: &[&str] = &[
 ///    when doing so leaves a non-empty base title.
 /// 4. Keeps only alphanumeric characters and spaces, collapses multiple spaces into single spaces, and trims.
 pub fn normalize_title_for_dedup(title: &str, ignore_edition_suffixes: bool) -> String {
-    let mut s = title.to_lowercase();
-    for mark in ["™", "®", "©", "(tm)", "(r)", "(c)"] {
-        s = s.replace(mark, "");
+    let mut lower = title.to_lowercase();
+    if lower.contains('(') {
+        for mark in ["(tm)", "(r)", "(c)"] {
+            if lower.contains(mark) {
+                lower = lower.replace(mark, "");
+            }
+        }
     }
 
-    s = s
-        .chars()
-        .map(|c| match c {
-            ':' | '-' | '–' | '—' | '_' => ' ',
-            _ if c.is_alphanumeric() || c.is_whitespace() || c == '\'' => c,
-            _ => ' ',
-        })
-        .collect();
+    let mut s = String::with_capacity(lower.len());
+    let mut prev_is_space = true;
 
-    s = s.split_whitespace().collect::<Vec<_>>().join(" ");
+    for c in lower.chars() {
+        match c {
+            '™' | '®' | '©' => {}
+            ':' | '-' | '–' | '—' | '_' => {
+                if !prev_is_space {
+                    s.push(' ');
+                    prev_is_space = true;
+                }
+            }
+            _ if c.is_alphanumeric() || c == '\'' => {
+                s.push(c);
+                prev_is_space = false;
+            }
+            _ => {
+                if !prev_is_space {
+                    s.push(' ');
+                    prev_is_space = true;
+                }
+            }
+        }
+    }
+
+    if prev_is_space && s.ends_with(' ') {
+        s.pop();
+    }
 
     if ignore_edition_suffixes {
         loop {
             let mut stripped_any = false;
             for suffix in EDITION_SUFFIXES {
-                if let Some(prefix) = s.strip_suffix(suffix) {
-                    if prefix.ends_with(' ') {
-                        let candidate = prefix.trim();
-                        if !candidate.is_empty() {
-                            s = candidate.to_string();
+                if s.ends_with(suffix) {
+                    let prefix_len = s.len() - suffix.len();
+                    if prefix_len > 0 && s.as_bytes()[prefix_len - 1] == b' ' {
+                        let candidate_len = s[..prefix_len].trim_end().len();
+                        if candidate_len > 0 {
+                            s.truncate(candidate_len);
                             stripped_any = true;
                             break;
                         }
@@ -82,12 +105,21 @@ pub fn normalize_title_for_dedup(title: &str, ignore_edition_suffixes: bool) -> 
         }
     }
 
-    let cleaned: String = s
-        .chars()
-        .filter(|c| c.is_alphanumeric() || c.is_whitespace())
-        .collect();
-
-    cleaned.split_whitespace().collect::<Vec<_>>().join(" ")
+    let mut cleaned = String::with_capacity(s.len());
+    let mut prev_space = true;
+    for c in s.chars() {
+        if c.is_alphanumeric() {
+            cleaned.push(c);
+            prev_space = false;
+        } else if !prev_space {
+            cleaned.push(' ');
+            prev_space = true;
+        }
+    }
+    if prev_space && cleaned.ends_with(' ') {
+        cleaned.pop();
+    }
+    cleaned
 }
 
 /// Repository trait for Duplicate Hider configuration and deduplication operations
@@ -205,10 +237,10 @@ impl DuplicateHiderRepository for Database {
         let config = self.get_duplicate_hider_config()?;
         let all_games = self.get_all_games()?;
 
-        let ignored_set: HashSet<String> = config
+        let ignored_set: HashSet<Uuid> = config
             .ignored_game_ids
             .iter()
-            .map(|id| id.to_lowercase())
+            .filter_map(|id| Uuid::parse_str(id).ok())
             .collect();
 
         let store_rank: HashMap<String, usize> = config
@@ -222,7 +254,7 @@ impl DuplicateHiderRepository for Database {
         let mut singletons_or_ignored: Vec<Game> = Vec::new();
 
         for game in all_games {
-            if ignored_set.contains(&game.id.to_string().to_lowercase()) {
+            if ignored_set.contains(&game.id) {
                 singletons_or_ignored.push(game);
                 continue;
             }
@@ -320,13 +352,20 @@ impl DuplicateHiderRepository for Database {
             // Group with >= 2 copies
             total_groups += 1;
 
-            // Separate manually hidden copies from eligible candidates
-            let mut candidates: Vec<&Game> = members
+            // Separate manually hidden copies from eligible candidates with pre-evaluated store priority
+            let mut candidates: Vec<(&Game, usize)> = members
                 .iter()
                 .filter(|g| !(g.is_hidden && !g.hidden_by_duplicate_hider))
+                .map(|g| {
+                    let prio = store_rank
+                        .get(&g.library_id.to_lowercase())
+                        .copied()
+                        .unwrap_or(usize::MAX);
+                    (g, prio)
+                })
                 .collect();
 
-            candidates.sort_by(|a, b| {
+            candidates.sort_by(|(a, prio_a), (b, prio_b)| {
                 if config.prefer_installed {
                     let inst_cmp = b.is_installed.cmp(&a.is_installed);
                     if inst_cmp != std::cmp::Ordering::Equal {
@@ -334,15 +373,7 @@ impl DuplicateHiderRepository for Database {
                     }
                 }
 
-                let prio_a = store_rank
-                    .get(&a.library_id.to_lowercase())
-                    .copied()
-                    .unwrap_or(usize::MAX);
-                let prio_b = store_rank
-                    .get(&b.library_id.to_lowercase())
-                    .copied()
-                    .unwrap_or(usize::MAX);
-                let store_cmp = prio_a.cmp(&prio_b);
+                let store_cmp = prio_a.cmp(prio_b);
                 if store_cmp != std::cmp::Ordering::Equal {
                     return store_cmp;
                 }
@@ -360,7 +391,7 @@ impl DuplicateHiderRepository for Database {
                 a.id.cmp(&b.id)
             });
 
-            let winner_id = candidates.first().map(|g| g.id);
+            let winner_id = candidates.first().map(|(g, _)| g.id);
 
             for member in &members {
                 if member.is_hidden && !member.hidden_by_duplicate_hider {

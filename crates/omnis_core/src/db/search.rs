@@ -27,26 +27,19 @@ impl GameSearchRepository for Database {
             let conn = self.reader();
             let mut stmt = conn.prepare("SELECT id, title FROM games;")?;
             let rows = stmt.query_map([], |row| {
-                let id_str: String = row.get(0)?;
-                let title: String = row.get(1)?;
-                let id = Uuid::parse_str(&id_str).map_err(|_| {
+                let id_str = row.get_ref(0)?.as_str()?;
+                let id = Uuid::parse_str(id_str).map_err(|e| {
                     rusqlite::Error::FromSqlConversionFailure(
                         0,
                         rusqlite::types::Type::Text,
-                        Box::new(std::io::Error::new(
-                            std::io::ErrorKind::InvalidData,
-                            "Invalid UUID",
-                        )),
+                        Box::new(e),
                     )
                 })?;
+                let title: String = row.get(1)?;
                 Ok(SearchItem { id, title })
             })?;
 
-            let mut items = Vec::new();
-            for item in rows.flatten() {
-                items.push(item);
-            }
-            items
+            rows.flatten().collect::<Vec<_>>()
         };
 
         let mut index = self.search_index.write().unwrap_or_else(|p| p.into_inner());
@@ -71,24 +64,16 @@ impl GameSearchRepository for Database {
         };
 
         let rows = stmt.query_map(params![safe_query], |row| {
-            let id_str: String = row.get(0)?;
-            Uuid::parse_str(&id_str).map_err(|_| {
+            let id_str = row.get_ref(0)?.as_str()?;
+            Uuid::parse_str(id_str).map_err(|e| {
                 rusqlite::Error::FromSqlConversionFailure(
                     0,
                     rusqlite::types::Type::Text,
-                    Box::new(std::io::Error::new(
-                        std::io::ErrorKind::InvalidData,
-                        "Invalid UUID",
-                    )),
+                    Box::new(e),
                 )
             })
         })?;
-
-        let mut ids = Vec::new();
-        for id in rows.flatten() {
-            ids.push(id);
-        }
-        Ok(ids)
+        Ok(rows.flatten().collect())
     }
 
     fn search_games(&self, search_term: &str) -> Result<Vec<Game>> {
@@ -107,8 +92,9 @@ impl GameSearchRepository for Database {
 
         // 2. Full-text search (SQLite FTS5 with trigram) on descriptions & titles
         if let Ok(fts_ids) = self.search_games_fts(term) {
+            let mut seen: std::collections::HashSet<Uuid> = matched_ids.iter().copied().collect();
             for id in fts_ids {
-                if !matched_ids.contains(&id) {
+                if seen.insert(id) {
                     matched_ids.push(id);
                 }
             }
