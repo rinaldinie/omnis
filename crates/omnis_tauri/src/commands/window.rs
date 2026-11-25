@@ -5,11 +5,16 @@ pub use omnis_core::os::{resolve_executable_path_sync, ResolvedExecutable};
 
 #[tauri::command]
 pub fn open_folder(folder_type: String, state: State<'_, AppState>) -> Result<(), String> {
+    let logs_dir;
     let path = match folder_type.as_str() {
         "db" | "library" => &state.app_dir,
         "covers" => &state.covers_dir,
         "plugins" => &state.plugins_dir,
         "themes" => &state.themes_dir,
+        "logs" => {
+            logs_dir = crate::logging::resolve_logs_dir();
+            &logs_dir
+        }
         _ => &state.app_dir,
     };
     open_folder_in_os(path);

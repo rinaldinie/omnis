@@ -97,6 +97,12 @@ describe("i18nContext lazy locale loading", () => {
       expect(dict.console_ui?.wifi_disconnected, `wifi_disconnected missing in ${code}`).toBeTruthy();
       expect(dict.console_ui?.charging_percent, `charging_percent missing in ${code}`).toBeTruthy();
       expect(dict.console_ui?.battery_percent, `battery_percent missing in ${code}`).toBeTruthy();
+
+      // bug_report: core strings present across all locales
+      expect(dict.topbar?.report_bug, `topbar.report_bug missing in ${code}`).toBeTruthy();
+      expect(dict.error_boundary?.report_bug, `error_boundary.report_bug missing in ${code}`).toBeTruthy();
+      expect(dict.bug_report?.modal_title, `bug_report.modal_title missing in ${code}`).toBeTruthy();
+      expect(dict.bug_report?.submit_github, `bug_report.submit_github missing in ${code}`).toBeTruthy();
     }
   });
 });

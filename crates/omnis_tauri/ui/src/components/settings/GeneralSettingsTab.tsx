@@ -19,11 +19,13 @@ import {
   AlertCircle,
   FolderArchive,
   Clock,
+  Bug,
 } from 'lucide-react';
 import { useTranslation, SUPPORTED_LOCALES, LocaleCode } from '../../i18n';
 import soundEffects from '../../utils/soundEffects';
 import { api } from '../../api';
 import { useUpdater } from '../../hooks/useAppUpdater';
+import { useModalStore } from '../../stores/useModalStore';
 import { BackupSettingsTab } from './BackupSettingsTab';
 import { SettingGroup, SettingRow, SettingRadioOption, ToggleSwitch } from './SettingsControls';
 import { getRecentSettings, saveRecentSettings, RecentSettings } from '../../utils/recentSettings';
@@ -734,6 +736,32 @@ export const GeneralSettingsTab: React.FC<GeneralSettingsTabProps> = ({
                   )}
                 </>
               )}
+            </SettingGroup>
+
+            <SettingGroup
+              title={t('bug_report.settings_title', { defaultValue: 'Bug Reporting & Diagnostics' })}
+              description={t('bug_report.settings_desc', { defaultValue: 'Open a pre-filled GitHub issue with OS details, version, and sanitized logs' })}
+              icon={<Bug className="w-4 h-4" />}
+            >
+              <SettingRow
+                icon={<Bug className="w-4 h-4 text-rose-400" />}
+                title={t('bug_report.settings_title', { defaultValue: 'Bug Reporting & Diagnostics' })}
+                description={t('bug_report.settings_desc', { defaultValue: 'Open a pre-filled GitHub issue with OS details, version, and sanitized logs' })}
+              >
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    soundEffects.playSelect();
+                    useModalStore.getState().closeSettings();
+                    useModalStore.getState().openBugReport();
+                  }}
+                  className="h-auto px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2"
+                >
+                  <Bug className="w-3.5 h-3.5 text-rose-400" />
+                  <span>{t('bug_report.settings_btn', { defaultValue: 'Report Bug' })}</span>
+                </Button>
+              </SettingRow>
             </SettingGroup>
           </div>
         )}

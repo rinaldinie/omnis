@@ -1,6 +1,9 @@
 import React from "react";
-import { AlertTriangle, RotateCcw, RefreshCw } from "lucide-react";
+import { AlertTriangle, RotateCcw, RefreshCw, Bug } from "lucide-react";
 import { useTranslation } from "@/i18n";
+import { api } from "@/api";
+import { useModalStore } from "@/stores/useModalStore";
+import { openExternalUrl } from "@/utils/openUrl";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -80,6 +83,51 @@ const ErrorFallbackCard: React.FC<ErrorFallbackCardProps> = ({
     });
   const retryLabel = t("error_boundary.retry", { defaultValue: "Try again" });
   const reloadLabel = t("error_boundary.reload", { defaultValue: "Reload app" });
+  const reportBugLabel = t("error_boundary.report_bug", {
+    defaultValue: "Report bug on GitHub",
+  });
+
+  const handleReportCrash = async () => {
+    const title = error.message
+      ? `UI Error${scope ? ` (${scope})` : ""}: ${error.message.slice(0, 80)}`
+      : `Unexpected UI Error${scope ? ` (${scope})` : ""}`;
+    const extraLogs = [scope ? `Scope: ${scope}` : "", error.stack || error.message]
+      .filter(Boolean)
+      .join("\n");
+
+    if (variant !== "page") {
+      useModalStore.getState().openBugReport({
+        title,
+        description: "An unexpected UI error was caught by ErrorBoundary.",
+        actual: error.message || "Unexpected rendering crash",
+        area: "UI / UX",
+        extraLogs,
+      });
+      return;
+    }
+
+    try {
+      const ctx = await api.bugReport.getContext().catch(() => null);
+      await api.bugReport.openGitHubBugReport({
+        title,
+        description: "A top-level UI error was caught by ErrorBoundary.",
+        reproduction: "1. Triggered during normal app usage",
+        expected: "The screen renders without errors.",
+        actual: error.message || "Unexpected rendering crash",
+        area: "UI / UX",
+        os: ctx?.os_info || (typeof navigator !== "undefined" ? navigator.platform : "Unknown OS"),
+        version: ctx?.app_version || "",
+        logs: [extraLogs, ctx?.logs_excerpt || ""].filter(Boolean).join("\n\n"),
+      });
+    } catch {
+      const url = new URL("https://github.com/rinaldinie/omnis/issues/new");
+      url.searchParams.set("template", "bug_report.yml");
+      url.searchParams.set("title", title);
+      url.searchParams.set("actual", error.message || "Unexpected rendering crash");
+      url.searchParams.set("area", "UI / UX");
+      await openExternalUrl(url.toString());
+    }
+  };
 
   const resolvedSecondaryAction =
     secondaryAction ??
@@ -174,6 +222,16 @@ const ErrorFallbackCard: React.FC<ErrorFallbackCardProps> = ({
         )}
 
         <CardFooter className="flex flex-wrap justify-end gap-2 pt-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => void handleReportCrash()}
+            className="text-muted-foreground hover:text-foreground mr-auto"
+          >
+            <Bug className="h-3.5 w-3.5 mr-1.5 text-rose-400" />
+            {reportBugLabel}
+          </Button>
           {resolvedSecondaryAction && (
             <Button
               type="button"

@@ -1,6 +1,17 @@
 import { create } from "zustand";
 import { GameDto } from "../types";
 import type { SettingsTab } from "../components/settings";
+import type { BugReportArea } from "../api/bugReport";
+
+export interface BugReportPrefill {
+  title?: string;
+  description?: string;
+  reproduction?: string;
+  expected?: string;
+  actual?: string;
+  area?: BugReportArea;
+  extraLogs?: string;
+}
 
 export interface ModalState {
   // Modals visibility
@@ -17,11 +28,13 @@ export interface ModalState {
   isPlayniteImportOpen: boolean;
   showKillConfirmModal: boolean;
   showUninstallModal: boolean;
+  showBugReportModal: boolean;
 
   // Modal payload targets
   gameToEdit: GameDto | null;
   gameToResolve: GameDto | null;
   gameToUninstall: GameDto | null;
+  bugReportPrefill: BugReportPrefill | null;
 
   // Actions
   openSettings: (tab?: SettingsTab) => void;
@@ -47,6 +60,9 @@ export interface ModalState {
   setGameToUninstall: (game: GameDto | null) => void;
   openUninstallModal: (game: GameDto) => void;
   closeUninstallModal: () => void;
+  setShowBugReportModal: (show: boolean) => void;
+  openBugReport: (prefill?: BugReportPrefill) => void;
+  closeBugReport: () => void;
 }
 
 export const useModalStore = create<ModalState>((set) => ({
@@ -63,10 +79,12 @@ export const useModalStore = create<ModalState>((set) => ({
   isPlayniteImportOpen: false,
   showKillConfirmModal: false,
   showUninstallModal: false,
+  showBugReportModal: false,
 
   gameToEdit: null,
   gameToResolve: null,
   gameToUninstall: null,
+  bugReportPrefill: null,
 
   openSettings: (tab = "general") =>
     set({ showSettingsModal: true, settingsInitialTab: tab }),
@@ -106,4 +124,13 @@ export const useModalStore = create<ModalState>((set) => ({
     set({ showUninstallModal: true, gameToUninstall: game }),
   closeUninstallModal: () =>
     set({ showUninstallModal: false, gameToUninstall: null }),
+  setShowBugReportModal: (showBugReportModal) =>
+    set((state) => ({
+      showBugReportModal,
+      bugReportPrefill: showBugReportModal ? state.bugReportPrefill : null,
+    })),
+  openBugReport: (prefill) =>
+    set({ showBugReportModal: true, bugReportPrefill: prefill ?? null }),
+  closeBugReport: () =>
+    set({ showBugReportModal: false, bugReportPrefill: null }),
 }));

@@ -8,6 +8,7 @@ import { themesApi } from "./themes";
 import { achievementsApi } from "./achievements";
 import { playniteApi } from "./playnite";
 import { slotsApi } from "./slots";
+import { bugReportApi } from "./bugReport";
 
 export * from "./client";
 export * from "./events";
@@ -21,6 +22,7 @@ export * from "./window";
 export * from "./themes";
 export * from "./achievements";
 export * from "./playnite";
+export * from "./bugReport";
 
 export const api = {
   games: gamesApi,
@@ -33,6 +35,7 @@ export const api = {
   achievements: achievementsApi,
   playnite: playniteApi,
   slots: slotsApi,
+  bugReport: bugReportApi,
 };
 
 export default api;

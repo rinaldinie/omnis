@@ -7,6 +7,7 @@ import {
   VolumeX,
   Settings,
   FolderArchive,
+  Bug,
 } from "lucide-react";
 import type { TranslateFn } from "../../types";
 import soundEffects from "../../utils/soundEffects";
@@ -30,6 +31,7 @@ export interface AppMenuDropdownProps {
   onOpenBatchEnrichModal: () => void;
   onOpenPlayniteImport?: () => void;
   onOpenSettingsModal?: () => void;
+  onOpenBugReport?: () => void;
   onToggleSound: () => void;
   soundEnabled: boolean;
   hasActiveProviders?: boolean;
@@ -48,6 +50,7 @@ export default function AppMenuDropdown({
   onOpenBatchEnrichModal,
   onOpenPlayniteImport,
   onOpenSettingsModal,
+  onOpenBugReport,
   onToggleSound,
   soundEnabled,
   hasActiveProviders = false,
@@ -222,6 +225,25 @@ export default function AppMenuDropdown({
             <span className="w-2 h-2 rounded-full bg-sky-400 animate-ping shrink-0 ml-2" />
           )}
         </DropdownMenuItem>
+
+        {onOpenBugReport && (
+          <DropdownMenuItem
+            onSelect={() => {
+              soundEffects.playSelect();
+              onOpenBugReport();
+              closeMenu();
+            }}
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <Bug className="w-4 h-4 text-rose-400 shrink-0" />
+              <span className="truncate">
+                {t
+                  ? t("topbar.report_bug", { defaultValue: "Report a Bug..." })
+                  : "Segnala un Bug..."}
+              </span>
+            </div>
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

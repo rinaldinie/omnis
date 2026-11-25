@@ -137,6 +137,8 @@ fn main() {
             set_game_hidden,
             set_game_favorite,
             promote_duplicate_copy,
+            get_bug_report_context,
+            open_github_bug_report,
         ])
         .run(tauri::generate_context!())
         .expect("Errore durante l'esecuzione dell'applicazione Tauri");

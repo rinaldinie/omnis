@@ -113,6 +113,7 @@ export interface TranslationSchema {
     zoom_out: string;
     close_app: string;
     more_tools: string;
+    report_bug?: string;
   };
   views: {
     grid: string;
@@ -1755,5 +1756,40 @@ export interface TranslationSchema {
     reload: string;
     back_to_grid: string;
     exit_fullscreen: string;
+    report_bug?: string;
+  };
+  bug_report?: {
+    menu_item: string;
+    modal_title: string;
+    modal_subtitle: string;
+    field_title: string;
+    placeholder_title: string;
+    field_area: string;
+    field_description: string;
+    placeholder_description: string;
+    field_reproduction: string;
+    placeholder_reproduction: string;
+    field_expected: string;
+    placeholder_expected: string;
+    field_actual: string;
+    placeholder_actual: string;
+    field_os: string;
+    field_version: string;
+    include_logs: string;
+    include_logs_hint: string;
+    logs_preview: string;
+    logs_empty: string;
+    copy_logs: string;
+    logs_copied: string;
+    open_logs_folder: string;
+    submit_github: string;
+    submitting: string;
+    privacy_note: string;
+    opened_notice: string;
+    truncated_notice: string;
+    validation_required: string;
+    settings_btn: string;
+    settings_title: string;
+    settings_desc: string;
   };
 }

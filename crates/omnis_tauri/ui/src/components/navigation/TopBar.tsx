@@ -188,6 +188,10 @@ export default function TopBar(props: TopBarProps) {
             soundEffects.playSelect();
             setShowSettingsModal(true);
           }}
+          onOpenBugReport={() => {
+            soundEffects.playSelect();
+            modalStore.openBugReport();
+          }}
           onToggleSound={handleToggleSound}
           soundEnabled={soundEnabled}
           hasActiveProviders={providers?.some(

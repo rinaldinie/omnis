@@ -1,5 +1,6 @@
 pub mod achievements;
 pub mod backup;
+pub mod bug_report;
 pub mod games;
 pub mod metadata;
 pub mod playnite;
@@ -13,6 +14,7 @@ pub mod window;
 
 pub use achievements::*;
 pub use backup::*;
+pub use bug_report::*;
 pub use games::*;
 pub use metadata::*;
 pub use playnite::*;

@@ -21,6 +21,7 @@ const BatchEnrichModal = lazy(() => import("./BatchEnrichModal"));
 const CustomGameModal = lazy(() => import("./CustomGameModal"));
 const SettingsModal = lazy(() => import("../settings/SettingsModal"));
 const PlayniteImportModal = lazy(() => import("./PlayniteImportModal"));
+const BugReportModal = lazy(() => import("./BugReportModal"));
 
 export type { ContextMenuState };
 
@@ -151,6 +152,9 @@ export const AppModals: React.FC<AppModalsProps> = (props) => {
     setIsPlayniteImportOpen,
     showKillConfirmModal,
     setShowKillConfirmModal,
+    showBugReportModal,
+    setShowBugReportModal,
+    bugReportPrefill,
   } = useModalStore();
 
   const {
@@ -380,6 +384,17 @@ export const AppModals: React.FC<AppModalsProps> = (props) => {
         onConfirm={confirmKillRunningGame}
         t={t}
       />
+
+      {/* GITHUB BUG REPORT MODAL */}
+      {showBugReportModal && (
+        <Suspense fallback={null}>
+          <BugReportModal
+            isOpen={showBugReportModal}
+            onClose={() => setShowBugReportModal(false)}
+            prefill={bugReportPrefill}
+          />
+        </Suspense>
+      )}
     </>
   );
 };
