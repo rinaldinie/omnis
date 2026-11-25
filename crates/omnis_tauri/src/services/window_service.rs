@@ -107,7 +107,7 @@ pub fn ensure_fullscreen_geometry(window: &Window) {
                 }
 
                 // 5. Force foreground focus so Windows Shell places the taskbar underneath
-                force_window_to_foreground_hwnd(hwnd);
+                omnis_core::launcher::force_window_to_foreground_raw(hwnd.0);
             }
         }
     }
@@ -122,40 +122,8 @@ pub fn force_foreground(window: &Window) {
     #[cfg(target_os = "windows")]
     {
         if let Ok(hwnd) = window.hwnd() {
-            force_window_to_foreground_hwnd(hwnd);
+            omnis_core::launcher::force_window_to_foreground_raw(hwnd.0);
         }
     }
     let _ = window.set_focus();
-}
-
-#[cfg(target_os = "windows")]
-fn force_window_to_foreground_hwnd(hwnd: windows::Win32::Foundation::HWND) {
-    use windows::Win32::System::Threading::{AttachThreadInput, GetCurrentThreadId};
-    use windows::Win32::UI::WindowsAndMessaging::{
-        AllowSetForegroundWindow, BringWindowToTop, GetForegroundWindow,
-        GetWindowThreadProcessId, SetForegroundWindow, ShowWindow, ASFW_ANY, SW_SHOW,
-    };
-
-    unsafe {
-        let _ = AllowSetForegroundWindow(ASFW_ANY);
-        let _ = ShowWindow(hwnd, SW_SHOW);
-
-        let fg_hwnd = GetForegroundWindow();
-        let mut fg_proc_id = 0u32;
-        let fg_thread_id = GetWindowThreadProcessId(fg_hwnd, Some(&mut fg_proc_id));
-        let current_thread_id = GetCurrentThreadId();
-
-        let attached = if fg_thread_id != current_thread_id && fg_thread_id != 0 {
-            AttachThreadInput(current_thread_id, fg_thread_id, true).as_bool()
-        } else {
-            false
-        };
-
-        let _ = BringWindowToTop(hwnd);
-        let _ = SetForegroundWindow(hwnd);
-
-        if attached {
-            let _ = AttachThreadInput(current_thread_id, fg_thread_id, false);
-        }
-    }
 }

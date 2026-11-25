@@ -869,3 +869,44 @@ fn test_playnite_session_activity_import() {
     assert_eq!(sessions.len(), 2);
     assert_eq!(sessions[0].duration_seconds, 3600);
 }
+
+#[test]
+fn test_playnite_import_custom_game_without_install_dir_sets_not_installed_and_no_store_integration() {
+    let db = Database::new_in_memory().expect("In-memory DB creation failed");
+    db.migrate().expect("DB migration failed");
+
+    let items = vec![PlayniteGameDto {
+        Id: None,
+        Name: "Old DRM-Free Game".to_string(),
+        GameId: None,
+        PluginId: None,
+        PlaytimeSeconds: Some(1200),
+        PlayCount: Some(3),
+        LastActivity: None,
+        Added: None,
+        Favorite: None,
+        Hidden: None,
+        Tags: None,
+        Features: None,
+        Categories: None,
+        Completion: None,
+        InstallDirectory: None,
+        Cover: None,
+        Background: None,
+        Sessions: None,
+    }];
+
+    let stats = db
+        .import_playnite_games(&items, &PlayniteImportOptions::default())
+        .expect("Import failed");
+    assert_eq!(stats.games_created, 1);
+
+    let games = db.get_all_games().unwrap();
+    let imported = games
+        .iter()
+        .find(|g| g.title == "Old DRM-Free Game")
+        .expect("Custom game missing");
+    assert_eq!(imported.library_id, "manual");
+    assert!(!imported.is_installed);
+    assert!(!imported.use_library_integration);
+}

@@ -517,6 +517,13 @@ impl PlayniteImporter {
         let sorting_title = item.Name.to_lowercase();
         let tags_str = item.Tags.as_ref().map(|t| t.join(", "));
         let features_str = item.Features.as_ref().map(|f| f.join(", "));
+        let use_library_integration = if library_id.eq_ignore_ascii_case("custom")
+            || library_id.eq_ignore_ascii_case(stores::MANUAL)
+        {
+            0
+        } else {
+            1
+        };
 
         if !options.dry_run {
             conn.execute(
@@ -524,9 +531,9 @@ impl PlayniteImporter {
                     id, library_id, external_id, title, sorting_title,
                     install_dir, is_installed, playtime_seconds, play_count,
                     last_activity, cover_image_path, background_image_path,
-                    tags, features, completion_status, is_favorite,
+                    tags, features, completion_status, is_favorite, use_library_integration,
                     added_timestamp, modified_timestamp
-                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?17);",
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?18);",
                 params![
                     new_id,
                     library_id,
@@ -544,6 +551,7 @@ impl PlayniteImporter {
                     features_str,
                     item.Completion.as_deref().unwrap_or(CompletionStatus::NotPlayed.as_str()),
                     is_fav,
+                    use_library_integration,
                     now,
                 ],
             )?;

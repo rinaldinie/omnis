@@ -127,6 +127,22 @@ button, a, input, select, textarea {
   to { transform: scaleX(0); }
 }
 
+@keyframes omnis-ken-burns {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.06) translate(-0.5%, -0.5%);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.omnis-ken-burns {
+  animation: omnis-ken-burns 22s ease-in-out infinite alternate;
+}
+
 @keyframes omnis-rise-in {
   from { opacity: 0; transform: translateY(0.75rem); }
   to { opacity: 1; transform: none; }
@@ -152,7 +168,8 @@ button, a, input, select, textarea {
 @media (prefers-reduced-motion: reduce) {
   .omnis-fade-in,
   .omnis-slide-in-left,
-  .omnis-rise-in {
+  .omnis-rise-in,
+  .omnis-ken-burns {
     animation: none;
   }
 }

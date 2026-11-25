@@ -1,5 +1,5 @@
 import React from "react";
-import { Gamepad2, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { ActiveGameSession, GameDto, TranslateFn, formatImageUrl } from "../../types";
 
 export interface FullscreenLaunchOverlayProps {
@@ -55,8 +55,8 @@ export const FullscreenLaunchOverlay: React.FC<FullscreenLaunchOverlayProps> = (
   }
 
   const title = game?.title || currentOrLastGame?.title || "";
-  const bgImage = formatImageUrl(game?.background_image || game?.cover_image);
-  const coverImage = formatImageUrl(game?.cover_image || game?.background_image);
+  const bgSource = formatImageUrl(game?.background_image || game?.cover_image);
+  const isUsingCoverFallback = !game?.background_image && !!game?.cover_image;
 
   const isRunning = currentOrLastGame?.state === "running";
   const isStopping = currentOrLastGame?.state === "stopping";
@@ -65,92 +65,74 @@ export const FullscreenLaunchOverlay: React.FC<FullscreenLaunchOverlayProps> = (
     <div
       role="status"
       aria-live="polite"
-      className={`fixed inset-0 z-[58] flex flex-col items-center justify-center overflow-hidden bg-black select-none transition-opacity duration-700 ease-out pointer-events-auto ${
+      className={`fixed inset-0 z-[58] flex flex-col justify-end items-start overflow-hidden bg-black select-none transition-opacity duration-700 ease-out pointer-events-auto ${
         isSessionActive ? "opacity-100" : "opacity-0 pointer-events-none"
       }`}
       style={{
         backgroundColor: "#05070c",
       }}
     >
-      {/* Ambient background artwork */}
-      {bgImage && (
+      {/* 1. Immersive Fullscreen Background Artwork */}
+      {bgSource ? (
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <img
-            src={bgImage}
+            src={bgSource}
             alt=""
-            className="w-full h-full object-cover blur-3xl scale-125 opacity-30 animate-pulse duration-1000"
+            className={`w-full h-full object-cover transition-transform duration-1000 ease-out omnis-ken-burns ${
+              isUsingCoverFallback ? "blur-md scale-110 opacity-55" : "scale-100 opacity-85"
+            }`}
           />
+          {/* Subtle multi-layer cinematic vignette for high contrast and readability */}
           <div
             className="absolute inset-0"
             style={{
               background:
-                "radial-gradient(ellipse at center, rgba(5, 7, 12, 0.45) 0%, rgba(5, 7, 12, 0.95) 85%)",
+                "linear-gradient(to top, rgba(5, 7, 12, 0.95) 0%, rgba(5, 7, 12, 0.6) 25%, rgba(5, 7, 12, 0.1) 60%, rgba(5, 7, 12, 0.35) 100%), radial-gradient(ellipse at center, transparent 45%, rgba(5, 7, 12, 0.55) 100%)",
             }}
           />
         </div>
+      ) : (
+        <div
+          className="absolute inset-0"
+          style={{
+            background: "radial-gradient(ellipse at center, #111827 0%, #05070c 100%)",
+          }}
+        />
       )}
 
-      {/* Main presentation card */}
-      <div className="relative z-10 flex flex-col items-center text-center max-w-xl px-8 omnis-rise-in">
-        {/* Cover thumbnail */}
-        <div
-          className="relative w-44 h-60 rounded-xl overflow-hidden shadow-2xl flex items-center justify-center bg-black/60 border border-white/10"
-          style={{
-            boxShadow:
-              "0 24px 60px rgba(0, 0, 0, 0.8), 0 0 40px color-mix(in srgb, var(--accent-primary) 30%, transparent)",
-          }}
-        >
-          {coverImage ? (
-            <img
-              src={coverImage}
-              alt={title}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-white/30">
-              <Gamepad2 className="w-16 h-16" />
-            </div>
-          )}
-        </div>
-
+      {/* 2. Minimalist Cinematic HUD: Title and Status Only */}
+      <div className="relative z-10 w-full max-w-6xl px-8 md:px-16 pb-10 md:pb-16 flex flex-col items-start gap-4 omnis-rise-in">
         {/* Title */}
-        <h1 className="mt-8 text-3xl font-extrabold text-white tracking-tight line-clamp-2 drop-shadow-md">
+        <h1 className="text-3xl sm:text-5xl md:text-6xl font-black text-white tracking-tight leading-tight line-clamp-2 drop-shadow-2xl">
           {title}
         </h1>
 
-        {/* Status text & indicator */}
-        <div className="mt-5 flex items-center gap-3 px-5 py-2.5 rounded-full bg-white/10 backdrop-blur-md border border-white/10">
+        {/* Status indicator pill */}
+        <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/15 shadow-xl">
           {isRunning ? (
-            <div className="flex items-center gap-2">
-              <span className="relative flex h-3 w-3">
+            <>
+              <span className="relative flex h-2.5 w-2.5">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
               </span>
               <span className="text-sm font-semibold tracking-wider text-emerald-300">
                 {t("console_ui.running")}
               </span>
-            </div>
+            </>
           ) : (
             <>
-              <Loader2 className={`w-5 h-5 animate-spin ${isStopping ? "text-rose-400" : "text-sky-400"}`} />
-              <span className="text-sm font-medium text-white/90">
+              <Loader2
+                className={`w-4 h-4 animate-spin ${
+                  isStopping ? "text-rose-400" : "text-sky-400"
+                }`}
+              />
+              <span className="text-sm font-medium text-white/95">
                 {isStopping
                   ? t("app_status.game_stopping")
                   : t("app_status.game_launching", { title })}
               </span>
             </>
           )}
-        </div>
-
-        {/* Progress or active glow line */}
-        <div className="mt-6 w-56 h-1 bg-white/10 rounded-full overflow-hidden">
-          <div
-            className={`w-full h-full rounded-full ${
-              isRunning
-                ? "bg-gradient-to-r from-emerald-400 to-teal-500 shadow-sm"
-                : "bg-gradient-to-r from-sky-400 to-indigo-500 animate-pulse"
-            }`}
-          />
         </div>
       </div>
     </div>
