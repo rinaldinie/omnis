@@ -278,31 +278,31 @@ impl DuplicateHiderRepository for Database {
                 [],
             )?;
 
-            for g in &singletons_or_ignored {
-                if g.duplicate_group_id.is_some() {
-                    tx.execute(
-                        "UPDATE games SET duplicate_group_id = NULL WHERE id = ?1;",
-                        params![g.id.to_string()],
-                    )?;
-                }
-            }
-
             let mut total_groups = 0usize;
-            for (norm_key, members) in &groups {
-                if members.len() >= 2 {
-                    total_groups += 1;
-                    for member in members {
-                        tx.execute(
-                            "UPDATE games SET duplicate_group_id = ?2 WHERE id = ?1;",
-                            params![member.id.to_string(), norm_key],
-                        )?;
+            {
+                let mut clear_group_stmt =
+                    tx.prepare("UPDATE games SET duplicate_group_id = NULL WHERE id = ?1;")?;
+                let mut set_group_stmt =
+                    tx.prepare("UPDATE games SET duplicate_group_id = ?2 WHERE id = ?1;")?;
+
+                for g in &singletons_or_ignored {
+                    if g.duplicate_group_id.is_some() {
+                        clear_group_stmt.execute(params![g.id.to_string()])?;
                     }
-                } else if let Some(single) = members.first() {
-                    if single.duplicate_group_id.is_some() {
-                        tx.execute(
-                            "UPDATE games SET duplicate_group_id = NULL WHERE id = ?1;",
-                            params![single.id.to_string()],
-                        )?;
+                }
+
+                for (norm_key, members) in &groups {
+                    if members.len() >= 2 {
+                        total_groups += 1;
+                        for member in members {
+                            if member.duplicate_group_id.as_deref() != Some(norm_key.as_str()) {
+                                set_group_stmt.execute(params![member.id.to_string(), norm_key])?;
+                            }
+                        }
+                    } else if let Some(single) = members.first() {
+                        if single.duplicate_group_id.is_some() {
+                            clear_group_stmt.execute(params![single.id.to_string()])?;
+                        }
                     }
                 }
             }
@@ -315,108 +315,108 @@ impl DuplicateHiderRepository for Database {
         }
 
         // Config is enabled
-        for g in &singletons_or_ignored {
-            let (new_is_hidden, new_hidden_by_dh) = if g.hidden_by_duplicate_hider {
-                (0, 0)
-            } else {
-                (if g.is_hidden { 1 } else { 0 }, 0)
-            };
-            tx.execute(
-                "UPDATE games
-                 SET is_hidden = ?2, hidden_by_duplicate_hider = ?3, duplicate_group_id = NULL
-                 WHERE id = ?1;",
-                params![g.id.to_string(), new_is_hidden, new_hidden_by_dh],
-            )?;
-        }
-
         let mut total_groups = 0usize;
         let mut hidden_duplicates = 0usize;
 
-        for (norm_key, members) in groups {
-            if members.len() == 1 {
-                let single = &members[0];
-                let (new_is_hidden, new_hidden_by_dh) = if single.hidden_by_duplicate_hider {
-                    (0, 0)
-                } else {
-                    (if single.is_hidden { 1 } else { 0 }, 0)
+        {
+            let mut update_stmt = tx.prepare(
+                "UPDATE games
+                 SET is_hidden = ?2, hidden_by_duplicate_hider = ?3, duplicate_group_id = ?4
+                 WHERE id = ?1;",
+            )?;
+
+            let mut sync_row =
+                |game: &Game, target_hidden: bool, target_dh: bool, target_group: Option<&str>| -> Result<()> {
+                    if game.is_hidden == target_hidden
+                        && game.hidden_by_duplicate_hider == target_dh
+                        && game.duplicate_group_id.as_deref() == target_group
+                    {
+                        return Ok(());
+                    }
+                    update_stmt.execute(params![
+                        game.id.to_string(),
+                        if target_hidden { 1 } else { 0 },
+                        if target_dh { 1 } else { 0 },
+                        target_group,
+                    ])?;
+                    Ok(())
                 };
-                tx.execute(
-                    "UPDATE games
-                     SET is_hidden = ?2, hidden_by_duplicate_hider = ?3, duplicate_group_id = NULL
-                     WHERE id = ?1;",
-                    params![single.id.to_string(), new_is_hidden, new_hidden_by_dh],
-                )?;
-                continue;
+
+            for g in &singletons_or_ignored {
+                let target_hidden = if g.hidden_by_duplicate_hider {
+                    false
+                } else {
+                    g.is_hidden
+                };
+                sync_row(g, target_hidden, false, None)?;
             }
 
-            // Group with >= 2 copies
-            total_groups += 1;
+            for (norm_key, members) in groups {
+                if members.len() == 1 {
+                    let single = &members[0];
+                    let target_hidden = if single.hidden_by_duplicate_hider {
+                        false
+                    } else {
+                        single.is_hidden
+                    };
+                    sync_row(single, target_hidden, false, None)?;
+                    continue;
+                }
 
-            // Separate manually hidden copies from eligible candidates with pre-evaluated store priority
-            let mut candidates: Vec<(&Game, usize)> = members
-                .iter()
-                .filter(|g| !(g.is_hidden && !g.hidden_by_duplicate_hider))
-                .map(|g| {
-                    let prio = store_rank
-                        .get(&g.library_id.to_lowercase())
-                        .copied()
-                        .unwrap_or(usize::MAX);
-                    (g, prio)
-                })
-                .collect();
+                // Group with >= 2 copies
+                total_groups += 1;
 
-            candidates.sort_by(|(a, prio_a), (b, prio_b)| {
-                if config.prefer_installed {
-                    let inst_cmp = b.is_installed.cmp(&a.is_installed);
-                    if inst_cmp != std::cmp::Ordering::Equal {
-                        return inst_cmp;
+                // Separate manually hidden copies from eligible candidates with pre-evaluated store priority
+                let mut candidates: Vec<(&Game, usize)> = members
+                    .iter()
+                    .filter(|g| !(g.is_hidden && !g.hidden_by_duplicate_hider))
+                    .map(|g| {
+                        let prio = store_rank
+                            .get(&g.library_id.to_lowercase())
+                            .copied()
+                            .unwrap_or(usize::MAX);
+                        (g, prio)
+                    })
+                    .collect();
+
+                candidates.sort_by(|(a, prio_a), (b, prio_b)| {
+                    if config.prefer_installed {
+                        let inst_cmp = b.is_installed.cmp(&a.is_installed);
+                        if inst_cmp != std::cmp::Ordering::Equal {
+                            return inst_cmp;
+                        }
                     }
-                }
 
-                let store_cmp = prio_a.cmp(prio_b);
-                if store_cmp != std::cmp::Ordering::Equal {
-                    return store_cmp;
-                }
+                    let store_cmp = prio_a.cmp(prio_b);
+                    if store_cmp != std::cmp::Ordering::Equal {
+                        return store_cmp;
+                    }
 
-                let play_cmp = b.playtime_seconds.cmp(&a.playtime_seconds);
-                if play_cmp != std::cmp::Ordering::Equal {
-                    return play_cmp;
-                }
+                    let play_cmp = b.playtime_seconds.cmp(&a.playtime_seconds);
+                    if play_cmp != std::cmp::Ordering::Equal {
+                        return play_cmp;
+                    }
 
-                let added_cmp = a.added_timestamp.cmp(&b.added_timestamp);
-                if added_cmp != std::cmp::Ordering::Equal {
-                    return added_cmp;
-                }
+                    let added_cmp = a.added_timestamp.cmp(&b.added_timestamp);
+                    if added_cmp != std::cmp::Ordering::Equal {
+                        return added_cmp;
+                    }
 
-                a.id.cmp(&b.id)
-            });
+                    a.id.cmp(&b.id)
+                });
 
-            let winner_id = candidates.first().map(|(g, _)| g.id);
+                let winner_id = candidates.first().map(|(g, _)| g.id);
 
-            for member in &members {
-                if member.is_hidden && !member.hidden_by_duplicate_hider {
-                    // Preserve manual hide while assigning duplicate_group_id
-                    tx.execute(
-                        "UPDATE games
-                         SET duplicate_group_id = ?2
-                         WHERE id = ?1;",
-                        params![member.id.to_string(), &norm_key],
-                    )?;
-                } else if Some(member.id) == winner_id {
-                    tx.execute(
-                        "UPDATE games
-                         SET is_hidden = 0, hidden_by_duplicate_hider = 0, duplicate_group_id = ?2
-                         WHERE id = ?1;",
-                        params![member.id.to_string(), &norm_key],
-                    )?;
-                } else {
-                    hidden_duplicates += 1;
-                    tx.execute(
-                        "UPDATE games
-                         SET is_hidden = 1, hidden_by_duplicate_hider = 1, duplicate_group_id = ?2
-                         WHERE id = ?1;",
-                        params![member.id.to_string(), &norm_key],
-                    )?;
+                for member in &members {
+                    if member.is_hidden && !member.hidden_by_duplicate_hider {
+                        // Preserve manual hide while assigning duplicate_group_id
+                        sync_row(member, true, false, Some(norm_key.as_str()))?;
+                    } else if Some(member.id) == winner_id {
+                        sync_row(member, false, false, Some(norm_key.as_str()))?;
+                    } else {
+                        hidden_duplicates += 1;
+                        sync_row(member, true, true, Some(norm_key.as_str()))?;
+                    }
                 }
             }
         }

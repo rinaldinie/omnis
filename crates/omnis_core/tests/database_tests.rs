@@ -1250,3 +1250,90 @@ fn test_v11_migration_disables_library_integration_for_custom_games_only() {
     let steam_game = db.get_game_by_id(steam_id).unwrap().unwrap();
     assert!(steam_game.use_library_integration);
 }
+
+#[test]
+fn test_v12_migration_scopes_fts_update_trigger_and_keeps_search_in_sync() {
+    let db = Database::open_in_memory().expect("Failed to open DB");
+    let game_id = Uuid::new_v4();
+
+    {
+        let conn = db.writer();
+        let now = Utc::now().to_rfc3339();
+        conn.execute(
+            "INSERT INTO games (id, library_id, external_id, title, sorting_title, description, added_timestamp, modified_timestamp)
+             VALUES (?1, 'steam', '999', 'Old Title', 'old title', 'Old description text', ?2, ?2)",
+            rusqlite::params![game_id.to_string(), now],
+        )
+        .unwrap();
+        conn.execute_batch(
+            "
+            DROP TRIGGER IF EXISTS games_au;
+            CREATE TRIGGER games_au AFTER UPDATE ON games BEGIN
+                INSERT INTO games_fts(games_fts, rowid, name, title, description) VALUES('delete', old.rowid, old.name, old.title, old.description);
+                INSERT INTO games_fts(rowid, name, title, description) VALUES (new.rowid, new.name, new.title, new.description);
+            END;
+            PRAGMA user_version = 11;
+            ",
+        )
+        .unwrap();
+    }
+
+    db.migrate().expect("Migration v12 failed");
+
+    {
+        let conn = db.reader();
+        let trigger_sql: String = conn
+            .query_row(
+                "SELECT sql FROM sqlite_master WHERE type = 'trigger' AND name = 'games_au';",
+                [],
+                |r| r.get(0),
+            )
+            .expect("games_au trigger missing");
+        assert!(
+            trigger_sql.contains("UPDATE OF title, description ON games"),
+            "Unexpected trigger SQL: {trigger_sql}"
+        );
+    }
+
+    let game = db.get_game_by_id(game_id).unwrap().unwrap();
+    let mut update = omnis_sdk::GameUpdateDto {
+        id: game.id,
+        title: "Chrono Odyssey".to_string(),
+        sorting_title: None,
+        release_date: None,
+        description: Some("Explore the ancient ruins of Aethelgard.".to_string()),
+        user_score: None,
+        critic_score: None,
+        community_score: None,
+        series: None,
+        age_rating: None,
+        completion_status: None,
+        user_notes: None,
+        genres: vec![],
+        developers: vec![],
+        publishers: vec![],
+        tags: vec![],
+        features: vec![],
+        cover_image_path: None,
+        background_image_path: None,
+        icon_image_path: None,
+        play_actions: vec![],
+        use_library_integration: true,
+        custom_links: vec![],
+        extra_metadata: None,
+    };
+    db.update_game(&update).expect("Update failed");
+
+    let fts_ids = db.search_games_fts("Aethelgard").unwrap();
+    assert_eq!(fts_ids, vec![game_id]);
+    assert!(db.search_games_fts("Old description").unwrap().is_empty());
+
+    // Non-text update keeps FTS intact
+    db.set_game_favorite(game_id, true).unwrap();
+    assert_eq!(db.search_games_fts("Aethelgard").unwrap(), vec![game_id]);
+
+    // Subsequent title update re-indexes FTS
+    update.title = "Starfield Explorer".to_string();
+    db.update_game(&update).unwrap();
+    assert_eq!(db.search_games_fts("Starfield").unwrap(), vec![game_id]);
+}

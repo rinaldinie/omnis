@@ -3,7 +3,7 @@ use rusqlite::{params, Connection, Result};
 
 use crate::db::parse_and_normalize_genres;
 
-pub const CURRENT_SCHEMA_VERSION: i32 = 11;
+pub const CURRENT_SCHEMA_VERSION: i32 = 12;
 
 pub fn run_migrations(conn: &Connection) -> Result<()> {
     let current_version: i32 = conn.query_row("PRAGMA user_version;", [], |r| r.get(0))?;
@@ -200,7 +200,7 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
                 INSERT INTO games_fts(games_fts, rowid, name, title, description) VALUES('delete', old.rowid, old.name, old.title, old.description);
             END;
 
-            CREATE TRIGGER IF NOT EXISTS games_au AFTER UPDATE ON games BEGIN
+            CREATE TRIGGER IF NOT EXISTS games_au AFTER UPDATE OF title, description ON games BEGIN
                 INSERT INTO games_fts(games_fts, rowid, name, title, description) VALUES('delete', old.rowid, old.name, old.title, old.description);
                 INSERT INTO games_fts(rowid, name, title, description) VALUES (new.rowid, new.name, new.title, new.description);
             END;
@@ -463,6 +463,21 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
             [],
         );
         conn.execute_batch("PRAGMA user_version = 11;")?;
+    }
+
+    // Version 12: Scope FTS5 update trigger to indexed text columns (title, description)
+    // so non-text updates (playtime, hidden flags, duplicate groups) do not rewrite trigram FTS entries
+    if current_version < 12 {
+        conn.execute_batch(
+            "
+            DROP TRIGGER IF EXISTS games_au;
+            CREATE TRIGGER IF NOT EXISTS games_au AFTER UPDATE OF title, description ON games BEGIN
+                INSERT INTO games_fts(games_fts, rowid, name, title, description) VALUES('delete', old.rowid, old.name, old.title, old.description);
+                INSERT INTO games_fts(rowid, name, title, description) VALUES (new.rowid, new.name, new.title, new.description);
+            END;
+            PRAGMA user_version = 12;
+            ",
+        )?;
     }
 
     conn.execute_batch(&format!(
