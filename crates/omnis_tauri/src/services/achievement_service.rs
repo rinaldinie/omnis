@@ -24,13 +24,21 @@ use crate::store::StoreAccountManager;
 pub struct AchievementService {
     providers: HashMap<String, Box<dyn AchievementProvider>>,
     library_sync_running: AtomicBool,
+    http_client: reqwest::Client,
 }
 
 impl AchievementService {
     pub fn new() -> Self {
+        let http_client = reqwest::Client::builder()
+            .pool_max_idle_per_host(8)
+            .tcp_nodelay(true)
+            .timeout(std::time::Duration::from_secs(20))
+            .build()
+            .unwrap_or_default();
         let mut service = Self {
             providers: HashMap::new(),
             library_sync_running: AtomicBool::new(false),
+            http_client,
         };
         service.register_provider(Box::new(SteamPlugin::new()));
         service.register_provider(Box::new(XboxCloudPlugin::new()));
@@ -181,7 +189,8 @@ impl AchievementService {
             let cache_dir = app_dir
                 .join(storage::CACHE_DIR)
                 .join(storage::ACHIEVEMENTS_DIR);
-            let cache_manager = AchievementCacheManager::new(cache_dir);
+            let cache_manager =
+                AchievementCacheManager::with_client(self.http_client.clone(), cache_dir, 8);
             let game_title = game.title.clone();
             tokio::spawn(async move {
                 if let Err(e) = cache_manager

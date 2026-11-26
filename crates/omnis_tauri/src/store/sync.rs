@@ -8,7 +8,6 @@ use omnis_sdk::plugin::{CloudStorePlugin, StoreAccountSession};
 use omnis_sdk::GameMetadataPatch;
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::Duration;
 use tauri::{AppHandle, Emitter};
 use tokio::sync::Semaphore;
 use tokio::task::JoinSet;
@@ -318,11 +317,7 @@ impl StoreAccountManager {
             Some(format!("Download copertine in locale (0/{})...", total)),
         );
 
-        let client = reqwest::Client::builder()
-            .timeout(Duration::from_secs(20))
-            .build()
-            .unwrap_or_default();
-        let media = Arc::new(HttpMediaDownloader::new(client));
+        let media = Arc::clone(&self.media_downloader);
         let semaphore = Arc::new(Semaphore::new(8));
         let mut tasks = JoinSet::new();
 

@@ -168,6 +168,15 @@ impl AchievementCacheManager {
             .build()
             .unwrap_or_default();
 
+        Self::with_client(client, base_cache_dir, concurrency)
+    }
+
+    /// Creates a new cache manager reusing an existing shared HTTP client pool
+    pub fn with_client(
+        client: reqwest::Client,
+        base_cache_dir: PathBuf,
+        concurrency: usize,
+    ) -> Self {
         Self {
             client,
             base_cache_dir,

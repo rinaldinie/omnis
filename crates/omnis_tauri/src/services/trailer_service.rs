@@ -3,6 +3,7 @@ use omnis_core::Database;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::Path;
+use std::sync::OnceLock;
 use tokio::sync::RwLock;
 use tracing::debug;
 use uuid::Uuid;
@@ -142,14 +143,19 @@ impl GameTrailerResolver {
     }
 
     pub async fn fetch_steam_store_trailer(external_id: &str) -> Result<Option<String>, String> {
+        static TRAILER_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
+        let client = TRAILER_CLIENT.get_or_init(|| {
+            reqwest::Client::builder()
+                .pool_max_idle_per_host(4)
+                .tcp_nodelay(true)
+                .timeout(std::time::Duration::from_secs(4))
+                .build()
+                .unwrap_or_default()
+        });
         let store_url = format!(
             "https://store.steampowered.com/api/appdetails?appids={}",
             external_id
         );
-        let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(4))
-            .build()
-            .map_err(|e| e.to_string())?;
 
         match client.get(&store_url).send().await {
             Ok(resp) => {

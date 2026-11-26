@@ -6,6 +6,7 @@
 //! - StoreCatalogSyncEngine: library sync and progress reporting
 
 use chrono::{DateTime, Utc};
+use omnis_core::metadata::HttpMediaDownloader;
 use omnis_core::{Database, SecretVault};
 use omnis_sdk::plugin::{CloudStorePlugin, StoreAccountSession};
 use serde::{Deserialize, Serialize};
@@ -51,11 +52,18 @@ pub struct StoreAccountManager {
     pub(crate) last_syncs: Arc<tokio::sync::RwLock<HashMap<String, DateTime<Utc>>>>,
     pub(crate) syncing_stores: Arc<RwLock<std::collections::HashSet<String>>>,
     pub(crate) cache_dir: Option<PathBuf>,
+    pub(crate) media_downloader: Arc<HttpMediaDownloader>,
 }
 
 impl StoreAccountManager {
     /// Create a new StoreAccountManager bound to the given database and envelope vault
     pub fn new(db: Arc<Database>, vault: Arc<SecretVault>) -> Self {
+        let client = reqwest::Client::builder()
+            .pool_max_idle_per_host(8)
+            .tcp_nodelay(true)
+            .timeout(std::time::Duration::from_secs(20))
+            .build()
+            .unwrap_or_default();
         let mgr = Self {
             plugins: Arc::new(RwLock::new(HashMap::new())),
             db,
@@ -64,6 +72,7 @@ impl StoreAccountManager {
             last_syncs: Arc::new(tokio::sync::RwLock::new(HashMap::new())),
             syncing_stores: Arc::new(RwLock::new(std::collections::HashSet::new())),
             cache_dir: None,
+            media_downloader: Arc::new(HttpMediaDownloader::new(client)),
         };
         // Migrate legacy keyring entries to envelope-encrypted SQLite vault
         mgr.migrate_legacy_keyring();
