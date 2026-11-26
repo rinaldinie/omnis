@@ -313,4 +313,69 @@ describe("Library & Dashboard Views", () => {
     expect(sidebar.style.width).toBe("44px");
     expect(screen.queryByRole("separator")).toBeNull();
   });
+
+  it("virtualizes large expanded groups in GridView when scroll viewport has height", async () => {
+    const manyGames: GameDto[] = Array.from({ length: 160 }, (_, idx) => ({
+      ...sampleGame,
+      id: `g-${idx}`,
+      title: `Grouped Game ${idx}`,
+      library: "steam",
+    }));
+
+    const origClientHeight = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      "clientHeight"
+    );
+    const origClientWidth = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      "clientWidth"
+    );
+    Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+      configurable: true,
+      get: () => 600,
+    });
+    Object.defineProperty(HTMLElement.prototype, "clientWidth", {
+      configurable: true,
+      get: () => 900,
+    });
+
+    try {
+      render(
+        <I18nProvider initialLocale="en">
+          <GridView
+            filteredGames={manyGames}
+            groupedGames={{ Steam: manyGames }}
+            groupBy="library"
+            collapsedGroups={{}}
+            toggleGroup={vi.fn()}
+            gridCardWidth={180}
+            selectedGame={manyGames[0]}
+            setSelectedGame={vi.fn()}
+            setViewMode={vi.fn()}
+            handleOpenContextMenu={vi.fn()}
+            handleLaunch={vi.fn()}
+            setGameToEdit={vi.fn()}
+            setShowEditorModal={vi.fn()}
+            activeGame={null}
+            elapsedSeconds={0}
+            formatDuration={(s) => `${s}s`}
+            handleKillRunningGame={vi.fn()}
+          />
+        </I18nProvider>
+      );
+
+      await waitFor(() => {
+        const cards = document.querySelectorAll('[data-omnis="game-card"]');
+        expect(cards.length).toBeGreaterThan(0);
+        expect(cards.length).toBeLessThan(manyGames.length);
+      });
+    } finally {
+      if (origClientHeight) {
+        Object.defineProperty(HTMLElement.prototype, "clientHeight", origClientHeight);
+      }
+      if (origClientWidth) {
+        Object.defineProperty(HTMLElement.prototype, "clientWidth", origClientWidth);
+      }
+    }
+  });
 });
