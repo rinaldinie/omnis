@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import soundEffects from "../../utils/soundEffects";
+import { fetchGamesSummary } from "../../utils/fetchGamesSummary";
 import { api } from "../../api";
 import { useUiStore } from "../../stores/useUiStore";
 import { SteamIcon, EpicIcon, GogIcon, XboxIcon, SwitchIcon, AmazonIcon } from "../common/StoreBadge";
@@ -240,7 +241,7 @@ export default function OnboardingModal({
     }
 
     const [games, providers] = await Promise.all([
-      api.games.getGames().catch(() => []),
+      fetchGamesSummary().catch(() => []),
       api.metadata.getProviders().catch(() => []),
     ]);
     if (!mounted.current) return;

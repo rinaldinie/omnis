@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useTranslation } from '../../i18n';
 import soundEffects from '../../utils/soundEffects';
+import { fetchGamesSummary } from '../../utils/fetchGamesSummary';
 import { api } from '../../api';
 import type { DuplicateHiderConfig, DuplicateHiderStats, GameDto } from '../../types';
 import { SettingGroup, SettingRow, ToggleSwitch } from './SettingsControls';
@@ -111,7 +112,7 @@ export const DuplicateHiderSettingsTab: React.FC<DuplicateHiderSettingsTabProps>
 
     Promise.all([
       api.games.getDuplicateHiderConfig().catch(() => DEFAULT_CONFIG),
-      api.games.getGames().catch(() => [] as GameDto[]),
+      fetchGamesSummary().catch(() => [] as GameDto[]),
     ])
       .then(([loadedCfg, loadedGames]) => {
         if (!isMounted) return;
@@ -184,7 +185,7 @@ export const DuplicateHiderSettingsTab: React.FC<DuplicateHiderSettingsTabProps>
       if (resultStats) {
         setStats(resultStats);
       }
-      const refreshedGames = await api.games.getGames().catch(() => games);
+      const refreshedGames = await fetchGamesSummary().catch(() => games);
       if (Array.isArray(refreshedGames)) {
         setGames(refreshedGames);
       }

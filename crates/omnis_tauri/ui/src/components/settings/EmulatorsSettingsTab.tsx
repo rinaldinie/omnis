@@ -19,6 +19,7 @@ import { api } from '../../api';
 import type { EmulatorSettings, EmulatorStatus } from '../../api/games';
 import type { GameDto } from '../../types';
 import soundEffects from '../../utils/soundEffects';
+import { fetchGamesSummary } from '../../utils/fetchGamesSummary';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ActionTooltip } from '@/components/ui/tooltip';
@@ -55,8 +56,7 @@ export const EmulatorsSettingsTab: React.FC<EmulatorsSettingsTabProps> = ({ onSy
   useEffect(() => {
     loadStatus();
     api.games.getEmulatorSettings().then(setSettings).catch(console.debug);
-    api.games
-      .getGames()
+    fetchGamesSummary()
       .then((games) =>
         setSwitchGames(
           games

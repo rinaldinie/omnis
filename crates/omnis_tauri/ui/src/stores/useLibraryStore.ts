@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { api } from "../api";
 import { GameDto, LibraryCounts, normalizeGame, RawGameDto } from "../types";
 import { getErrorMessage } from "../utils/errors";
+import { fetchGamesSummary } from "../utils/fetchGamesSummary";
 
 const hydratedGameIds = new Set<string>();
 const inflightHydrations = new Map<string, Promise<void>>();
@@ -63,11 +64,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   loadGames: async (options) => {
     set({ isLoading: true, error: null });
     try {
-      const fetchCatalog =
-        typeof api.games.getGamesSummary === "function"
-          ? api.games.getGamesSummary
-          : api.games.getGames;
-      const loadedGames = await fetchCatalog();
+      const loadedGames = await fetchGamesSummary();
       if (loadedGames) {
         hydratedGameIds.clear();
         const normalized = loadedGames.map(normalizeGame);
