@@ -1,6 +1,6 @@
-use chrono::{Datelike, Utc};
+use chrono::{DateTime, Datelike, NaiveDate, Utc};
 use rusqlite::params;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use uuid::Uuid;
 
 use crate::db::{parse_and_normalize_genres, Database, DatabaseError};
@@ -8,6 +8,12 @@ use omnis_sdk::{
     BacklogSummaryDto, CategoryShareDto, DayActivityDto, DaySessionDto, GameStatsDto,
     GlobalStatsDto, WeekPlaytimeDto,
 };
+
+fn parse_utc_datetime(raw: &str) -> Option<DateTime<Utc>> {
+    DateTime::parse_from_rfc3339(raw)
+        .ok()
+        .map(|dt| dt.with_timezone(&Utc))
+}
 
 // ---------------------------------------------------------------------------
 // Focused Query Helpers for Global Statistics
@@ -31,9 +37,9 @@ fn query_available_years(
     years_set.insert(Utc::now().year());
 
     if let Ok(mut year_stmt) = conn.prepare(
-        "SELECT DISTINCT CAST(strftime('%Y', started_at) AS INTEGER) FROM game_sessions WHERE started_at IS NOT NULL
+        "SELECT DISTINCT CAST(substr(started_at, 1, 4) AS INTEGER) FROM game_sessions WHERE started_at IS NOT NULL
          UNION
-         SELECT DISTINCT CAST(strftime('%Y', last_activity) AS INTEGER) FROM games WHERE last_activity IS NOT NULL;"
+         SELECT DISTINCT CAST(substr(last_activity, 1, 4) AS INTEGER) FROM games WHERE last_activity IS NOT NULL;"
     ) {
         if let Ok(year_rows) = year_stmt.query_map([], |row| row.get::<_, Option<i32>>(0)) {
             for yr in year_rows.flatten().flatten() {
@@ -48,126 +54,33 @@ fn query_available_years(
     Ok(available_years)
 }
 
-fn query_year_playtime(conn: &rusqlite::Connection, year_str: &str) -> Result<u64, DatabaseError> {
-    let mut total_playtime_year_seconds: u64 = conn
+fn query_year_playtime_fallback(
+    conn: &rusqlite::Connection,
+    target_year: i32,
+) -> Result<u64, DatabaseError> {
+    let year_start = format!("{:04}-01-01", target_year);
+    let next_year_start = format!("{:04}-01-01", target_year + 1);
+    let fallback_playtime: i64 = conn
         .query_row(
-            "SELECT COALESCE(SUM(duration_seconds), 0) FROM game_sessions WHERE strftime('%Y', started_at) = ?1",
-            params![year_str],
-            |row| row.get::<_, i64>(0),
-        )?
-        .max(0) as u64;
-
-    if total_playtime_year_seconds == 0 {
-        // Fallback for imported games with last_activity in this year but without granular session history
-        let fallback_playtime: i64 = conn
-            .query_row(
-                "SELECT COALESCE(SUM(playtime_seconds), 0) FROM games WHERE strftime('%Y', last_activity) = ?1",
-                params![year_str],
-                |row| row.get(0),
-            )
-            .unwrap_or(0);
-        if fallback_playtime > 0 {
-            total_playtime_year_seconds = fallback_playtime.max(0) as u64;
-        }
-    }
-
-    Ok(total_playtime_year_seconds)
+            "SELECT COALESCE(SUM(playtime_seconds), 0)
+             FROM games
+             WHERE last_activity >= ?1 AND last_activity < ?2",
+            params![year_start, next_year_start],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+    Ok(fallback_playtime.max(0) as u64)
 }
 
 fn query_activity_heatmap(
     conn: &rusqlite::Connection,
-    year_str: &str,
+    target_year: i32,
 ) -> Result<Vec<DayActivityDto>, DatabaseError> {
-    // 1. Fetch all detailed sessions for this year with their game metadata
+    // Include +/- 1 day margin in the index range scan to preserve exact UTC bucketing for any timezone offset
+    let range_start = format!("{:04}-12-31", target_year - 1);
+    let range_end = format!("{:04}-01-02", target_year + 1);
+
     let mut session_stmt = conn.prepare(
-        "
-        SELECT
-            s.id,
-            s.game_id,
-            COALESCE(g.title, 'Unknown Game') AS game_title,
-            g.library_id,
-            g.cover_image_path AS cover_image,
-            s.started_at,
-            s.ended_at,
-            s.duration_seconds,
-            strftime('%Y-%m-%d', s.started_at) AS day
-        FROM game_sessions s
-        LEFT JOIN games g ON s.game_id = g.id
-        WHERE strftime('%Y', s.started_at) = ?1
-        ORDER BY s.started_at ASC
-        ",
-    )?;
-
-    let mut sessions_by_day: HashMap<String, Vec<DaySessionDto>> = HashMap::new();
-
-    let session_rows = session_stmt.query_map(params![year_str], |row| {
-        let id: String = row.get(0)?;
-        let game_id: String = row.get(1)?;
-        let game_title: String = row.get(2)?;
-        let library_id: Option<String> = row.get(3)?;
-        let cover_image: Option<String> = row.get(4)?;
-        let started_at: String = row.get(5)?;
-        let ended_at: String = row.get(6)?;
-        let duration_seconds: u64 = row.get::<_, i64>(7)?.max(0) as u64;
-        let day: String = row.get(8)?;
-
-        Ok((
-            day,
-            DaySessionDto {
-                id,
-                game_id,
-                game_title,
-                library_id,
-                cover_image,
-                started_at,
-                ended_at,
-                duration_seconds,
-            },
-        ))
-    })?;
-
-    for item in session_rows {
-        let (day, session) = item?;
-        sessions_by_day.entry(day).or_default().push(session);
-    }
-
-    let mut heatmap_stmt = conn.prepare(
-        "
-        SELECT
-            strftime('%Y-%m-%d', started_at) AS day,
-            COUNT(*) AS count_sessions,
-            COALESCE(SUM(duration_seconds), 0) AS duration_seconds
-        FROM game_sessions
-        WHERE strftime('%Y', started_at) = ?1
-        GROUP BY day
-        HAVING day IS NOT NULL
-        ORDER BY day ASC
-        ",
-    )?;
-
-    let activity_heatmap = heatmap_stmt
-        .query_map(params![year_str], |row| {
-            let date: String = row.get(0)?;
-            let count_sessions: u32 = row.get::<_, i64>(1)?.max(0) as u32;
-            let duration_seconds: u64 = row.get::<_, i64>(2)?.max(0) as u64;
-            let sessions = sessions_by_day.remove(&date).unwrap_or_default();
-            Ok(DayActivityDto {
-                date,
-                count_sessions,
-                duration_seconds,
-                sessions,
-            })
-        })?
-        .collect::<Result<Vec<_>, _>>()?;
-
-    Ok(activity_heatmap)
-}
-
-pub fn query_day_sessions(
-    conn: &rusqlite::Connection,
-    date_str: &str,
-) -> Result<Vec<DaySessionDto>, DatabaseError> {
-    let mut stmt = conn.prepare(
         "
         SELECT
             s.id,
@@ -180,12 +93,14 @@ pub fn query_day_sessions(
             s.duration_seconds
         FROM game_sessions s
         LEFT JOIN games g ON s.game_id = g.id
-        WHERE strftime('%Y-%m-%d', s.started_at) = ?1
+        WHERE s.started_at >= ?1 AND s.started_at < ?2
         ORDER BY s.started_at ASC
         ",
     )?;
 
-    let rows = stmt.query_map(params![date_str], |row| {
+    let mut by_day: BTreeMap<String, DayActivityDto> = BTreeMap::new();
+
+    let session_rows = session_stmt.query_map(params![range_start, range_end], |row| {
         let id: String = row.get(0)?;
         let game_id: String = row.get(1)?;
         let game_title: String = row.get(2)?;
@@ -207,7 +122,95 @@ pub fn query_day_sessions(
         })
     })?;
 
-    let sessions = rows.collect::<Result<Vec<_>, _>>()?;
+    for item in session_rows {
+        let session = item?;
+        let Some(dt_utc) = parse_utc_datetime(&session.started_at) else {
+            continue;
+        };
+        if dt_utc.year() != target_year {
+            continue;
+        }
+        let day = dt_utc.format("%Y-%m-%d").to_string();
+        let entry = by_day.entry(day.clone()).or_insert_with(|| DayActivityDto {
+            date: day,
+            count_sessions: 0,
+            duration_seconds: 0,
+            sessions: Vec::new(),
+        });
+        entry.count_sessions += 1;
+        entry.duration_seconds += session.duration_seconds;
+        entry.sessions.push(session);
+    }
+
+    Ok(by_day.into_values().collect())
+}
+
+pub fn query_day_sessions(
+    conn: &rusqlite::Connection,
+    date_str: &str,
+) -> Result<Vec<DaySessionDto>, DatabaseError> {
+    let target_date = NaiveDate::parse_from_str(date_str.trim(), "%Y-%m-%d").ok();
+    let (range_start, range_end) = match target_date {
+        Some(d) => {
+            let prev = d - chrono::Duration::days(1);
+            let next = d + chrono::Duration::days(2);
+            (
+                prev.format("%Y-%m-%d").to_string(),
+                next.format("%Y-%m-%d").to_string(),
+            )
+        }
+        None => return Ok(Vec::new()),
+    };
+
+    let mut stmt = conn.prepare(
+        "
+        SELECT
+            s.id,
+            s.game_id,
+            COALESCE(g.title, 'Unknown Game') AS game_title,
+            g.library_id,
+            g.cover_image_path AS cover_image,
+            s.started_at,
+            s.ended_at,
+            s.duration_seconds
+        FROM game_sessions s
+        LEFT JOIN games g ON s.game_id = g.id
+        WHERE s.started_at >= ?1 AND s.started_at < ?2
+        ORDER BY s.started_at ASC
+        ",
+    )?;
+
+    let rows = stmt.query_map(params![range_start, range_end], |row| {
+        let id: String = row.get(0)?;
+        let game_id: String = row.get(1)?;
+        let game_title: String = row.get(2)?;
+        let library_id: Option<String> = row.get(3)?;
+        let cover_image: Option<String> = row.get(4)?;
+        let started_at: String = row.get(5)?;
+        let ended_at: String = row.get(6)?;
+        let duration_seconds: u64 = row.get::<_, i64>(7)?.max(0) as u64;
+
+        Ok(DaySessionDto {
+            id,
+            game_id,
+            game_title,
+            library_id,
+            cover_image,
+            started_at,
+            ended_at,
+            duration_seconds,
+        })
+    })?;
+
+    let mut sessions = Vec::new();
+    for item in rows {
+        let session = item?;
+        if let (Some(target), Some(dt_utc)) = (target_date, parse_utc_datetime(&session.started_at)) {
+            if dt_utc.date_naive() == target {
+                sessions.push(session);
+            }
+        }
+    }
     Ok(sessions)
 }
 
@@ -395,50 +398,64 @@ fn compute_weekly_buckets(
     game_id_str: &str,
     today: chrono::NaiveDate,
 ) -> Result<Vec<WeekPlaytimeDto>, DatabaseError> {
-    let mut last_4_weeks_bars = Vec::with_capacity(4);
-
+    let mut buckets: Vec<(NaiveDate, NaiveDate, bool, u64)> = Vec::with_capacity(4);
     for w in 0..4 {
-        let week_label = format!("Week {}", w + 1);
         let start_offset = (4 - w) * 7;
         let end_offset = (3 - w) * 7;
         let start_date = today - chrono::Duration::days(start_offset as i64);
         let end_date = today - chrono::Duration::days(end_offset as i64);
-
-        let start_str = start_date.format("%Y-%m-%d").to_string();
-        let end_str = end_date.format("%Y-%m-%d").to_string();
-
-        let is_latest_week = w == 3;
-        let query = if is_latest_week {
-            "
-            SELECT COALESCE(SUM(duration_seconds), 0)
-            FROM game_sessions
-            WHERE game_id = ?1
-              AND strftime('%Y-%m-%d', started_at) >= ?2
-              AND strftime('%Y-%m-%d', started_at) <= ?3
-            "
-        } else {
-            "
-            SELECT COALESCE(SUM(duration_seconds), 0)
-            FROM game_sessions
-            WHERE game_id = ?1
-              AND strftime('%Y-%m-%d', started_at) >= ?2
-              AND strftime('%Y-%m-%d', started_at) < ?3
-            "
-        };
-
-        let duration_seconds: u64 = conn
-            .query_row(query, params![game_id_str, start_str, end_str], |row| {
-                row.get::<_, i64>(0)
-            })?
-            .max(0) as u64;
-
-        last_4_weeks_bars.push(WeekPlaytimeDto {
-            week_label,
-            start_date: start_str,
-            end_date: end_str,
-            duration_seconds,
-        });
+        buckets.push((start_date, end_date, w == 3, 0));
     }
+
+    let range_start = (today - chrono::Duration::days(29))
+        .format("%Y-%m-%d")
+        .to_string();
+    let range_end = (today + chrono::Duration::days(2))
+        .format("%Y-%m-%d")
+        .to_string();
+
+    let mut stmt = conn.prepare(
+        "
+        SELECT started_at, duration_seconds
+        FROM game_sessions
+        WHERE game_id = ?1
+          AND started_at >= ?2
+          AND started_at < ?3
+        ",
+    )?;
+    let rows = stmt.query_map(params![game_id_str, range_start, range_end], |row| {
+        Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?.max(0) as u64))
+    })?;
+
+    for row in rows {
+        let (started_at, dur) = row?;
+        let Some(dt_utc) = parse_utc_datetime(&started_at) else {
+            continue;
+        };
+        let session_date = dt_utc.date_naive();
+        for (start_date, end_date, inclusive_end, total) in &mut buckets {
+            let in_bucket = if *inclusive_end {
+                session_date >= *start_date && session_date <= *end_date
+            } else {
+                session_date >= *start_date && session_date < *end_date
+            };
+            if in_bucket {
+                *total += dur;
+                break;
+            }
+        }
+    }
+
+    let last_4_weeks_bars = buckets
+        .into_iter()
+        .enumerate()
+        .map(|(w, (start_date, end_date, _, duration_seconds))| WeekPlaytimeDto {
+            week_label: format!("Week {}", w + 1),
+            start_date: start_date.format("%Y-%m-%d").to_string(),
+            end_date: end_date.format("%Y-%m-%d").to_string(),
+            duration_seconds,
+        })
+        .collect();
 
     Ok(last_4_weeks_bars)
 }
@@ -471,12 +488,16 @@ impl StatsRepository for Database {
     fn get_global_statistics(&self, year: Option<i32>) -> Result<GlobalStatsDto, DatabaseError> {
         let conn = self.reader();
         let target_year = year.unwrap_or_else(|| Utc::now().year());
-        let year_str = format!("{:04}", target_year);
 
         let total_playtime_lifetime_seconds = query_lifetime_playtime(&conn)?;
         let available_years = query_available_years(&conn, target_year)?;
-        let total_playtime_year_seconds = query_year_playtime(&conn, &year_str)?;
-        let activity_heatmap = query_activity_heatmap(&conn, &year_str)?;
+        let activity_heatmap = query_activity_heatmap(&conn, target_year)?;
+        let heatmap_total: u64 = activity_heatmap.iter().map(|d| d.duration_seconds).sum();
+        let total_playtime_year_seconds = if heatmap_total > 0 {
+            heatmap_total
+        } else {
+            query_year_playtime_fallback(&conn, target_year)?
+        };
         let store_distribution = query_store_distribution(&conn)?;
         let genre_distribution = query_genre_distribution(&conn)?;
         let backlog_summary = query_backlog_summary(&conn)?;
