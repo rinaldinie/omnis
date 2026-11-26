@@ -377,7 +377,7 @@ export default function FullscreenView({
 
   // Global emergency gamepad combo: hold Start (9) + Select (8) for 2 seconds to kill active game
   React.useEffect(() => {
-    if (!activeGame || !handleKillRunningGame) return;
+    if (!activeGame || !handleKillRunningGame || !gamepadConnected) return;
     let rafId = 0;
     let comboStart: number | null = null;
     let triggered = false;
@@ -409,7 +409,7 @@ export default function FullscreenView({
 
     rafId = requestAnimationFrame(poll);
     return () => cancelAnimationFrame(rafId);
-  }, [activeGame, handleKillRunningGame]);
+  }, [activeGame, handleKillRunningGame, gamepadConnected]);
 
   // Confirmation dialog state (game uninstall); system actions are confirmed inline in the menu
   const [confirm, setConfirm] = React.useState<{ kind: ConfirmKind; game?: GameDto } | null>(null);

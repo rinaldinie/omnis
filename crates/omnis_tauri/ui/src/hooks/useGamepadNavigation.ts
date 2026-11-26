@@ -186,7 +186,42 @@ export function useGamepadNavigation({
       return;
     }
 
-    let animId: number;
+    let animId: number | null = null;
+    let probeIntervalId: ReturnType<typeof setInterval> | null = null;
+
+    const findConnectedGamepad = (): Gamepad | null => {
+      const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+      for (const gp of gamepads) {
+        if (gp && gp.connected) {
+          return gp;
+        }
+      }
+      return null;
+    };
+
+    const stopIdleProbe = () => {
+      if (probeIntervalId !== null) {
+        clearInterval(probeIntervalId);
+        probeIntervalId = null;
+      }
+    };
+
+    const startIdleProbe = () => {
+      if (probeIntervalId !== null) return;
+      // Low-frequency fallback for WebViews that do not emit `gamepadconnected` on pre-connected pads
+      probeIntervalId = setInterval(() => {
+        if (findConnectedGamepad()) {
+          startPolling();
+        }
+      }, 1500);
+    };
+
+    const startPolling = () => {
+      stopIdleProbe();
+      if (animId === null) {
+        animId = requestAnimationFrame(pollGamepad);
+      }
+    };
 
     const stepCarousel = (direction: number) => {
       setFocusedIndex((prev) => {
@@ -211,20 +246,14 @@ export function useGamepadNavigation({
     };
 
     const pollGamepad = () => {
-      const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
-      let activeGamepad: Gamepad | null = null;
-      for (const gp of gamepads) {
-        if (gp && gp.connected) {
-          activeGamepad = gp;
-          break;
-        }
-      }
+      animId = null;
+      const activeGamepad = findConnectedGamepad();
 
       if (activeGamepad) {
         setGamepadConnected((prev) => {
           if (!prev) {
-            setGamepadName(activeGamepad!.id.split("(")[0].trim());
-            setGamepadType(detectControllerType(activeGamepad!.id));
+            setGamepadName(activeGamepad.id.split("(")[0].trim());
+            setGamepadType(detectControllerType(activeGamepad.id));
             return true;
           }
           return prev;
@@ -556,6 +585,7 @@ export function useGamepadNavigation({
           nextPrev[i] = isDown(i);
         }
         prevButtonsRef.current = nextPrev;
+        animId = requestAnimationFrame(pollGamepad);
       } else {
         setGamepadConnected((prev) => {
           if (prev) {
@@ -566,13 +596,47 @@ export function useGamepadNavigation({
         });
         prevButtonsRef.current = [];
         navDirectionRef.current = 0;
+        navDirectionYRef.current = 0;
+        // Stop 60Hz RAF loop until a controller connects
+        startIdleProbe();
       }
-
-      animId = requestAnimationFrame(pollGamepad);
     };
 
-    animId = requestAnimationFrame(pollGamepad);
-    return () => cancelAnimationFrame(animId);
+    const handleGamepadConnected = () => {
+      startPolling();
+    };
+    const handleGamepadDisconnected = () => {
+      if (!findConnectedGamepad()) {
+        setGamepadConnected(false);
+        setGamepadName("");
+        prevButtonsRef.current = [];
+        navDirectionRef.current = 0;
+        navDirectionYRef.current = 0;
+        if (animId !== null) {
+          cancelAnimationFrame(animId);
+          animId = null;
+        }
+        startIdleProbe();
+      }
+    };
+
+    window.addEventListener("gamepadconnected", handleGamepadConnected);
+    window.addEventListener("gamepaddisconnected", handleGamepadDisconnected);
+
+    if (findConnectedGamepad()) {
+      startPolling();
+    } else {
+      startIdleProbe();
+    }
+
+    return () => {
+      window.removeEventListener("gamepadconnected", handleGamepadConnected);
+      window.removeEventListener("gamepaddisconnected", handleGamepadDisconnected);
+      stopIdleProbe();
+      if (animId !== null) {
+        cancelAnimationFrame(animId);
+      }
+    };
   }, [isSuspended]);
 
   // Keyboard navigation
