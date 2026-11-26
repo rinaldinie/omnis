@@ -125,21 +125,23 @@ describe("Library & Dashboard Views", () => {
   });
 
   it("renders StatisticsDashboardView with Select year combobox and KPI cards", async () => {
-    vi.spyOn(api.stats, "getGlobalStatistics").mockResolvedValueOnce(sampleStats);
+    const statsSpy = vi
+      .spyOn(api.stats, "getGlobalStatistics")
+      .mockResolvedValue(sampleStats);
 
-    render(
-      <I18nProvider initialLocale="en">
-        <StatisticsDashboardView />
-      </I18nProvider>
-    );
+    try {
+      render(
+        <I18nProvider initialLocale="en">
+          <StatisticsDashboardView />
+        </I18nProvider>
+      );
 
-    await waitFor(() => {
-      expect(screen.getByRole("combobox")).toBeTruthy();
-    });
-
-    const yearSelect = screen.getByRole("combobox");
-    expect(yearSelect.textContent).toContain("2026");
-    expect(screen.getByText("30.0%")).toBeTruthy();
+      expect(await screen.findByText("30.0%")).toBeTruthy();
+      const yearSelect = screen.getByRole("combobox");
+      expect(yearSelect.textContent).toContain("2026");
+    } finally {
+      statsSpy.mockRestore();
+    }
   });
 
   it("does not keep a persistent accent selection ring on GridView game cards for selectedGame", async () => {
