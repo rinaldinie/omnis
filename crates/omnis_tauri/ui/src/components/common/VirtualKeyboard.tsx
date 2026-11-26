@@ -133,11 +133,12 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
   const executeKeyRef = useRef(executeKey);
   executeKeyRef.current = executeKey;
 
-  // Gamepad polling loop: edge-triggered buttons, hold-to-repeat navigation
+  // Gamepad polling loop: runs only while a controller is connected (zero RAF overhead otherwise)
   useEffect(() => {
     if (!isOpen) return;
 
-    let animId: number;
+    let animId: number | null = null;
+    let probeIntervalId: ReturnType<typeof setInterval> | null = null;
     // Ignore the button that opened the keyboard until everything is released once
     let awaitingNeutral = true;
     let prevButtons: boolean[] = [];
@@ -145,9 +146,41 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
     let navStart = 0;
     let lastNav = 0;
 
-    const pollGamepad = () => {
+    const findConnectedGamepad = (): Gamepad | null => {
       const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
-      const gp = Array.from(gamepads).find((g): g is Gamepad => !!g && g.connected);
+      for (const gp of gamepads) {
+        if (gp && gp.connected) return gp;
+      }
+      return null;
+    };
+
+    const stopIdleProbe = () => {
+      if (probeIntervalId !== null) {
+        clearInterval(probeIntervalId);
+        probeIntervalId = null;
+      }
+    };
+
+    const startIdleProbe = () => {
+      if (probeIntervalId !== null) return;
+      // Low-frequency fallback for WebViews that do not emit `gamepadconnected` on pre-connected pads
+      probeIntervalId = setInterval(() => {
+        if (findConnectedGamepad()) {
+          startPolling();
+        }
+      }, 1500);
+    };
+
+    const startPolling = () => {
+      stopIdleProbe();
+      if (animId === null) {
+        animId = requestAnimationFrame(pollGamepad);
+      }
+    };
+
+    const pollGamepad = () => {
+      animId = null;
+      const gp = findConnectedGamepad();
 
       if (gp) {
         const now = Date.now();
@@ -205,13 +238,48 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
         }
 
         prevButtons = gp.buttons.map((_, i) => isDown(i));
+        animId = requestAnimationFrame(pollGamepad);
+      } else {
+        awaitingNeutral = true;
+        prevButtons = [];
+        navKey = "";
+        startIdleProbe();
       }
-
-      animId = requestAnimationFrame(pollGamepad);
     };
 
-    animId = requestAnimationFrame(pollGamepad);
-    return () => cancelAnimationFrame(animId);
+    const handleGamepadConnected = () => {
+      startPolling();
+    };
+    const handleGamepadDisconnected = () => {
+      if (!findConnectedGamepad()) {
+        awaitingNeutral = true;
+        prevButtons = [];
+        navKey = "";
+        if (animId !== null) {
+          cancelAnimationFrame(animId);
+          animId = null;
+        }
+        startIdleProbe();
+      }
+    };
+
+    window.addEventListener("gamepadconnected", handleGamepadConnected);
+    window.addEventListener("gamepaddisconnected", handleGamepadDisconnected);
+
+    if (findConnectedGamepad()) {
+      startPolling();
+    } else {
+      startIdleProbe();
+    }
+
+    return () => {
+      window.removeEventListener("gamepadconnected", handleGamepadConnected);
+      window.removeEventListener("gamepaddisconnected", handleGamepadDisconnected);
+      stopIdleProbe();
+      if (animId !== null) {
+        cancelAnimationFrame(animId);
+      }
+    };
   }, [isOpen]);
 
   // Physical keyboard listener
