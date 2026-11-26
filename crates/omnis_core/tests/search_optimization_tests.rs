@@ -230,3 +230,62 @@ fn test_fuzzy_search_performance_5000_games() {
         avg_per_query
     );
 }
+
+#[test]
+fn test_search_games_uses_meta_fts_and_handles_short_and_unmatched_queries() {
+    let db = Database::new_in_memory().expect("In-memory DB creation failed");
+    let disc = DiscoveredGame {
+        library_id: "steam".to_string(),
+        external_id: "9991".to_string(),
+        title: "Hollow Spire".to_string(),
+        install_dir: None,
+        is_installed: true,
+        playtime_seconds: 100,
+        play_count: 1,
+        last_activity: None,
+        cover_image_path: None,
+        background_image_path: None,
+        play_action: None,
+    };
+    db.ingest_discovered_batch(&[disc]).expect("Ingest failed");
+    let game = db.get_all_games().unwrap().into_iter().next().unwrap();
+
+    let update = GameUpdateDto {
+        id: game.id,
+        title: game.title.clone(),
+        sorting_title: None,
+        release_date: None,
+        description: None,
+        user_score: None,
+        critic_score: None,
+        community_score: None,
+        series: None,
+        age_rating: None,
+        completion_status: None,
+        user_notes: None,
+        genres: vec!["RPG".to_string()],
+        developers: vec!["LanternWorks".to_string()],
+        publishers: vec![],
+        tags: vec!["2D".to_string(), "Roguelite".to_string()],
+        features: vec![],
+        cover_image_path: None,
+        background_image_path: None,
+        icon_image_path: None,
+        play_actions: vec![],
+        use_library_integration: true,
+        custom_links: vec![],
+        extra_metadata: None,
+    };
+    db.update_game(&update).expect("Update failed");
+
+    // 3+ char metadata queries resolve via FTS5 meta table
+    assert_eq!(db.search_games("RPG").unwrap().len(), 1);
+    assert_eq!(db.search_games("LanternWorks").unwrap().len(), 1);
+    assert_eq!(db.search_games("Roguelite").unwrap().len(), 1);
+
+    // <3 char query falls back to LIKE and still finds short tag
+    assert_eq!(db.search_games("2D").unwrap().len(), 1);
+
+    // Unmatched 3+ char query returns empty cleanly
+    assert!(db.search_games("NoSuchTagAnywhere").unwrap().is_empty());
+}

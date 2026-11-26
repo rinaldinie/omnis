@@ -3,7 +3,7 @@ use rusqlite::{params, Connection, Result};
 
 use crate::db::parse_and_normalize_genres;
 
-pub const CURRENT_SCHEMA_VERSION: i32 = 12;
+pub const CURRENT_SCHEMA_VERSION: i32 = 13;
 
 pub fn run_migrations(conn: &Connection) -> Result<()> {
     let current_version: i32 = conn.query_row("PRAGMA user_version;", [], |r| r.get(0))?;
@@ -476,6 +476,40 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
                 INSERT INTO games_fts(rowid, name, title, description) VALUES (new.rowid, new.name, new.title, new.description);
             END;
             PRAGMA user_version = 12;
+            ",
+        )?;
+    }
+
+    // Version 13: FTS5 trigram index for secondary metadata columns (series, genres,
+    // developers, publishers, tags, features, user_notes, sorting_title) to eliminate
+    // full-table LIKE scans on unmatched 3+ character searches.
+    if current_version < 13 {
+        conn.execute_batch(
+            "
+            CREATE VIRTUAL TABLE IF NOT EXISTS games_meta_fts USING fts5(
+                sorting_title, series, genres, developers, publishers, tags, features, user_notes,
+                content='games', content_rowid='rowid', tokenize='trigram'
+            );
+
+            CREATE TRIGGER IF NOT EXISTS games_meta_ai AFTER INSERT ON games BEGIN
+                INSERT INTO games_meta_fts(rowid, sorting_title, series, genres, developers, publishers, tags, features, user_notes)
+                VALUES (new.rowid, new.sorting_title, new.series, new.genres, new.developers, new.publishers, new.tags, new.features, new.user_notes);
+            END;
+
+            CREATE TRIGGER IF NOT EXISTS games_meta_ad AFTER DELETE ON games BEGIN
+                INSERT INTO games_meta_fts(games_meta_fts, rowid, sorting_title, series, genres, developers, publishers, tags, features, user_notes)
+                VALUES('delete', old.rowid, old.sorting_title, old.series, old.genres, old.developers, old.publishers, old.tags, old.features, old.user_notes);
+            END;
+
+            CREATE TRIGGER IF NOT EXISTS games_meta_au AFTER UPDATE OF sorting_title, series, genres, developers, publishers, tags, features, user_notes ON games BEGIN
+                INSERT INTO games_meta_fts(games_meta_fts, rowid, sorting_title, series, genres, developers, publishers, tags, features, user_notes)
+                VALUES('delete', old.rowid, old.sorting_title, old.series, old.genres, old.developers, old.publishers, old.tags, old.features, old.user_notes);
+                INSERT INTO games_meta_fts(rowid, sorting_title, series, genres, developers, publishers, tags, features, user_notes)
+                VALUES (new.rowid, new.sorting_title, new.series, new.genres, new.developers, new.publishers, new.tags, new.features, new.user_notes);
+            END;
+
+            INSERT INTO games_meta_fts(games_meta_fts) VALUES('rebuild');
+            PRAGMA user_version = 13;
             ",
         )?;
     }

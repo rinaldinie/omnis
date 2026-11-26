@@ -14,11 +14,40 @@ pub trait GameSearchRepository: Send + Sync {
     /// Search game IDs using SQLite FTS5 with trigram matching across titles and descriptions
     fn search_games_fts(&self, search_term: &str) -> Result<Vec<Uuid>>;
 
+    /// Search game IDs using SQLite FTS5 trigram matching across metadata columns
+    /// (sorting_title, series, genres, developers, publishers, tags, features, user_notes)
+    fn search_games_meta_fts(&self, search_term: &str) -> Result<Vec<Uuid>>;
+
     /// Search games using in-memory fuzzy title matching + SQLite FTS5 trigram search
     fn search_games(&self, search_term: &str) -> Result<Vec<Game>>;
 
     /// Legacy LIKE-based search fallback across genres, developers, tags, notes
     fn search_games_like(&self, search_term: &str) -> Result<Vec<Game>>;
+}
+
+fn query_fts_ids(conn: &rusqlite::Connection, table: &str, search_term: &str) -> Result<Vec<Uuid>> {
+    let trimmed = search_term.trim();
+    if trimmed.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let safe_query = format!("\"{}\"", trimmed.replace('"', "\"\""));
+    let sql = format!(
+        "SELECT g.id FROM games g JOIN {table} f ON g.rowid = f.rowid WHERE {table} MATCH ?1 ORDER BY rank;"
+    );
+
+    let mut stmt = conn.prepare(&sql)?;
+    let rows = stmt.query_map(params![safe_query], |row| {
+        let id_str = row.get_ref(0)?.as_str()?;
+        Uuid::parse_str(id_str).map_err(|e| {
+            rusqlite::Error::FromSqlConversionFailure(
+                0,
+                rusqlite::types::Type::Text,
+                Box::new(e),
+            )
+        })
+    })?;
+    Ok(rows.flatten().collect())
 }
 
 impl GameSearchRepository for Database {
@@ -48,32 +77,13 @@ impl GameSearchRepository for Database {
     }
 
     fn search_games_fts(&self, search_term: &str) -> Result<Vec<Uuid>> {
-        let trimmed = search_term.trim();
-        if trimmed.is_empty() {
-            return Ok(Vec::new());
-        }
-
         let conn = self.reader();
-        let safe_query = format!("\"{}\"", trimmed.replace('"', "\"\""));
+        Ok(query_fts_ids(&conn, "games_fts", search_term).unwrap_or_default())
+    }
 
-        let mut stmt = match conn.prepare(
-            "SELECT g.id FROM games g JOIN games_fts f ON g.rowid = f.rowid WHERE games_fts MATCH ?1 ORDER BY rank;"
-        ) {
-            Ok(s) => s,
-            Err(_) => return Ok(Vec::new()),
-        };
-
-        let rows = stmt.query_map(params![safe_query], |row| {
-            let id_str = row.get_ref(0)?.as_str()?;
-            Uuid::parse_str(id_str).map_err(|e| {
-                rusqlite::Error::FromSqlConversionFailure(
-                    0,
-                    rusqlite::types::Type::Text,
-                    Box::new(e),
-                )
-            })
-        })?;
-        Ok(rows.flatten().collect())
+    fn search_games_meta_fts(&self, search_term: &str) -> Result<Vec<Uuid>> {
+        let conn = self.reader();
+        query_fts_ids(&conn, "games_meta_fts", search_term)
     }
 
     fn search_games(&self, search_term: &str) -> Result<Vec<Game>> {
@@ -89,19 +99,36 @@ impl GameSearchRepository for Database {
         };
 
         let mut matched_ids: Vec<Uuid> = fuzzy_matches.into_iter().map(|(id, _)| id).collect();
+        let mut seen: std::collections::HashSet<Uuid> = matched_ids.iter().copied().collect();
 
-        // 2. Full-text search (SQLite FTS5 with trigram) on descriptions & titles
-        if let Ok(fts_ids) = self.search_games_fts(term) {
-            let mut seen: std::collections::HashSet<Uuid> = matched_ids.iter().copied().collect();
-            for id in fts_ids {
-                if seen.insert(id) {
-                    matched_ids.push(id);
+        // 2. Full-text search (SQLite FTS5 trigram) across descriptions, titles, and metadata columns.
+        // Trigram FTS5 indexes substrings of length >= 3; shorter queries fall back to LIKE below.
+        let meta_fts_available = if term.chars().count() >= 3 {
+            if let Ok(fts_ids) = self.search_games_fts(term) {
+                for id in fts_ids {
+                    if seen.insert(id) {
+                        matched_ids.push(id);
+                    }
                 }
             }
-        }
+            match self.search_games_meta_fts(term) {
+                Ok(meta_ids) => {
+                    for id in meta_ids {
+                        if seen.insert(id) {
+                            matched_ids.push(id);
+                        }
+                    }
+                    true
+                }
+                Err(_) => false,
+            }
+        } else {
+            false
+        };
 
-        // 3. Fallback to LIKE query across metadata if no matches found or short queries
-        if matched_ids.is_empty() {
+        // 3. Fallback to LIKE scan only for queries under the 3-char trigram minimum
+        //    or when the metadata FTS table is unavailable.
+        if matched_ids.is_empty() && !meta_fts_available {
             return self.search_games_like(term);
         }
 
@@ -151,6 +178,11 @@ impl Database {
     #[inline]
     pub fn search_games_fts(&self, search_term: &str) -> Result<Vec<Uuid>> {
         GameSearchRepository::search_games_fts(self, search_term)
+    }
+
+    #[inline]
+    pub fn search_games_meta_fts(&self, search_term: &str) -> Result<Vec<Uuid>> {
+        GameSearchRepository::search_games_meta_fts(self, search_term)
     }
 
     #[inline]

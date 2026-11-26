@@ -1410,3 +1410,66 @@ fn test_sql_filtered_background_queries() {
     assert_eq!(all_ids, expected_ids);
 }
 
+#[test]
+fn test_v13_meta_fts_indexes_metadata_and_syncs_updates() {
+    let db = Database::open_in_memory().expect("Failed to open DB");
+    db.seed_sample_games().expect("Failed to seed games");
+
+    let games = db.get_all_games().expect("Failed to get games");
+    let target = &games[0];
+
+    let mut update = GameUpdateDto {
+        id: target.id,
+        title: target.title.clone(),
+        sorting_title: Some(target.sorting_title.clone()),
+        release_date: None,
+        description: None,
+        user_score: None,
+        critic_score: None,
+        community_score: None,
+        series: Some("StarborneSaga".to_string()),
+        age_rating: None,
+        completion_status: None,
+        user_notes: Some("BossTipNote".to_string()),
+        genres: vec!["RPG".to_string()],
+        developers: vec!["StudioAurora".to_string()],
+        publishers: vec!["PubNova".to_string()],
+        tags: vec!["Soulslike".to_string()],
+        features: vec!["Co-op".to_string()],
+        cover_image_path: None,
+        background_image_path: None,
+        icon_image_path: None,
+        play_actions: vec![],
+        use_library_integration: true,
+        custom_links: vec![],
+        extra_metadata: None,
+    };
+    db.update_game(&update).expect("Update failed");
+
+    for term in [
+        "StarborneSaga",
+        "BossTipNote",
+        "RPG",
+        "StudioAurora",
+        "PubNova",
+        "Soulslike",
+        "Co-op",
+    ] {
+        let hits = db
+            .search_games_meta_fts(term)
+            .expect("meta FTS query failed");
+        assert_eq!(hits, vec![target.id], "Expected meta FTS hit for '{term}'");
+    }
+
+    // Update removes old metadata term and indexes new one
+    update.tags = vec!["Metroidvania".to_string()];
+    db.update_game(&update).expect("Second update failed");
+    assert!(db
+        .search_games_meta_fts("Soulslike")
+        .unwrap()
+        .is_empty());
+    assert_eq!(
+        db.search_games_meta_fts("Metroidvania").unwrap(),
+        vec![target.id]
+    );
+}
