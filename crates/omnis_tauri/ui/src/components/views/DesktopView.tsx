@@ -16,6 +16,7 @@ import Sidebar from "../navigation/Sidebar";
 import VideoBackdrop from "../common/VideoBackdrop";
 import { CatalogToolbar } from "../navigation/CatalogToolbar";
 import GridView from "./GridView";
+import ListViewTable from "./ListViewTable";
 import EmptyGamesView from "../common/EmptyGamesView";
 import { ErrorBoundary } from "../common/ErrorBoundary";
 import { StatusBar } from "../navigation/StatusBar";
@@ -23,7 +24,6 @@ import { cancelBackgroundMetadataDownload } from "../../services/metadataBackgro
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 const DetailsSplitView = lazy(() => import("./DetailsSplitView"));
-const ListViewTable = lazy(() => import("./ListViewTable"));
 const StatisticsDashboardView = lazy(() => import("./StatisticsDashboardView"));
 
 export interface DesktopViewProps {
@@ -422,20 +422,18 @@ export const DesktopView: React.FC<DesktopViewProps> = (props) => {
 
             {/* VIEW 3: COMPACT DATA TABLE VIEW */}
             {viewMode === "list" && (
-              <Suspense fallback={<div className="flex-1 min-h-0" />}>
-                <ListViewTable
-                  games={filteredGames}
-                  selectedGameId={selectedGame?.id || null}
-                  onSelectGame={(g) => setSelectedGame(g)}
-                  onOpenDetails={(g) => {
-                    setSelectedGame(g);
-                    setViewMode("details");
-                  }}
-                  onLaunchGame={handleLaunch}
-                  onEditGame={(g) => openGameEditor(g)}
-                  onContextMenu={handleOpenContextMenu}
-                />
-              </Suspense>
+              <ListViewTable
+                games={filteredGames}
+                selectedGameId={selectedGame?.id || null}
+                onSelectGame={(g) => setSelectedGame(g)}
+                onOpenDetails={(g) => {
+                  setSelectedGame(g);
+                  setViewMode("details");
+                }}
+                onLaunchGame={handleLaunch}
+                onEditGame={(g) => openGameEditor(g)}
+                onContextMenu={handleOpenContextMenu}
+              />
             )}
 
             {/* VIEW 4: DETAILED STATS DASHBOARD */}
