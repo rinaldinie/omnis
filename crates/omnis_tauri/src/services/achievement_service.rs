@@ -7,9 +7,9 @@ use omnis_plugin_gog::GogCloudPlugin;
 use omnis_plugin_steam::SteamPlugin;
 use omnis_plugin_xbox::XboxCloudPlugin;
 use omnis_sdk::constants::{storage, stores};
-use omnis_sdk::{
-    Achievement, AchievementProvider, AchievementsSyncStatus, Game, GameAchievementsSummary,
-};
+#[cfg(test)]
+use omnis_sdk::AchievementsSyncStatus;
+use omnis_sdk::{Achievement, AchievementProvider, Game, GameAchievementsSummary};
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};

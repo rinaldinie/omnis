@@ -1,7 +1,7 @@
 //! Library synchronization from connected cloud store accounts, progress reporting, and catalog batch updates
 
 use chrono::Utc;
-use omnis_core::metadata::{HttpMediaDownloader, MediaStorageManager};
+use omnis_core::metadata::MediaStorageManager;
 use omnis_sdk::constants::events;
 use omnis_sdk::models::{DiscoveredGame, StoreSyncProgressPayload};
 use omnis_sdk::plugin::{CloudStorePlugin, StoreAccountSession};

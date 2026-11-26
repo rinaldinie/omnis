@@ -48,11 +48,12 @@ impl MediaScope {
             warn!("Failed to allow asset directory {}: {}", dir.display(), e);
         } else {
             let canonical = dir.canonicalize().unwrap_or_else(|_| dir.to_path_buf());
+            let needs_raw = canonical != dir;
             let mut dirs = self.allowed_dirs.lock().unwrap_or_else(|e| e.into_inner());
             if !dirs.contains(&canonical) {
                 dirs.push(canonical);
             }
-            if canonical != dir {
+            if needs_raw {
                 let raw = dir.to_path_buf();
                 if !dirs.contains(&raw) {
                     dirs.push(raw);
