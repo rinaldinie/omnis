@@ -215,34 +215,74 @@ impl MetadataDownloader {
     where
         F: Fn(usize, usize, &str) + Send + Sync + 'static,
     {
+        const BATCH_METADATA_CONCURRENCY: usize = 3;
+
         self.cancel_requested.store(false, Ordering::SeqCst);
         let total = game_ids.len();
         if total == 0 {
             return Ok(Vec::new());
         }
 
+        let cache_dir = cache_dir.to_path_buf();
+        let mut pending = game_ids.into_iter();
+        let mut in_flight = tokio::task::JoinSet::new();
         let mut enriched_ids = Vec::new();
-        for (i, id) in game_ids.into_iter().enumerate() {
-            if self.cancel_requested.load(Ordering::SeqCst) {
-                info!(
-                    "Arricchimento per selezione interrotto dall'utente dopo {} giochi (totale: {})",
-                    enriched_ids.len(),
-                    total
-                );
+        let mut completed = 0usize;
+
+        loop {
+            while !self.cancel_requested.load(Ordering::SeqCst)
+                && in_flight.len() < BATCH_METADATA_CONCURRENCY
+            {
+                let Some(id) = pending.next() else {
+                    break;
+                };
+                let downloader = Arc::clone(&self);
+                let db_task = Arc::clone(&db);
+                let cache_task = cache_dir.clone();
+                in_flight.spawn(async move {
+                    let game_title = db_task
+                        .get_game_by_id(id)
+                        .ok()
+                        .flatten()
+                        .map(|g| g.title);
+                    let Some(title) = game_title else {
+                        return (id, None, Ok(()));
+                    };
+                    let res = downloader
+                        .download_for_game(&db_task, id, &cache_task)
+                        .await
+                        .map(|_| ());
+                    (id, Some(title), res)
+                });
+            }
+
+            let Some(joined) = in_flight.join_next().await else {
                 break;
-            }
-            if let Ok(Some(game)) = db.get_game_by_id(id) {
-                progress_cb(i + 1, total, &game.title);
-                match self.download_for_game(&db, game.id, cache_dir).await {
-                    Ok(_) => {
-                        enriched_ids.push(game.id);
-                    }
-                    Err(err) => {
-                        warn!("Failed metadata for '{}': {}", game.title, err);
-                    }
+            };
+
+            completed += 1;
+            match joined {
+                Ok((id, Some(title), Ok(()))) => {
+                    enriched_ids.push(id);
+                    progress_cb(completed, total, &title);
                 }
-                tokio::time::sleep(tokio::time::Duration::from_millis(150)).await;
+                Ok((_, Some(title), Err(err))) => {
+                    warn!("Failed metadata for '{}': {}", title, err);
+                    progress_cb(completed, total, &title);
+                }
+                Ok((_, None, _)) => {}
+                Err(err) => {
+                    warn!("Batch metadata task failed: {}", err);
+                }
             }
+        }
+
+        if self.cancel_requested.load(Ordering::SeqCst) {
+            info!(
+                "Arricchimento per selezione interrotto dall'utente dopo {} giochi (totale: {})",
+                enriched_ids.len(),
+                total
+            );
         }
 
         Ok(enriched_ids)

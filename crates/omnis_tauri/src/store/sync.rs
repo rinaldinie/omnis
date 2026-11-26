@@ -188,21 +188,44 @@ impl StoreAccountManager {
         Ok(count)
     }
 
-    /// Synchronize all connected cloud stores sequentially
+    /// Synchronize all connected cloud stores with bounded concurrency
     pub async fn sync_all_connected(
         &self,
         app_handle: &AppHandle,
     ) -> Result<usize, String> {
+        const MAX_CONCURRENT_STORES: usize = 4;
+
         let accounts = self.get_store_accounts().await?;
+        let mut pending = accounts
+            .into_iter()
+            .filter(|a| a.is_connected)
+            .map(|a| a.store_id);
+        let mut in_flight = JoinSet::new();
         let mut total = 0;
 
-        for account in accounts {
-            if account.is_connected {
-                match self.sync_store(app_handle, &account.store_id).await {
-                    Ok(count) => total += count,
-                    Err(e) => {
-                        tracing::warn!("Sync failed for {}: {}", account.store_id, e);
-                    }
+        loop {
+            while in_flight.len() < MAX_CONCURRENT_STORES {
+                let Some(store_id) = pending.next() else {
+                    break;
+                };
+                let manager = self.clone();
+                let handle = app_handle.clone();
+                in_flight.spawn(async move {
+                    let res = manager.sync_store(&handle, &store_id).await;
+                    (store_id, res)
+                });
+            }
+
+            let Some(joined) = in_flight.join_next().await else {
+                break;
+            };
+            match joined {
+                Ok((_, Ok(count))) => total += count,
+                Ok((store_id, Err(e))) => {
+                    tracing::warn!("Sync failed for {}: {}", store_id, e);
+                }
+                Err(e) => {
+                    tracing::warn!("Store sync task failed: {}", e);
                 }
             }
         }

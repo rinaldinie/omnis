@@ -121,3 +121,41 @@ async fn test_provider_settings_and_pipeline_config() {
 
     let _ = std::fs::remove_dir_all(&temp_dir);
 }
+
+#[tokio::test]
+async fn test_download_for_games_handles_empty_and_missing_ids() {
+    let temp_dir = std::env::temp_dir().join(format!("omnis_meta_batch_{}", uuid::Uuid::new_v4()));
+    let _ = std::fs::create_dir_all(&temp_dir);
+    let db = std::sync::Arc::new(omnis_core::Database::new_in_memory().expect("create in-memory db"));
+    let downloader = std::sync::Arc::new(MetadataDownloader::new());
+    let progress_calls = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+
+    let calls_ref = std::sync::Arc::clone(&progress_calls);
+    let empty_res = downloader
+        .clone()
+        .download_for_games(std::sync::Arc::clone(&db), Vec::new(), &temp_dir, move |_, _, _| {
+            calls_ref.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        })
+        .await
+        .expect("empty batch should succeed");
+    assert!(empty_res.is_empty());
+    assert_eq!(progress_calls.load(std::sync::atomic::Ordering::SeqCst), 0);
+
+    let missing_ids = vec![
+        uuid::Uuid::new_v4(),
+        uuid::Uuid::new_v4(),
+        uuid::Uuid::new_v4(),
+        uuid::Uuid::new_v4(),
+    ];
+    let calls_ref = std::sync::Arc::clone(&progress_calls);
+    let missing_res = downloader
+        .download_for_games(db, missing_ids, &temp_dir, move |_, _, _| {
+            calls_ref.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        })
+        .await
+        .expect("missing IDs batch should succeed");
+    assert!(missing_res.is_empty());
+    assert_eq!(progress_calls.load(std::sync::atomic::Ordering::SeqCst), 0);
+
+    let _ = std::fs::remove_dir_all(&temp_dir);
+}
