@@ -79,13 +79,13 @@ impl Database {
             PRAGMA journal_mode = WAL;
             PRAGMA synchronous = NORMAL;
             PRAGMA temp_store = MEMORY;
-            PRAGMA cache_size = -64000; -- 64MB memory cache
+            PRAGMA cache_size = -16000; -- 16MB memory cache
             PRAGMA foreign_keys = ON;
             PRAGMA busy_timeout = 5000;
             ",
         )?;
 
-        const READER_POOL_SIZE: usize = 4;
+        const READER_POOL_SIZE: usize = 2;
         let mut readers = Vec::with_capacity(READER_POOL_SIZE);
         for _ in 0..READER_POOL_SIZE {
             let reader = Connection::open_with_flags(
@@ -96,7 +96,7 @@ impl Database {
                 "
                 PRAGMA synchronous = NORMAL;
                 PRAGMA temp_store = MEMORY;
-                PRAGMA cache_size = -32000;
+                PRAGMA cache_size = -8000; -- 8MB memory cache per reader
                 PRAGMA foreign_keys = ON;
                 PRAGMA busy_timeout = 5000;
                 PRAGMA query_only = ON;

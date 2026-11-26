@@ -1,4 +1,7 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useLayoutEffect, useState, useMemo } from "react";
+
+const useIsomorphicLayoutEffect =
+  typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 export interface VirtualWindowOptions {
   itemCount: number;
@@ -23,8 +26,10 @@ export interface VirtualWindowResult {
 /**
  * Lightweight scroll windowing hook for large lists and grids.
  * Supports both top-level scroll lists and nested sections (via `getContainerElement`).
- * Falls back to rendering the full slice when below `threshold`, disabled,
- * or when the scroll viewport has zero height (e.g. headless DOM tests).
+ * Uses an estimated viewport height before the first layout measurement so large lists
+ * never mount all rows on frame 0, while still falling back to rendering the full slice
+ * when below `threshold`, disabled, or when the measured scroll viewport has zero height
+ * (e.g. headless DOM tests).
  */
 export function useVirtualWindow({
   itemCount,
@@ -39,13 +44,15 @@ export function useVirtualWindow({
 }: VirtualWindowOptions): VirtualWindowResult {
   const [scrollTop, setScrollTop] = useState(0);
   const [containerOffsetTop, setContainerOffsetTop] = useState(0);
-  const [viewportHeight, setViewportHeight] = useState(0);
+  // `null` means not measured yet (use estimated height on initial render to avoid mounting all items);
+  // `0` means measured in a zero-height viewport (e.g. headless DOM tests) -> fall back to full list.
+  const [viewportHeight, setViewportHeight] = useState<number | null>(null);
 
   const shouldObserve = enabled && itemCount > threshold && rowHeight > 0 && columns > 0;
 
-  useEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (!shouldObserve) {
-      setViewportHeight(0);
+      setViewportHeight(null);
       setContainerOffsetTop(0);
       return;
     }
@@ -102,7 +109,14 @@ export function useVirtualWindow({
   }, [shouldObserve, getScrollElement, getContainerElement, layoutKey]);
 
   return useMemo(() => {
-    if (!shouldObserve || viewportHeight <= 0 || itemCount === 0) {
+    const effectiveViewportHeight =
+      viewportHeight === null
+        ? typeof window !== "undefined" && window.innerHeight > 0
+          ? window.innerHeight
+          : rowHeight * 12
+        : viewportHeight;
+
+    if (!shouldObserve || effectiveViewportHeight <= 0 || itemCount === 0) {
       return {
         startIndex: 0,
         endIndex: itemCount,
@@ -116,7 +130,7 @@ export function useVirtualWindow({
     const totalRows = Math.ceil(itemCount / safeCols);
     const relativeScrollTop = scrollTop - containerOffsetTop;
     const firstVisibleRow = Math.floor(relativeScrollTop / rowHeight);
-    const visibleRowCount = Math.ceil(viewportHeight / rowHeight);
+    const visibleRowCount = Math.ceil(effectiveViewportHeight / rowHeight);
 
     const startRow = Math.min(totalRows, Math.max(0, firstVisibleRow - overscanRows));
     const endRow = Math.max(

@@ -93,7 +93,7 @@ const GameCardItem = React.memo(
           }
         }}
         onContextMenu={onContextMenu}
-        className={`group relative flex flex-col rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 transform-gpu hover:-translate-y-1 shadow-md border outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/50 will-change-transform [backface-visibility:hidden] [transform:translateZ(0)] ${
+        className={`group relative flex flex-col rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 hover:-translate-y-1 shadow-md border outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/50 ${
           isRunning
             ? "border-emerald-500/60 ring-1 ring-emerald-500/30 shadow-lg"
             : "border-[var(--border-color)] hover:border-white/20"
@@ -104,7 +104,7 @@ const GameCardItem = React.memo(
           backgroundColor: "var(--bg-card)",
         }}
       >
-        <div className="aspect-[2/3] w-full relative overflow-hidden bg-black/40 [transform:translateZ(0)]">
+        <div className="aspect-[2/3] w-full relative overflow-hidden bg-black/40">
           <GameCardCover
             coverImage={game.cover_image}
             backgroundImage={game.background_image}
@@ -311,7 +311,7 @@ const DesktopRecentCard = React.memo(function DesktopRecentCard({
         }
       }}
       onContextMenu={onContextMenu}
-      className={`group relative flex flex-col rounded-xl overflow-hidden cursor-pointer transition-all duration-200 transform-gpu hover:-translate-y-1 shadow-md border outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/50 will-change-transform aspect-video ${
+      className={`group relative flex flex-col rounded-xl overflow-hidden cursor-pointer transition-all duration-200 hover:-translate-y-1 shadow-md border outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/50 aspect-video ${
         isRunning
           ? "border-emerald-500/60 ring-1 ring-emerald-500/30 shadow-lg"
           : "border-[var(--border-color)] hover:border-white/25"

@@ -378,4 +378,44 @@ describe("Library & Dashboard Views", () => {
       }
     }
   });
+
+  it("virtualizes ListViewTable from the initial render when scroll viewport has height", () => {
+    const manyGames: GameDto[] = Array.from({ length: 200 }, (_, idx) => ({
+      ...sampleGame,
+      id: `l-${idx}`,
+      title: `List Game ${String(idx).padStart(3, "0")}`,
+    }));
+
+    const origClientHeight = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      "clientHeight"
+    );
+    Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+      configurable: true,
+      get: () => 540,
+    });
+
+    try {
+      render(
+        <I18nProvider initialLocale="en">
+          <ListViewTable
+            games={manyGames}
+            selectedGameId={null}
+            onSelectGame={vi.fn()}
+            onOpenDetails={vi.fn()}
+            onLaunchGame={vi.fn()}
+            onEditGame={vi.fn()}
+          />
+        </I18nProvider>
+      );
+
+      const rows = document.querySelectorAll("tbody tr");
+      expect(rows.length).toBeGreaterThan(0);
+      expect(rows.length).toBeLessThan(manyGames.length);
+    } finally {
+      if (origClientHeight) {
+        Object.defineProperty(HTMLElement.prototype, "clientHeight", origClientHeight);
+      }
+    }
+  });
 });
