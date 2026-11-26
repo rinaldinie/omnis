@@ -408,15 +408,9 @@ export function useAppEvents({
       }
     })();
 
-    const handleFocus = () => {
-      latestRef.current.loadGames();
-    };
-    window.addEventListener("focus", handleFocus);
-
     return () => {
       isMounted = false;
       clearTimeout(achStartupTimer);
-      window.removeEventListener("focus", handleFocus);
       unlistenFns.forEach((fn) => fn());
       if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
       if (syncBannerTimeoutRef.current) clearTimeout(syncBannerTimeoutRef.current);

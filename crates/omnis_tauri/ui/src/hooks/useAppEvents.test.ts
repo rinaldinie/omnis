@@ -290,4 +290,30 @@ describe("useAppEvents", () => {
     expect(handleLaunch).toHaveBeenCalledWith("g1");
     expect(handleOpenSettings).toHaveBeenCalledWith("general");
   });
+
+  it("does not reload the entire library on window focus events", async () => {
+    const loadGames = vi.fn().mockResolvedValue(undefined);
+
+    renderHook(() =>
+      useAppEvents({
+        loadGames,
+        refreshLibrary: vi.fn().mockResolvedValue(undefined),
+        loadThemes: vi.fn().mockResolvedValue(undefined),
+        loadProvidersAndConfig: vi.fn().mockResolvedValue(undefined),
+        handleLaunch: vi.fn(),
+        handleOpenSettings: vi.fn(),
+        statusText,
+        setPipelineProgress: vi.fn(),
+      })
+    );
+
+    await flushAsync();
+    loadGames.mockClear();
+
+    act(() => {
+      window.dispatchEvent(new Event("focus"));
+    });
+
+    expect(loadGames).not.toHaveBeenCalled();
+  });
 });
