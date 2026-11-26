@@ -22,8 +22,8 @@ pub use backup::{
 };
 pub use db::{
     normalize_title_for_dedup, AchievementRepository, CatalogMaintenanceRepository, Database,
-    DatabaseError, DuplicateHiderRepository, GameRepository, GameSearchRepository, LibraryCounts,
-    SecretRepository, SessionRepository, StatsRepository,
+    DatabaseError, DuplicateHiderRepository, GameRepository, GameSearchRepository, GameSummary,
+    LibraryCounts, SecretRepository, SessionRepository, StatsRepository,
 };
 pub use event_bus::EventBus;
 pub use fuzzy_index::{FuzzyGameSearchIndex, SearchItem};

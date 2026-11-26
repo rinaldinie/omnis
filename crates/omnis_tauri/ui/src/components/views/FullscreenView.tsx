@@ -187,6 +187,7 @@ export default function FullscreenView({
 }: FullscreenViewProps) {
   const storeGames = useLibraryStore((s) => s.games);
   const storeCounts = useLibraryStore((s) => s.counts);
+  const hydrateGame = useLibraryStore((s) => s.hydrateGame);
   const storeSetShowVirtualKeyboard = useUiStore((s) => s.setShowVirtualKeyboard);
   const storeSoundEnabled = useUiStore((s) => s.soundEnabled);
   const storeIsSyncing = useUiStore((s) => s.isSyncing);
@@ -627,6 +628,12 @@ export default function FullscreenView({
   runPowerActionRef.current = runPowerAction;
 
   const [detailGame, setDetailGame] = React.useState<GameDto | null>(null);
+  React.useEffect(() => {
+    if (focusedGame?.id) {
+      void hydrateGame(focusedGame.id);
+    }
+  }, [focusedGame?.id, hydrateGame]);
+
   React.useEffect(() => {
     if (showFullscreenDetails && focusedGame) {
       setDetailGame(focusedGame);

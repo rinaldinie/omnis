@@ -1398,4 +1398,10 @@ fn test_sql_filtered_background_queries() {
     let playable = db.get_playable_launch_candidates().unwrap();
     assert_eq!(playable.len(), 1);
     assert_eq!(playable[0].external_id, "1");
+
+    let summaries = db.get_all_game_summaries().unwrap();
+    assert_eq!(summaries.len(), 3);
+    let first_summary = summaries.iter().find(|s| s.external_id == "1").unwrap();
+    assert!(first_summary.is_playable);
+    assert_eq!(first_summary.title, "Played Remote Steam");
 }

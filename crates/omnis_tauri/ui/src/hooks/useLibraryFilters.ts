@@ -413,6 +413,19 @@ export function useLibraryFilters(games: GameDto[]) {
 
   const filteredGames = useMemo(() => {
     const showHiddenOnly = selectedFlags.includes("hidden");
+    const hasInstalledFlag = selectedFlags.includes("installed");
+    const hasRecentFlag = selectedFlags.includes("recent");
+    const hasFavoritesFlag = selectedFlags.includes("favorites");
+    const recentCutoff =
+      hasRecentFlag && recentSettings.timeWindowDays > 0
+        ? Date.now() - recentSettings.timeWindowDays * 24 * 60 * 60 * 1000
+        : 0;
+    const trimmedSearch = searchQuery.trim().toLowerCase();
+    const storeSet = selectedStores.length > 0 ? new Set(selectedStores.map((s) => s.toLowerCase())) : null;
+    const statusSet =
+      selectedStatuses.length > 0
+        ? new Set(selectedStatuses.map((st) => st.toLowerCase().trim()))
+        : null;
 
     const list = games.filter((g) => {
       // 0. Hidden filter
@@ -423,30 +436,26 @@ export function useLibraryFilters(games: GameDto[]) {
       }
 
       // 1. Quick Flags (AND)
-      if (selectedFlags.includes("installed") && !isGamePlayable(g)) return false;
-      if (selectedFlags.includes("recent")) {
+      if (hasInstalledFlag && !isGamePlayable(g)) return false;
+      if (hasRecentFlag) {
         if (!g.last_activity) return false;
-        if (recentSettings.timeWindowDays > 0) {
+        if (recentCutoff > 0) {
           const playedTime = Date.parse(g.last_activity);
-          if (!playedTime) return false;
-          const cutoff = Date.now() - recentSettings.timeWindowDays * 24 * 60 * 60 * 1000;
-          if (playedTime < cutoff) return false;
+          if (!playedTime || playedTime < recentCutoff) return false;
         }
       }
-      if (selectedFlags.includes("favorites") && !g.is_favorite) return false;
+      if (hasFavoritesFlag && !g.is_favorite) return false;
 
       // 2. Stores Filter (OR within selected stores, AND with rest)
-      if (selectedStores.length > 0) {
+      if (storeSet) {
         const gLib = (g.library || "").toLowerCase();
-        const matchesStore = selectedStores.some((s) => s.toLowerCase() === gLib);
-        if (!matchesStore) return false;
+        if (!storeSet.has(gLib)) return false;
       }
 
       // 3. Completion Statuses Filter (OR within selected statuses, AND with rest)
-      if (selectedStatuses.length > 0) {
+      if (statusSet) {
         const gStatus = (g.completion_status || "NotPlayed").toLowerCase().trim();
-        const matchesStatus = selectedStatuses.some((st) => st.toLowerCase().trim() === gStatus);
-        if (!matchesStatus) return false;
+        if (!statusSet.has(gStatus)) return false;
       }
 
       // 4. Genres Filter (OR or AND within selected genres, AND with rest)
@@ -473,11 +482,10 @@ export function useLibraryFilters(games: GameDto[]) {
       }
 
       // 6. Search Query
-      if (searchQuery.trim() !== "") {
-        const query = searchQuery.toLowerCase();
+      if (trimmedSearch !== "") {
         return (
-          g.title.toLowerCase().includes(query) ||
-          g.developers.some((d) => d.toLowerCase().includes(query))
+          g.title.toLowerCase().includes(trimmedSearch) ||
+          g.developers.some((d) => d.toLowerCase().includes(trimmedSearch))
         );
       }
 
@@ -487,14 +495,14 @@ export function useLibraryFilters(games: GameDto[]) {
     // When a sort mode is chosen, apply it
     if (sortMode !== "default") {
       const sorted = sortGames(list, sortMode);
-      if (selectedFlags.includes("recent") && recentSettings.maxCount > 0) {
+      if (hasRecentFlag && recentSettings.maxCount > 0) {
         return sorted.slice(0, recentSettings.maxCount);
       }
       return sorted;
     }
 
     // Default: When filtering by "recent", sort by last_activity descending (Steam / Playnite behavior)
-    if (selectedFlags.includes("recent")) {
+    if (hasRecentFlag) {
       const sorted = sortGames(list, "recent");
       if (recentSettings.maxCount > 0) {
         return sorted.slice(0, recentSettings.maxCount);
@@ -595,6 +603,11 @@ export function useLibraryFilters(games: GameDto[]) {
     let recentCount = 0;
     let hiddenCount = 0;
 
+    const recentCutoff =
+      recentSettings.timeWindowDays > 0
+        ? Date.now() - recentSettings.timeWindowDays * 24 * 60 * 60 * 1000
+        : 0;
+
     games.forEach((g) => {
       if (g.is_hidden) {
         hiddenCount++;
@@ -603,10 +616,9 @@ export function useLibraryFilters(games: GameDto[]) {
       if (isGamePlayable(g)) installedCount++;
       if (g.is_favorite) favoritesCount++;
       if (g.last_activity) {
-        if (recentSettings.timeWindowDays > 0) {
+        if (recentCutoff > 0) {
           const playedTime = Date.parse(g.last_activity);
-          const cutoff = Date.now() - recentSettings.timeWindowDays * 24 * 60 * 60 * 1000;
-          if (playedTime && playedTime >= cutoff) {
+          if (playedTime && playedTime >= recentCutoff) {
             recentCount++;
           }
         } else {
@@ -654,6 +666,14 @@ export function useLibraryFilters(games: GameDto[]) {
     };
   }, [games, recentSettings]);
 
+  const availableFeatures = useMemo(
+    () =>
+      Object.keys(filterCounts.features).sort(
+        (a, b) => (filterCounts.features[b] || 0) - (filterCounts.features[a] || 0)
+      ),
+    [filterCounts.features]
+  );
+
   return {
     selectedStores,
     selectedStatuses,
@@ -667,6 +687,7 @@ export function useLibraryFilters(games: GameDto[]) {
     sortMode,
     setSortMode,
     filterCounts,
+    availableFeatures,
     activeChips,
     totalActiveFilters: activeChips.length,
 

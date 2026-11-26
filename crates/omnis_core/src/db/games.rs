@@ -8,6 +8,42 @@ use uuid::Uuid;
 
 use crate::db::{normalize_genres, parse_and_normalize_genres, Database};
 
+/// Lightweight catalog summary row omitting heavy detail fields (`description`, `user_notes`,
+/// `custom_links`, `install_dir`, `added_timestamp`, `modified_timestamp`) and skipping
+/// `play_actions` JSON parsing unless needed to compute `is_playable`.
+#[derive(Debug, Clone)]
+pub struct GameSummary {
+    pub id: Uuid,
+    pub external_id: String,
+    pub title: String,
+    pub library_id: String,
+    pub is_installed: bool,
+    pub is_playable: bool,
+    pub playtime_seconds: u64,
+    pub critic_score: Option<u8>,
+    pub community_score: Option<u8>,
+    pub release_date: Option<String>,
+    pub cover_image_path: Option<String>,
+    pub background_image_path: Option<String>,
+    pub icon_image_path: Option<String>,
+    pub genres: Vec<String>,
+    pub developers: Vec<String>,
+    pub publishers: Vec<String>,
+    pub series: Option<String>,
+    pub age_rating: Option<String>,
+    pub completion_status: Option<String>,
+    pub features: Vec<String>,
+    pub tags: Vec<String>,
+    pub use_library_integration: bool,
+    pub extra_metadata: Option<String>,
+    pub last_activity: Option<DateTime<Utc>>,
+    pub is_hidden: bool,
+    pub is_favorite: bool,
+    pub hidden_by_duplicate_hider: bool,
+    pub duplicate_group_id: Option<String>,
+    pub achievements_sync_status: AchievementsSyncStatus,
+}
+
 /// Focused repository trait for core Game catalog CRUD operations
 pub trait GameRepository: Send + Sync {
     /// Insert a custom game / non-store executable into the database
@@ -23,6 +59,9 @@ pub trait GameRepository: Send + Sync {
 
     /// Retrieve all games in library sorted alphabetically
     fn get_all_games(&self) -> Result<Vec<Game>>;
+
+    /// Retrieve lightweight catalog summaries for all games sorted alphabetically
+    fn get_all_game_summaries(&self) -> Result<Vec<GameSummary>>;
 
     /// Retrieve paginated games in library sorted alphabetically
     fn get_games_paginated(&self, limit: usize, offset: usize) -> Result<Vec<Game>>;
@@ -68,6 +107,115 @@ pub trait GameRepository: Send + Sync {
 
     /// Retrieve installed or custom-action games that could be active launch processes
     fn get_playable_launch_candidates(&self) -> Result<Vec<Game>>;
+}
+
+pub(crate) const GAME_SUMMARY_COLUMNS: &str = "
+    id, library_id, external_id, title,
+    is_installed, playtime_seconds, last_activity,
+    release_date, critic_score, community_score,
+    cover_image_path, background_image_path, icon_image_path,
+    genres, developers, publishers, tags, features,
+    series, age_rating, completion_status,
+    play_actions, extra_metadata,
+    is_hidden, hidden_by_duplicate_hider, duplicate_group_id, is_favorite,
+    use_library_integration, achievements_sync_status
+";
+
+fn split_csv(raw: Option<String>) -> Vec<String> {
+    raw.map(|s| {
+        s.split(',')
+            .map(|item| item.trim().to_string())
+            .filter(|item| !item.is_empty())
+            .collect()
+    })
+    .unwrap_or_default()
+}
+
+pub(crate) fn map_row_to_game_summary(row: &rusqlite::Row) -> rusqlite::Result<GameSummary> {
+    let id_str: String = row.get(0)?;
+    let id = Uuid::parse_str(&id_str).unwrap_or_else(|_| Uuid::new_v4());
+    let library_id: String = row.get(1)?;
+    let external_id: String = row.get(2)?;
+    let title: String = row.get(3)?;
+    let is_installed = row.get::<_, i32>(4)? != 0;
+    let playtime_seconds = row.get::<_, i64>(5)?.max(0) as u64;
+    let last_activity = row
+        .get::<_, Option<String>>(6)?
+        .and_then(|s| DateTime::parse_from_rfc3339(&s).ok().map(|dt| dt.with_timezone(&Utc)));
+    let release_date: Option<String> = row.get(7)?;
+    let critic_score: Option<u8> = row.get(8)?;
+    let community_score: Option<u8> = row.get(9)?;
+    let cover_image_path: Option<String> = row.get(10)?;
+    let background_image_path: Option<String> = row.get(11)?;
+    let icon_image_path: Option<String> = row.get(12)?;
+
+    let genres = row
+        .get::<_, Option<String>>(13)?
+        .map(|s| parse_and_normalize_genres(&s))
+        .unwrap_or_default();
+    let developers = split_csv(row.get(14)?);
+    let publishers = split_csv(row.get(15)?);
+    let tags = split_csv(row.get(16)?);
+    let features = split_csv(row.get(17)?);
+
+    let series: Option<String> = row.get(18)?;
+    let age_rating: Option<String> = row.get(19)?;
+    let completion_status: Option<String> = row.get(20)?;
+    let play_actions_raw: Option<String> = row.get(21)?;
+    let extra_metadata: Option<String> = row.get(22)?;
+    let is_hidden = row.get::<_, Option<i32>>(23)?.unwrap_or(0) != 0;
+    let hidden_by_duplicate_hider = row.get::<_, Option<i32>>(24)?.unwrap_or(0) != 0;
+    let duplicate_group_id: Option<String> = row.get(25)?;
+    let is_favorite = row.get::<_, Option<i32>>(26)?.unwrap_or(0) != 0;
+    let use_library_integration = row.get::<_, Option<i32>>(27)?.unwrap_or(1) != 0;
+    let achievements_sync_status = row
+        .get::<_, Option<String>>(28)?
+        .as_deref()
+        .map(AchievementsSyncStatus::parse)
+        .unwrap_or_default();
+
+    let is_playable = if is_installed {
+        true
+    } else if !use_library_integration || library_id.eq_ignore_ascii_case("custom") {
+        play_actions_raw
+            .as_deref()
+            .and_then(|s| serde_json::from_str::<Vec<LaunchConfiguration>>(s).ok())
+            .is_some_and(|actions| actions.iter().any(|a| !a.executable.trim().is_empty()))
+    } else {
+        false
+    };
+
+    Ok(GameSummary {
+        id,
+        external_id,
+        title,
+        library_id,
+        is_installed,
+        is_playable,
+        playtime_seconds,
+        critic_score,
+        community_score,
+        release_date,
+        cover_image_path,
+        background_image_path,
+        icon_image_path,
+        genres,
+        developers,
+        publishers,
+        series,
+        age_rating,
+        completion_status,
+        features,
+        tags,
+        use_library_integration,
+        extra_metadata,
+        last_activity,
+        is_hidden,
+        is_favorite,
+        hidden_by_duplicate_hider,
+        duplicate_group_id,
+        achievements_sync_status,
+    })
 }
 
 pub(crate) const GAME_COLUMNS: &str = "
@@ -310,6 +458,28 @@ impl GameRepository for Database {
             games.push(r?);
         }
         Ok(games)
+    }
+
+    /// Retrieve lightweight catalog summaries for all games sorted alphabetically
+    fn get_all_game_summaries(&self) -> Result<Vec<GameSummary>> {
+        let conn = self.reader();
+        let query = format!(
+            "
+            SELECT {}
+            FROM games
+            ORDER BY sorting_title ASC
+            ",
+            GAME_SUMMARY_COLUMNS
+        );
+        let mut stmt = conn.prepare(&query)?;
+
+        let rows = stmt.query_map([], map_row_to_game_summary)?;
+
+        let mut summaries = Vec::new();
+        for r in rows {
+            summaries.push(r?);
+        }
+        Ok(summaries)
     }
 
     /// Retrieve paginated games in library sorted alphabetically
@@ -833,6 +1003,11 @@ impl Database {
     #[inline]
     pub fn get_all_games(&self) -> Result<Vec<Game>> {
         GameRepository::get_all_games(self)
+    }
+
+    #[inline]
+    pub fn get_all_game_summaries(&self) -> Result<Vec<GameSummary>> {
+        GameRepository::get_all_game_summaries(self)
     }
 
     #[inline]

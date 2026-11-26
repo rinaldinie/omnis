@@ -1,5 +1,6 @@
 import React from "react";
 import { ActiveGameSession, GameDto, ThemeConfig, TranslateFn, ViewMode } from "../../types";
+import { useLibraryStore } from "../../stores";
 import { DetailsSidebar } from "./details/DetailsSidebar";
 import { DetailsHeroHeader } from "./details/DetailsHeroHeader";
 import { DetailsMetadataPanel } from "./details/DetailsMetadataPanel";
@@ -81,15 +82,17 @@ export default function DetailsSplitView({
   handleToggleFavorite,
 }: DetailsSplitViewProps) {
   const detailScrollRef = React.useRef<HTMLDivElement | null>(null);
+  const hydrateGame = useLibraryStore((s) => s.hydrateGame);
 
   React.useEffect(() => {
+    void hydrateGame(selectedGame.id);
     const viewport = detailScrollRef.current?.querySelector<HTMLElement>(
       "[data-radix-scroll-area-viewport]"
     );
     if (viewport) {
       viewport.scrollTop = 0;
     }
-  }, [selectedGame.id]);
+  }, [selectedGame.id, hydrateGame]);
 
   return (
     <div className="flex-1 min-h-0 flex overflow-hidden">

@@ -1,4 +1,4 @@
-use crate::types::{game_to_dto, AppState, GameDto};
+use crate::types::{game_summary_to_dto, game_to_dto, AppState, GameDto};
 use omnis_core::LibraryCounts;
 use omnis_sdk::Game;
 use tauri::State;
@@ -8,8 +8,9 @@ use uuid::Uuid;
 /// in $O(1)$ via the duplicate group index rather than scanning the entire database.
 pub fn game_to_enriched_dto(state: &AppState, game: Game) -> GameDto {
     state.media_scope.allow_game_media(&game);
-    let mut dto = game_to_dto(game.clone());
-    if let Some(ref group_id) = game.duplicate_group_id {
+    let group_id = game.duplicate_group_id.clone();
+    let mut dto = game_to_dto(game);
+    if let Some(ref group_id) = group_id {
         if let Ok(group_games) = state.db.get_games_by_duplicate_group(group_id) {
             let mut group_dtos: Vec<GameDto> = group_games
                 .into_iter()
@@ -27,13 +28,36 @@ pub fn game_to_enriched_dto(state: &AppState, game: Game) -> GameDto {
 #[tauri::command]
 pub async fn get_games(state: State<'_, AppState>) -> Result<Vec<GameDto>, String> {
     let games = state.db.get_all_games().map_err(|e| e.to_string())?;
-    let mut dtos: Vec<GameDto> = games
+    state.media_scope.allow_media_paths(games.iter().flat_map(|g| {
+        [
+            g.cover_image_path.as_deref(),
+            g.background_image_path.as_deref(),
+            g.icon_image_path.as_deref(),
+        ]
         .into_iter()
-        .map(|g| {
-            state.media_scope.allow_game_media(&g);
-            game_to_dto(g)
-        })
-        .collect();
+        .flatten()
+    }));
+    let mut dtos: Vec<GameDto> = games.into_iter().map(game_to_dto).collect();
+    crate::types::populate_other_copies(&mut dtos);
+    Ok(dtos)
+}
+
+#[tauri::command]
+pub async fn get_games_summary(state: State<'_, AppState>) -> Result<Vec<GameDto>, String> {
+    let summaries = state
+        .db
+        .get_all_game_summaries()
+        .map_err(|e| e.to_string())?;
+    state.media_scope.allow_media_paths(summaries.iter().flat_map(|g| {
+        [
+            g.cover_image_path.as_deref(),
+            g.background_image_path.as_deref(),
+            g.icon_image_path.as_deref(),
+        ]
+        .into_iter()
+        .flatten()
+    }));
+    let mut dtos: Vec<GameDto> = summaries.into_iter().map(game_summary_to_dto).collect();
     crate::types::populate_other_copies(&mut dtos);
     Ok(dtos)
 }

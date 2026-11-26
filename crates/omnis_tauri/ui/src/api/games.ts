@@ -55,6 +55,9 @@ export const gamesApi = {
   /** Fetch all games in the library */
   getGames: (): Promise<GameDto[]> => invokeIpc<GameDto[]>("get_games"),
 
+  /** Fetch lightweight catalog summaries for all games in the library */
+  getGamesSummary: (): Promise<GameDto[]> => invokeIpc<GameDto[]>("get_games_summary"),
+
   /** Fetch library counts categorized by stores, status, genres */
   getCounts: (): Promise<LibraryCounts> => invokeIpc<LibraryCounts>("get_counts"),
 

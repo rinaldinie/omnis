@@ -1,4 +1,4 @@
-use omnis_core::{Database, MetadataDownloader, PluginHost};
+use omnis_core::{Database, GameSummary, MetadataDownloader, PluginHost};
 use omnis_sdk::Game;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -123,15 +123,68 @@ pub struct AppState {
     pub sync_achievements_on_game_exit: Arc<std::sync::atomic::AtomicBool>,
 }
 
-pub fn game_to_dto(g: Game) -> GameDto {
-    let is_playable = g.is_playable();
-    let hours = g.playtime_seconds / 3600;
-    let mins = (g.playtime_seconds % 3600) / 60;
-    let playtime_formatted = if hours > 0 {
+fn format_playtime(playtime_seconds: u64) -> String {
+    let hours = playtime_seconds / 3600;
+    let mins = (playtime_seconds % 3600) / 60;
+    if hours > 0 {
         format!("{}h {}m", hours, mins)
     } else {
         format!("{}m", mins)
-    };
+    }
+}
+
+pub fn game_summary_to_dto(s: GameSummary) -> GameDto {
+    let playtime_formatted = format_playtime(s.playtime_seconds);
+    let icon_image = s
+        .icon_image_path
+        .clone()
+        .or_else(|| s.cover_image_path.clone());
+
+    GameDto {
+        id: s.id.to_string(),
+        external_id: s.external_id,
+        title: s.title,
+        library: s.library_id,
+        is_installed: s.is_installed,
+        is_playable: s.is_playable,
+        playtime_seconds: s.playtime_seconds,
+        playtime_formatted,
+        critic_score: s.critic_score.map(|v| v as u32),
+        community_score: s.community_score.map(|v| v as u32),
+        release_date: s.release_date,
+        description: None,
+        cover_image: s.cover_image_path.clone(),
+        background_image: s.background_image_path.clone(),
+        icon_image,
+        cover_image_path: s.cover_image_path,
+        background_image_path: s.background_image_path,
+        icon_image_path: s.icon_image_path,
+        genres: s.genres,
+        developers: s.developers,
+        publishers: s.publishers,
+        series: s.series,
+        age_rating: s.age_rating,
+        completion_status: s.completion_status,
+        user_notes: None,
+        features: s.features,
+        tags: s.tags,
+        custom_links: Vec::new(),
+        play_actions: Vec::new(),
+        use_library_integration: s.use_library_integration,
+        extra_metadata: s.extra_metadata,
+        last_activity: s.last_activity.map(|t| t.to_rfc3339()),
+        is_hidden: s.is_hidden,
+        is_favorite: s.is_favorite,
+        hidden_by_duplicate_hider: s.hidden_by_duplicate_hider,
+        duplicate_group_id: s.duplicate_group_id,
+        other_copies: Vec::new(),
+        achievements_sync_status: s.achievements_sync_status,
+    }
+}
+
+pub fn game_to_dto(g: Game) -> GameDto {
+    let is_playable = g.is_playable();
+    let playtime_formatted = format_playtime(g.playtime_seconds);
 
     let icon_image = g
         .icon_image_path

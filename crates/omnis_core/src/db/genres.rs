@@ -1,4 +1,5 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
+use std::sync::OnceLock;
 
 const GENRE_ALIASES: &[(&str, &str)] = &[
     // Action
@@ -334,8 +335,25 @@ const GENRE_ALIASES: &[(&str, &str)] = &[
     ("moba", "MOBA"),
 ];
 
+fn genre_alias_map() -> &'static HashMap<&'static str, &'static str> {
+    static MAP: OnceLock<HashMap<&'static str, &'static str>> = OnceLock::new();
+    MAP.get_or_init(|| {
+        let mut map = HashMap::with_capacity(GENRE_ALIASES.len());
+        for &(alias, canonical) in GENRE_ALIASES {
+            map.insert(alias, canonical);
+        }
+        map
+    })
+}
+
 fn collapse_whitespace(raw: &str) -> String {
-    raw.split_whitespace().collect::<Vec<_>>().join(" ")
+    let trimmed = raw.trim();
+    if !trimmed.contains([' ', '\t', '\n', '\r'])
+        || (!trimmed.contains("  ") && !trimmed.contains(['\t', '\n', '\r']))
+    {
+        return trimmed.to_string();
+    }
+    trimmed.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 fn capitalize_first(s: &str) -> String {
@@ -356,10 +374,8 @@ pub fn normalize_genre(raw: &str) -> Option<String> {
 
     let clean = collapsed.to_lowercase();
 
-    for (alias, canonical) in GENRE_ALIASES {
-        if clean == *alias {
-            return Some((*canonical).to_string());
-        }
+    if let Some(&canonical) = genre_alias_map().get(clean.as_str()) {
+        return Some(canonical.to_string());
     }
 
     // Preserve explicit casing for custom/mixed-case genres (e.g. "Cybernetic", "VR"),

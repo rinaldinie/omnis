@@ -186,8 +186,16 @@ impl AppBootstrap {
         media_scope.allow_directory(&paths.covers_dir);
         media_scope.allow_directory(&paths.backgrounds_dir);
         media_scope.allow_directory(&paths.themes_dir);
-        match db.get_all_games() {
-            Ok(games) => games.iter().for_each(|g| media_scope.allow_game_media(g)),
+        match db.get_all_game_summaries() {
+            Ok(games) => media_scope.allow_media_paths(games.iter().flat_map(|g| {
+                [
+                    g.cover_image_path.as_deref(),
+                    g.background_image_path.as_deref(),
+                    g.icon_image_path.as_deref(),
+                ]
+                .into_iter()
+                .flatten()
+            })),
             Err(e) => tracing::warn!("Failed to load games for asset scope: {}", e),
         }
 

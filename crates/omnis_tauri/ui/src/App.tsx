@@ -283,6 +283,7 @@ export default function App() {
     sortMode,
     setSortMode,
     filterCounts,
+    availableFeatures,
     searchQuery,
     setSearchQuery,
     selectFilter,
@@ -306,19 +307,6 @@ export default function App() {
       return getLocalizedGenre(a, locale).localeCompare(getLocalizedGenre(b, locale));
     });
   }, [filterCounts.genres, locale]);
-
-  const availableFeatures = useMemo(() => {
-    const set = new Set<string>();
-    games.forEach((g) => {
-      if (g.features) {
-        g.features.forEach((feat) => {
-          const tr = feat.trim();
-          if (tr) set.add(tr);
-        });
-      }
-    });
-    return Array.from(set).sort((a, b) => (filterCounts.features[b] || 0) - (filterCounts.features[a] || 0));
-  }, [games, filterCounts.features]);
 
   const fullscreenGames = filteredGames;
 

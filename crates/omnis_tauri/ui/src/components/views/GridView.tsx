@@ -444,17 +444,15 @@ export default function GridView(props: GridViewProps) {
     if (activeFilter !== "all" || searchQuery.trim() !== "") return [];
     const settings = getRecentSettings();
     const cutoff = settings.timeWindowDays > 0 ? Date.now() - settings.timeWindowDays * 24 * 60 * 60 * 1000 : 0;
-    const lastPlayed = (g: GameDto) => (g.last_activity ? Date.parse(g.last_activity) || 0 : 0);
-    return filteredGames
-      .filter((g) => {
-        if (!g.is_installed) return false;
-        const lp = lastPlayed(g);
-        if (lp <= 0) return false;
-        if (cutoff > 0 && lp < cutoff) return false;
-        return true;
-      })
-      .sort((a, b) => lastPlayed(b) - lastPlayed(a))
-      .slice(0, Math.min(settings.maxCount || 6, 12));
+    const candidates: Array<{ game: GameDto; ts: number }> = [];
+    for (const g of filteredGames) {
+      if (!g.is_installed || !g.last_activity) continue;
+      const ts = Date.parse(g.last_activity) || 0;
+      if (ts <= 0 || (cutoff > 0 && ts < cutoff)) continue;
+      candidates.push({ game: g, ts });
+    }
+    candidates.sort((a, b) => b.ts - a.ts);
+    return candidates.slice(0, Math.min(settings.maxCount || 6, 12)).map((c) => c.game);
   }, [filteredGames, activeFilter, searchQuery]);
 
   if (filteredGames.length === 0) {

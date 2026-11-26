@@ -18,7 +18,7 @@ pub mod stats;
 
 pub use achievements::AchievementRepository;
 pub use duplicates::{normalize_title_for_dedup, DuplicateHiderRepository};
-pub use games::GameRepository;
+pub use games::{GameRepository, GameSummary};
 pub use genres::{normalize_genre, normalize_genres, parse_and_normalize_genres};
 pub use maintenance::CatalogMaintenanceRepository;
 pub use search::GameSearchRepository;

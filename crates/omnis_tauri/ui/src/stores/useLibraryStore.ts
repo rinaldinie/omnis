@@ -1,7 +1,10 @@
 import { create } from "zustand";
 import { api } from "../api";
-import { GameDto, LibraryCounts, normalizeGame } from "../types";
+import { GameDto, LibraryCounts, normalizeGame, RawGameDto } from "../types";
 import { getErrorMessage } from "../utils/errors";
+
+const hydratedGameIds = new Set<string>();
+const inflightHydrations = new Map<string, Promise<void>>();
 
 export interface LibraryState {
   games: GameDto[];
@@ -16,6 +19,7 @@ export interface LibraryState {
   setSelectedGame: (game: GameDto | null | ((prev: GameDto | null) => GameDto | null)) => void;
   loadGames: (options?: { shouldShowOnboardingCheck?: () => boolean; onShowOnboarding?: () => void }) => Promise<void>;
   refreshLibrary: () => Promise<void>;
+  hydrateGame: (gameId: string) => Promise<void>;
   findGameById: (id: string) => GameDto | undefined;
 }
 
@@ -59,8 +63,13 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   loadGames: async (options) => {
     set({ isLoading: true, error: null });
     try {
-      const loadedGames = await api.games.getGames();
+      const fetchCatalog =
+        typeof api.games.getGamesSummary === "function"
+          ? api.games.getGamesSummary
+          : api.games.getGames;
+      const loadedGames = await fetchCatalog();
       if (loadedGames) {
+        hydratedGameIds.clear();
         const normalized = loadedGames.map(normalizeGame);
         set({ games: normalized });
 
@@ -105,6 +114,35 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
 
   refreshLibrary: async () => {
     return get().loadGames();
+  },
+
+  hydrateGame: async (gameId: string) => {
+    if (!gameId || hydratedGameIds.has(gameId) || typeof api.games.getGame !== "function") {
+      return;
+    }
+    const existing = inflightHydrations.get(gameId);
+    if (existing) return existing;
+
+    const promise = api.games
+      .getGame(gameId)
+      .then((raw) => {
+        if (!raw) return;
+        const full = normalizeGame(raw as unknown as RawGameDto);
+        hydratedGameIds.add(gameId);
+        set((state) => ({
+          games: state.games.map((g) => (g.id === gameId ? full : g)),
+          selectedGame: state.selectedGame?.id === gameId ? full : state.selectedGame,
+        }));
+      })
+      .catch(() => {
+        // Non-fatal: keep summary fields
+      })
+      .finally(() => {
+        inflightHydrations.delete(gameId);
+      });
+
+    inflightHydrations.set(gameId, promise);
+    return promise;
   },
 
   findGameById: (id: string) => {

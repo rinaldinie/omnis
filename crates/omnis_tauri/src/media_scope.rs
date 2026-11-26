@@ -8,7 +8,7 @@
 
 use omnis_sdk::Game;
 use std::collections::HashSet;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tauri::scope::fs::Scope;
 use tracing::warn;
@@ -30,6 +30,7 @@ pub fn is_media_file(path: &Path) -> bool {
 pub struct MediaScope {
     scope: Scope,
     allowed: Mutex<HashSet<String>>,
+    allowed_dirs: Mutex<Vec<PathBuf>>,
 }
 
 impl MediaScope {
@@ -37,6 +38,7 @@ impl MediaScope {
         Self {
             scope,
             allowed: Mutex::new(HashSet::new()),
+            allowed_dirs: Mutex::new(Vec::new()),
         }
     }
 
@@ -44,57 +46,75 @@ impl MediaScope {
     pub fn allow_directory(&self, dir: &Path) {
         if let Err(e) = self.scope.allow_directory(dir, true) {
             warn!("Failed to allow asset directory {}: {}", dir.display(), e);
+        } else {
+            let canonical = dir.canonicalize().unwrap_or_else(|_| dir.to_path_buf());
+            let mut dirs = self.allowed_dirs.lock().unwrap_or_else(|e| e.into_inner());
+            if !dirs.contains(&canonical) {
+                dirs.push(canonical);
+            }
+            if canonical != dir {
+                let raw = dir.to_path_buf();
+                if !dirs.contains(&raw) {
+                    dirs.push(raw);
+                }
+            }
+        }
+    }
+
+    /// Allows a batch of local media file paths using a single lock acquisition
+    pub fn allow_media_paths<'a>(&self, paths: impl IntoIterator<Item = &'a str>) {
+        let allowed_dirs = self.allowed_dirs.lock().unwrap_or_else(|e| e.into_inner());
+        let mut allowed = self.allowed.lock().unwrap_or_else(|e| e.into_inner());
+
+        for raw in paths {
+            let path_str = raw.trim();
+            if path_str.is_empty() || path_str.contains("://") || path_str.starts_with("data:") {
+                continue;
+            }
+            if allowed.contains(path_str) {
+                continue;
+            }
+
+            let path = Path::new(path_str);
+            if !path.is_absolute() || !is_media_file(path) {
+                continue;
+            }
+            // Fast path: files already inside an allowed recursive directory need no canonicalize/allow_file
+            if allowed_dirs.iter().any(|dir| path.starts_with(dir)) {
+                allowed.insert(path_str.to_string());
+                continue;
+            }
+
+            if let Ok(canonical) = path.canonicalize() {
+                if !is_media_file(&canonical) {
+                    continue;
+                }
+            }
+
+            allowed.insert(path_str.to_string());
+            if let Err(e) = self.scope.allow_file(path) {
+                warn!("Failed to allow asset file {}: {}", path.display(), e);
+            }
         }
     }
 
     /// Allows a single local media file referenced by the library.
     /// Remote URLs, relative paths and non-media files are ignored.
     pub fn allow_media_file(&self, path_str: &str) {
-        let path_str = path_str.trim();
-        if path_str.is_empty() || path_str.contains("://") || path_str.starts_with("data:") {
-            return;
-        }
-
-        // Fast path: avoid disk syscalls if path is already authorized in memory
-        {
-            let allowed = self.allowed.lock().unwrap_or_else(|e| e.into_inner());
-            if allowed.contains(path_str) {
-                return;
-            }
-        }
-
-        let path = Path::new(path_str);
-        if !path.is_absolute() || !is_media_file(path) {
-            return;
-        }
-        // Reject symlinks/junctions pointing at non-media files
-        if let Ok(canonical) = path.canonicalize() {
-            if !is_media_file(&canonical) {
-                return;
-            }
-        }
-
-        let mut allowed = self.allowed.lock().unwrap_or_else(|e| e.into_inner());
-        if !allowed.insert(path_str.to_string()) {
-            return;
-        }
-        if let Err(e) = self.scope.allow_file(path) {
-            warn!("Failed to allow asset file {}: {}", path.display(), e);
-        }
+        self.allow_media_paths(std::iter::once(path_str));
     }
 
     /// Allows the cover, background and icon artwork of a game
     pub fn allow_game_media(&self, game: &Game) {
-        for path in [
-            &game.cover_image_path,
-            &game.background_image_path,
-            &game.icon_image_path,
-        ]
-        .into_iter()
-        .flatten()
-        {
-            self.allow_media_file(path);
-        }
+        self.allow_media_paths(
+            [
+                game.cover_image_path.as_deref(),
+                game.background_image_path.as_deref(),
+                game.icon_image_path.as_deref(),
+            ]
+            .into_iter()
+            .flatten(),
+        );
     }
 }
 
