@@ -1337,3 +1337,65 @@ fn test_v12_migration_scopes_fts_update_trigger_and_keeps_search_in_sync() {
     db.update_game(&update).unwrap();
     assert_eq!(db.search_games_fts("Starfield").unwrap(), vec![game_id]);
 }
+
+#[test]
+fn test_sql_filtered_background_queries() {
+    let db = Database::open_in_memory().expect("Failed to open DB");
+    let now = Utc::now();
+
+    let games = vec![
+        omnis_sdk::DiscoveredGame {
+            library_id: "steam".to_string(),
+            external_id: "1".to_string(),
+            title: "Played Remote Steam".to_string(),
+            install_dir: None,
+            is_installed: true,
+            play_action: None,
+            playtime_seconds: 1200,
+            play_count: 1,
+            last_activity: Some(now),
+            cover_image_path: Some("https://cdn.example.com/1.jpg".to_string()),
+            background_image_path: None,
+        },
+        omnis_sdk::DiscoveredGame {
+            library_id: "steam".to_string(),
+            external_id: "2".to_string(),
+            title: "Unplayed Local Steam".to_string(),
+            install_dir: None,
+            is_installed: false,
+            play_action: None,
+            playtime_seconds: 0,
+            play_count: 0,
+            last_activity: None,
+            cover_image_path: Some("/cache/local.jpg".to_string()),
+            background_image_path: None,
+        },
+        omnis_sdk::DiscoveredGame {
+            library_id: "gog".to_string(),
+            external_id: "3".to_string(),
+            title: "Played Remote GOG".to_string(),
+            install_dir: None,
+            is_installed: false,
+            play_action: None,
+            playtime_seconds: 600,
+            play_count: 1,
+            last_activity: Some(now),
+            cover_image_path: None,
+            background_image_path: Some("http://cdn.example.com/3.jpg".to_string()),
+        },
+    ];
+    assert_eq!(db.ingest_discovered_batch(&games).unwrap(), 3);
+    assert_eq!(db.ingest_discovered_batch(&[]).unwrap(), 0);
+
+    let ach_candidates = db.get_achievement_sync_candidates(&["steam"]).unwrap();
+    assert_eq!(ach_candidates.len(), 1);
+    assert_eq!(ach_candidates[0].external_id, "1");
+
+    let remote_gog = db.get_games_with_remote_artwork("gog").unwrap();
+    assert_eq!(remote_gog.len(), 1);
+    assert_eq!(remote_gog[0].external_id, "3");
+
+    let playable = db.get_playable_launch_candidates().unwrap();
+    assert_eq!(playable.len(), 1);
+    assert_eq!(playable[0].external_id, "1");
+}

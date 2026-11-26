@@ -59,6 +59,15 @@ pub trait GameRepository: Send + Sync {
 
     /// Retrieve recent games ordered by last_activity DESC (or playtime)
     fn get_recent_games(&self, limit: usize) -> Result<Vec<Game>>;
+
+    /// Retrieve games eligible for background achievement sync for the specified stores
+    fn get_achievement_sync_candidates(&self, store_ids: &[&str]) -> Result<Vec<Game>>;
+
+    /// Retrieve games for a store that still have remote HTTP(S) cover or background URLs
+    fn get_games_with_remote_artwork(&self, store_id: &str) -> Result<Vec<Game>>;
+
+    /// Retrieve installed or custom-action games that could be active launch processes
+    fn get_playable_launch_candidates(&self) -> Result<Vec<Game>>;
 }
 
 pub(crate) const GAME_COLUMNS: &str = "
@@ -730,6 +739,72 @@ impl GameRepository for Database {
         }
         Ok(games)
     }
+
+    /// Retrieve games eligible for background achievement sync for the specified stores
+    fn get_achievement_sync_candidates(&self, store_ids: &[&str]) -> Result<Vec<Game>> {
+        if store_ids.is_empty() {
+            return Ok(Vec::new());
+        }
+        let conn = self.reader();
+        let placeholders = store_ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+        let sql = format!(
+            "SELECT {} FROM games
+             WHERE library_id IN ({})
+               AND achievements_sync_status != 'none'
+               AND (playtime_seconds > 0 OR play_count > 0 OR last_activity IS NOT NULL)
+             ORDER BY last_activity DESC",
+            GAME_COLUMNS, placeholders
+        );
+        let mut stmt = conn.prepare(&sql)?;
+        let rows = stmt.query_map(rusqlite::params_from_iter(store_ids.iter()), map_row_to_game)?;
+        let mut games = Vec::new();
+        for r in rows {
+            games.push(r?);
+        }
+        Ok(games)
+    }
+
+    /// Retrieve games for a store that still have remote HTTP(S) cover or background URLs
+    fn get_games_with_remote_artwork(&self, store_id: &str) -> Result<Vec<Game>> {
+        let conn = self.reader();
+        let sql = format!(
+            "SELECT {} FROM games
+             WHERE LOWER(library_id) = LOWER(?1)
+               AND (
+                   cover_image_path LIKE 'http://%'
+                   OR cover_image_path LIKE 'https://%'
+                   OR background_image_path LIKE 'http://%'
+                   OR background_image_path LIKE 'https://%'
+               )",
+            GAME_COLUMNS
+        );
+        let mut stmt = conn.prepare(&sql)?;
+        let rows = stmt.query_map(params![store_id], map_row_to_game)?;
+        let mut games = Vec::new();
+        for r in rows {
+            games.push(r?);
+        }
+        Ok(games)
+    }
+
+    /// Retrieve installed or custom-action games that could be active launch processes
+    fn get_playable_launch_candidates(&self) -> Result<Vec<Game>> {
+        let conn = self.reader();
+        let sql = format!(
+            "SELECT {} FROM games
+             WHERE is_installed = 1
+                OR LOWER(library_id) = 'custom'
+                OR (use_library_integration = 0 AND play_actions IS NOT NULL AND play_actions != '[]')",
+            GAME_COLUMNS
+        );
+        let mut stmt = conn.prepare(&sql)?;
+        let rows = stmt.query_map([], map_row_to_game)?;
+        let mut games = Vec::new();
+        for r in rows {
+            games.push(r?);
+        }
+        Ok(games)
+    }
 }
 
 // Inherent forwarders on Database for backward compatibility
@@ -822,5 +897,20 @@ impl Database {
     #[inline]
     pub fn get_recent_games(&self, limit: usize) -> Result<Vec<Game>> {
         GameRepository::get_recent_games(self, limit)
+    }
+
+    #[inline]
+    pub fn get_achievement_sync_candidates(&self, store_ids: &[&str]) -> Result<Vec<Game>> {
+        GameRepository::get_achievement_sync_candidates(self, store_ids)
+    }
+
+    #[inline]
+    pub fn get_games_with_remote_artwork(&self, store_id: &str) -> Result<Vec<Game>> {
+        GameRepository::get_games_with_remote_artwork(self, store_id)
+    }
+
+    #[inline]
+    pub fn get_playable_launch_candidates(&self) -> Result<Vec<Game>> {
+        GameRepository::get_playable_launch_candidates(self)
     }
 }

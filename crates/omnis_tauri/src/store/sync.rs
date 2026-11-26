@@ -287,7 +287,7 @@ impl StoreAccountManager {
             return;
         };
 
-        let games = match self.db.get_all_games() {
+        let pending = match self.db.get_games_with_remote_artwork(store_id) {
             Ok(g) => g,
             Err(e) => {
                 tracing::warn!("Failed to query games for artwork caching: {}", e);
@@ -303,14 +303,6 @@ impl StoreAccountManager {
                 })
                 .unwrap_or(false)
         };
-
-        let pending: Vec<_> = games
-            .into_iter()
-            .filter(|g| {
-                g.library_id.eq_ignore_ascii_case(store_id)
-                    && (is_remote(&g.cover_image_path) || is_remote(&g.background_image_path))
-            })
-            .collect();
 
         if pending.is_empty() {
             return;

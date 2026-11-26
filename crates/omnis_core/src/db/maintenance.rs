@@ -36,25 +36,17 @@ pub trait CatalogMaintenanceRepository: Send + Sync {
 
 impl CatalogMaintenanceRepository for Database {
     fn ingest_discovered_batch(&self, games: &[DiscoveredGame]) -> Result<usize> {
+        if games.is_empty() {
+            return Ok(0);
+        }
+
         let mut conn = self.writer();
         let tx = conn.transaction()?;
         let now = Utc::now().to_rfc3339();
 
         let mut count = 0;
-        for g in games {
-            let install_dir_str = g
-                .install_dir
-                .as_ref()
-                .map(|p| p.to_string_lossy().to_string());
-            let last_activity_str = g.last_activity.map(|t| t.to_rfc3339());
-            let sorting_title = g.title.to_lowercase();
-            let new_id = Uuid::new_v4().to_string();
-            let library_play_action_json = g
-                .play_action
-                .as_ref()
-                .and_then(|pa| serde_json::to_string(pa).ok());
-
-            tx.execute(
+        {
+            let mut stmt = tx.prepare(
                 "
                 INSERT INTO games (
                     id, library_id, external_id, title, sorting_title,
@@ -102,7 +94,22 @@ impl CatalogMaintenanceRepository for Database {
                     END,
                     modified_timestamp = excluded.modified_timestamp
                 ",
-                params![
+            )?;
+
+            for g in games {
+                let install_dir_str = g
+                    .install_dir
+                    .as_ref()
+                    .map(|p| p.to_string_lossy().to_string());
+                let last_activity_str = g.last_activity.map(|t| t.to_rfc3339());
+                let sorting_title = g.title.to_lowercase();
+                let new_id = Uuid::new_v4().to_string();
+                let library_play_action_json = g
+                    .play_action
+                    .as_ref()
+                    .and_then(|pa| serde_json::to_string(pa).ok());
+
+                stmt.execute(params![
                     new_id,
                     g.library_id,
                     g.external_id,
@@ -117,9 +124,9 @@ impl CatalogMaintenanceRepository for Database {
                     g.background_image_path,
                     library_play_action_json,
                     now
-                ],
-            )?;
-            count += 1;
+                ])?;
+                count += 1;
+            }
         }
 
         tx.commit()?;

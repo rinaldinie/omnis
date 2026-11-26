@@ -166,7 +166,7 @@ impl ActiveGameManager {
             return Some(running);
         }
 
-        let games = match db.get_all_games() {
+        let games = match db.get_playable_launch_candidates() {
             Ok(g) => g,
             Err(_) => return None,
         };

@@ -10,7 +10,7 @@ use omnis_sdk::constants::{storage, stores};
 use omnis_sdk::{
     Achievement, AchievementProvider, AchievementsSyncStatus, Game, GameAchievementsSummary,
 };
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -68,7 +68,7 @@ impl AchievementService {
         db: &Database,
         store_account_manager: &StoreAccountManager,
     ) -> Result<Vec<Game>, String> {
-        let configured: HashSet<&str> = self
+        let configured: Vec<&str> = self
             .providers
             .keys()
             .map(String::as_str)
@@ -79,14 +79,9 @@ impl AchievementService {
             return Ok(Vec::new());
         }
 
-        let mut games: Vec<Game> = db
-            .get_all_games()
-            .map_err(|e| format!("Database error listing games: {e}"))?
-            .into_iter()
-            .filter(|g| configured.contains(g.library_id.as_str()))
-            .filter(|g| g.achievements_sync_status != AchievementsSyncStatus::None)
-            .filter(|g| g.playtime_seconds > 0 || g.play_count > 0 || g.last_activity.is_some())
-            .collect();
+        let mut games = db
+            .get_achievement_sync_candidates(&configured)
+            .map_err(|e| format!("Database error listing games: {e}"))?;
         games.sort_by_key(|g| std::cmp::Reverse(g.last_activity));
         Ok(games)
     }
