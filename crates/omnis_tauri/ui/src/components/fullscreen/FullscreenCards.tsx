@@ -197,6 +197,8 @@ export const GridCard = React.memo(function GridCard({
         boxShadow: showRing
           ? "0 0 0 0.2rem rgba(255, 255, 255, 0.92), 0 1.25rem 2.5rem -0.75rem rgba(0, 0, 0, 0.85)"
           : "0 0.75rem 1.5rem -1rem rgba(0, 0, 0, 0.8)",
+        contentVisibility: "auto",
+        containIntrinsicSize: `${GRID_CARD_W_REM}rem ${GRID_CARD_W_REM * 1.5}rem`,
       }}
     >
       <div className="absolute inset-0">

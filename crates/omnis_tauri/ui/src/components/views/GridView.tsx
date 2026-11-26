@@ -6,6 +6,7 @@ import { Slot } from "../common/Slot";
 import { GameCardCover } from "../common/GameCardCover";
 import EmptyGamesView from "../common/EmptyGamesView";
 import { useTranslation } from "../../i18n";
+import { useVirtualWindow } from "../../hooks/useVirtualWindow";
 import { useActiveGameTimer } from "../../context/ActiveGameTimerContext";
 import { useOptionalGameOperationsContext } from "../../context/GameOperationsContext";
 import { useLibraryStore, useUiStore, useModalStore } from "../../stores";
@@ -455,6 +456,46 @@ export default function GridView(props: GridViewProps) {
     return candidates.slice(0, Math.min(settings.maxCount || 6, 12)).map((c) => c.game);
   }, [filteredGames, activeFilter, searchQuery]);
 
+  const scrollAreaRef = React.useRef<HTMLDivElement | null>(null);
+  const gridContainerRef = React.useRef<HTMLDivElement | null>(null);
+  const [gridColumns, setGridColumns] = React.useState(4);
+
+  React.useEffect(() => {
+    const el = gridContainerRef.current;
+    if (!el || groupBy !== "none" || filteredGames.length <= 100) return;
+
+    const gapPx = 20;
+    const updateColumns = () => {
+      if (el.clientWidth <= 0) return;
+      const cols = Math.max(1, Math.floor((el.clientWidth + gapPx) / (gridCardWidth + gapPx)));
+      setGridColumns(cols);
+    };
+
+    updateColumns();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(updateColumns);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [groupBy, filteredGames.length, gridCardWidth]);
+
+  const getGridScrollElement = React.useCallback(
+    () =>
+      scrollAreaRef.current?.querySelector<HTMLElement>("[data-radix-scroll-area-viewport]") ??
+      null,
+    []
+  );
+
+  const estimatedRowHeight = Math.round(gridCardWidth * 1.5 + 56 + 20);
+  const ungroupedVirtual = useVirtualWindow({
+    itemCount: groupBy === "none" ? filteredGames.length : 0,
+    rowHeight: estimatedRowHeight,
+    columns: gridColumns,
+    overscanRows: 3,
+    threshold: 100,
+    enabled: groupBy === "none",
+    getScrollElement: getGridScrollElement,
+  });
+
   if (filteredGames.length === 0) {
     return (
       <EmptyGamesView
@@ -465,7 +506,7 @@ export default function GridView(props: GridViewProps) {
   }
 
   return (
-    <ScrollArea className="flex-1">
+    <ScrollArea ref={scrollAreaRef} className="flex-1">
       <div className="p-6 space-y-6">
       {/* SECTION: Continua a giocare (Recent Games Shelf) */}
       {recentGames.length > 0 && (
@@ -544,38 +585,54 @@ export default function GridView(props: GridViewProps) {
                 </Button>
               )}
 
-              {!isCollapsed && (
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: `repeat(auto-fill, minmax(${gridCardWidth}px, 1fr))`,
-                    gap: "1.25rem",
-                  }}
-                >
-                  {groupGames.map((game) => {
-                    const isRunning = activeGame?.game_id === game.id;
+              {!isCollapsed && (() => {
+                const useWindow = !isGrouped && ungroupedVirtual.isVirtualized;
+                const renderedGames = useWindow
+                  ? groupGames.slice(ungroupedVirtual.startIndex, ungroupedVirtual.endIndex)
+                  : groupGames;
 
-                    return (
-                      <GameCardItem
-                        key={game.id}
-                        game={game}
-                        isRunning={isRunning}
-                        activeGameState={isRunning ? activeGame?.state : undefined}
-                        elapsedSeconds={isRunning ? elapsedSeconds : undefined}
-                        formatDuration={formatDuration}
-                        onSelect={() => {
-                          setSelectedGame(game);
-                          setViewMode("details");
-                        }}
-                        onContextMenu={(e) => handleOpenContextMenu(e, game)}
-                        onLaunch={() => handleLaunch(game.id)}
-                        onKill={handleKillRunningGame}
-                        onEdit={() => handleEditGame(game)}
-                      />
-                    );
-                  })}
-                </div>
-              )}
+                return (
+                  <>
+                    {useWindow && ungroupedVirtual.topSpacerPx > 0 && (
+                      <div aria-hidden="true" style={{ height: `${ungroupedVirtual.topSpacerPx}px` }} />
+                    )}
+                    <div
+                      ref={!isGrouped ? gridContainerRef : undefined}
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: `repeat(auto-fill, minmax(${gridCardWidth}px, 1fr))`,
+                        gap: "1.25rem",
+                      }}
+                    >
+                      {renderedGames.map((game) => {
+                        const isRunning = activeGame?.game_id === game.id;
+
+                        return (
+                          <GameCardItem
+                            key={game.id}
+                            game={game}
+                            isRunning={isRunning}
+                            activeGameState={isRunning ? activeGame?.state : undefined}
+                            elapsedSeconds={isRunning ? elapsedSeconds : undefined}
+                            formatDuration={formatDuration}
+                            onSelect={() => {
+                              setSelectedGame(game);
+                              setViewMode("details");
+                            }}
+                            onContextMenu={(e) => handleOpenContextMenu(e, game)}
+                            onLaunch={() => handleLaunch(game.id)}
+                            onKill={handleKillRunningGame}
+                            onEdit={() => handleEditGame(game)}
+                          />
+                        );
+                      })}
+                    </div>
+                    {useWindow && ungroupedVirtual.bottomSpacerPx > 0 && (
+                      <div aria-hidden="true" style={{ height: `${ungroupedVirtual.bottomSpacerPx}px` }} />
+                    )}
+                  </>
+                );
+              })()}
             </div>
           );
         })}

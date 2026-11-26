@@ -33,7 +33,8 @@ export function saveSortMode(mode: GameSortMode) {
 
 const lastPlayed = (game: GameDto) => (game.last_activity ? Date.parse(game.last_activity) || 0 : 0);
 
-const byTitle = (a: GameDto, b: GameDto) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" });
+const TITLE_COLLATOR = new Intl.Collator(undefined, { sensitivity: "base" });
+const byTitle = (a: GameDto, b: GameDto) => TITLE_COLLATOR.compare(a.title, b.title);
 
 /** Returns a sorted copy of `games`; "default" keeps the library order untouched. */
 export function sortGames(games: GameDto[], mode: GameSortMode): GameDto[] {
@@ -44,7 +45,7 @@ export function sortGames(games: GameDto[], mode: GameSortMode): GameDto[] {
       sorted.sort(byTitle);
       break;
     case "title_desc":
-      sorted.sort((a, b) => b.title.localeCompare(a.title, undefined, { sensitivity: "base" }));
+      sorted.sort((a, b) => TITLE_COLLATOR.compare(b.title, a.title));
       break;
     case "release_date":
       sorted.sort((a, b) => (b.release_date || "").localeCompare(a.release_date || "") || byTitle(a, b));

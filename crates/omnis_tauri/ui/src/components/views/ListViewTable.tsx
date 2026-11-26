@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef, useCallback } from "react";
 import {
   Play,
   Info,
@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { StoreBadge, StoreIcon } from "../common/StoreBadge";
 import { useTranslation } from "../../i18n";
+import { useVirtualWindow } from "../../hooks/useVirtualWindow";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import {
@@ -105,6 +106,13 @@ const COMPLETION_STATUS_MAP: Record<
   },
 };
 
+const TITLE_COLLATOR = new Intl.Collator(undefined, {
+  numeric: true,
+  sensitivity: "base",
+});
+const DEFAULT_COLLATOR = new Intl.Collator();
+const LIST_ROW_HEIGHT_PX = 54;
+
 export default function ListViewTable({
   games,
   selectedGameId,
@@ -119,15 +127,8 @@ export default function ListViewTable({
   const { t } = useTranslation();
   const [sortField, setSortField] = useState<SortField>("title");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
-  const selectedRowRef = React.useRef<HTMLTableRowElement | null>(null);
-
-  React.useEffect(() => {
-    if (!selectedGameId) return;
-    const el = selectedRowRef.current;
-    if (el && typeof el.scrollIntoView === "function") {
-      el.scrollIntoView({ block: "nearest" });
-    }
-  }, [selectedGameId]);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const selectedRowRef = useRef<HTMLTableRowElement | null>(null);
 
   const handleHeaderClick = (field: SortField) => {
     if (sortField === field) {
@@ -149,13 +150,10 @@ export default function ListViewTable({
       let cmp: number;
       switch (sortField) {
         case "title":
-          cmp = (a.title || "").localeCompare(b.title || "", undefined, {
-            numeric: true,
-            sensitivity: "base",
-          });
+          cmp = TITLE_COLLATOR.compare(a.title || "", b.title || "");
           break;
         case "library":
-          cmp = (a.library || "").localeCompare(b.library || "");
+          cmp = DEFAULT_COLLATOR.compare(a.library || "", b.library || "");
           break;
         case "is_installed":
           cmp = (isGamePlayable(a) ? 1 : 0) - (isGamePlayable(b) ? 1 : 0);
@@ -167,12 +165,13 @@ export default function ListViewTable({
           cmp = (a.critic_score ?? -1) - (b.critic_score ?? -1);
           break;
         case "completion_status":
-          cmp = (a.completion_status || "NotPlayed").localeCompare(
+          cmp = DEFAULT_COLLATOR.compare(
+            a.completion_status || "NotPlayed",
             b.completion_status || "NotPlayed"
           );
           break;
         case "release_date":
-          cmp = (a.release_date || "").localeCompare(b.release_date || "");
+          cmp = DEFAULT_COLLATOR.compare(a.release_date || "", b.release_date || "");
           break;
         default:
           cmp = 0;
@@ -181,6 +180,43 @@ export default function ListViewTable({
     });
     return list;
   }, [games, sortField, sortDirection]);
+
+  const getScrollElement = useCallback(() => scrollContainerRef.current, []);
+  const { startIndex, endIndex, topSpacerPx, bottomSpacerPx } = useVirtualWindow({
+    itemCount: sortedGames.length,
+    rowHeight: LIST_ROW_HEIGHT_PX,
+    columns: 1,
+    overscanRows: 10,
+    threshold: 80,
+    enabled: !isGroupedChild,
+    getScrollElement,
+  });
+
+  const visibleGames = useMemo(
+    () =>
+      startIndex === 0 && endIndex === sortedGames.length
+        ? sortedGames
+        : sortedGames.slice(startIndex, endIndex),
+    [sortedGames, startIndex, endIndex]
+  );
+
+  React.useEffect(() => {
+    if (!selectedGameId) return;
+    const el = selectedRowRef.current;
+    if (el && typeof el.scrollIntoView === "function") {
+      el.scrollIntoView({ block: "nearest" });
+      return;
+    }
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const idx = sortedGames.findIndex((g) => g.id === selectedGameId);
+    if (idx !== -1) {
+      const targetTop = idx * LIST_ROW_HEIGHT_PX;
+      if (targetTop < container.scrollTop || targetTop > container.scrollTop + container.clientHeight) {
+        container.scrollTop = Math.max(0, targetTop - container.clientHeight / 2);
+      }
+    }
+  }, [selectedGameId, sortedGames]);
 
   const renderSortArrow = (field: SortField) => {
     if (sortField !== field) {
@@ -271,8 +307,9 @@ export default function ListViewTable({
 
   return (
     <div
+      ref={scrollContainerRef}
       className={`w-full overflow-x-auto select-none rounded-xl border border-white/[0.06] shadow-xl ${
-        isGroupedChild ? "border-t-0 rounded-t-none" : ""
+        isGroupedChild ? "border-t-0 rounded-t-none" : "flex-1 min-h-0 overflow-y-auto"
       } ${className}`}
       style={{
         backgroundColor: "var(--bg-card)",
@@ -386,9 +423,16 @@ export default function ListViewTable({
               </TableCell>
             </TableRow>
           ) : (
-            sortedGames.map((game, index) => {
-              const isSelected = selectedGameId === game.id;
-              const thumbnailSrc = game.icon_image || game.cover_image;
+            <>
+              {topSpacerPx > 0 && (
+                <TableRow aria-hidden="true" className="border-0 hover:bg-transparent">
+                  <TableCell colSpan={9} className="p-0" style={{ height: `${topSpacerPx}px` }} />
+                </TableRow>
+              )}
+              {visibleGames.map((game, localIdx) => {
+                const index = startIndex + localIdx;
+                const isSelected = selectedGameId === game.id;
+                const thumbnailSrc = game.icon_image || game.cover_image;
 
               return (
                 <TableRow
@@ -619,7 +663,13 @@ export default function ListViewTable({
                   </TableCell>
                 </TableRow>
               );
-            })
+            })}
+              {bottomSpacerPx > 0 && (
+                <TableRow aria-hidden="true" className="border-0 hover:bg-transparent">
+                  <TableCell colSpan={9} className="p-0" style={{ height: `${bottomSpacerPx}px` }} />
+                </TableRow>
+              )}
+            </>
           )}
         </TableBody>
       </Table>
