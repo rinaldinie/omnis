@@ -197,8 +197,7 @@ impl MetadataDownloader {
     where
         F: Fn(usize, usize, &str) + Send + Sync + 'static,
     {
-        let all_games = db.get_all_games().map_err(|e| e.to_string())?;
-        let game_ids = all_games.into_iter().map(|g| g.id).collect();
+        let game_ids = db.get_all_game_ids().map_err(|e| e.to_string())?;
         self.download_for_games(db, game_ids, cache_dir, progress_cb)
             .await
             .map(|ids| ids.len())

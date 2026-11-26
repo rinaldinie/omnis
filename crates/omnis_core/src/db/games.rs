@@ -60,6 +60,9 @@ pub trait GameRepository: Send + Sync {
     /// Retrieve all games in library sorted alphabetically
     fn get_all_games(&self) -> Result<Vec<Game>>;
 
+    /// Retrieve all game UUIDs in library sorted alphabetically
+    fn get_all_game_ids(&self) -> Result<Vec<Uuid>>;
+
     /// Retrieve lightweight catalog summaries for all games sorted alphabetically
     fn get_all_game_summaries(&self) -> Result<Vec<GameSummary>>;
 
@@ -458,6 +461,28 @@ impl GameRepository for Database {
             games.push(r?);
         }
         Ok(games)
+    }
+
+    /// Retrieve all game UUIDs in library sorted alphabetically
+    fn get_all_game_ids(&self) -> Result<Vec<Uuid>> {
+        let conn = self.reader();
+        let mut stmt = conn.prepare("SELECT id FROM games ORDER BY sorting_title ASC")?;
+        let rows = stmt.query_map([], |row| {
+            let id_str = row.get_ref(0)?.as_str()?;
+            Uuid::parse_str(id_str).map_err(|e| {
+                rusqlite::Error::FromSqlConversionFailure(
+                    0,
+                    rusqlite::types::Type::Text,
+                    Box::new(e),
+                )
+            })
+        })?;
+
+        let mut ids = Vec::new();
+        for r in rows {
+            ids.push(r?);
+        }
+        Ok(ids)
     }
 
     /// Retrieve lightweight catalog summaries for all games sorted alphabetically
@@ -877,18 +902,9 @@ impl GameRepository for Database {
         };
         drop(conn);
 
-        // Re-index search engine to prune deleted IDs
+        // Re-index search engine to prune deleted IDs using projected (id, title) query
         if affected > 0 {
-            if let Ok(remaining) = self.get_all_games() {
-                let mut idx = match self.search_index.write() {
-                    Ok(guard) => guard,
-                    Err(poisoned) => poisoned.into_inner(),
-                };
-                idx.clear();
-                for g in remaining {
-                    idx.insert_or_update(g.id, &g.title);
-                }
-            }
+            let _ = self.reload_search_index();
         }
 
         Ok(affected)
@@ -1003,6 +1019,11 @@ impl Database {
     #[inline]
     pub fn get_all_games(&self) -> Result<Vec<Game>> {
         GameRepository::get_all_games(self)
+    }
+
+    #[inline]
+    pub fn get_all_game_ids(&self) -> Result<Vec<Uuid>> {
+        GameRepository::get_all_game_ids(self)
     }
 
     #[inline]

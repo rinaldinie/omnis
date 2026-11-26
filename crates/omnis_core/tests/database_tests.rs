@@ -1404,4 +1404,9 @@ fn test_sql_filtered_background_queries() {
     let first_summary = summaries.iter().find(|s| s.external_id == "1").unwrap();
     assert!(first_summary.is_playable);
     assert_eq!(first_summary.title, "Played Remote Steam");
+
+    let all_ids = db.get_all_game_ids().unwrap();
+    let expected_ids: Vec<_> = db.get_all_games().unwrap().into_iter().map(|g| g.id).collect();
+    assert_eq!(all_ids, expected_ids);
 }
+

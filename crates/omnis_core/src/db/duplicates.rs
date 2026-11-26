@@ -1,4 +1,4 @@
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use omnis_sdk::{DuplicateHiderConfig, DuplicateHiderStats, Game};
 use rusqlite::{params, Result};
 use std::collections::{HashMap, HashSet};
@@ -6,6 +6,20 @@ use uuid::Uuid;
 
 use crate::db::games::{map_row_to_game, GAME_COLUMNS};
 use crate::db::Database;
+
+/// Lightweight projected row used by `recompute_duplicates` to avoid loading
+/// heavy description/notes/JSON fields across the entire catalog.
+struct DuplicateCandidateRow {
+    id: Uuid,
+    title: String,
+    library_id: String,
+    is_installed: bool,
+    playtime_seconds: u64,
+    added_timestamp: DateTime<Utc>,
+    is_hidden: bool,
+    hidden_by_duplicate_hider: bool,
+    duplicate_group_id: Option<String>,
+}
 
 const EDITION_SUFFIXES: &[&str] = &[
     "amazon prime",
@@ -235,7 +249,54 @@ impl DuplicateHiderRepository for Database {
 
     fn recompute_duplicates(&self) -> Result<DuplicateHiderStats> {
         let config = self.get_duplicate_hider_config()?;
-        let all_games = self.get_all_games()?;
+        let all_games = {
+            let conn = self.reader();
+            let mut stmt = conn.prepare(
+                "SELECT id, title, library_id, is_installed, playtime_seconds,
+                        added_timestamp, is_hidden, hidden_by_duplicate_hider, duplicate_group_id
+                 FROM games;",
+            )?;
+            let rows = stmt.query_map([], |row| {
+                let id_str = row.get_ref(0)?.as_str()?;
+                let id = Uuid::parse_str(id_str).map_err(|e| {
+                    rusqlite::Error::FromSqlConversionFailure(
+                        0,
+                        rusqlite::types::Type::Text,
+                        Box::new(e),
+                    )
+                })?;
+                let title: String = row.get(1)?;
+                let library_id: String = row.get(2)?;
+                let is_installed = row.get::<_, i32>(3)? != 0;
+                let playtime_seconds = row.get::<_, i64>(4)?.max(0) as u64;
+                let added_str: String = row.get(5)?;
+                let added_timestamp = DateTime::parse_from_rfc3339(&added_str)
+                    .ok()
+                    .map(|dt| dt.with_timezone(&Utc))
+                    .unwrap_or_else(Utc::now);
+                let is_hidden = row.get::<_, Option<i32>>(6)?.unwrap_or(0) != 0;
+                let hidden_by_duplicate_hider = row.get::<_, Option<i32>>(7)?.unwrap_or(0) != 0;
+                let duplicate_group_id: Option<String> = row.get(8)?;
+
+                Ok(DuplicateCandidateRow {
+                    id,
+                    title,
+                    library_id,
+                    is_installed,
+                    playtime_seconds,
+                    added_timestamp,
+                    is_hidden,
+                    hidden_by_duplicate_hider,
+                    duplicate_group_id,
+                })
+            })?;
+
+            let mut collected = Vec::new();
+            for r in rows {
+                collected.push(r?);
+            }
+            collected
+        };
 
         let ignored_set: HashSet<Uuid> = config
             .ignored_game_ids
@@ -250,8 +311,8 @@ impl DuplicateHiderRepository for Database {
             .map(|(idx, store)| (store.to_lowercase(), idx))
             .collect();
 
-        let mut groups: HashMap<String, Vec<Game>> = HashMap::new();
-        let mut singletons_or_ignored: Vec<Game> = Vec::new();
+        let mut groups: HashMap<String, Vec<DuplicateCandidateRow>> = HashMap::new();
+        let mut singletons_or_ignored: Vec<DuplicateCandidateRow> = Vec::new();
 
         for game in all_games {
             if ignored_set.contains(&game.id) {
@@ -325,8 +386,11 @@ impl DuplicateHiderRepository for Database {
                  WHERE id = ?1;",
             )?;
 
-            let mut sync_row =
-                |game: &Game, target_hidden: bool, target_dh: bool, target_group: Option<&str>| -> Result<()> {
+            let mut sync_row = |game: &DuplicateCandidateRow,
+                                target_hidden: bool,
+                                target_dh: bool,
+                                target_group: Option<&str>|
+             -> Result<()> {
                     if game.is_hidden == target_hidden
                         && game.hidden_by_duplicate_hider == target_dh
                         && game.duplicate_group_id.as_deref() == target_group
@@ -367,7 +431,7 @@ impl DuplicateHiderRepository for Database {
                 total_groups += 1;
 
                 // Separate manually hidden copies from eligible candidates with pre-evaluated store priority
-                let mut candidates: Vec<(&Game, usize)> = members
+                let mut candidates: Vec<(&DuplicateCandidateRow, usize)> = members
                     .iter()
                     .filter(|g| !(g.is_hidden && !g.hidden_by_duplicate_hider))
                     .map(|g| {
